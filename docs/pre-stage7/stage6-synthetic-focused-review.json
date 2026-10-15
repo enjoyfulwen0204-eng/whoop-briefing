@@ -1,0 +1,165 @@
+{
+  "review": "Independent read-only first actual synthetic HTTP control and cursor evidence delta",
+  "recordedAt": "2026-10-15T07:42:25.556525+00:00",
+  "candidateSha": "87e67d6fe5f8adfc68b0f254b35dc0e205540db9",
+  "manifestDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+  "originalAdmissionReview": {
+    "path": "/private/tmp/stage6-synthetic-http-20261015/admission-independent-review.json",
+    "sha256": "ecd01f54c557a2b8348fdd01c5ef2a9a9f22cd2d7193fff7c8d78c2f04b905c8",
+    "verdict": "UNCHANGED_ADMISSION_SECURITY_GO"
+  },
+  "verdict": {
+    "actualHttpAdmission": "LIMITED_CONTROL_PASS_3_CONSUMED",
+    "firstCursorDurability": "INDEPENDENT_DB_PROOF_PASS",
+    "controllerGate": "FAIL_WIRE_ENVELOPE_AND_REPLAY_BODY_FIXTURE_DEFECTS",
+    "fullSixJobs": "NOT_QUALIFIED",
+    "overallRuntime": "NO_GO",
+    "production": "NO_GO",
+    "codeRevision": "SAFE_IN_PRINCIPLE_ONLY_NEW_EXACT_DELTA_REVIEW_REQUIRED_BEFORE_SIGNING_OR_EXECUTION"
+  },
+  "actualEvidence": {
+    "globalAttempts": 4,
+    "remainingTotal": 4092,
+    "scopes": {
+      "control": 3,
+      "qualification": 1
+    },
+    "startAt": 1792049340357,
+    "endAt": 1792135740357,
+    "originalWindowUnchanged": true,
+    "producerHmac": true,
+    "resultDigest": true,
+    "originalRequestBodyDigest": true,
+    "tenantConfigurationHmac": true,
+    "workReceiptOwnerGenerationTime": true,
+    "workReceipts": 4,
+    "exactCurrentCursorAck": "d8f99dc7ac5307cc8a3aa3cd8bff44a7a8e667702fdcf16718a4e8fa1b32f381",
+    "cursor": {
+      "user_id": "s6syn-alpha",
+      "execution_mode": "SHADOW",
+      "job_kind": "RECOMPUTE_DERIVED",
+      "state": "PENDING",
+      "requested_generation": 11,
+      "scope_revision": 10,
+      "completed_generation": 0,
+      "full_scan_cursor": "[\"JOURNAL_FACT\",\"0c278488bd59d1a2b2696e585711546b5aa4d63cdb18a7be0443ad915ef5fc2f\"]",
+      "lease_owner": null
+    },
+    "result": {
+      "version": 2,
+      "releaseSha": "87e67d6fe5f8adfc68b0f254b35dc0e205540db9",
+      "phase": "STAGE6_DRAIN",
+      "source": "manual",
+      "outcome": "PARTIAL",
+      "durationMs": 14753.25959,
+      "jobsConsidered": 1,
+      "itemsAttempted": 1,
+      "itemsProcessed": 1,
+      "jobsCompleted": 0,
+      "jobsFailed": 0,
+      "remainingJobs": 2,
+      "identity": "e66d0ac5587086f98f431e281497e91b502da05540c4ef0f71fb53ad435d8070",
+      "configProof": "a6c7aa4133c1e7f392a47f17d3718cefb0ef2802b0a5e8d31e5feca554c388fe",
+      "completion": "PARTIAL",
+      "stopReason": "ITEM_LIMIT",
+      "executionMode": "SHADOW",
+      "finishedAt": 1792049407886
+    },
+    "phaseWorkerMs": 14753.25959,
+    "wholeHttpMs": 21679.729552,
+    "preparationMs": 4262.557544000001,
+    "publicationMs": 856.1309170000004,
+    "healthArtifactMutations": 0,
+    "resourceLocks": 0,
+    "all8JobLeaseOwnersNull": true,
+    "counts": {
+      "phase4_operation_receipts": 0,
+      "phase4_execution_producers": 1,
+      "phase4_execution_work_receipts": 4,
+      "evidence_runs": 0,
+      "evidence_items": 0
+    },
+    "childScopes": {
+      "created": 2,
+      "retired": 2,
+      "disabled": 18,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "parentReplayBody": {
+      "originalInsertionOrderDigestVerified": true,
+      "storedCanonicalBodyHasDifferentDigest": true,
+      "classification": "REQUEST_ID_CONFLICT_CORRECT_FOR_RECONSTRUCTED_SORTED_BODY"
+    },
+    "allSixQualificationJobsCompleted": false
+  },
+  "evidenceFiles": [
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/focused-independent-db-proof.json",
+      "sha256": "0d4e7d29eeb292649352b52327945bebdb4faa71efbd0c29b77b1ddae17966dc"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/independent-focused-readonly.py",
+      "sha256": "84ad23959caf94d130fd87155d880950470d815054d368bef87a125e6e592eff"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/admission-proof.json",
+      "sha256": "aaa232ec1685edd8dceb9b6ea7619b33838370e0da92d38c3cba23c083ee367d"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/progress.json",
+      "sha256": "9b206ae0c475611e15cc97840ecefc773c3427b1dd4e7adfe2455e5b31d52cf0"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/pending.json",
+      "sha256": "9b5622e0bf5d19da0f84ed536f1d59d641e3f50eeeaca4200b9185de699b7e24"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/monitored-focused.log",
+      "sha256": "117aa17eb5770e343eca56a8ec8adcae4d80b88b8ea022d51981b57e6b052a0c"
+    }
+  ],
+  "readOnlyMethod": {
+    "sqlite": "mode=ro;PRAGMAquery_only;BEGIN read snapshot",
+    "mainDatabaseAndWalHashesUnchanged": true,
+    "httpRequests": 0,
+    "grantsOrReservations": 0,
+    "signerAccess": false,
+    "repositoryEdits": 0,
+    "productionAccess": false
+  },
+  "controllerFindings": [
+    {
+      "location": "test/stage6-synthetic-runner.mjs:13,20–22",
+      "classification": "FIXTURE_FALSE_FAILURE_AFTER_GENUINE_DURABLE_WORK",
+      "detail": "Server serializes {status,body}; client expects body directly. status200/current cursor/producer exist but result.ok is undefined. Controller proof lines after assertion were not executed; independent DB proof supplies the limited receipt evidence."
+    },
+    {
+      "location": "test/stage6-synthetic-runner.mjs:8",
+      "classification": "CORRECT_IDENTITY_REJECTION_OF_FIXTURE_RECONSTRUCTION",
+      "detail": "parentFor reads sorted canonical_request_json and defaults bodyJSON.stringify; original initial manual SYNC used insertion-order JSON. Their digests differ. Original request identity must remain unchanged; future new parents can use explicit canonicalPhaseRequest body from the start."
+    }
+  ],
+  "sameCampaignContinuation": {
+    "preferredPrinciple": "Signed exact code revision with immutable original accountingOrigin; preserve the current DB/ledgers rather than transfer them. Owner explicitly allows narrow blocker repair within4096 TOTAL. This is not approval of an unimplemented revision.",
+    "requiredInvariants": [
+      "Embedded original manifest and its original review approval signatures verify; exact accountingOrigin digest equals the sole registry-approved campaign. No recursive/unapproved/foreign origin.",
+      "Current code/files have new exact manifest signature and new independent GO bound to that revision digest/code. All authority fields equal origin:DB ID/nonce/path/device/inode,cohort/lifecycle,keys,endpoint,SHADOW,cap,scopes and original temporal bounds.",
+      "Global/per-tenant components,config.id/consent/allowance fingerprints,DB marker,HMAC accounting identity remain origin-bound. No DB/counter/marker/job/cursor/receipt mutation is needed for a code-only alias.",
+      "Existing authenticated origin ledger is required for a revision; absent/corrupt/expired/closed origin never becomes a fresh zero counter. Preserve global4/control3/alpha1,closed flags,start/end and4092 remaining.",
+      "Configuration HMAC binds current revision/code plus immutable origin and tenant. All original runtime/lease/clock/lifecycle/HMAC/unknownACK/publication guards stay intact.",
+      "Issuer registry retains one immutable campaign and fsyncs each exact reviewed code-revision approval before exposure; normal fresh-campaign preparation remains forbidden. No new4096 or24h window.",
+      "Old87 remains explicitly reviewed unless a separately designed revocation fence is added; all accepted versions spend the same durable counters. Do not claim old code was revoked.",
+      "Retain original request/release/config/body/result identities and history. Do not retag old finalized receipts. Resolve old pending controller metadata using verified original outcome; new work uses new request/current release/config and original fresh SYNC handoff rules."
+    ],
+    "notAllowed": [
+      "Hotpatch old exact manifest/source image",
+      "Reuse old reviewGO for a new code digest",
+      "Create fresh4096 database/ledger",
+      "Reset/refund any control or qualification slot",
+      "Extend original deadline",
+      "Treat this limited Journal cursor unit as DOMAIN/family/six-job/fullservice qualification"
+    ]
+  }
+}

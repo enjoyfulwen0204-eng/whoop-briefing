@@ -1,0 +1,176 @@
+{
+  "review": "Sole independent read-only same-campaign code revision security delta",
+  "recordedAt": "2026-10-15T07:53:17.316108+00:00",
+  "candidateSha": "1c317bb687295d684d147ae56ae76188e908b968",
+  "candidateTree": "6d0efaccbc40044ee230b7fcde70c7ed59076548",
+  "baselineSha": "87e67d6fe5f8adfc68b0f254b35dc0e205540db9",
+  "manifestContract": "stage6-local-synthetic-http-v1",
+  "manifestDigest": "94bd6aee5e5c7508de7857cce0291239e13164119a5217aa3f07457ff42e895b",
+  "accountingManifestDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+  "verdict": "GO",
+  "scope": "EXACT_CODE_ONLY_REVISION_OF_EXISTING_LOCAL_SYNTHETIC_CAMPAIGN;NO_ADDITIONAL_ATTEMPTS_OR_WINDOW",
+  "workingTreeClean": true,
+  "productionSourceDiffEmpty": true,
+  "retainedP0": [],
+  "retainedP1": [],
+  "rawFindings": [],
+  "authority": {
+    "ownerScope": "Narrow local synthetic blocker repair under unchanged4096 TOTAL authorization; no Production,paid service ornew campaign.",
+    "embeddedOriginManifestSignature": true,
+    "embeddedOriginApprovalSignature": true,
+    "originalReviewDigestMatchesSealedReview": true,
+    "currentRevisionSignature": true,
+    "currentRevisionApprovalPresentAtReview": false,
+    "allCurrentSourceHashesMatch": true,
+    "allAuthorityFieldsEqualOriginExceptCodeShaFilesAndAliasReference": true,
+    "originCodeSha": "87e67d6fe5f8adfc68b0f254b35dc0e205540db9",
+    "originalReview": {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/admission-independent-review.json",
+      "sha256": "ecd01f54c557a2b8348fdd01c5ef2a9a9f22cd2d7193fff7c8d78c2f04b905c8"
+    },
+    "currentManifest": {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/manifest.json",
+      "sha256": "3b7827f01d748796010193f9cb3a8194b3ff001076e02e3cfcc9797e836bd5dd"
+    },
+    "precedingManifest": {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/preceding-manifest.json",
+      "sha256": "24f3944b4c6d0f73d854354dcf2834c84a6f62d8f961b54cfeb707b12ba50ebb"
+    }
+  },
+  "accounting": {
+    "maximumAttempts": 4096,
+    "consumed": 4,
+    "remaining": 4092,
+    "scopesConsumed": {
+      "control": 3,
+      "qualification": 1
+    },
+    "scopeCaps": {
+      "control": 3,
+      "qualification": 4093
+    },
+    "startAt": 1792049340357,
+    "endAt": 1792135740357,
+    "windowMs": 86400000,
+    "databaseIdentity": {
+      "id": "s6syn-f177eb5236ee55369daebe0c2d191c80",
+      "nonce": "67c7ea9f945b3156ee8a346c2f56b5c6cbb2051ea77386561d8681a7c668b11e",
+      "path": "/qualification/physical/dbs/default/data",
+      "device": "46",
+      "inode": "23020"
+    },
+    "noLedgerOrMarkerTransferOrMutation": true,
+    "globalAndTenantComponents": "UNCHANGED_ORIGIN_BOUND",
+    "nativeConfigIdConsentAllowanceFingerprint": "UNCHANGED_ORIGIN_BOUND",
+    "tenantControl": {
+      "attempts": 3,
+      "closed": true
+    },
+    "tenantAlpha": {
+      "attempts": 1,
+      "closed": false
+    },
+    "rootWindowAndManifestTimeFieldsUnchanged": true,
+    "aliasMissingOriginLedger": "DENY_BEFORE_GENESIS_OR_COUNTER_WRITES"
+  },
+  "invariantsReviewed": [
+    "Current and embedded root certificates must verify; original root must have valid exact review approval and no nested alias. Authority scope equality includes DB path/device/inode/id/nonce,cohort/lifecycle,endpoint,SHADOW,cap,scopes,network/provider policy and all original timestamps.",
+    "New runtime uses origin for global/native component names,allowance/config ID,consent,fingerprint,marker and ledger HMAC identity; current revision digest and sourceSHA are additionally bound into configuration HMAC.",
+    "decodeObservation denies missing origin ledger on a revision and authenticates existing origin state. Original atomic global+tenant reservation,CAS,scope caps,clock/expiry/closure and final publication fences remain intact.",
+    "Normal prepare remains forbidden after first campaign approval. revise signs an UNAPPROVED code-only manifest,retains reviewed preceding certificate,and performs no database writes. Registry pendingRevision must reference approved predecessor and same immutable accounting origin; exact new review GO required.",
+    "Issuer lock plus file/directory fsync persist revision registry before exposing approval; failed publication can retry only same exact pending certificate. No second4096 allowance ornew24h window.",
+    "Old87 code is not claimed revoked; accepted code versions share identical counters. Old request/release/config/body/result identities remain immutable. Current-code requests use canonical parent body from first submission and current original admission/handoff rules.",
+    "Old pending reconciliation is read-only and limited to already FINALIZED_SUCCESS predecessor: signed reviewed certificate,original body/result digests,producer HMAC and exact current cursor work receipt with request/scope/generation/time checks. Unknown/unfinalized predecessor fails closed instead of being retagged.",
+    "HTTP controller emits original phase body with original status; rejection/resumable statuses are preserved. Source algorithm,publisher,HMAC,leases,work envelopes andProduction admission code are unchanged."
+  ],
+  "checks": [
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/independent-revision-controls.tap",
+      "sha256": "29534565109421a4dc4967ab32bceda1aebfabaca8e7821cb7a93e179059f6ce",
+      "outcome": "5PASS_0FAIL_REVIEWER_NONRESERVATION"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/independent-revision-controls.mjs",
+      "sha256": "a69eb91fe21d689d511314e7afc119cb4d2281f6fad095b2627e227e3e814ef5",
+      "outcome": "INDEPENDENT_CONTROL_SOURCE"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/revision-independent-db-proof.json",
+      "sha256": "2c9afb516b89c0dd86877a4c9b92783f5161efcb02c8419a14a2e4955426fa6d",
+      "outcome": "READ_ONLY_DB_HMAC_COUNTER_CURSOR_PROOF_PASS"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/independent-revision-readonly.py",
+      "sha256": "7b386bcfd35d77ac4c68dc125ea86bd446ca41d8d3e9a830aaeddd594cdeca8d",
+      "outcome": "READ_ONLY_PROOF_SOURCE"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/admission-negative-revision.tap",
+      "sha256": "0b66e77043197bc00f82bd20b36d99b406f0bebdc6af77213f01d0cf90b1ccdb",
+      "outcome": "17PASS_0FAIL_PRIMARY_PURE_MODELS_AND_DENIALS"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/controller-contract.tap",
+      "sha256": "3cfa66d87223b5849ff75a20cdc193ab61dcf434958e6035beb7d3066d264527",
+      "outcome": "3PASS_0FAIL_PRIMARY_WIRE_AND_CANONICAL_BODY_CONTROLS"
+    }
+  ],
+  "preActivationState": {
+    "issuerRegistry": {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/issuer/registry.json",
+      "sha256": "a8ae903ad6d9aca64ca58017bcd66583f90598c1a9ac2d03d95268aca3f445bd"
+    },
+    "approvedDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+    "pendingDigest": "94bd6aee5e5c7508de7857cce0291239e13164119a5217aa3f07457ff42e895b",
+    "pendingRevision": {
+      "fromDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+      "toDigest": "94bd6aee5e5c7508de7857cce0291239e13164119a5217aa3f07457ff42e895b",
+      "accountingManifestDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e"
+    },
+    "newRevisionApproved": false,
+    "firstOldCursorStillAuthenticated": true,
+    "oldExecutionState": "FINALIZED_SUCCESS",
+    "exactOldCursorAck": "d8f99dc7ac5307cc8a3aa3cd8bff44a7a8e667702fdcf16718a4e8fa1b32f381",
+    "oldWorkReceipts": 4,
+    "newOperationReceipts": 0,
+    "resourceLocks": 0,
+    "all8JobLeaseOwnersNull": true,
+    "dbAndWalHashesUnchangedByReview": true
+  },
+  "fileHashes": {
+    "test/stage6-synthetic-admission-negative.mjs": "5959b141c432200db6a337f4a8c420e8eb49a1ad448c1788d8de0b67f06539df",
+    "test/stage6-synthetic-controller-contract.mjs": "d79181e0a53d6f1d8efddb8f9d4ef7a74b833c28373d471fa3eff1a3e889fa25",
+    "test/stage6-synthetic-runner.mjs": "f731509aaaf1b290668dd882b3637ce78d2b0d85c156fe2bb01b205533937e24",
+    "test/stage6-synthetic-sign.mjs": "45c1b8adfc37338be9c110c47deb99cac5fa2d5f076640cd4b875ac9740f812d",
+    "test/stage6SyntheticAdmission.mjs": "3e7c2c9a41a42fe299a76f4489c21bffbaccb473272c13021b8496a53ec24cc0",
+    "test/stage6SyntheticControllerContract.mjs": "112124cbd60a71b1b75994a05c13a569fbfa96023fcc653bb8b9a3be4ed84b57",
+    "test/stage6SyntheticManifest.mjs": "c5b051e80d54005a267de8c8a2d3cdd4307330e06fd7116b37f7d166aa299c46"
+  },
+  "qualification": {
+    "admissionRevisionSafety": "SCOPED_GO",
+    "actualNewRevisionExecution": "NOT_EXECUTED_AT_REVIEW",
+    "originalActualHttpAdmission": "LIMITED_CONTROL_PASS",
+    "originalCursorUnit": "INDEPENDENT_DURABILITY_PASS_CONTROLLER_GATE_FAILED",
+    "fullSixJobs": "NOT_QUALIFIED",
+    "fullServiceAndSustainedResource": "NOT_QUALIFIED",
+    "overallRuntime": "NO_GO",
+    "production": "NO_GO",
+    "limitations": [
+      "GO applies only to this code/manifest digest and original accounting origin; it supplies no extra attempt,expiry orProduction permission.",
+      "17negative and5independent controls are pre-activation models/static/code checks; actual revised controller continuation is not yet measured.",
+      "Old pending read-only proof is confirmed for this already-finalized first Journal cursor. It does not authorize unresolved predecessor execution or arbitrary old-code recovery under a new release.",
+      "Final capacity acceptance must distinguish old87 first cursor from later revision executions and require actual durable named work/operation and producer proofs; no all-new-SHA/full-six claim yet."
+    ]
+  },
+  "independence": {
+    "reviewerCount": 1,
+    "delegates": 0,
+    "repositoryEdits": 0,
+    "privateSignerKeyAccess": false,
+    "grantsIssued": 0,
+    "reservationEntriesInvoked": 0,
+    "httpRequests": 0,
+    "productionOrCredentialAccess": false,
+    "longBenchmarks": 0
+  }
+}

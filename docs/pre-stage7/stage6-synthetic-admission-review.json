@@ -1,0 +1,242 @@
+{
+  "review": "Sole independent read-only pre-first-reservation local synthetic HTTP admission delta review",
+  "recordedAt": "2026-10-15T07:27:12.748689+00:00",
+  "candidateSha": "87e67d6fe5f8adfc68b0f254b35dc0e205540db9",
+  "candidateTree": "c44b1dbbbb0f0d5301b7c4a8cb7b2f33e5ee1567",
+  "baselineSha": "c296756b7ee8ceeab7b00d40ae52c922cedd42af",
+  "manifestContract": "stage6-local-synthetic-http-v1",
+  "manifestDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+  "verdict": "GO",
+  "scope": "ADMISSION_SECURITY_ONLY_FOR_THIS_EXACT_SIGNED_MANIFEST_BEFORE_FIRST_HTTP_RESERVATION",
+  "candidate": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+  "workingTreeClean": true,
+  "ownerAuthorization": "Explicit new local-only synthetic HTTP campaign:4096 TOTAL,24h after first valid reservation,new isolated DB/identities/keys,loopback-only,no paid orProduction/reset. This supersedes earlier conditional STOP for the missing test issuer only; no Production allowance is reused.",
+  "manifest": {
+    "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/manifest.json",
+    "sha256": "02d0ef4fe80f8b5a6c03be3af147c160b379bfffa9553ed72fa5db9033c129e8",
+    "outcome": "PREPARATION_SIGNATURE_VALID_APPROVAL_ABSENT",
+    "codeSha": "87e67d6fe5f8adfc68b0f254b35dc0e205540db9",
+    "database": {
+      "id": "s6syn-f177eb5236ee55369daebe0c2d191c80",
+      "nonce": "67c7ea9f945b3156ee8a346c2f56b5c6cbb2051ea77386561d8681a7c668b11e",
+      "path": "/qualification/physical/dbs/default/data",
+      "device": "46",
+      "inode": "23020"
+    },
+    "endpoint": "http://127.0.0.1:18081/",
+    "mode": "SHADOW",
+    "network": "loopback-only",
+    "paidProviders": false,
+    "maximumAttempts": 4096,
+    "durationMs": 86400000,
+    "issuedAt": 1792049089896,
+    "startBefore": 1792052689896,
+    "expiresAt": 1792139089896,
+    "tenants": [
+      {
+        "id": "s6syn-alpha",
+        "lifecycleGeneration": 1,
+        "scope": "qualification"
+      },
+      {
+        "id": "s6syn-bravo",
+        "lifecycleGeneration": 1,
+        "scope": "qualification"
+      },
+      {
+        "id": "s6syn-charlie",
+        "lifecycleGeneration": 1,
+        "scope": "qualification"
+      },
+      {
+        "id": "s6syn-control",
+        "lifecycleGeneration": 1,
+        "scope": "control"
+      }
+    ],
+    "scopes": {
+      "control": 3,
+      "qualification": 4093
+    },
+    "sourceFileCount": 743,
+    "sourceHashesIndependentlyMatched": true,
+    "approvalPresentAtReview": false
+  },
+  "issuerRegistry": {
+    "path": "/private/tmp/stage6-synthetic-http-20261015/issuer/registry.json",
+    "sha256": "f6dd00540425d565c122100aed44dc444658f7ca2d81fbcfff27373706723670",
+    "outcome": "PENDING_ONLY_NO_APPROVED_CAMPAIGN",
+    "version": 1,
+    "maximumAttempts": 4096,
+    "pendingDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+    "approvedDigest": null,
+    "preparations": 4,
+    "oneCampaign": "Exclusive issuer lock, exact review/manifest/pendingDigest match; approved campaign prevents fresh preparation. Registry file fsync, atomic rename and issuer-directory fsync precede approval publication; errors propagate. Same-digest approval retry does not issue another campaign."
+  },
+  "invariantsReviewed": [
+    "Preparation manifest Ed25519 signature,exact codeSha,complete src/test hash coverage,no symlinks,SHADOW and paidProviders=false; reservation entries additionally require signed exact approval plus reviewDigest.",
+    "Fixed allowlisted realpath test entry plus explicit opt-in; all eval/print/input-type spellings denied. Production control graph propagates unmodified namespace and independent key/grant WeakSets. Environment alone cannot activate synthetic authority from normal Production entry.",
+    "Only private openSyntheticDb HTTP receivers and syntheticKeys object are accepted. Exact loopback endpoint/path,physical DB realpath/device/inode and keyed manifest/database marker checked; seed receiver is file-only and reservationAllowed=false.",
+    "New namespaced global counter and original per-tenant counter execute in one original processing write transaction; nested exceptions poison outer transaction,exact CAS/rowsAffected checks retain atomicity. Total4096 includes control3+qualification4093; failures/uncertainty never refund.",
+    "Global window starts at first valid DB-clock reservation; invalid lifecycle/READY,late first reserve,clock rollback,expiry,closure,scope/total exhaustion fail closed. Approved manifest lifecycle is checked before either counter and after original active-grant lifecycle invalidation using the same observation.",
+    "Original opaque grant,one-use submission,receiver/tenant ownership,128prefix/320mutation/byte envelope,time/runtime/execution/lease/HMAC/final publication controls remain. Publication adds exact fresh global record fence; global expiry cleanup is negative-only separate closure.",
+    "Configuration HMAC additionally binds manifestDigest,tenant,database ID and endpoint. No original financial approval object,component,12/48 policy orProduction database is used by the new fixture.",
+    "Only Production source delta is reserved synthetic-key prefix rejection. Accepted calculation,publisher,exact REAL compiler andoriginal source algorithms are otherwise unchanged."
+  ],
+  "rawFindings": [
+    {
+      "id": "SYNTH-01",
+      "severity": "P1",
+      "status": "RESOLVED",
+      "location": "test/stage6-synthetic-sign.mjs;test/stage6SyntheticManifest.mjs:6",
+      "finding": "Original GO check could approve a different current manifest with the same source SHA,allowing repeated independent4096 counters.",
+      "fix": "Independent review exact manifestDigest and pending registry match; one durable issuer campaign blocks another approved manifest/database."
+    },
+    {
+      "id": "SYNTH-02",
+      "severity": "P1",
+      "status": "RESOLVED",
+      "location": "test/stage6SyntheticAdmission.mjs:29;test/stage6SyntheticLoader.mjs:35",
+      "finding": "Signed lifecycle1 was originally only shape-checked; first grant could capture another positive current lifecycle.",
+      "fix": "Fresh ACTIVE/READY observation requires exact signed lifecycle before either counter; native captured lifecycle and durable invalidation remain first on active assertion,then same-observation manifest check."
+    },
+    {
+      "id": "SYNTH-03",
+      "severity": "P1",
+      "status": "RESOLVED",
+      "location": "test/stage6SyntheticIssuerDurability.mjs:6",
+      "finding": "write+rename alone did not make the sole approved campaign record durable before exposing signed approval.",
+      "fix": "File fsync before rename and directory fsync before approval publication; injected open/write/sync/close/rename failures all prevent publication."
+    },
+    {
+      "id": "SYNTH-04",
+      "severity": "P1",
+      "status": "RESOLVED",
+      "location": "test/stage6SyntheticProfile.mjs:4",
+      "finding": "--eval=CODE could put an allowed filename in argv[1] while executing different code; exact-token execArgv guard missed it.",
+      "fix": "Expanded long-form/equals and short-form eval/print/input-type denial; independent supported-form actual preloader controls pass; unsupported short forms may be rejected by Node parser."
+    }
+  ],
+  "retainedP0": [],
+  "retainedP1": [],
+  "checks": [
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/independent-admission-controls.tap",
+      "sha256": "f864ce7b03645ebdf74e1f5cce8aff37b4110669c72b758023b8cd35628eb170",
+      "outcome": "7PASS_0FAIL_REVIEWER_RUN_NO_HTTP_OR_RESERVATION"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/independent-admission-controls.mjs",
+      "sha256": "f316f8ac94392f696845fd4c6acfc9bc8b3f12f572ba85100565df347353e6c8",
+      "outcome": "INDEPENDENT_CONTROL_SOURCE"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/admission-negative-qualified.tap",
+      "sha256": "05cb1eacd3b0bce07d740df92de57d01a5ce56cbfadb24e5f07d5b00d13af441",
+      "outcome": "14PASS_0FAIL_PRIMARY_PRE_RESERVATION_MODELS_AND_GUARDS"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/accepted-regression.tap",
+      "sha256": "bef86555471f7ddfcea4d28a7bb0090dfd236bc5aad2c610458a62e3b08574ec",
+      "outcome": "6PASS_0FAIL_PRIMARY_ACCEPTED_NATIVE_REAL_AND_OBSERVER_REGRESSION"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/seed-qualified.log",
+      "sha256": "99482a8419de9abaf244d77459369b176d6e864db18a0f71cb12a3999ad3888a",
+      "outcome": "CANONICAL_ENROLLMENT_PASS_4TENANTS_6QUALIFICATION_2CONTROL_JOBS_0ATTEMPTS"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/enrollment.json",
+      "sha256": "2cc9cfee84120a1b613ae63e4dbbb535f8481894a5bd1c69097adf9ff45150e4",
+      "outcome": "DURABLE_SEED_SUMMARY_NO_JOB_COMPLETION_OR_CURSOR_ADVANCE"
+    }
+  ],
+  "seedScope": {
+    "identities": [
+      {
+        "userId": "s6syn-alpha",
+        "scope": "qualification",
+        "telegramBinding": true,
+        "authGeneration": 1,
+        "ready": true
+      },
+      {
+        "userId": "s6syn-bravo",
+        "scope": "qualification",
+        "telegramBinding": true,
+        "authGeneration": 1,
+        "ready": true
+      },
+      {
+        "userId": "s6syn-charlie",
+        "scope": "qualification",
+        "telegramBinding": true,
+        "authGeneration": 1,
+        "ready": true
+      },
+      {
+        "userId": "s6syn-control",
+        "scope": "control",
+        "telegramBinding": true,
+        "authGeneration": 1,
+        "ready": true
+      }
+    ],
+    "allJobs": 8,
+    "qualificationJobs": 6,
+    "controlJobsPreserved": 2,
+    "qualificationGeneration": 11,
+    "controlGeneration": 3,
+    "allCompletedGeneration": 0,
+    "allCursors": null,
+    "attempts": 0,
+    "noHttpLedgerOrApproval": "Primary-reported and consistent with reservation-disabled native seed entry and pending-only registry; reviewer performed no database query or reservation."
+  },
+  "sourceHashes": {
+    "src/phase4Keys.js": "531f803972bcf6b8dbdd6a06c383be8b9ac01f64d2e7775b9ab8e575c59aa71e",
+    "test/stage6-synthetic-admission-http.mjs": "bdf56f980c2eb14a2be5fe4dc2adc828d94aab4078ce8177e88c1767ba3932a0",
+    "test/stage6-synthetic-admission-negative.mjs": "b841aa49b168225ed9b6b7987867188afedf531bfde3df235f862b1552125905",
+    "test/stage6-synthetic-child.mjs": "a161373a1dcf167e073bd71bb9c71c4a52849f018b2825d7cb0c483a91c5c369",
+    "test/stage6-synthetic-linux.sh": "0de554968a05eb8582e491bded333cb40eaad25e77d255b8e98f1129476c79be",
+    "test/stage6-synthetic-runner.mjs": "c821b372cf83aa29effa48cc8e967b7f1ddc8eab5480f3bde29d47a089262c1d",
+    "test/stage6-synthetic-seed.mjs": "45544f981c984d0547fd13d89f1977217569b94099886e154345fbe0975639e8",
+    "test/stage6-synthetic-sign.mjs": "226d3f3922eb081c1eed98ea9eb6af3553677c9b874917fb2f528b7871aa3665",
+    "test/stage6SyntheticAdmission.mjs": "1da175b1ee556e9c3fb362fd454d066407432a1aa8039355842f274ba1fdef58",
+    "test/stage6SyntheticIssuerDurability.mjs": "5ed8168e2cb3ae856d1874a883d2c9a84001da0cdee7e8b4a5b5a2bea490fe87",
+    "test/stage6SyntheticLoader.mjs": "61013046da7d7f40bb43a29dd732789dfba40096e5ffdee03ad93754cf597ac9",
+    "test/stage6SyntheticManifest.mjs": "dcc54e01a4bb7c168a91a735b647df6467456cba785c13c5e47aa88bd765a730",
+    "test/stage6SyntheticProfile.mjs": "c5109cc74c0de3bd6b624892f81560c1b905705056177639d14d89553feb8a02",
+    "test/stage6SyntheticProxy.mjs": "88c14c406ffdf48578d52c6b6fd0213445ab4962dc3a72114b61f672c1f1d4c1",
+    "test/stage6SyntheticState.mjs": "11236b70fb4f4e9b96a34dcac2dcc3dea9fc62bf4f88f9cf66b191de67ff1315",
+    "test/stage6SyntheticTrust.mjs": "90863a222fc1316fc3b732c53b6998facbf44c1c2ab106f94d14321558bc1b04"
+  },
+  "futureQualification": {
+    "firstActualHttpReservation": "NOT_EXECUTED_AT_REVIEW; owner may use this exact independently accepted contract after offline approval",
+    "actualHttpAtomicityAndForgeryControls": "PENDING_FIRST_BOUNDED_CONTROL_RUN",
+    "sixJobs": "NOT_QUALIFIED",
+    "fullSharedService": "NOT_QUALIFIED",
+    "sustainedResourceProviderEquivalence": "NOT_QUALIFIED",
+    "runtimeReadiness": "NO_GO",
+    "production": "NO_GO",
+    "limitations": [
+      "Pre-reservation review combines static transaction/fence analysis with pure models; it does not claim measured concurrent HTTP reservation or expiry cleanup yet.",
+      "Runner uses synthetic SYNC dependency and original manual CLI semantics; not a Production endpoint/Morning full-service acceptance.",
+      "Six qualified jobs are the3 signed qualification tenants;2 control tenant jobs remain pending. No global8-job completion claim.",
+      "Runner current cursor ACK is recorded when found; final capacity acceptance must independently require the appropriate named work/operation ACK and producer proofs for measured progress.",
+      "No current request authorizes resetting,refund,extending this campaign,using Production financial allowance,or more than4096 total attempts."
+    ]
+  },
+  "independence": {
+    "reviewerCount": 1,
+    "delegates": 0,
+    "modelInstruction": "Sol6.1 Extra High; no Pro/no delegation",
+    "repositoryEdits": 0,
+    "privateSignerKeyAccess": false,
+    "grantsIssued": 0,
+    "reservationEntriesInvoked": 0,
+    "httpRequests": 0,
+    "productionAccess": false,
+    "credentialsOrPaidOperations": false,
+    "longBenchmarks": 0
+  }
+}

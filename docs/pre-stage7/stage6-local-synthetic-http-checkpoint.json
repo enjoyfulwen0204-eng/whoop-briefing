@@ -1,0 +1,76 @@
+{
+  "status": "STAGE6_LOCAL_SYNTHETIC_HTTP_ADMISSION_GO_RUNTIME_QUALIFICATION_IN_PROGRESS",
+  "baseline": "c296756b7ee8ceeab7b00d40ae52c922cedd42af",
+  "runtimeSource": "1c317bb687295d684d147ae56ae76188e908b968",
+  "runtimeTree": "6d0efaccbc40044ee230b7fcde70c7ed59076548",
+  "accountingOrigin": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+  "revisionManifest": "94bd6aee5e5c7508de7857cce0291239e13164119a5217aa3f07457ff42e895b",
+  "authority": {
+    "maximumAttempts": 4096,
+    "consumedAtCheckpoint": 17,
+    "remainingAtCheckpoint": 4079,
+    "observedAt": "2026-10-15T08:00:47.106Z",
+    "startAt": 1792049340357,
+    "endAt": 1792135740357,
+    "ledgerHmacsVerified": 5,
+    "noNewWindowOrLedgerReset": true,
+    "issuerPrivateKeyNeverMountedInRuntime": true,
+    "productionExhausted12of12Untouched": true
+  },
+  "tests": {
+    "initialAdmissionNegative": 14,
+    "independentInitialNegative": 7,
+    "revisionNegative": 17,
+    "controllerWireAndCanonicalBody": 3,
+    "independentRevisionNegative": 5,
+    "actualHttpControlReservations": 3,
+    "initialMonitoredCursorCommit": 1,
+    "focusedRevisedContinuation": "PASS",
+    "sixJobResult": "IN_PROGRESS_0_OF_6",
+    "productiveCursorUnitsAtCheckpoint": 16
+  },
+  "proof": {
+    "firstRequest": "a4a3862c-301b-4a58-8bb3-425d48b86f3f",
+    "producerHmac": true,
+    "resultDigest": true,
+    "workReceipts": 4,
+    "exactNamedCursorAck": "d8f99dc7ac5307cc8a3aa3cd8bff44a7a8e667702fdcf16718a4e8fa1b32f381",
+    "analyticalArtifactsAtInitialProof": 0,
+    "controllerFixes": [
+      "HTTP status/body wrapper",
+      "canonical SYNC request bytes across restart"
+    ],
+    "priorRequestReconciledReadOnly": true
+  },
+  "linux": {
+    "node": "22.23.2",
+    "arch": "arm64",
+    "cpuQuota": "100000 100000",
+    "memoryMax": 2147483648,
+    "swapMax": 0,
+    "v8MiB": [
+      96,
+      2
+    ],
+    "httpLatencyMs": 115,
+    "cgroupPeakAtCheckpoint": 266153984,
+    "scope": "INITIAL_CURSOR_WORKLOAD_ONLY_NOT_SUSTAINED_SERVICE_PASS",
+    "allProviderAndAppProcessesInSameCgroup": true,
+    "network": "none; loopback sockets only",
+    "publicCaBundle": "copied from already-pinned sqld image, readonly; no private credential"
+  },
+  "remaining": [
+    "full monitored six-job settlement and analytical receipt verification",
+    "shared canonical SYNC/webhook/new Morning concurrency",
+    "integrated crash/replay and sustained resources",
+    "final independent runtime evidence acceptance"
+  ],
+  "runtimeAcceptance": "NO_GO_PENDING_QUALIFICATION",
+  "productionReadiness": "NO_GO",
+  "productionTransactionLimit": "UNKNOWN",
+  "journalTenantLimit": "SEPARATE; original bounded cursor continuation preserved",
+  "stage7v33Stage8v34": "UNCHANGED",
+  "shadowLive": "NO_PROMOTION",
+  "F02": "OWNER_ACCEPTED_RISK_UNCHANGED",
+  "artifactRoot": "/private/tmp/stage6-synthetic-http-20261015/"
+}

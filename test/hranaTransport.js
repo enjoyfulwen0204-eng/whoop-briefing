@@ -10,19 +10,19 @@ const encode=v=>v===null?{type:'null'}:typeof v==='bigint'?{type:'integer',value
  typeof v==='number'?{type:'float',value:v}:typeof v==='string'?{type:'text',value:v}:{type:'blob',base64:Buffer.from(v).toString('base64')};
 export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=Infinity,traceTransactions=false}={}) {
  const streams=new Map();let armed=null,commits=0;
- const counts={httpRequests:0,sqlStatements:0,byFamily:{},byTemplate:{},byOperation:{},byHttpMix:{},byHttpFamily:{}};
+ const counts={httpRequests:0,sqlStatements:0,nativeSqlAttempts:0,byFamily:{},byTemplate:{},byOperation:{},byHttpMix:{},byHttpFamily:{}};
  const evidence=[],transactions=[];
  const sqlLabel=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex'),
   ...(sql.includes("ELSE 'SYNC_IMMUTABLE_AUTHORITY_CHANGED'")?{operation:'SYNC_COMMIT_WINDOW_AUTHORITY_ASSERTION'}:{})});
- const open=()=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,sql:new Map(),inTransaction:false};
+ const open=role=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,id,role,sql:new Map(),inTransaction:false};
   if(traceTransactions){const execute=client.execute.bind(client);client.execute=async statement=>{
    const sql=typeof statement==='string'?statement:statement.sql,at=Date.now(),label=sqlLabel(sql),begin=/^\s*BEGIN\b/i.test(sql),end=/^\s*(COMMIT|ROLLBACK)\b/i.test(sql);
-   if(begin){stream.trace={id:randomUUID(),beginSubmittedAt:at,firstStatementAt:at,startedAt:null,lastStatementAt:at,sqlOperations:0,httpOperations:0,nativeWaitMs:0,beginWaitMs:0,concurrentWritersMax:0,statements:[],http:new Set()};}
+   if(begin){stream.trace={id:randomUUID(),connectionId:id,role,beginSubmittedAt:at,firstStatementAt:at,startedAt:null,lastStatementAt:at,sqlOperations:0,httpOperations:0,nativeWaitMs:0,beginWaitMs:0,concurrentWritersMax:0,statements:[],http:new Set()};}
    const trace=stream.trace;
    if(trace&&!trace.finishedAt){trace.sqlOperations++;trace.http.add(stream.http);trace.httpOperations=trace.http.size;trace.lastStatementAt=at;trace.lastStatement=label;
     trace.concurrentWritersMax=Math.max(trace.concurrentWritersMax,[...streams.values()].filter(s=>s!==stream&&s.trace?.startedAt&&!s.trace.finishedAt).length);
    }
-   try{const result=await execute(statement),finishedAt=Date.now();
+   try{counts.nativeSqlAttempts++;const result=await execute(statement),finishedAt=Date.now();
     if(trace&&!trace.finishedAt){const waitMs=finishedAt-at;trace.nativeWaitMs+=waitMs;if(begin){trace.startedAt=finishedAt;trace.beginWaitMs=waitMs;}
      if(trace.statements.length<256)trace.statements.push({...label,submittedAt:at,finishedAt,waitMs});
      if(end){trace.finishedAt=finishedAt;trace.outcome=label.verb==='COMMIT'?'COMMITTED':trace.timeout?'ROLLED_BACK_BY_MODELED_TIMEOUT':'ROLLED_BACK';const {http,...safe}=trace;transactions.push(safe);}}
@@ -81,10 +81,14 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=I
    }
   }
   let result;try{result=await stream.client.execute({sql,args});}catch(e){
-   evidence.push({event:'sql_error',template,code:e.code??'SYNTHETIC_TRANSPORT_ERROR',assertionLabel:/ELSE '([A-Z0-9_]+)'/.exec(sql)?.[1],table:/FROM "?([a-z0-9_]+)"?/i.exec(sql)?.[1],expectedRows:sql.includes('SHORT_TRANSACTION_ZERO_ROW_REJECTED')?Number(args[0]):undefined,prior:stream.priorStatement});throw e;
+   evidence.push({event:'sql_error',template,code:e.code??'SYNTHETIC_TRANSPORT_ERROR',connectionId:stream.id,role:stream.role,verb:sqlLabel(sql).verb,
+    lockHolders:[...streams.values()].filter(s=>s!==stream&&s.inTransaction).map(s=>({connectionId:s.id,role:s.role,transactionId:s.trace?.id,mode:s.beginMode,hasWritten:s.hasWritten,ageMs:Date.now()-s.transactionStartedAt,last:s.lastLabel})),
+    assertionLabel:/ELSE '([A-Z0-9_]+)'/.exec(sql)?.[1],table:/FROM "?([a-z0-9_]+)"?/i.exec(sql)?.[1],expectedRows:sql.includes('SHORT_TRANSACTION_ZERO_ROW_REJECTED')?Number(args[0]):undefined,prior:stream.priorStatement});throw e;
   }
   stream.priorStatement={template,prefix:sql.slice(0,180),rowsAffected:result.rowsAffected,...(/^DELETE FROM resource_locks/.test(sql)?{lockFamily:String(args[0]).split(':')[0]}:{})};
-  if(/^\s*BEGIN\b/i.test(sql)){stream.inTransaction=true;stream.transactionStartedAt=Date.now();}
+  stream.lastLabel=sqlLabel(sql);
+  if(/^\s*BEGIN\b/i.test(sql)){stream.inTransaction=true;stream.transactionStartedAt=Date.now();stream.beginMode=/\b(IMMEDIATE|EXCLUSIVE)\b/i.exec(sql)?.[1]?.toUpperCase()??'DEFERRED';stream.hasWritten=false;}
+  if(stream.inTransaction&&/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))stream.hasWritten=true;
   if(/^\s*(COMMIT|ROLLBACK)\b/i.test(sql))stream.inTransaction=false;
   return result;
  };
@@ -95,10 +99,10 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=I
  const condition=(c,results,errors,stream)=>!c?true:c.type==='ok'?results[c.step]!==null:c.type==='error'?errors[c.step]!==null:
   c.type==='not'?!condition(c.cond,results,errors,stream):c.type==='and'?c.conds.every(v=>condition(v,results,errors,stream)):
   c.type==='or'?c.conds.some(v=>condition(v,results,errors,stream)):c.type==='is_autocommit'?!stream.inTransaction:false;
- const fetch=async request=>{
+ const fetch=async(request,{role='UNSCOPED'}={})=>{
   counts.httpRequests++;
   const category=operation();counts.byOperation[category]=(counts.byOperation[category]??0)+1;
-  const body=await request.json();let [id,stream]=body.baton?[body.baton,streams.get(body.baton)]:open();
+  const body=await request.json();let [id,stream]=body.baton?[body.baton,streams.get(body.baton)]:open(role);
   if(!stream)throw Error('UNKNOWN_SYNTHETIC_BATON');
   stream.http=counts.httpRequests;
   const results=[];

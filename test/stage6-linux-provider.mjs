@@ -4,13 +4,17 @@ import {writeFile,readFile} from 'node:fs/promises';
 const url='file:/fixtures/checkpoint.sqlite',seed=createOwnedDb({url});
 const users=(await seed.raw.execute('SELECT id,display_name FROM users')).rows;
 const shared=process.env.LINUX_SHARED_DATABASE==='1';
-if(users.length!==1||users[0].id!=='a'||users[0].display_name!=='Synthetic')throw Error('SYNTHETIC_FIXTURE_ONLY');
+const serviceReady=process.env.LINUX_SERVICE_READY==='1';
+if(serviceReady?!shared||JSON.stringify(users.map(r=>r.id).sort())!==JSON.stringify(['a','alice','bob','lan'])||users.some(r=>r.display_name!=='Synthetic'):
+ users.length!==1||users[0].id!=='a'||users[0].display_name!=='Synthetic')throw Error('SYNTHETIC_FIXTURE_ONLY');
 // A standalone calculation checkpoint is not automatically a complete
 // service fixture. ACTIVE/READY without a destination makes the original
 // SYNC aggregator PARTIAL forever. Reject before any repeated service scan.
 if(shared&&!await seed.getActiveChatIdForUser('a',{expectedLifecycleGeneration:1}))throw Error('SHARED_FIXTURE_LINKED_STAGE6_TENANT_REQUIRED');
+const providerConfiguration={journalMode:(await seed.raw.execute('PRAGMA journal_mode')).rows[0][0],nativeBusyTimeoutMs:(await seed.raw.execute('PRAGMA busy_timeout')).rows[0][0],transactionMaxMs:5000};
+if(serviceReady){if(providerConfiguration.journalMode!=='wal')throw Error('SERVICE_READY_WAL_REQUIRED');for(const u of users){if(!await seed.getActiveChatIdForUser(u.id)||!(await seed.getTokens(u.id))?.whoopUserId||(await seed.getOnboarding(u.id))?.state!=='READY')throw Error('SERVICE_READY_AUTH_REQUIRED');}}
 await seed.close();
-if(shared){const {seedMorningProvider}=await import('./stage6LinuxMorningFixture.mjs');await seedMorningProvider(url);}
+if(shared&&!serviceReady){const {seedMorningProvider}=await import('./stage6LinuxMorningFixture.mjs');await seedMorningProvider(url);}
 const transport=hranaTransport(url,{transactionMaxMs:5000,traceTransactions:process.env.LINUX_TRANSACTION_TRACE==='1'});
 if(process.env.LINUX_CRASH_AFTER==='1')transport.arm({matchSql:/UPDATE phase4_jobs SET full_scan_cursor=/,after:async()=>{
  await writeFile('/fixtures/commit-marker.json',JSON.stringify({synthetic:true,originalCommitDurable:true,at:Date.now()}));
@@ -33,13 +37,14 @@ if(process.env.LINUX_SERVICE==='1'){
 }
 const server=createServer(async(req,res)=>{try{
  if(req.method==='GET'&&req.url==='/qualification/resume'&&process.env.LINUX_RETAINED_SERVICE==='1'){res.setHeader('content-type','application/json');res.end(await readFile('/fixtures/resume.json','utf8'));return;}
- if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({transactionTraceEnabled:process.env.LINUX_TRANSACTION_TRACE==='1',counts:transport.counts,evidence:transport.evidence,probes,morningCounts:morning?.counts,morningEvidence:morning?.evidence,transactions:transport.transactions,morningTransactions:morning?.transactions}));return;}
+ if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({providerConfiguration,transactionTraceEnabled:process.env.LINUX_TRANSACTION_TRACE==='1',counts:transport.counts,evidence:transport.evidence,probes,morningCounts:morning?.counts,morningEvidence:morning?.evidence,transactions:transport.transactions,morningTransactions:morning?.transactions}));return;}
  if(req.method==='POST'&&req.url==='/probe/start'&&!probeActive){probeActive=true;probes=[];probePromise=(async()=>{while(probeActive){const at=performance.now();try{const r=await fetch('http://app:8081/health',{signal:AbortSignal.timeout(35000)});probes.push({elapsedMs:performance.now()-at,status:r.status});}catch(e){probes.push({elapsedMs:performance.now()-at,error:e.name});}await new Promise(r=>setTimeout(r,250));}})();res.end('{}');return;}
  if(req.method==='POST'&&req.url==='/probe/stop'){probeActive=false;await probePromise;res.end('{}');return;}
  if(req.method!=='POST'||!['/v2/pipeline','/morning/v2/pipeline'].includes(req.url)||req.url.startsWith('/morning')&&!morning){res.writeHead(404).end();return;}
  const chunks=[];for await(const part of req)chunks.push(part);await new Promise(r=>setTimeout(r,115));
- const response=await (req.url.startsWith('/morning')?morning:transport).fetch(new Request('https://isolated.invalid/v2/pipeline',{method:'POST',body:Buffer.concat(chunks)}));
+ const role=req.headers['x-synthetic-role']??'UNSCOPED';if(!['UNSCOPED','drain-parent','service-parent','drain-child'].includes(role))throw Error('SYNTHETIC_ROLE_REQUIRED');
+ const response=await (req.url.startsWith('/morning')?morning:transport).fetch(new Request('https://isolated.invalid/v2/pipeline',{method:'POST',body:Buffer.concat(chunks)}),{role});
  res.writeHead(response.status,{'content-type':'application/json'});res.end(await response.text());
  }catch(e){res.writeHead(500).end(JSON.stringify({error:e.code??e.message}));}});
 server.listen(8080,'0.0.0.0');console.log('SYNTHETIC_HRANA_READY');
-process.on('SIGTERM',()=>{probeActive=false;server.close(async()=>{await writeFile('/fixtures/provider-summary.json',JSON.stringify({counts:transport.counts,evidence:transport.evidence,transactions:transport.transactions,probes}));transport.close();if(morning!==transport)morning?.close();process.exit(0);});});
+process.on('SIGTERM',()=>{probeActive=false;server.close(async()=>{await writeFile('/fixtures/provider-summary.json',JSON.stringify({providerConfiguration,counts:transport.counts,evidence:transport.evidence,transactions:transport.transactions,probes}));transport.close();if(morning!==transport)morning?.close();process.exit(0);});});

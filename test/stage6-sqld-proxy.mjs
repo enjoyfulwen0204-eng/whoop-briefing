@@ -1,0 +1,38 @@
+// Test-only 115ms transport in front of an unmodified, pinned upstream sqld.
+// No retries, lock handling, SQL rewriting, or timeout extensions occur here.
+import {createServer} from 'node:http';
+import {createHash,randomUUID} from 'node:crypto';
+import {writeFile} from 'node:fs/promises';
+const streams=new Map(),transactions=[],evidence=[],probes=[];
+const counts={httpRequests:0,sqlStatements:0},configuration={backend:'upstream-sqld-v0.24.33',latencyMs:115,modeledTransactionMaxMs:5000,productionTransactionLimit:'UNKNOWN',retries:0};
+let probeActive=false,probePromise;
+const label=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex'),...(sql.includes("ELSE 'SYNC_IMMUTABLE_AUTHORITY_CHANGED'")?{operation:'SYNC_COMMIT_WINDOW_AUTHORITY_ASSERTION'}:{})});
+const safe=()=>({providerConfiguration:configuration,transactionTraceEnabled:true,counts,evidence,probes,transactions,morningTransactions:transactions});
+const server=createServer(async(req,res)=>{try{
+ if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify(safe()));return;}
+ if(req.url==='/probe/start'){probeActive=true;probePromise=(async()=>{while(probeActive){const at=performance.now();try{const r=await fetch('http://app:8081/health',{signal:AbortSignal.timeout(5000)});probes.push({status:r.status,elapsedMs:performance.now()-at});}catch(e){probes.push({error:e.name,elapsedMs:performance.now()-at});}await new Promise(r=>setTimeout(r,250));}})();res.end('{}');return;}
+ if(req.url==='/probe/stop'){probeActive=false;await probePromise;res.end('{}');return;}
+ if(req.method!=='POST'||!['/v2/pipeline','/morning/v2/pipeline'].includes(req.url)){res.writeHead(404).end();return;}
+ const chunks=[];for await(const part of req)chunks.push(part);const body=JSON.parse(Buffer.concat(chunks)),httpId=++counts.httpRequests;
+ const stream=streams.get(body.baton)??{id:randomUUID(),role:req.headers['x-synthetic-role']??'UNSCOPED',sql:new Map()};
+ const labels=[];for(const item of body.requests){if(item.type==='store_sql')stream.sql.set(item.sql_id,item.sql);const statements=item.type==='execute'?[item.stmt]:item.type==='batch'?item.batch.steps.map(s=>s.stmt):[];labels.push(statements.map(s=>label(s.sql??stream.sql.get(s.sql_id)??'')));counts.sqlStatements+=statements.length;}
+ await new Promise(r=>setTimeout(r,115));const submittedAt=Date.now();
+ const response=await fetch('http://sqld:8080/v2/pipeline',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+ const result=await response.json(),finishedAt=Date.now();
+ for(let i=0;i<body.requests.length;i++){
+  const request=body.requests[i],r=result.results?.[i],statements=labels[i]??[];
+  const errors=r?.type==='error'?[r.error]:r?.response?.result?.step_errors??[];
+  for(const error of errors.filter(Boolean))evidence.push({event:'sql_error',code:error.code,connectionId:stream.id,role:stream.role,at:finishedAt,statements,holders:[...new Set(streams.values())].filter(s=>s!==stream&&s.tx).map(s=>({connectionId:s.id,role:s.role,transactionId:s.tx.id,ageMs:submittedAt-s.tx.startedAt,last:s.tx.statements.at(-1)}))});
+  for(let j=0;j<statements.length;j++){
+   const s=statements[j],successful=r?.type==='ok'&&(request.type==='execute'||r.response?.result?.step_results?.[j]!=null);
+   if(s.verb==='BEGIN'&&successful)stream.tx={id:randomUUID(),connectionId:stream.id,role:stream.role,startedAt:submittedAt,beginAcknowledgedAt:finishedAt,sqlOperations:0,http:new Set(),statements:[]};
+   const tx=stream.tx;if(tx){tx.http.add(httpId);tx.sqlOperations++;tx.statements.push({...s,submittedAt,finishedAt});tx.lastStatementAt=finishedAt;}
+   if(tx&&['COMMIT','ROLLBACK'].includes(s.verb)&&successful){const {http,...plain}=tx;transactions.push({...plain,httpOperations:http.size,finishedAt,outcome:s.verb==='COMMIT'?'COMMITTED':'ROLLED_BACK',durationMs:finishedAt-tx.startedAt});stream.tx=null;}
+  }
+  if(request.type==='close'&&r?.type==='ok'&&stream.tx){const {http,...plain}=stream.tx;transactions.push({...plain,httpOperations:http.size,finishedAt,outcome:'STREAM_CLOSED_ROLLBACK'});stream.tx=null;}
+ }
+ if(body.baton)streams.delete(body.baton);if(result.baton)streams.set(result.baton,stream);
+ res.writeHead(response.status,{'content-type':'application/json'});res.end(JSON.stringify(result));
+ }catch(e){evidence.push({event:'proxy_error',code:e.code??e.name});res.writeHead(500).end(JSON.stringify({error:e.code??e.name}));}});
+server.listen(8080,'0.0.0.0');console.log('SYNTHETIC_HRANA_READY');
+process.on('SIGTERM',()=>{probeActive=false;server.close(async()=>{await writeFile('/fixtures/provider-summary.json',JSON.stringify(safe()));process.exit(0);});});

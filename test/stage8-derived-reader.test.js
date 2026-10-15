@@ -22,3 +22,14 @@ test('every registered typed selector executes against authentic v34 columns and
  }
  assert.throws(()=>stage8DerivedSelection('SQL',{userId:'b'},1),/KIND_REQUIRED/);
 });
+
+
+test('weekly self query requires a registered private self scope; ambiguous text cannot authorize derived reads',async t=>{
+ const f=await stage8Fixture(t),scopes=f.app.scopes;
+ const ambiguous=await scopes.open({...f.input,text:'What patterns are supported?'});
+ assert.equal(ambiguous.permitted,false);
+ await assert.rejects(scopes.derived(ambiguous,'INSIGHTS'),/SCOPED_CAPABILITY_REQUIRED/);
+ const self=await scopes.open({...f.input,text:'/insights'});
+ assert.equal(self.permitted,true);assert.equal(self.userId,'a');
+ assert.equal((await scopes.derived(self,'INSIGHTS')).status,'ANALYSIS_UPDATING');
+});

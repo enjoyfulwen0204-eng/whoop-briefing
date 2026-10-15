@@ -22,7 +22,7 @@ test('qualified two-window historical LIVE computation yields typed SUPPORTED we
  }
  assert.equal(result.publication.status,'CURRENT');
  const reader=createStage8DerivedReader({...f,admission,eligible:uid=>uid==='a'}),scopes=await createScopedHealthContext({...f,admission,derivedReader:reader}),user=await f.db.getUser('a');
- const scope=await scopes.open({user,chatId:'10001',text:'What patterns are supported?'}),value=await scopes.derived(scope,'INSIGHTS');
+ const scope=await scopes.open({user,chatId:'10001',text:'/insights'}),value=await scopes.derived(scope,'INSIGHTS');
  assert.equal(value.status,'CURRENT');assert.ok(value.items.length>0);assert.ok(value.items.every(i=>i.nonCausal===true));
  await f.core.initializeTenant('b','LIVE');
  // Separate Owner principal and explicit follow; source/subject are never copied.

@@ -29,8 +29,8 @@ test('owned receiver computes and signs DAILY/IMPORTANT sources with explicit du
  assert.equal(last.publication.status,'CURRENT');assert.equal(provider.calls.length,1);
  const reader=createStage8DerivedReader({...f,admission,eligible:uid=>uid==='a'}),scopes=await createScopedHealthContext({...f,admission,derivedReader:reader}),
   scope=await scopes.open({user:await f.db.getUser('a'),chatId:'10001',text:'How is my recovery?'});
- assert.equal((await scopes.derived(scope,'EPISODES')).status,'CURRENT');
- const body=await scopes.derived(scope,'BODY_ENERGY');assert.equal(body.status,'CURRENT');assert.ok(body.items.every(i=>i.estimated===true));
+ const episodes=await scopes.derived(scope,'EPISODES');assert.equal(episodes.status,'CURRENT');assert.ok(episodes.items.length>0);
+ const body=await scopes.derived(scope,'BODY_ENERGY');assert.equal(body.status,'CURRENT');assert.ok(body.items.length>0);assert.ok(body.items.every(i=>i.estimated===true&&Number.isInteger(i.value)&&i.value>=0&&i.value<=100));
  await f.core.initializeTenant('b','LIVE');await f.db.raw.execute("INSERT INTO user_whoop_tokens(user_id,access_token,refresh_token,access_token_expires_at,updated_at,auth_generation) VALUES('b','SYNTHETIC','SYNTHETIC','2099-01-01','2026-10-01',1)");await f.db.linkTelegram({userId:'b',chatId:'10002'});
  const owner=await createOwnerMonitoring({...f,ownerId:'b',enabled:()=>true}),actor=await owner.authenticate({user:await f.db.getUser('b'),chatId:'10002'});
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM owner_monitoring_subscriptions')).rows[0].n,0);

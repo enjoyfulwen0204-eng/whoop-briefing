@@ -1,3 +1,4 @@
+import {stage8BodyEnergyProjection} from './stage8BodyEnergyProjection.js';
 import {verifyStage8LivePublication} from './stage8LivePublication.js';
 import {requireRuntimeAdmission,followRuntimeRenewal} from './runtimeAdmission.js';
 import {buildPhase4Core} from './phase4Core.js';
@@ -38,7 +39,10 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
     for(const {id} of ids){const value=await stores.insights.read(ctx,id,{asOfUtc:scope.asOfUtc});items.push({claim:value.revision.normalized_claim,nonCausal:true});}
    }else{
     const spec=STAGE8_DERIVED_SELECTIONS[kind],ids=(await db.raw.execute(stage8DerivedSelection(kind,scope,inputGeneration))).rows;
-    for(const {id} of ids){const value=await stores.readArtifact(ctx,spec.table,{[spec.id]:id});items.push({kind,id:keys.lookup(['stage8-derived-item-v1',scope.userId,kind,id]),value:value.row.value??null,...(kind==='BODY_ENERGY'?{quality:value.row.quality_state,estimated:true}:{})});}
+    for(const {id} of ids){const value=await stores.readArtifact(ctx,spec.table,{[spec.id]:id});
+     const projection=kind==='BODY_ENERGY'?stage8BodyEnergyProjection(value.row):{value:value.row.value??null};
+     if(projection)items.push({kind,id:keys.lookup(['stage8-derived-item-v1',scope.userId,kind,id]),...projection});
+    }
    }
    await core.assertContext(ctx);if(!await verifyStage8LivePublication(core,ctx))return updating(scope,kind);if(!eligible(scope.userId))throw Error('STAGE8_DERIVED_SCOPE_REQUIRED');return {status:'CURRENT',kind,asOfUtc:scope.asOfUtc,items};
    }finally{db.afterProcessingCompletion(()=>core.transaction(()=>core.contextRegistry.release(ctx),{readOnly:true}));}

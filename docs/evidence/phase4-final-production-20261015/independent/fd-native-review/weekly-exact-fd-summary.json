@@ -1,0 +1,53 @@
+{
+  "path": "/private/tmp/phase4-final-independent-review/fd-native-review/weekly-exact-fd-120s.tap",
+  "sha256": "0e8ef750adce72d28ba8cc1f53c97f541d9a69b9d66049b0302593f43ff4758a",
+  "observations": 36,
+  "firstLeg": 0,
+  "lastLeg": 35,
+  "jobsFailedSum": 0,
+  "unitsCommittedSum": 25,
+  "itemsProcessedSum": 66,
+  "publicationStates": [
+    "ANALYSIS_UPDATING"
+  ],
+  "maxRssBytesObserved": 1341030400,
+  "maxKernelRssKiB": 2155296,
+  "maxHeapUsedBytes": 2655440448,
+  "maxLegMs": 40310.706165999996,
+  "zeroProgressLegs": [
+    {
+      "leg": 28,
+      "durationMs": 40310.706165999996,
+      "outcome": "BUDGET_EXHAUSTED",
+      "resources": {
+        "cpu": {
+          "user": 54817167,
+          "system": 6378718
+        },
+        "memory": {
+          "rss": 1341030400,
+          "heapTotal": 1532329984,
+          "heapUsed": 1455196496,
+          "external": 4038573,
+          "arrayBuffers": 76477
+        },
+        "maxRssKiB": 2155296
+      }
+    }
+  ],
+  "terminalSummary": [
+    "# tests 1",
+    "# pass 0",
+    "# fail 0",
+    "# cancelled 1",
+    "# skipped 0",
+    "# duration_ms 120010.049625"
+  ],
+  "failureLines": [
+    "not ok 1 - test/stage8-live-weekly-functional.test.js",
+    "  failureType: 'testTimeoutFailure'",
+    "  error: 'test timed out after 120000ms'"
+  ],
+  "releaseFenceError": false,
+  "classification": "VALID_IDENTITY_BOUNDED_TIMEOUT_NOT_COMPLETION_OR_CAPACITY_QUALIFICATION"
+}

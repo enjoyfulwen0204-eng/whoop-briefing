@@ -1,0 +1,4 @@
+thread '<unnamed>' panicked at src/database.rs:155:34:
+called `Option::unwrap()` on a `None` value
+stack backtrace:
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.

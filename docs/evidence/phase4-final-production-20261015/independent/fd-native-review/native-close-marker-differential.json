@@ -1,0 +1,35 @@
+[
+  {
+    "case": "fd",
+    "sourceCommit": "fd07931db0e2cb503b53a7a93f1f723b09f8ae02",
+    "command": [
+      "/Users/kelvin/.local/node/bin/node",
+      "/private/tmp/phase4-final-independent-review/fd-native-review/native-close-marker-probe.mjs",
+      "/private/tmp/phase4-final-independent-review/fd-native-review/checkout"
+    ],
+    "returncode": -6,
+    "signal": 6,
+    "durationSeconds": 0.289247989654541,
+    "stdout": "{\"event\":\"NATIVE_CLOSE_START\"}\n{\"event\":\"NATIVE_CLOSE_RETURNED\"}\n",
+    "stderrFirstLines": [
+      "thread '<unnamed>' panicked at src/database.rs:155:34:",
+      "called `Option::unwrap()` on a `None` value",
+      "stack backtrace:",
+      "note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace."
+    ]
+  },
+  {
+    "case": "d539",
+    "sourceCommit": "d539277abbb13191f6110dac92a2cb32a0cd2511",
+    "command": [
+      "/Users/kelvin/.local/node/bin/node",
+      "/private/tmp/phase4-final-independent-review/fd-native-review/native-close-marker-probe.mjs",
+      "/private/tmp/phase4-final-independent-review/checkout"
+    ],
+    "returncode": 0,
+    "signal": null,
+    "durationSeconds": 0.20455098152160645,
+    "stdout": "{\"event\":\"BUSINESS_CALLBACK_ENTERED\"}\n{\"event\":\"TRANSACTION_RETURNED\"}\n{\"event\":\"FINAL\",\"entered\":true,\"fired\":false,\"completed\":true}\n",
+    "stderrFirstLines": []
+  }
+]

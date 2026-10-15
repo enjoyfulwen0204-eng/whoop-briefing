@@ -1,0 +1,29 @@
+{
+  "sourceCommit": "6f5ebdcb205390925dc367fa92cc28e8a95d9821",
+  "results": [
+    {
+      "file": "/private/tmp/phase4-final-independent-review/privacy-sentinel-review/body-provisional-policy-6f5-baseline.tap",
+      "command": [
+        "/Users/kelvin/.local/node/bin/node",
+        "--test",
+        "test/body-provisional-policy.test.js"
+      ],
+      "returncode": 1,
+      "durationSeconds": 0.4013791084289551,
+      "redactionInitError": true,
+      "sha256": "27a4bce046465b69d510bbfa597f3db15ba7268a07f9e13aa165d1496ed72a3c"
+    },
+    {
+      "file": "/private/tmp/phase4-final-independent-review/privacy-sentinel-review/stage7-cards-6f5-baseline.tap",
+      "command": [
+        "/Users/kelvin/.local/node/bin/node",
+        "--test",
+        "test/stage7-cards.test.js"
+      ],
+      "returncode": 1,
+      "durationSeconds": 0.18050193786621094,
+      "redactionInitError": true,
+      "sha256": "a69e8fa92baed9ce13a9d7b7ee011af8d08d5fd9c8a29cf3bb591f0ab1f5c0ac"
+    }
+  ]
+}

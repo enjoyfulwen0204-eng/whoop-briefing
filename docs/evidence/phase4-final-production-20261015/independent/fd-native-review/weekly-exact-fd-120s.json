@@ -1,0 +1,31 @@
+{
+  "returncode": 1,
+  "outerTimedOut": false,
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-timeout=120000",
+    "test/stage8-live-weekly-functional.test.js"
+  ],
+  "startedAtUtc": "2026-10-15T16:22:57.104404+00:00",
+  "durationSeconds": 120.51376605033875,
+  "identityBefore": {
+    "commit": "fd07931db0e2cb503b53a7a93f1f723b09f8ae02",
+    "tree": "78271c046ed217be3f7d9e6ef5255eb2e56297fa",
+    "srcTree": "6c2cba536677bbd914fe32f863201283d05e33c9",
+    "status": ""
+  },
+  "identityAfter": {
+    "commit": "fd07931db0e2cb503b53a7a93f1f723b09f8ae02",
+    "tree": "78271c046ed217be3f7d9e6ef5255eb2e56297fa",
+    "srcTree": "6c2cba536677bbd914fe32f863201283d05e33c9",
+    "status": ""
+  },
+  "allSourceTestPackageHashesUnchanged": true,
+  "changedFiles": [],
+  "NODE_OPTIONS": null,
+  "profilingAdded": false,
+  "queryInstrumentationAdded": false,
+  "committedErrorCodeDiagnosticLoaderPresent": true,
+  "isActualLinuxHttpQualification": false
+}

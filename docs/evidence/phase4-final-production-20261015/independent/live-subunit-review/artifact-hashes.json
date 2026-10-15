@@ -1,0 +1,14 @@
+{
+  "focused-live-boundaries.json": "56e221021868f6448a2678473c93b0f2bc5747c4fe308972fc3be613df78be11",
+  "focused-live-boundaries.tap": "0e0f62670f68bb778179cb6177fd931f1c024ea92a88b8e0488afaecff145bd5",
+  "focused-summary.json": "b1878ca8d03c1514bcf68850620b268780a98adb74687f8bbf15de640be79591",
+  "gates.json": "8c0b160c70f4453dcf1f38d77a65818e888c818a9eabbd3517e9e4ea8ca1d18d",
+  "independent-live-boundaries.test.mjs": "9eabde81dd03034549fa650f0a7fa8834c37605c369c68b3abd6b037f80b65ad",
+  "independent-live-fences-corrected.json": "d399baad0b43f6e39c50b8f1bf4889e565c62a7172a9c6040be568eee73e9bed",
+  "independent-live-fences-corrected.tap": "2a82273a12a62eb118705c5c4f816e72d45f76c94c97fea765f6271e2203d0b6",
+  "initial-independent-oracle-classification.json": "742adb57d7eee1f174080016b4a69e1c50bdb371b4994d6f209c71bddb35528f",
+  "initial-zero-cursor-oracle.test.mjs.txt": "527c89a3574f2c7a7d848f61fc260d66b1b9eea98e64200ca46a1e57376dc4aa",
+  "review.md": "4825252a835f12226cc01d66114f59110c683d70bc6fa251cdd5da02efada1a6",
+  "source-after-focused.json": "20f39a04f0666e4016c974fdc2e1717d667770fba8ea4640d1bbc82182691536",
+  "source-before.json": "20f39a04f0666e4016c974fdc2e1717d667770fba8ea4640d1bbc82182691536"
+}

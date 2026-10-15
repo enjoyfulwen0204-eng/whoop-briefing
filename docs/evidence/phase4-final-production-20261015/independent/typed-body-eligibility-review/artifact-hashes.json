@@ -1,0 +1,9 @@
+{
+  "consumption-freshness-counterexample.json": "cc6c6108e77d121c687a4c30b4a06ee13c200632255402d2ef3f385b52507f8a",
+  "focused-eligibility.json": "e73cc8591b7a512a9f2032823fd2650aee7cff9e0e473572b22b63b7100970d7",
+  "focused-eligibility.tap": "9b6c20bd6f50e4da737872653529d131c35c4494ec5a9bc07c1803b535417996",
+  "independent-projection.test.mjs": "10521379babd9c2ff605bb90d4d3457a26824b193b3a8710e3d27b3e5e914a8d",
+  "review-status.json": "d92d1d2f94f427aed753f9407d29cbf3170f58704b4d1cd29a73353c77303885",
+  "source-after.json": "7bf4c64f0f04e25e4541014ca09fb00c52f97929bf03ed9a7332f16c47585280",
+  "source-before.json": "7bf4c64f0f04e25e4541014ca09fb00c52f97929bf03ed9a7332f16c47585280"
+}

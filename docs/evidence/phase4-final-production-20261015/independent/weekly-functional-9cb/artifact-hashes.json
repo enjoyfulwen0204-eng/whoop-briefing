@@ -1,0 +1,13 @@
+{
+  "gates.json": "55bbe755c2dc05c5b6ef9ba9bb4c75d15d7aa3cdbccc610505e453474455b096",
+  "review.md": "f5a72f25f9cee11d3dcc2c9334b1ab4a077c528ff99bf22c6443512dc58d35f6",
+  "run-start.json": "ffcce80b8dbfd11734c9ebf602abe880d5fc2ca586e92f80729ef7342b57accc",
+  "source-after.json": "20f39a04f0666e4016c974fdc2e1717d667770fba8ea4640d1bbc82182691536",
+  "source-before.json": "20f39a04f0666e4016c974fdc2e1717d667770fba8ea4640d1bbc82182691536",
+  "summary.json": "a57032767a0b62c5b97afeb401130a5248460d8a60d9bc2c374d5f926c7222f2",
+  "typed-body-eligibility-pure-counterexamples.json": "4ca18c59706a65509cb4778ad0d62817dcdf52fd0f9d180c278c8278375d5687",
+  "weekly-functional.json": "310a1eccdb9d5cb32321d06a4bf70d817b21c3658bd4cb7fa2ba56823d4932c9",
+  "weekly-functional.tap": "894ecd17cd506ad368a63e8fbd7cabe04af9e3cd4839e24ee4e6be99536aeef7",
+  "weekly-functional.time.stderr": "66cecc3ec2ca243a84ca9f3168dc377083e36a2e7aeb6dfdc8c8c3163487a5e9",
+  "weekly-self-scope-pure-classification.json": "b610fa321b3e312d9a7969a99e9a567632b7ea90a99e99b5338f17ab2c57f486"
+}

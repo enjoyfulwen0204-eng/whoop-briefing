@@ -1,0 +1,58 @@
+{
+  "weekly-bounded-fanout-87cc513.tap": {
+    "path": "/private/tmp/phase4-final-integration-evidence/weekly-bounded-fanout-87cc513.tap",
+    "sha256AtRead": "c26288d62f2fcdb0e6523505e9802fe8ebdd42aebf5a0760c084105774e63fdc",
+    "terminalSummary": [
+      "# tests 1",
+      "# pass 0",
+      "# fail 0",
+      "# cancelled 1",
+      "# skipped 0",
+      "# duration_ms 120015.888292"
+    ],
+    "notOkLines": [
+      "not ok 1 - test/stage8-live-weekly-functional.test.js"
+    ],
+    "currentLogMayStillBeGrowing": false
+  },
+  "weekly-bounded-fanout-87cc513-summary.json": {
+    "path": "/private/tmp/phase4-final-integration-evidence/weekly-bounded-fanout-87cc513-summary.json",
+    "sha256AtRead": "142515a172ddf55b3540aeff8278a3572a6b5276cc6376b6ae3fd9cb82219385",
+    "terminalSummary": [],
+    "notOkLines": [],
+    "currentLogMayStillBeGrowing": false
+  },
+  "integrated-live-pipeline-important-87cc513.tap": {
+    "path": "/private/tmp/phase4-final-integration-evidence/integrated-live-pipeline-important-87cc513.tap",
+    "sha256AtRead": "99c010d0cc440b4626bd8f6f3134f030fd27eed7232671cb61daba8382e23767",
+    "terminalSummary": [
+      "# tests 2",
+      "# pass 0",
+      "# fail 1",
+      "# cancelled 1",
+      "# skipped 0",
+      "# duration_ms 146689.661875"
+    ],
+    "notOkLines": [
+      "not ok 1 - test/stage8-live-important-functional.test.js",
+      "not ok 2 - genuine finalized canonical LIVE source computation publishes once and typed self reader accepts only current certificate"
+    ],
+    "currentLogMayStillBeGrowing": false
+  },
+  "owned-live-classes-b44134b.tap": {
+    "path": "/private/tmp/phase4-final-integration-evidence/owned-live-classes-b44134b.tap",
+    "sha256AtRead": "3e12006e2969adf1fa7b647546a171e749031cece14b3ead17005caae3c9187e",
+    "terminalSummary": [
+      "# tests 1",
+      "# pass 0",
+      "# fail 0",
+      "# cancelled 1",
+      "# skipped 0",
+      "# duration_ms 120019.710625"
+    ],
+    "notOkLines": [
+      "not ok 1 - test/stage8-owned-live-classes.test.mjs"
+    ],
+    "currentLogMayStillBeGrowing": false
+  }
+}

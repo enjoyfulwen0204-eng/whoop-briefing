@@ -1,0 +1,62 @@
+{
+  "focused-boundaries": {
+    "sha256": "f1678419ea35f9118f7e9339e2b15e1cf8a82dc916ba172592131f45323b4bb6",
+    "topLevelOkLines": 56,
+    "topLevelNotOkLines": 14,
+    "terminalSummary": [],
+    "classification": "INCOMPLETE_OUTER_80S_TIMEOUT; original v32-only HTTP and SYNC fixtures fail controlled 32/34 admission before their intended behavior"
+  },
+  "focused-admissible": {
+    "sha256": "807f56f77032c3297842a55f364f67ba7e7d72e62aed1c73cad0bc9a17e9f807",
+    "topLevelOkLines": 56,
+    "topLevelNotOkLines": 0,
+    "terminalSummary": [
+      "# tests 56",
+      "# pass 56",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 44031.472875"
+    ]
+  },
+  "http-v34": {
+    "sha256": "8f8217f5af2f33e470dbf3e8fed43f478db58853c65c03342469323a983f8768",
+    "topLevelOkLines": 6,
+    "topLevelNotOkLines": 0,
+    "terminalSummary": [
+      "# tests 6",
+      "# pass 6",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 12514.062541"
+    ]
+  },
+  "sync-v34": {
+    "sha256": "ae6a2e3a372967c3cd2a75cb390e5086fc62c4bafb48bdcd8a709245f3847154",
+    "topLevelOkLines": 2,
+    "topLevelNotOkLines": 1,
+    "terminalSummary": [
+      "# tests 3",
+      "# pass 2",
+      "# fail 0",
+      "# cancelled 1",
+      "# skipped 0",
+      "# duration_ms 30008.058916"
+    ],
+    "classification": "TWO_COMPLETED_PASS; FILE_CANCELLED_BY_REVIEWER_30S_CEILING_BELOW_UNCHANGED_33S_RECOVERY_BUDGET"
+  },
+  "sync-v34-recovery-declared-budget": {
+    "sha256": "1b67d3c8899fa7428a915bd294a6f84ddff9c0bc813ff148fbab5b0847f7a3c4",
+    "topLevelOkLines": 2,
+    "topLevelNotOkLines": 0,
+    "terminalSummary": [
+      "# tests 2",
+      "# pass 2",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 55006.743292"
+    ]
+  }
+}

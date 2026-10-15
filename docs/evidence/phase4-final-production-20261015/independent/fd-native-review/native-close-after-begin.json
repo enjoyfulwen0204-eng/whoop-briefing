@@ -1,0 +1,10 @@
+{
+  "commit": "fd07931db0e2cb503b53a7a93f1f723b09f8ae02",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "/private/tmp/phase4-final-independent-review/fd-native-review/native-close-after-begin.test.mjs"
+  ],
+  "returncode": 1,
+  "durationSeconds": 0.5924711227416992
+}

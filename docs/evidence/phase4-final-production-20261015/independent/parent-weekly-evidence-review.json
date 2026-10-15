@@ -1,0 +1,118 @@
+[
+  {
+    "file": "/private/tmp/phase4-final-integration-evidence/weekly-owned-runtime.tap",
+    "bytes": 55459,
+    "sha256": "84eb2a11f62eb8a78d40d6893d26572d96acc0b37518963a8ef7b32c3da204b6",
+    "legsObserved": 35,
+    "firstLeg": 0,
+    "lastLeg": 34,
+    "jobsFailed": 0,
+    "publicationStates": [
+      "ANALYSIS_UPDATING"
+    ],
+    "outcomes": [
+      "BUDGET_EXHAUSTED",
+      "PARTIAL"
+    ],
+    "unitsCommittedSum": 24,
+    "itemsProcessedSum": 66,
+    "maxObservedRssBytes": 1850343424,
+    "maxResourceRssKiB": 2234656,
+    "lastMemory": {
+      "rss": 777797632,
+      "heapTotal": 267026432,
+      "heapUsed": 178664648,
+      "external": 4038594,
+      "arrayBuffers": 76477
+    },
+    "failures": [
+      "not ok 1 - test/stage8-live-weekly-functional.test.js",
+      "  error: 'test timed out after 120000ms'"
+    ],
+    "terminalTestSummary": [
+      "# tests 1",
+      "# pass 0",
+      "# fail 0",
+      "# cancelled 1",
+      "# skipped 0",
+      "# duration_ms 120018.655333"
+    ]
+  },
+  {
+    "file": "/private/tmp/phase4-final-integration-evidence/weekly-live-authority-routing.tap",
+    "bytes": 616793,
+    "sha256": "fb65fa29db697df8abdcf04d65a302f801d89aa2b74289863a9d5eb8bcb2cd6b",
+    "legsObserved": 34,
+    "firstLeg": 0,
+    "lastLeg": 33,
+    "jobsFailed": 0,
+    "publicationStates": [
+      "ANALYSIS_UPDATING"
+    ],
+    "outcomes": [
+      "PARTIAL"
+    ],
+    "unitsCommittedSum": 24,
+    "itemsProcessedSum": 66,
+    "failures": [
+      "not ok 1 - test/stage8-live-weekly-functional.test.js",
+      "  error: 'test timed out after 150000ms'"
+    ],
+    "terminalTestSummary": [
+      "# tests 1",
+      "# pass 0",
+      "# fail 0",
+      "# cancelled 1",
+      "# skipped 0",
+      "# duration_ms 150016.117666"
+    ]
+  },
+  {
+    "file": "/private/tmp/phase4-final-integration-evidence/weekly-lower-error-ordered-imports.tap",
+    "bytes": 327647,
+    "sha256": "f75ca042547ec8063778a3e96f81ba78c1a6491b7290bbb352cc5ce155ae1126",
+    "legsObserved": 16,
+    "firstLeg": 0,
+    "lastLeg": 15,
+    "jobsFailed": 1,
+    "publicationStates": [
+      "ANALYSIS_UPDATING"
+    ],
+    "outcomes": [
+      "FAILED",
+      "PARTIAL"
+    ],
+    "unitsCommittedSum": 5,
+    "itemsProcessedSum": 62,
+    "failures": [
+      "not ok 1 - qualified two-window historical LIVE computation yields typed SUPPORTED weekly synthesis without fabricated associations",
+      "  error: |-"
+    ],
+    "terminalTestSummary": [
+      "# tests 1",
+      "# pass 0",
+      "# fail 1",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 27406.893833"
+    ]
+  },
+  {
+    "file": "/private/tmp/phase4-final-integration-evidence/weekly-linux-512.tap",
+    "bytes": 201,
+    "sha256": "93a00509b8b97ad724248f07305950efc14ec196d2e9192b046fbdf11ec2f6e6",
+    "failures": [
+      "docker: Error response from daemon: invalid mount config for type \"bind\": stat /host_mnt/Users/kelvin/Desktop/whoop-briefing/.git: operation not permitted"
+    ],
+    "terminalTestSummary": []
+  },
+  {
+    "file": "/private/tmp/phase4-final-integration-evidence/weekly-integrated-first-resources.json",
+    "bytes": 349,
+    "sha256": "5c667c729928cd9b8980f859f453fde4ced078f7106df534037d39a72964a4ff",
+    "failures": [
+      "    \"--test-timeout=240000\","
+    ],
+    "terminalTestSummary": []
+  }
+]

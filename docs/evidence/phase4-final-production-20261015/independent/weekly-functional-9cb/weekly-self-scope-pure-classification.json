@@ -1,0 +1,31 @@
+{
+  "source": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+  "scope": "PURE_PERSPECTIVE_HELPER_ONLY_NOT_AN_AUTHORIZED_DB_SCOPE",
+  "values": [
+    {
+      "text": "What patterns are supported?",
+      "perspective": "ambiguous",
+      "usePersonalData": false,
+      "source": "no_subject",
+      "cues": []
+    },
+    {
+      "text": "What patterns in my sleep and recovery are supported?",
+      "perspective": "self",
+      "usePersonalData": true,
+      "source": "text_first_person",
+      "cues": [
+        "first_person"
+      ]
+    },
+    {
+      "text": "What are my supported sleep and recovery patterns?",
+      "perspective": "self",
+      "usePersonalData": true,
+      "source": "text_first_person",
+      "cues": [
+        "first_person"
+      ]
+    }
+  ]
+}

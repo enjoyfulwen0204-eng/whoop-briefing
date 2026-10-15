@@ -1,0 +1,29 @@
+{
+  "sourceCommit": "aa2c45d6f75b91ff3d2ac82a32ee4ecae427d2f2",
+  "sourceTree": "55be0005d700d2229d2f4e19ff4eb6593cebb2e8",
+  "runtimeChanges": [
+    "src/phase4PrivacySentinels.js",
+    "src/phase4Redaction.js",
+    "src/phase4V22Backfill.js"
+  ],
+  "literalDeclarationBytesIdentical": true,
+  "leafDependencyFree": true,
+  "normalizedBackfillByteIdentical": true,
+  "normalizedRedactionByteIdentical": true,
+  "protectedUnchanged": true,
+  "files": [
+    {
+      "path": "src/phase4PrivacySentinels.js",
+      "sha256": "ef749dd3794132631385cb3d8bee4afab41d8e8916bae16f3fe10a3bfdc01d75"
+    },
+    {
+      "path": "src/phase4Redaction.js",
+      "sha256": "40fe4b617ffcff29f801c48649601958720e3c3551c7bb6b544a637bd2b739be"
+    },
+    {
+      "path": "src/phase4V22Backfill.js",
+      "sha256": "deab94d8f4006e6ed8c1d7154de4634771ce9c7b1e6006ec712e256dce98345c"
+    }
+  ],
+  "sourceStatus": ""
+}

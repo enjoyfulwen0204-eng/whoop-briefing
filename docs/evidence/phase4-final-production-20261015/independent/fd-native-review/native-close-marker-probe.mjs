@@ -1,0 +1,5 @@
+import{pathToFileURL}from'node:url';import{writeSync}from'node:fs';
+const root=process.argv[2],mark=x=>writeSync(1,JSON.stringify(x)+'\n');const{createStage6OwnedMemoryDb}=await import(pathToFileURL(root+'/src/db.js'));const{fixtureKeys}=await import(pathToFileURL(root+'/test/localDb.js'));
+const db=await createStage6OwnedMemoryDb(c=>c.execute('CREATE TABLE independent_close_marker(n INTEGER)'),fixtureKeys);let entered=false,fired=false,completed=false;const at=performance.now();while(performance.now()-at<12){}
+const timer=setImmediate(()=>{fired=true;mark({event:'NATIVE_CLOSE_START'});db.close();mark({event:'NATIVE_CLOSE_RETURNED'});});
+try{await db.transaction(async()=>{entered=true;mark({event:'BUSINESS_CALLBACK_ENTERED'});await db.raw.execute('INSERT INTO independent_close_marker VALUES(1)');});completed=true;mark({event:'TRANSACTION_RETURNED'});}catch(e){mark({event:'JS_REJECTION',code:e.code,message:e.message});}finally{clearImmediate(timer);if(!db.raw.closed)db.close();mark({event:'FINAL',entered,fired,completed});}

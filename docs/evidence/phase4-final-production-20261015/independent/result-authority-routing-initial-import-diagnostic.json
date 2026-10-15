@@ -1,0 +1,1 @@
+{"outcome":"ENTRY_GRAPH_INITIALIZATION_FAILED","error":"ReferenceError Cannot access HEALTH_REDACTED before initialization","action":"Use established fixture-first dynamic import order; no runtime source change","countsAsRuntimeRoutingEvidence":false}

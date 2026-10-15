@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=30000",
+    "/private/tmp/phase4-final-independent-review/bounded-check-review/v34-processing-read-check-coalescing.test.mjs"
+  ],
+  "returncode": 0,
+  "outerTimeout": false,
+  "durationSeconds": 12.598552942276001,
+  "commit": "87cc51311d16e8b7eab3f29ed0d9983de050bfcf"
+}

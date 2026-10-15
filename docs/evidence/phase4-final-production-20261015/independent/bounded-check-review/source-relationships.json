@@ -1,0 +1,21 @@
+{
+  "reviewedCommit": "87cc51311d16e8b7eab3f29ed0d9983de050bfcf",
+  "reviewedTree": "f0a39a3e549b3d71b15e71c018640a8ab267f70c",
+  "reviewedSrcTree": "01ba2540dbd87f56b8183d83595783938ae0c5fb",
+  "allSourceTestPackageHashesUnchanged": true,
+  "onlyRuntimeChangedPathFromD539": [
+    "src/processingTransaction.js"
+  ],
+  "dbJsByteExactD539": true,
+  "phase4CoreByteExactD539": true,
+  "nativeSchedulerAbsent": true,
+  "testOnlySuccessor": {
+    "commit": "b44134bafa5fbb8e025fde0d31172d2afdb02ae3",
+    "tree": "d779d6722cc71025cf4d4ffdddc1f4eac58bbab2",
+    "srcTree": "01ba2540dbd87f56b8183d83595783938ae0c5fb",
+    "changedPaths": [
+      "test/stage8-owned-live-classes.test.mjs"
+    ],
+    "newTestSha256": "f05ab4e302a920ebd0f38473efa0753c8d2da3888e4ff46f5c4f4d53da1c056c"
+  }
+}

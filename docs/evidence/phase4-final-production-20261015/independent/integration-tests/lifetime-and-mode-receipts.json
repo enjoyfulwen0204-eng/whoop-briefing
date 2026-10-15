@@ -1,0 +1,15 @@
+{
+  "returncode": 0,
+  "timedOut": false,
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "test/phase4-integrated-control-lifetime.test.js",
+    "test/stage8-live-execution.test.js",
+    "test/stage8-live-producer-boundary.test.js"
+  ],
+  "durationSeconds": 17.482425212860107,
+  "sourceCommit": "e74ac26e45ea9095db553f0900783a27927561f2",
+  "sourceTree": "677c7d4b9b7dddb322d749fb32c96c5a25331623"
+}

@@ -1,0 +1,14 @@
+{
+  "source": "646c99fc1085d0e4c964eb92499087c492351b64",
+  "srcTree": "16f43e20eb509dccb00d7da5c56bf7fd7ea552c2",
+  "typedBodyRestriction": "SCOPED_GO_FOR_COVERED_NUMERIC_BASELINE_AND_CONSUMPTION_FRESHNESS_BOUNDARIES",
+  "focusedPass": 42,
+  "freshStandaloneImportsExit0": 3,
+  "runtimeOtherThanHelperAndCallsiteUnchanged": true,
+  "cohortAndAuthorityFilesUnchanged": true,
+  "full646PositiveLiveBodyAndOwner": "NOT_EXECUTED",
+  "qualifiedWeeklyPositive": "INCOMPLETE_TYPED_SUPPORTED_AND_OWNER_NOT_ESTABLISHED",
+  "extended9cbWholeTest": "FAIL_PRESERVED_NOT_PROMOTED",
+  "originalCampaignOrProductionMutation": false,
+  "globalRelease": "NO_GO"
+}

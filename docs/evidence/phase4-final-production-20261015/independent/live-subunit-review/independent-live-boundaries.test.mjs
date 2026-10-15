@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {syntheticPhase4Fixture} from './checkout/test/phase4Fixture.js';
+import {bodyInput,seedBodyInput} from './checkout/test/bodyEnergyFixture.js';
+import {buildPhase4Core} from './checkout/src/phase4Core.js';
+import {createPhase4Stage6} from './checkout/src/phase4Reanalysis.js';
+import {createStage8LiveProducer} from './checkout/src/stage8LiveProducer.js';
+import {authorizeStage8LiveProducer} from './checkout/src/stage8LiveProducerAuthority.js';
+import {createStage8LiveExecutionRunner} from './checkout/src/stage8LiveExecution.js';
+import {runningReleaseSha} from './checkout/src/phase4Release.js';
+const sqlOf=s=>typeof s==='string'?s:s.sql;
+async function fixture(t){const f=await syntheticPhase4Fixture(t,{targetVersion:35,ownedConnection:true,now:()=>new Date()});await f.db.transaction(()=>seedBodyInput(f.db,bodyInput({asOf:Date.now()-1000,days:0})));await f.db.ensureOnboarding('a',{state:'READY'});await f.db.linkTelegram({userId:'a',chatId:'10001'});return f;}
+test('deadline after an actual subunit COMMIT stops next unit, preserves cursor and exact replay',async t=>{
+ const f=await fixture(t);await f.core.initializeTenant('a','LIVE');let elapsed=0,stopped=false,cursorAtStop;
+ const admission=await f.db.admitRuntime(),capability=await authorizeStage8LiveProducer({...f,admission,releaseSha:runningReleaseSha(),configProof:'b'.repeat(64),enabled:()=>true,eligible:id=>id==='a'});
+ const processing={client:f.db.raw,transaction:f.db.transaction,active:f.db.processingTransactionActive,afterCommit:f.db.afterProcessingCommit,afterCompletion:f.db.afterProcessingCompletion};
+ const core=await buildPhase4Core({keys:f.keys,admission,liveProducingAuthority:capability,processing,authorizeMode(mode,client,id){assert.equal(mode,'LIVE');assert.equal(client,f.db.raw);assert.equal(id,'a');}});
+ const worker=await createPhase4Stage6({...f,admission,executionMode:'LIVE',liveProducingAuthority:capability,monotonicNow:()=>elapsed});await worker.rolloutAlgorithm({userId:'a'});
+ const execute=f.db.raw.execute.bind(f.db.raw);f.db.raw.execute=async statement=>{const result=await execute(statement);if(!stopped&&/^INSERT INTO evidence_runs\b/.test(sqlOf(statement))){f.db.afterProcessingCommit(async()=>{stopped=true;elapsed=30000;cursorAtStop=(await execute("SELECT job_kind,full_scan_cursor,completed_generation FROM phase4_jobs WHERE execution_mode='LIVE' ORDER BY job_kind")).rows.map(j=>({...j}));});}return result;};
+ let output,calls=0;const run=createStage8LiveExecutionRunner({...f,capability,capture:id=>core.capture(id,{executionMode:'LIVE',providerRequired:true}),assertContext:ctx=>core.assertContext(ctx),work:async()=>{calls++;output=await worker.drain({userId:'a',triggerSource:'manual'});return {outcome:output.outcome,itemsProcessed:output.processedItems,unitsCommitted:output.unitsCommitted,jobsCompleted:output.completedJobs,jobsFailed:output.failedJobs,remainingJobs:output.remainingJobs};}});
+ const request={userId:'a',requestId:'independent-live-budget-stop'};const result=await run(request);f.db.raw.execute=execute;
+ assert.equal(stopped,true);assert.equal(output.stoppedForBudget,true);assert.equal(output.failedJobs,0);assert.ok(output.processedItems+output.unitsCommitted<=6);assert.ok(output.unitsCommitted>0);assert.equal(result.result.outcome,'PARTIAL');
+ const runs=(await execute('SELECT state FROM evidence_runs')).rows;assert.equal(runs.length,1);assert.equal(runs[0].state,'STARTED');assert.equal((await execute('SELECT count(*) n FROM evidence_items')).rows[0].n,0);
+ const jobs=(await execute("SELECT * FROM phase4_jobs WHERE execution_mode='LIVE'")).rows;assert.equal(jobs.length,2);assert.ok(jobs.every(j=>j.completed_generation<j.requested_generation&&j.attempt===0));assert.deepEqual(jobs.map(j=>({job_kind:j.job_kind,full_scan_cursor:j.full_scan_cursor,completed_generation:j.completed_generation})).sort((a,b)=>a.job_kind.localeCompare(b.job_kind)),cursorAtStop);assert.equal((await execute('SELECT count(*) n FROM stage8_live_publications')).rows[0].n,0);
+ const count=(await execute('SELECT count(*) n FROM stage8_live_execution_work_receipts')).rows[0].n;assert.ok(count>=output.unitsCommitted);assert.equal((await run(request)).replayed,true);assert.equal(calls,1);assert.equal((await execute('SELECT count(*) n FROM stage8_live_execution_work_receipts')).rows[0].n,count);
+ console.log('INDEPENDENT_COMMITTED_UNIT_BUDGET_STOP',JSON.stringify({output,receipts:count,runs:runs.map(r=>r.state),cursor:jobs.map(j=>j.full_scan_cursor)}));
+});
+test('revoking actual producer policy after unit COMMIT cannot authorize a next unit or publication',async t=>{
+ const f=await fixture(t);let enabled=true,revoked=false,cursorAtRevoke;
+ const producer=await createStage8LiveProducer({...f,admission:await f.db.admitRuntime(),userIds:['a'],enabled:()=>enabled,eligible:id=>id==='a'});
+ const execute=f.db.raw.execute.bind(f.db.raw);f.db.raw.execute=async statement=>{const result=await execute(statement);if(!revoked&&/^INSERT INTO evidence_runs\b/.test(sqlOf(statement)))f.db.afterProcessingCommit(async()=>{revoked=true;cursorAtRevoke=(await execute("SELECT job_kind,full_scan_cursor,completed_generation FROM phase4_jobs WHERE execution_mode='LIVE' ORDER BY job_kind")).rows.map(j=>({...j}));enabled=false;});return result;};
+ await assert.rejects(producer.run({userId:'a',requestId:'independent-live-revoke-after-unit'}),/PRODUCING_AUTHORITY|PRINCIPAL_FENCED|LIVE_NOT_AUTHORIZED|LIVE_FIXTURE|SHADOW_ONLY/);f.db.raw.execute=execute;
+ assert.equal(revoked,true);const runs=(await execute('SELECT state FROM evidence_runs')).rows;assert.equal(runs.length,1);assert.equal(runs[0].state,'STARTED');assert.equal((await execute('SELECT count(*) n FROM evidence_items')).rows[0].n,0);assert.equal((await execute('SELECT count(*) n FROM stage8_live_publications')).rows[0].n,0);
+ const executions=(await execute('SELECT state,result_json FROM stage8_live_executions')).rows;assert.equal(executions.length,1);assert.equal(executions[0].state,'ESTABLISHED');assert.equal(executions[0].result_json,null);
+ const jobs=(await execute("SELECT * FROM phase4_jobs WHERE execution_mode='LIVE'")).rows;assert.ok(jobs.every(j=>j.completed_generation<j.requested_generation));assert.deepEqual(jobs.map(j=>({job_kind:j.job_kind,full_scan_cursor:j.full_scan_cursor,completed_generation:j.completed_generation})).sort((a,b)=>a.job_kind.localeCompare(b.job_kind)),cursorAtRevoke);
+ console.log('INDEPENDENT_COMMITTED_UNIT_REVOCATION',JSON.stringify({runs:runs.map(r=>r.state),executions:executions.map(e=>e.state),jobs:jobs.map(j=>({state:j.state,cursor:j.full_scan_cursor}))}));
+});

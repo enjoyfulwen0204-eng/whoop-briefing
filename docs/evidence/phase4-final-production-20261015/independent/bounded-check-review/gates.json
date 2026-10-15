@@ -1,0 +1,20 @@
+{
+  "reviewedCommit": "87cc51311d16e8b7eab3f29ed0d9983de050bfcf",
+  "testOnlySuccessor": "b44134bafa5fbb8e025fde0d31172d2afdb02ae3",
+  "srcTree": "01ba2540dbd87f56b8183d83595783938ae0c5fb",
+  "exactRuntimeIdentity": true,
+  "boundedReadonlyTransport": "SCOPED_GO_FOR_COVERED_AUTHORITY_BOUNDARIES",
+  "nativeSchedulerWithdrawal": "SCOPED_GO_SOURCE_RESTORED_NOT_NATIVE_FIX",
+  "completedPassingChecks": 66,
+  "initialOriginalFixtureRun": "INCOMPLETE_56_PASS_14_CONTROLLED_ADMISSION_FAILURE_LINES_OUTER80S_TIMEOUT",
+  "firstV34SyncRun": "2_PASS_1_CANCELLED_REVIEWER30S_LIMIT_BELOW_UNCHANGED33S_RECOVERY_BUDGET",
+  "correctedV34Recovery": "2_PASS_NO_RUNTIME_BUDGET_CHANGE",
+  "weeklyCompletion": "NO_GO",
+  "nativeBaselineStability": "NO_GO_OPEN",
+  "actualProductionTargetQualification": "NO_GO_NOT_RUN",
+  "genericImportantAndPipeline": "NO_GO_TIMEOUT_AND_CURRENT_ASSERTION_FAILURE",
+  "originalStage6Settlement": "OUTSTANDING_NOT_EXECUTED",
+  "productionMigration": "NO_GO_UNAPPROVED_ROUTE",
+  "globalRelease": "NO_GO",
+  "reviewerCandidateOrProductionMutation": false
+}

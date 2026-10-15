@@ -1,0 +1,77 @@
+[
+  {
+    "path": "6f-foundation-question-purge-baseline.json",
+    "sha256": "249c67872aa282804869967cd860f97b3a8487095340f5eec530ee3e38bb9f31",
+    "bytes": 297
+  },
+  {
+    "path": "6f-foundation-question-purge-baseline.tap",
+    "sha256": "a25c59a3f60d7ea02a0c9054b5cdbc39b599e20a393d9809dcf2a1d4464ec101",
+    "bytes": 4686
+  },
+  {
+    "path": "aa2-independent-init-matrix.json",
+    "sha256": "eea6cb367661214be744bd4fb90b52b678a7587ec44fe4c46772d4a610e40474",
+    "bytes": 997
+  },
+  {
+    "path": "aa2-integration-identity.json",
+    "sha256": "d2d20d7263bc007bea7459d13707621c96a203e62fcbd8bedf3c37a2f19ad9f5",
+    "bytes": 45025
+  },
+  {
+    "path": "aa2-product-init-ordered-privacy.json",
+    "sha256": "d8b25124b0f61b67c2fe10b9bc351b39377b1e0af8c62fb8775af90418550668",
+    "bytes": 566
+  },
+  {
+    "path": "aa2-product-init-ordered-privacy.tap",
+    "sha256": "79210dda9ca78265949f8f73d561b0ceec71a745394c3dd62f5c5aa4a8ba2ab3",
+    "bytes": 22283
+  },
+  {
+    "path": "aa2-source-delta-verification.json",
+    "sha256": "3fe0af968de06c299bb8b07fc7455161ca97309783b4a99f532cc6d7478ce6b2",
+    "bytes": 897
+  },
+  {
+    "path": "addendum-gates.json",
+    "sha256": "a784f2867c9f91f610b65a51dcede75e6c14631dd2cf50402e1d2d573cd0e918",
+    "bytes": 1054
+  },
+  {
+    "path": "baseline-result.json",
+    "sha256": "9e43a3d2d6825864a74d67fb4a1368dceb7d4554add1f6ccf4964dc1ee8ba34d",
+    "bytes": 991
+  },
+  {
+    "path": "body-provisional-policy-6f5-baseline.tap",
+    "sha256": "27a4bce046465b69d510bbfa597f3db15ba7268a07f9e13aa165d1496ed72a3c",
+    "bytes": 1135
+  },
+  {
+    "path": "d539-populated-ordered-recovery-exit-verified.tap",
+    "sha256": "e1140e7ace05b1b8135b0bbb49af68d990b9b6355e063ca0832ced5091d6a17b",
+    "bytes": 1916
+  },
+  {
+    "path": "d539-populated-ordered-recovery.json",
+    "sha256": "26b9d2b168b03e3e55ab8e9107ea8e1c5ea3c7341ab78eb0669d8ad029532def",
+    "bytes": 467
+  },
+  {
+    "path": "d539-populated-ordered-recovery.tap",
+    "sha256": "e3a700214a060f0ac52f859e6e0d03149143fc3f345aa3d74b099341884a58a0",
+    "bytes": 1915
+  },
+  {
+    "path": "final-addendum.md",
+    "sha256": "25881968b76d642cc86eb2e2518208b9d287e9f56cb26057adce43544503202c",
+    "bytes": 6297
+  },
+  {
+    "path": "stage7-cards-6f5-baseline.tap",
+    "sha256": "a69e8fa92baed9ce13a9d7b7ee011af8d08d5fd9c8a29cf3bb591f0ab1f5c0ac",
+    "bytes": 1102
+  }
+]

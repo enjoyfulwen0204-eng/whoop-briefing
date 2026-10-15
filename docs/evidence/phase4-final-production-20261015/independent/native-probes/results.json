@@ -1,0 +1,43 @@
+{
+  "platform": "macOS-15.6.1-arm64-arm-64bit",
+  "node": "v22.23.2",
+  "sourceCommit": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+  "probeSha256": "8b5f6296cea841e65339c4fb1bc28f4317ca8a940d93ad749e58c77c7c850a6e",
+  "versions": {
+    "node_modules/@libsql/client": "0.15.15",
+    "node_modules/@libsql/darwin-arm64": "0.5.29",
+    "node_modules/libsql": "0.5.29"
+  },
+  "manualGc": false,
+  "isolatedProcesses": [
+    {
+      "probe": 0,
+      "returncode": 0,
+      "signal": null,
+      "stdout": "{\"rows\":500,\"elapsedMs\":37.68879099999998,\"collect\":false,\"resources\":[\"Immediate\"]}\nNATIVE_PROBE_BEFORE_EXIT",
+      "stderr": ""
+    },
+    {
+      "probe": 1,
+      "returncode": 0,
+      "signal": null,
+      "stdout": "{\"rows\":500,\"elapsedMs\":32.238749999999996,\"collect\":false,\"resources\":[\"Immediate\"]}\nNATIVE_PROBE_BEFORE_EXIT",
+      "stderr": ""
+    },
+    {
+      "probe": 2,
+      "returncode": 0,
+      "signal": null,
+      "stdout": "{\"rows\":500,\"elapsedMs\":30.528,\"collect\":false,\"resources\":[\"Immediate\"]}\nNATIVE_PROBE_BEFORE_EXIT",
+      "stderr": ""
+    },
+    {
+      "probe": 3,
+      "returncode": 0,
+      "signal": null,
+      "stdout": "{\"rows\":500,\"elapsedMs\":31.026417000000002,\"collect\":false,\"resources\":[\"Immediate\"]}\nNATIVE_PROBE_BEFORE_EXIT",
+      "stderr": ""
+    }
+  ],
+  "qualification": "Diagnostic current Darwin baseline only; passing does not fix retained N-API cleanup defect or qualify Linux production."
+}

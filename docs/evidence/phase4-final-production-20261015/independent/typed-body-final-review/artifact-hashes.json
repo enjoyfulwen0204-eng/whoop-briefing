@@ -1,0 +1,12 @@
+{
+  "direct-module-init.json": "0d460663795bc04d4a8607f94eca340a97a87f32b9dc120411eeffb67a2f3a1f",
+  "direct-module-init.py": "faf8d9d7f5538922260970da23c426f12ead30af047d4900e3835a4ebe61af0a",
+  "focused-final-eligibility.json": "aebfc31e69d86a6689a2cab3c8bed9a7c3990c1b1d642869f8822fca5cf35cb4",
+  "focused-final-eligibility.tap": "088e7ab6f5ab43d831618ef497fcc97fc0648419c2e3b23ae5fe47c9846d5791",
+  "gates.json": "c8d42b289505c521ccdadc1788d89b642d0757756534649e9b0aa37f0fe14d25",
+  "independent-final-projection.test.mjs": "feada82d326a3d389817ff910bc474130a9923e68da6b2b7cdf2bc2e87b2a185",
+  "review.md": "e06e957f016cfe48eb0b650b6406a56279c336cc9bd3cbd01946d3f64532a72e",
+  "source-after.json": "5e4bb534da159f67c079ec9aa82a4f44ae4096f1cb82e9bae78f0970c5720fe6",
+  "source-before.json": "5e4bb534da159f67c079ec9aa82a4f44ae4096f1cb82e9bae78f0970c5720fe6",
+  "summary.json": "6370b513c4d3c2e0cf14450f747dc5f530dd8fe8e48aee1fb77b2a332e643bd4"
+}

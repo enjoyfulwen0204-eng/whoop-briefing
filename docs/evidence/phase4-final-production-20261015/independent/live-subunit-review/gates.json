@@ -1,0 +1,16 @@
+{
+  "source": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+  "srcTree": "d1ce688cc9593ff1970e67d6ea13c16c634d91dc",
+  "scopedLiveDefaultSixSlotContinuation": "GO_FOR_COVERED_BOUNDARIES",
+  "committedTestsPassed": 8,
+  "independentCorrectedFencesPassed": 2,
+  "retainedInitialReviewerOracleFailures": 2,
+  "nativeStability": "NO_GO_OPEN",
+  "parent120sWeeklyAndOwned": "0_PASS_0_FAIL_2_CANCELLED",
+  "completeWeeklyOwnerFunction": "NOT_ESTABLISHED",
+  "completeDailyImportantOwnerFunction": "NOT_ESTABLISHED",
+  "actualProductionCapacity": "NOT_ESTABLISHED",
+  "originalSettlement": "NOT_EXECUTED",
+  "globalRelease": "NO_GO",
+  "extendedWeeklyRunExecutedByReviewer": false
+}

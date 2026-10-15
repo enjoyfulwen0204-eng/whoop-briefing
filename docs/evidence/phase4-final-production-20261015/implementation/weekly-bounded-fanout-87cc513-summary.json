@@ -1,0 +1,26 @@
+{
+  "sourceSha": "87cc51311d16e8b7eab3f29ed0d9983de050bfcf",
+  "srcTree": "01ba2540dbd87f56b8183d83595783938ae0c5fb",
+  "sha256": "c26288d62f2fcdb0e6523505e9802fe8ebdd42aebf5a0760c084105774e63fdc",
+  "classification": "BOUNDED_TIMEOUT_NOT_WEEKLY_OR_RESOURCE_QUALIFICATION",
+  "testBudgetMs": 120000,
+  "observations": 34,
+  "items": 66,
+  "units": 24,
+  "jobsFailed": 0,
+  "publicationStates": [
+    "ANALYSIS_UPDATING"
+  ],
+  "zeroProgressBudgetLegs": [],
+  "maxHeapUsedBytes": 155536440,
+  "maxKernelRssKiB": 1446128,
+  "lastLeg": 33,
+  "tap": {
+    "pass": 0,
+    "fail": 0,
+    "cancelled": 1
+  },
+  "runtime": "local Darwin arm64 owned native RAM fixture; not Production Linux HTTP",
+  "profiler": false,
+  "algorithmOrBudgetEnlarged": false
+}

@@ -1,0 +1,90 @@
+{
+  "sha256": "65700558b465fbf88b0b7ecff17691eadf5f66f7312c8e9b4c64883a84dd4c09",
+  "sourceSha": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+  "srcTree": "d1ce688cc9593ff1970e67d6ea13c16c634d91dc",
+  "outerFileTestBudgetMs": 120000,
+  "profiler": false,
+  "weekly": {
+    "observations": 17,
+    "last": {
+      "leg": 16,
+      "durationMs": 30458.701166999992,
+      "replayed": false,
+      "recovered": false,
+      "executionId": "e5f3b455bc2e5d48af1470de26a242e334a97ec7cc25778ec00f5a958c383d3f",
+      "result": {
+        "version": 2,
+        "identity": "f554397b13893a80dac3e619a1ab4055bacd6d0b90663fcc33f3135d715e2ff9",
+        "releaseSha": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "executionMode": "LIVE",
+        "configProof": "0f75234a62b0343875ac86de443800fdea3a880eba9ed912a171797f098e9e4e",
+        "outcome": "PARTIAL",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "unitsCommitted": 4,
+        "signature": "614faee94979cc16d950619680e677434db6c08984e881bb37c68615e80ebc5f"
+      },
+      "publication": {
+        "status": "ANALYSIS_UPDATING"
+      },
+      "resources": {
+        "cpu": {
+          "user": 95344969,
+          "system": 16272713
+        },
+        "memory": {
+          "rss": 554090496,
+          "heapTotal": 208289792,
+          "heapUsed": 178276760,
+          "external": 4046765,
+          "arrayBuffers": 84669
+        },
+        "maxRssKiB": 2500896
+      }
+    },
+    "maxObservedHeapUsedBytes": 178276760,
+    "maxObservedKernelRssKiB": 2500896,
+    "publicationStates": [
+      "ANALYSIS_UPDATING"
+    ]
+  },
+  "ownedClasses": {
+    "observations": 32,
+    "last": {
+      "leg": 31,
+      "replayed": false,
+      "recovered": false,
+      "executionId": "cc6a45db1969b4c4693a1106f10ca5cda4053036ff89cfdbcd08984283ac8992",
+      "result": {
+        "version": 2,
+        "identity": "2fbbe74b756141fa52a7d9a724c39ad6df610e89dee55b6920f23235f78c424d",
+        "releaseSha": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "executionMode": "LIVE",
+        "configProof": "0f75234a62b0343875ac86de443800fdea3a880eba9ed912a171797f098e9e4e",
+        "outcome": "COMPLETE",
+        "itemsProcessed": 1,
+        "jobsCompleted": 1,
+        "jobsFailed": 0,
+        "remainingJobs": 0,
+        "unitsCommitted": 0,
+        "signature": "9682c27ebc067b81f7e45c74fe36176011d43ad563a6f3c11a200ab296f689ab"
+      },
+      "publication": {
+        "status": "CURRENT",
+        "replayed": false,
+        "inputGeneration": 2
+      }
+    },
+    "publicationStates": [
+      "ANALYSIS_UPDATING",
+      "CURRENT"
+    ]
+  },
+  "classification": "BOTH_FILES_CANCELLED_AT_120S; partial owned CURRENT is not full owner/reader acceptance"
+}

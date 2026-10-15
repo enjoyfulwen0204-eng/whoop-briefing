@@ -1,0 +1,11 @@
+{
+  "originalPath": "/private/tmp/phase4-final-independent-review/bounded-check-review/checkout/test/processing-read-check-coalescing.test.js",
+  "originalSha256": "4ded5d8833a71f0797b1c7e77db88e27f36b335cf92cf6dab28038607b0a85eb",
+  "adaptedPath": "/private/tmp/phase4-final-independent-review/bounded-check-review/v34-processing-read-check-coalescing.test.mjs",
+  "adaptedSha256": "4ca57c17c991df61006584b636124367ca5bdf1030f84108a598bf8b2890b83b",
+  "changes": [
+    "isolated synthetic targetVersion 32 to 34",
+    "relative module URL relocation only"
+  ],
+  "runtimeUnchanged": true
+}

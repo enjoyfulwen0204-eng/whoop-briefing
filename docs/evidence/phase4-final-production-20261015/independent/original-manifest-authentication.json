@@ -1,0 +1,30 @@
+{
+  "signedApprovalValid": true,
+  "codeSha": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+  "manifestDigest": "7b4cd697ace1ce9601998cd5206d2cab3a219f120927f2bc04da9bcac2a76e5a",
+  "accountingOrigin": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+  "filesChecked": 762,
+  "fileMismatches": [],
+  "database": {
+    "id": "s6syn-f177eb5236ee55369daebe0c2d191c80",
+    "path": "/qualification/physical/dbs/default/data",
+    "device": "46",
+    "inode": "23020"
+  },
+  "authenticatedJournalRows": 2,
+  "physicalIdentityVerification": "Manifest identity recorded; host path differs from container /qualification; no realpath bypass or profile admission executed.",
+  "authenticatedLedger": {
+    "version": 1,
+    "manifestDigest": "1b7f341818e56b5636ddcc8fe81651701c7cdb627e97de4eb58537d72716129e",
+    "databaseId": "s6syn-f177eb5236ee55369daebe0c2d191c80",
+    "startAt": 1792049340357,
+    "endAt": 1792135740357,
+    "attempts": 362,
+    "lastObservedAt": 1792075622435,
+    "closed": false,
+    "scopes": {
+      "control": 3,
+      "qualification": 359
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "source": "646c99fc1085d0e4c964eb92499087c492351b64",
+  "tree": "6fe3207b57edfc3a24343c043e95cfc4bfc928ff",
+  "srcTree": "16f43e20eb509dccb00d7da5c56bf7fd7ea552c2",
+  "sourceTestPackageIdentityUnchanged": true,
+  "runtimeDeltaPathsFrom9cb": [
+    "src/stage8BodyEnergyProjection.js",
+    "src/stage8DerivedReader.js"
+  ],
+  "otherRuntimeFilesByteIdenticalTo9cb": true,
+  "guardAndCohortFilesUnchanged": [
+    "stage8Runtime.js",
+    "stage8LiveAuthority.js",
+    "stage8LiveProducerAuthority.js",
+    "scopedHealthContext.js",
+    "bodyEnergyQualificationAuthority.js",
+    "bodyEnergyProvisionalPolicy.js",
+    "bodyEnergyReleaseCriteria.js",
+    "phase4Core.js",
+    "phase4OperationReceipts.js",
+    "stage8LivePublication.js",
+    "processingTransaction.js",
+    "phase4Reanalysis.js"
+  ],
+  "tests": {
+    "pass": 42,
+    "fail": 0,
+    "cancelled": 0,
+    "sha256": "088e7ab6f5ab43d831618ef497fcc97fc0648419c2e3b23ae5fe47c9846d5791",
+    "terminal": [
+      "# tests 42",
+      "# pass 42",
+      "# fail 0",
+      "# cancelled 0",
+      "# duration_ms 15101.506917"
+    ]
+  },
+  "directImports": [
+    {
+      "module": "stage8BodyEnergyProjection.js",
+      "returncode": 0,
+      "durationSeconds": 0.21354108400000002,
+      "stdout": "DIRECT_IMPORT_OK\n",
+      "stderr": ""
+    },
+    {
+      "module": "stage8DerivedReader.js",
+      "returncode": 0,
+      "durationSeconds": 0.1938905,
+      "stdout": "DIRECT_IMPORT_OK\n",
+      "stderr": ""
+    },
+    {
+      "module": "stage8Runtime.js",
+      "returncode": 0,
+      "durationSeconds": 0.19614937500000007,
+      "stdout": "DIRECT_IMPORT_OK\n",
+      "stderr": ""
+    }
+  ]
+}

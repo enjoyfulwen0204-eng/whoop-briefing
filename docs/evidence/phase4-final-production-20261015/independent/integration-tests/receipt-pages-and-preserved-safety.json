@@ -1,0 +1,15 @@
+{
+  "returncode": 1,
+  "timedOut": false,
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "test/stage6-metric-receipt-pages.test.mjs",
+    "test/stage8-adjudicated-repair/semantic.test.mjs",
+    "test/stage8-adjudicated-repair/final-adversarial.test.mjs",
+    "test/stage8-safety-gate/semantic.test.mjs"
+  ],
+  "durationSeconds": 0.8625352382659912,
+  "sourceCommit": "e74ac26e45ea9095db553f0900783a27927561f2"
+}

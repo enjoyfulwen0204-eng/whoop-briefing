@@ -1,0 +1,55 @@
+{
+  "source": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+  "tree": "e256be140b851798e2e86339f309ae21b5652cf1",
+  "srcTree": "d1ce688cc9593ff1970e67d6ea13c16c634d91dc",
+  "tapSha256": "894ecd17cd506ad368a63e8fbd7cabe04af9e3cd4839e24ee4e6be99536aeef7",
+  "singleAuthorizedRun": true,
+  "observations": 64,
+  "firstLeg": 0,
+  "lastLeg": 63,
+  "jobsFailedSum": 0,
+  "jobsCompletedSum": 2,
+  "itemsProcessedSum": 306,
+  "unitsCommittedSum": 54,
+  "maximumCombinedItemsUnitsPerLeg": 6,
+  "maxLegDurationMs": 34505.94712499999,
+  "maxKernelRssKiBReported": 3311904,
+  "maxSampledRssBytes": 1382121472,
+  "maxSampledHeapUsedBytes": 197046304,
+  "currentLegs": [
+    63
+  ],
+  "lastPublication": {
+    "status": "CURRENT",
+    "replayed": false,
+    "inputGeneration": 2
+  },
+  "lastResult": {
+    "version": 2,
+    "identity": "65a7ca346c596df6a881f3f97dfdc9e4a051a20ad4959fa5d4c578049421e6c1",
+    "releaseSha": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+    "phase": "STAGE6_DRAIN",
+    "source": "manual",
+    "executionMode": "LIVE",
+    "configProof": "0f75234a62b0343875ac86de443800fdea3a880eba9ed912a171797f098e9e4e",
+    "outcome": "COMPLETE",
+    "itemsProcessed": 0,
+    "jobsCompleted": 1,
+    "jobsFailed": 0,
+    "remainingJobs": 0,
+    "unitsCommitted": 0,
+    "signature": "4c9d0e7cda107a77e1f48cab8cf81a24c6aa6d2fd344adc619c66891214697e4"
+  },
+  "zeroProgressBudgetLegs": [],
+  "terminal": [
+    "# tests 1",
+    "# pass 0",
+    "# fail 1",
+    "# cancelled 0",
+    "# duration_ms 264609.827584"
+  ],
+  "failure": "SCOPED_CAPABILITY_REQUIRED_FROM_NON_SELF_TEST_TEXT_BEFORE_TYPED_READER",
+  "classification": "QUEUE_COMPUTATION_CURRENT_WITHIN64; COMPLETE_FUNCTIONAL_FILE_FAILED; NOT_TARGET_CAPACITY",
+  "timeStderrSha256": "66cecc3ec2ca243a84ca9f3168dc377083e36a2e7aeb6dfdc8c8c3163487a5e9",
+  "timeStderrNote": "264.77 real;241.64 user;26.93 sys. Detailed time-l rusage denied by sysctl kern.clockrate. No bypass."
+}

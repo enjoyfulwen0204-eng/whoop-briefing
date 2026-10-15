@@ -1,0 +1,16 @@
+{
+  "command": [
+    "node",
+    "--expose-gc",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=240000",
+    "test/stage8-live-weekly-functional.test.js"
+  ],
+  "exitCode": 1,
+  "durationSeconds": 4.133667666999999,
+  "peakProcessGroupRssKiB": 315072,
+  "stopReason": null,
+  "cpuProfiling": false,
+  "productionQualification": false
+}

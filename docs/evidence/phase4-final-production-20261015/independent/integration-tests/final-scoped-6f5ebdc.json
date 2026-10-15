@@ -1,0 +1,19 @@
+{
+  "returncode": 0,
+  "timedOut": false,
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "test/phase4-integrated-control-lifetime.test.js",
+    "test/stage8-live-execution.test.js",
+    "test/stage8-live-producer-boundary.test.js",
+    "test/stage6-metric-receipt-pages.test.mjs",
+    "test/stage8-adjudicated-repair/semantic.test.mjs",
+    "test/stage8-adjudicated-repair/final-adversarial.test.mjs",
+    "test/stage8-safety-gate/semantic.test.mjs"
+  ],
+  "durationSeconds": 17.286659002304077,
+  "sourceCommit": "6f5ebdcb205390925dc367fa92cc28e8a95d9821",
+  "sourceTree": "ed0a7260de6b304811f3ee6f90ac53e082bf1955"
+}

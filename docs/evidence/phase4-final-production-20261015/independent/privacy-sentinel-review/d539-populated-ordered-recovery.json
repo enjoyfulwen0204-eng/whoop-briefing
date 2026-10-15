@@ -1,0 +1,15 @@
+{
+  "commit": "d539277abbb13191f6110dac92a2cb32a0cd2511",
+  "tree": "678bbdfb73aede1d5737cae5f6c99c88302802be",
+  "srcTree": "ebdbdd02c76a8bbf583e628b01e96649eaadcdce",
+  "srcIdenticalToAa2": true,
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "test/phase4-v35-ordered-recovery.test.mjs"
+  ],
+  "returncode": 0,
+  "durationSeconds": 3.5602340698242188,
+  "uniqueDefinitions": 1,
+  "earlierDirectRunAlsoPreservedNotAdditionalTest": true
+}

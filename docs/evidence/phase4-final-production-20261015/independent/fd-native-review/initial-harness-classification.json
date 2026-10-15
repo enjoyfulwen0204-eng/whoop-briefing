@@ -1,0 +1,5 @@
+{
+  "classification": "INVALID_PEER_ROOT_SETUP",
+  "reason": "Timer created inside transaction inherits AsyncLocalStorage root and correctly runs as same-owner nested transaction; corrected timer is established outside root before entering transaction. Original failure and harness retained.",
+  "runtimeSourceChanged": false
+}

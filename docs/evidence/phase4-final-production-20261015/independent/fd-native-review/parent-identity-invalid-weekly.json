@@ -1,0 +1,17 @@
+{
+  "path": "/private/tmp/phase4-final-integration-evidence/weekly-native-fairness-runtime.tap",
+  "sha256": "f3ba238a2e290bb599e5470cf663855b82d8d302b4f2468f03bd6915a1cd0caf",
+  "classification": "INVALID_IDENTITY_CHANGED",
+  "releaseFenceError": true,
+  "legCount": 30,
+  "lastLeg": 29,
+  "progressOnlyNotQualification": true,
+  "terminal": [
+    "# tests 1",
+    "# pass 0",
+    "# fail 1",
+    "# cancelled 0",
+    "# skipped 0",
+    "# duration_ms 72715.734292"
+  ]
+}

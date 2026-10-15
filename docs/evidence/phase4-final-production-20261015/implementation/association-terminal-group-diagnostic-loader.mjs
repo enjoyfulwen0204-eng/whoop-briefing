@@ -1,0 +1,1 @@
+export async function load(url,context,next){const r=await next(url,context);if(!url.endsWith('/src/processingTransaction.js'))return r;return {...r,source:String(r.source).replace('  async function runChecks(checks,client){',"  async function runChecks(checks,client){if(checks.length>=64)console.log('SYNTHETIC_READONLY_CHECK_GROUP',JSON.stringify({checks:checks.length}));")};}

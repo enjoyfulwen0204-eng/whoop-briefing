@@ -1,0 +1,123 @@
+{
+  "commit": "e74ac26e45ea9095db553f0900783a27927561f2",
+  "tree": "677c7d4b9b7dddb322d749fb32c96c5a25331623",
+  "srcTree": "3234895a8fab993fed3cc7f570d7e19e95458a09",
+  "testTree": "610413664d3d620441dd4c0cd951d4d24ce196d3",
+  "protected": [
+    {
+      "path": "src/bot/triage.js",
+      "sha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/bot/safetyGate.js",
+      "sha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/phase4V33Schema.js",
+      "sha256": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/phase4V34Schema.js",
+      "sha256": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/phase4V35Schema.js",
+      "sha256": "3e7144ae5e76b75d4dedce2f86264618a9ed6abd422bcb309d0624a25a8b7156",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7Cards.js",
+      "sha256": "4ae1dd8203500564f364892812d04c6548873348f448f71902fdde136816bd7e",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7Companion.js",
+      "sha256": "f1b9a171ab8e0fbb4bbdf80275a5c7a61fb6d9eeecd72651fdccc9103f395834",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7Composition.js",
+      "sha256": "4193166af2c52f167d056aea8a25a7a0b707aaf79222efaf3a569248d435f8eb",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7DecisionPolicy.js",
+      "sha256": "81c9226452b0d35e21a18e4c670cab91adfa6c28ba513c6a0603c255b30d79a8",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7DecisionStore.js",
+      "sha256": "27cc5966ce5e8316d14a15ca4f269db2477f85235ab40fda957115945376061c",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7Development.js",
+      "sha256": "e13ca0c5159e726a9d9ed0a31823d12558e5c5f68603d841ee9478d5b86115a8",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7Dispatcher.js",
+      "sha256": "5daad1bc71bbdb5484c720ba5b886f48923217e3d88c0afac11bf09e12a59eff",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7InteractionPrivacy.js",
+      "sha256": "eeaacffd42e0a7d224abda5f973ec758815767ae33573f71d166d9d23f674df2",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7InteractionStore.js",
+      "sha256": "af91d1ad4852cf620fb0cbfd9537c45c314fc0619c6034d1ba896e4d37db8297",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7JournalProvenance.js",
+      "sha256": "f34669d5a9b8c184370347c36fd3bdea3775a0dbacdb37ee7e9400633a585715",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7Registry.js",
+      "sha256": "108cb0d11e70cecf153420697ec5bab33f056b78553b4fa560632fbdbfadac57",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7ReplyAuthority.js",
+      "sha256": "8045c0d8207590476f6d52d9dbac55e5651b525c5ea9285d783e0ee1112fced5",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7Runtime.js",
+      "sha256": "e75eccb68e657abf1ca06c1a124167279ada1f61c16e2bfeda4149f71a928536",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7TelegramDevelopment.js",
+      "sha256": "c53413076c7f6d26ee4802301d5d62caa6e055a6de439ff61790da7439413988",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7TransportAuthority.js",
+      "sha256": "e7e4aacf3a0ef92f55227134e8eb773b6451e1ae9fe46c0f4815e966a51a5016",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7TrustedRegistry.js",
+      "sha256": "640fa7ac8adfe1580cfe7bba2d6d97fc6ef9ff257f2ffdffcf632b403c1ff2ce",
+      "byteIdenticalToStage8": true
+    },
+    {
+      "path": "src/stage7WeeklyReview.js",
+      "sha256": "2acae49385e673b98b685b01cfc3cd5f5bdbb4a56c3f93bf5cbd627782a8fb62",
+      "byteIdenticalToStage8": true
+    }
+  ],
+  "allProtectedIdentical": true,
+  "stage6AncestryPreserved": true,
+  "stage7AncestryPreserved": true,
+  "stage8AncestryPreserved": true,
+  "sourceStatus": ""
+}

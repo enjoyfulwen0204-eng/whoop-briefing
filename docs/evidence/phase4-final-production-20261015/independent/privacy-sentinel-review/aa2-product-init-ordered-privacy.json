@@ -1,0 +1,18 @@
+{
+  "returncode": 1,
+  "timedOut": false,
+  "sourceCommit": "aa2c45d6f75b91ff3d2ac82a32ee4ecae427d2f2",
+  "sourceTree": "55be0005d700d2229d2f4e19ff4eb6593cebb2e8",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "test/phase4-module-initialization.test.mjs",
+    "test/body-provisional-policy.test.js",
+    "test/stage7-cards.test.js",
+    "test/phase4-v35-ordered-recovery.test.mjs",
+    "test/phase4-privacy.test.js",
+    "test/phase4-foundation-privacy.test.js"
+  ],
+  "durationSeconds": 23.977070093154907
+}

@@ -1,0 +1,116 @@
+{
+  "stage6Commit": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+  "stage6Tree": "ef2a9d7a8bd653c3924eca94c805b8d2f31975e6",
+  "stage8Commit": "b0dd71cc305f829589272504e3bc89c96d5508d9",
+  "stage8Tree": "fb388bd38e7ae9ab86719927d126054be96204e1",
+  "files": [
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/phase4Execution.js",
+      "sha256": "8d7e6d937f5303df6d8d5a0b50bcad2634f325caf73cb63426aeada9ea456fdf"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/phase4ExecutionStore.js",
+      "sha256": "2092ffa0e2c9b308e2b262667af0bba54c70add06825f7780f8a88c7b63a87be"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/phase4Release.js",
+      "sha256": "ee81386e521d73ebc6214778e2dfa1735d971112ffe6358f9ebdb412862e3efe"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/publicBetaEntry.js",
+      "sha256": "35b8fb47cb52439c0f913b62688b3b4f4cf26d3050799aff88c654ca5040b053"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/bot/webhook.js",
+      "sha256": "4b006cb423d3cdaf13f265ff882e120cb399f9f79c8cd7dfd608c7ba7b3f900c"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/db.js",
+      "sha256": "4a61e0bf8c944eb7bd8999de88647c87688151b09b4fa2ecf8ddff683aa85ccb"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/stage6ShortPublication.js",
+      "sha256": "e711500ec963bdc4e0e61bafde5282f0308ec90f240752b2cd3b5cdde71604c5"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/drainChildSupervisor.js",
+      "sha256": "60e97ada3baa98b451efa18bc8a5c9b11823b9bf332cdceddcc70f9ec08bf068"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/drainChildLifecycle.js",
+      "sha256": "9c20cc81914f2ad35c48ee844212c8c7fd1cbbbdefe696301b993c1577d8b352"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/src/drainProcessAuthority.js",
+      "sha256": "8df1ba5fe114b0f7f41bbafe8afcb31190bbf4dca633b567f3fe05575c3c46cd"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/test/stage6SyntheticProfile.mjs",
+      "sha256": "8318bf2cbb3b5068a254686e7b56390faec1d70a1ae0d1383f9f4de80573cfe7"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/test/stage6SyntheticLoader.mjs",
+      "sha256": "829028792a2168c9e5f04a32cc4d7a1a0e1b6b070f28dc2a10857d44455d9fc7"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/test/stage6SyntheticAdmission.mjs",
+      "sha256": "3e7c2c9a41a42fe299a76f4489c21bffbaccb473272c13021b8496a53ec24cc0"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/test/stage6SyntheticDispatch.mjs",
+      "sha256": "0df8d6c9c87efd11c389ba13b1f39e52cd2f6cb1a770664adc00291217bf1d5a"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/test/stage6-synthetic-runner.mjs",
+      "sha256": "28944a86b281cc4c21c276ad9a0bc5d8d3d156446f30a4721ca4c07fc2bf234d"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/test/stage5NativeProbe.mjs",
+      "sha256": "8b5f6296cea841e65339c4fb1bc28f4317ca8a940d93ad749e58c77c7c850a6e"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/test/phase4-native-stability.test.js",
+      "sha256": "eea739fc9152b908c989abf571b8813206f6460699addde3038f915a7bb45f17"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/pre-stage7/stage6-runtime-memory-qualification.md",
+      "sha256": "6f80320563e35018a9a7a7de094cc9aa19c7d17518432947bf4d9d65bbf50e08"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/evidence/stage5-closure/native-crash-excerpts.json",
+      "sha256": "a3a37bc36fac2df533e9436ff3b19bac66057153c880a7957e2269afb6090a40"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/evidence/stage5-review-b/native-crash-excerpts.json",
+      "sha256": "6f7fab064d1e89843ff34d40d7c7075519b4c29fef0e49d8db5eff12423184d5"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/package-lock.json",
+      "sha256": "79b263e14c52cb67a1adae0a3ff5102d44b9ffa801990b2f7ad3d30125d9ee2e"
+    },
+    {
+      "path": "/private/tmp/stage8-ownership-independent-native-comparison.json",
+      "sha256": "5ee86e2a23951c941820748b4aca18ce637eb504cd2cf459dfb233c403ceb9cd"
+    },
+    {
+      "path": "/private/tmp/stage8-independent-native-ordinary.tap",
+      "sha256": "805d98f7298cabfafc0e7f11c35a5d08a3c10162d61940f9b6c25b8729ed35ab"
+    },
+    {
+      "path": "/private/tmp/stage8-semantic-independent-native-optional.tap",
+      "sha256": "ecf314629e910f23e4ee50328b84082883dc01f9ad8e626468e5df602f05b7f4"
+    },
+    {
+      "path": "/private/tmp/stage8-ownership-review-native-optional.log",
+      "sha256": "eafd270269c37419506c84880bdf6da6c6ac9cf577eb01fbe544ee590a77ae17"
+    },
+    {
+      "path": "/private/tmp/stage8-triage-architecture-native-optional.tap",
+      "sha256": "a4570c6da91fb2689d93f569799ef15d3453d2c65976a74bb83e802158e56e09"
+    },
+    {
+      "path": "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/pending.json",
+      "sha256": "cfc6e5ed5818ef758a3eb3acfabfe4da7ddc22de65664da81e43d2d0783ff538"
+    }
+  ]
+}

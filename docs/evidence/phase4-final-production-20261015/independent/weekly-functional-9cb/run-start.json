@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/usr/bin/time",
+    "-l",
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=890000",
+    "test/stage8-live-weekly-functional.test.js"
+  ],
+  "nodeCommand": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=890000",
+    "test/stage8-live-weekly-functional.test.js"
+  ],
+  "startedAtUtc": "2026-10-15T16:54:55.257037+00:00",
+  "fileTestCeilingMs": 890000,
+  "outerWatchdogSeconds": 900,
+  "NODE_OPTIONS": null,
+  "source": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+  "srcTree": "d1ce688cc9593ff1970e67d6ea13c16c634d91dc",
+  "classification": "SINGLE_AUTHORIZED_FUNCTIONAL_ONLY_RUN_NOT_TARGET_CAPACITY",
+  "committedDiagnosticLoaderDisclosed": true
+}

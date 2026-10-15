@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=45000",
+    "/private/tmp/phase4-final-independent-review/live-subunit-review/independent-live-boundaries.test.mjs",
+    "test/stage8-live-unit-budget.test.mjs",
+    "test/stage8-live-execution.test.js",
+    "test/stage8-live-producer-boundary.test.js"
+  ],
+  "returncode": 1,
+  "outerTimeout": false,
+  "durationSeconds": 32.34531092643738,
+  "commit": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1"
+}

@@ -1,0 +1,31 @@
+{
+  "before": {
+    "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/physical/dbs/default/data": {
+      "size": 10219520,
+      "sha256": "c6809fcebe32da0c338352910eed41532df2f59b3dde7ec4c2ec18c3b4d49274"
+    },
+    "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/physical/dbs/default/data-wal": {
+      "size": 4264232,
+      "sha256": "573daab75d051d8058a936e0de6b6bf360b2bf06843f8e40e23b9e6a0e94dc90"
+    },
+    "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/physical/dbs/default/data-shm": {
+      "size": 32768,
+      "sha256": "e82353538edf0319b2f899f852cd01f5a59cad1cbc2cd0f1798765d5e9c62cb3"
+    }
+  },
+  "after": {
+    "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/physical/dbs/default/data": {
+      "size": 10219520,
+      "sha256": "c6809fcebe32da0c338352910eed41532df2f59b3dde7ec4c2ec18c3b4d49274"
+    },
+    "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/physical/dbs/default/data-wal": {
+      "size": 4264232,
+      "sha256": "573daab75d051d8058a936e0de6b6bf360b2bf06843f8e40e23b9e6a0e94dc90"
+    },
+    "/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/physical/dbs/default/data-shm": {
+      "size": 32768,
+      "sha256": "e82353538edf0319b2f899f852cd01f5a59cad1cbc2cd0f1798765d5e9c62cb3"
+    }
+  },
+  "unchanged": true
+}

@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=20000",
+    "/private/tmp/phase4-final-independent-review/typed-body-final-review/independent-final-projection.test.mjs",
+    "test/stage8-body-energy-projection.test.mjs",
+    "test/stage8-derived-reader.test.js",
+    "test/body-provisional-policy.test.js"
+  ],
+  "returncode": 0,
+  "outerTimeout": false,
+  "durationSeconds": 15.278319791,
+  "source": "646c99fc1085d0e4c964eb92499087c492351b64"
+}

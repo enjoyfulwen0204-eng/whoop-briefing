@@ -1,0 +1,10 @@
+{
+  "initialArtifact": "focused-live-boundaries.tap",
+  "initialPass": 8,
+  "initialFail": 2,
+  "cause": "Reviewer assumed zero source ACKs before the first raw RUN_START subunit; actual earlier USER source was already validly checkpointed. No runtime fence failure shown.",
+  "correction": "Snapshot job cursor/completed-generation at the selected actual subunit COMMIT; compare exact fields after deadline/revocation. Retain no ITEM/no publication/no job completion checks and original limits.",
+  "initialTestSha256": "527c89a3574f2c7a7d848f61fc260d66b1b9eea98e64200ca46a1e57376dc4aa",
+  "correctedTestSha256": "9eabde81dd03034549fa650f0a7fa8834c37605c369c68b3abd6b037f80b65ad",
+  "candidateChanged": false
+}

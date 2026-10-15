@@ -1,0 +1,43 @@
+{
+  "identityUnchanged": true,
+  "runtimeDeltaPathsFromB441": [
+    "src/phase4Reanalysis.js"
+  ],
+  "allOtherRuntimeFilesByteIdenticalToB441": [
+    "9\t2\tsrc/phase4Reanalysis.js"
+  ],
+  "tests": {
+    "focused-live-boundaries": {
+      "sha256": "0e0f62670f68bb778179cb6177fd931f1c024ea92a88b8e0488afaecff145bd5",
+      "summary": [
+        "# tests 10",
+        "# pass 8",
+        "# fail 2",
+        "# cancelled 0",
+        "# duration_ms 32250.522333"
+      ]
+    },
+    "independent-live-fences-corrected": {
+      "sha256": "2a82273a12a62eb118705c5c4f816e72d45f76c94c97fea765f6271e2203d0b6",
+      "summary": [
+        "# tests 2",
+        "# pass 2",
+        "# fail 0",
+        "# cancelled 0",
+        "# duration_ms 4069.949792"
+      ]
+    }
+  },
+  "parent9cb120s": {
+    "path": "/private/tmp/phase4-final-integration-evidence/live-classes-weekly-9cbccf0.tap",
+    "sha256": "65700558b465fbf88b0b7ecff17691eadf5f66f7312c8e9b4c64883a84dd4c09",
+    "summary": [
+      "# tests 2",
+      "# pass 0",
+      "# fail 0",
+      "# cancelled 2",
+      "# duration_ms 240028.276292"
+    ],
+    "classification": "TWO_120S_CANCELLED_FILES; OWNED_CURRENT_PROGRESS_NOT_FULL_PASS"
+  }
+}

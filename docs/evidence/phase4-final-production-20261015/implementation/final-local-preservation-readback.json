@@ -1,0 +1,45 @@
+{
+  "observedAtUTC": "2026-10-15 17:09:24 UTC",
+  "scope": "LOCAL_FINAL_PRESERVATION_CHECK_NOT_SECOND_PRODUCTION_RECONCILIATION",
+  "results": [
+    {
+      "workdir": "/Users/kelvin/Desktop/whoop-briefing",
+      "result": {
+        "status": "fulfilled",
+        "value": {
+          "chunk_id": "cee939",
+          "wall_time_seconds": 0.000009375,
+          "exit_code": 0,
+          "original_token_count": 11,
+          "output": "899dff0ae61474bb2b9ec0a0743cdbf11a999d3b\n"
+        }
+      }
+    },
+    {
+      "workdir": "/Users/kelvin/Desktop/whoop-briefing/tmp/finalization-v3-recovery-20261013/worktree",
+      "result": {
+        "status": "fulfilled",
+        "value": {
+          "chunk_id": "b0f625",
+          "wall_time_seconds": 0.000007459,
+          "exit_code": 0,
+          "original_token_count": 360,
+          "output": "828b3bad0f75d3b81d374e431872878af56f6c9a\n M src/bodyEnergyDerivedTime.js\n M src/bodyEnergyPublicationReader.js\n M src/bodyEnergySourceUnitAuthority.js\n M src/bot/index.js\n M src/bot/perspective.js\n M src/bot/router.js\n M src/bot/settings.js\n M src/bot/webhook.js\n M src/companionInvitation.js\n M src/db.js\n M src/index.js\n M src/morningReadiness.js\n M src/phase4Core.js\n M src/phase4EntityStore.js\n M src/phase4ExecutionStore.js\n M src/phase4IntelligenceStore.js\n M src/phase4MetricUnitReceipt.js\n M src/phase4OperationReceipts.js\n M src/phase4Reanalysis.js\n M src/phase4Redaction.js\n M src/phase4Repositories.js\n M src/phase4ResultAuthority.js\n M src/phase4Schema.js\n M src/phase4TransportStore.js\n M src/publicBeta.js\n M src/schema.js\n M src/stage7Companion.js\n M src/stage7DecisionStore.js\n M src/stage7InteractionStore.js\n M src/stage7ReplyAuthority.js\n M src/stage7Runtime.js\n M src/stage7TransportAuthority.js\n M src/stage7TrustedRegistry.js\n M test/phase4Fixture.js\n?? src/confirmedMorningReceipt.js\n?? src/morningBriefPolicy.js\n?? src/phase4V34Schema.js\n?? src/recipientIdentity.js\n?? src/scopedHealthContext.js\n?? src/stage8LiveAuthority.js\n?? src/stage8MorningPlan.js\n?? src/stage8MorningRuntime.js\n?? src/stage8MorningStore.js\n?? src/stage8OwnerMonitoring.js\n?? src/stage8Runtime.js\n?? src/stage8SelfQa.js\n?? src/stage8Settings.js\n?? test/stage8-morning.test.js\n?? test/stage8-owner.test.js\n?? test/stage8-scoped-context.test.js\n"
+        }
+      }
+    },
+    {
+      "workdir": "/Users/kelvin/.codex/worktrees/phase4-final-integration/whoop-briefing",
+      "result": {
+        "status": "fulfilled",
+        "value": {
+          "chunk_id": "f7cac4",
+          "wall_time_seconds": 0.000008208,
+          "exit_code": 0,
+          "original_token_count": 15,
+          "output": "646c99fc1085d0e4c964eb92499087c492351b64\n?? node_modules\n"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=60000",
+    "--test-name-pattern=lost COMMIT acknowledgment|expired source ownership lease",
+    "/private/tmp/phase4-final-independent-review/bounded-check-review/v34-sync-atomic-commit.test.mjs"
+  ],
+  "returncode": 0,
+  "outerTimeout": false,
+  "durationSeconds": 55.05989217758179,
+  "commit": "87cc51311d16e8b7eab3f29ed0d9983de050bfcf",
+  "reason": "Prior reviewer 30000ms file limit was shorter than this unchanged test declared 31000ms leg /33000ms overall recovery budget; no runtime/test budget changed."
+}

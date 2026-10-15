@@ -1,0 +1,19 @@
+{
+  "path": "/private/tmp/phase4-final-integration-evidence/association-terminal-group-diagnostic.tap",
+  "sha256": "9acbe09dcab4f799e2861a2097768de1534fcfc2a8f10df26e06911c35b3433d",
+  "matchingDiagnostics": [
+    "TAP version 13",
+    "# --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"/private/tmp/phase4-final-integration-evidence/association-terminal-group-diagnostic-loader.mjs\", pathToFileURL(\"./\"));'",
+    "# {\"ts\":\"2026-10-15T16:25:16.182Z\",\"level\":\"info\",\"event\":\"schema_column_added\",\"table\":\"user_whoop_tokens\",\"column\":\"auth_generation\"}",
+    "# {\"ts\":\"2026-10-15T16:25:16.188Z\",\"level\":\"info\",\"event\":\"schema_migrated\",\"from\":0,\"to\":20}",
+    "# SYNTHETIC_READONLY_CHECK_GROUP {\"checks\":2383}"
+  ],
+  "terminal": [
+    "# tests 1",
+    "# pass 1",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 0",
+    "# duration_ms 5396.40575"
+  ]
+}

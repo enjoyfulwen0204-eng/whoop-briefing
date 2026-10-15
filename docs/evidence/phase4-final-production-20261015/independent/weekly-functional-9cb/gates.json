@@ -1,0 +1,13 @@
+{
+  "source": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
+  "singleLongRun": true,
+  "queueComputationCurrent": "YES_AT_LAST_ALLOWED_LEG63_WITH2_JOBS_COMPLETE",
+  "wholeFunctionalFile": "FAIL_SCOPED_CAPABILITY_REQUIRED_AMBIGUOUS_NON_SELF_FIXTURE_INPUT",
+  "typedInsightsAndOwnerWeekly": "NOT_REACHED_SUCCESSFULLY",
+  "capacity": "NO_GO_NOT_TARGET_QUALIFICATION",
+  "nativeFix": "NO_CLAIM",
+  "globalRelease": "NO_GO",
+  "retryPerformed": false,
+  "bodyEligibilityGap": "CONFIRMED_PURE_COUNTEREXAMPLE_NOT_FULL_LIVE_REPRODUCTION",
+  "sourceIdentityUnchanged": true
+}

@@ -1,0 +1,8 @@
+{
+  "source": "89d68520931ae9cecfc559e4f2d74f4e841a972e",
+  "focusedPass": 37,
+  "sourceIdentityUnchanged": true,
+  "scopedApproval": "WITHHELD_PENDING_CONSUMPTION_FRESHNESS_FIX",
+  "freshnessCounterexample": "consumption-freshness-counterexample.json",
+  "successorReviewed": "646c99fc1085d0e4c964eb92499087c492351b64"
+}

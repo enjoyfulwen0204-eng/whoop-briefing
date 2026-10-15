@@ -1,0 +1,33 @@
+{
+  "commit": "aa2c45d6f75b91ff3d2ac82a32ee4ecae427d2f2",
+  "tree": "55be0005d700d2229d2f4e19ff4eb6593cebb2e8",
+  "globalVerdict": "NO_GO",
+  "sentinelImportRepair": "GO",
+  "literalAndPrivacyBodyIdentity": "GO",
+  "freshIndependentModuleProcesses": {
+    "pass": 7,
+    "fail": 0
+  },
+  "currentIndependentTests": {
+    "total": 41,
+    "pass": 39,
+    "fail": 2,
+    "skip": 0,
+    "cancelled": 0
+  },
+  "baselinePrivacyFailuresReproduced": 2,
+  "orderedRecovery": "GO_LOCAL_SYNTHETIC_NONEMPTY_SOURCE_PRESERVATION_ONLY",
+  "prior669EvidenceCommit": "6f5ebdcb205390925dc367fa92cc28e8a95d9821",
+  "releaseApproval": false,
+  "addendumSha256": "25881968b76d642cc86eb2e2518208b9d287e9f56cb26057adce43544503202c",
+  "latestReviewedCommit": "d539277abbb13191f6110dac92a2cb32a0cd2511",
+  "latestReviewedTree": "678bbdfb73aede1d5737cae5f6c99c88302802be",
+  "latestRuntimeIdenticalToAa2": true,
+  "populatedOrderedRecovery": {
+    "pass": 1,
+    "fail": 0,
+    "processExit": 0,
+    "durationSeconds": 3.5602340698242188,
+    "productionQualified": false
+  }
+}

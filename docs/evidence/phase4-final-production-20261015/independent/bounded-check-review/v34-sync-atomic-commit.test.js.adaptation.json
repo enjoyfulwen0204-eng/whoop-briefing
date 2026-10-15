@@ -1,0 +1,11 @@
+{
+  "originalPath": "/private/tmp/phase4-final-independent-review/bounded-check-review/checkout/test/sync-atomic-commit.test.js",
+  "originalSha256": "79819173724173de843480d35673e05587dea17b5ae19b8f5c486ac98e2d66c4",
+  "adaptedPath": "/private/tmp/phase4-final-independent-review/bounded-check-review/v34-sync-atomic-commit.test.mjs",
+  "adaptedSha256": "969e3a5893eab93527af20a21663dad11a6b29080b0fa75eeea1c20292cd3b64",
+  "changes": [
+    "isolated synthetic targetVersion 32 to 34",
+    "relative module URL relocation only"
+  ],
+  "runtimeUnchanged": true
+}

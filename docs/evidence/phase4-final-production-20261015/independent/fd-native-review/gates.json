@@ -1,0 +1,21 @@
+{
+  "source": "fd07931db0e2cb503b53a7a93f1f723b09f8ae02",
+  "nativeFairness": "NO_GO_NEW_SIGABRT_CLOSE_COUNTEREXAMPLE",
+  "focusedTests": {
+    "pass": 13,
+    "fail": 0
+  },
+  "nativeCloseRunner": {
+    "pass": 0,
+    "fail": 1,
+    "signal": "SIGABRT"
+  },
+  "markerProbe": {
+    "fdReturncode": -6,
+    "d539Returncode": 0
+  },
+  "weekly": "VALID_IDENTITY_TIMEOUT_NO_CURRENT_NOT_TARGET_QUALIFICATION",
+  "globalRelease": "NO_GO",
+  "sourceChangesByReviewer": false,
+  "originalSettlementExecuted": false
+}

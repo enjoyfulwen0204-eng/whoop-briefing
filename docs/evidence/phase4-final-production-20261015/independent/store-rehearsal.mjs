@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';import {createHmac,createHash} from 'node:crypto';import{createRequire}from'node:module';import{readFile,writeFile}from'node:fs/promises';
+const source='/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/';
+const {createClient}=createRequire(source+'package.json')('@libsql/client');
+const {reconcileExecution,requireSyncHandoff,claimPhaseRequest,settlePhaseRequest,requestIdentity,EXECUTION_WORK_MAX_AGE_MS}=await import(source+'src/phase4ExecutionStore.js');
+const {phaseResponse}=await import(source+'src/phase4Execution.js');
+const request=JSON.parse(await readFile('/private/tmp/stage6-synthetic-http-20261015/qualification-reviewed/pending.json','utf8')).request;
+const client=createClient({url:'file:/private/tmp/phase4-final-independent-review/retained-metadata/store-rehearsal.sqlite'});let tx;
+const db={raw:{execute:s=>(tx??client).execute(s),batch:(s,m)=>tx?tx.batch(s):client.batch(s,m)},async transaction(fn){assert.equal(tx,undefined);const own=await client.transaction('write');tx=own;try{const out=await fn();await own.commit();return out;}catch(e){await own.rollback().catch(()=>{});throw e;}finally{tx=undefined;own.close();}}};
+const keys={lookup:x=>createHmac('sha256','S6_SYNTHETIC_V1:lookup-test-only!').update(JSON.stringify(x)).digest('hex')};
+const hash=x=>createHash('sha256').update(x).digest('hex');
+const tableHashes=async()=>{const tables=(await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")).rows;return Object.fromEntries(await Promise.all(tables.map(async t=>{const r=await client.execute('SELECT * FROM "'+t.name.replaceAll('"','""')+'"');return[t.name,{count:r.rows.length,sha256:hash(JSON.stringify(r.rows.map(x=>JSON.stringify(Object.fromEntries(r.columns.map(c=>[c,x[c]])))).sort()))}];})));};
+try{
+ const before=await tableHashes();const initial=await reconcileExecution(db,request,requestIdentity(JSON.stringify(request)));assert.equal(initial.state,'WORK_COMMITTED_UNFINALIZED');assert.equal(initial.row.state,'ESTABLISHED');assert.equal(initial.receipts.length,1);assert.equal(initial.result,null);
+ const handoff=await requireSyncHandoff(db,request,keys);assert.deepEqual(handoff.reconciliationResult,{outcome:'PARTIAL',completion:'PARTIAL',stopReason:'RECONCILIATION_ONLY',workReceipts:1,jobsConsidered:0,itemsAttempted:0,itemsProcessed:0,jobsCompleted:0});
+ const claim=await claimPhaseRequest(db,request,JSON.stringify(request),{keys,deadlineAt:Date.now()+90000,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly:true});assert.equal(claim.generation,2);assert.equal(claim.workCommitted,false);
+ const authority={assert(){}}; // STORE-ONLY isolated rehearsal; not runtime/budget/admission proof.
+ const final=await settlePhaseRequest(db,request,claim,handoff.reconciliationResult,keys,authority);assert.equal(final.settlementState,'FINALIZED_SUCCESS');assert.equal(final.stopReason,'RECONCILIATION_ONLY');assert.equal(final.itemsProcessed,0);const second=await claimPhaseRequest(db,request,JSON.stringify(request),{keys});assert.deepEqual(second.cached,final);
+ const after=await tableHashes(),changed=Object.keys(before).filter(t=>JSON.stringify(before[t])!==JSON.stringify(after[t]));assert.deepEqual(changed.sort(),['phase4_executions','system_heartbeats']);assert.deepEqual(before.phase4_execution_work_receipts,after.phase4_execution_work_receipts);assert.deepEqual(before.phase4_execution_producers,after.phase4_execution_producers);
+ const out={qualification:'STORE_ONLY_DISPOSABLE_COPY_NOT_ORIGINAL_NOT_FULL_RUNEXECUTIONPHASE',requestId:request.requestId,initialState:initial.state,initialExecutionState:initial.row.state,initialGeneration:initial.row.generation,claimGeneration:claim.generation,receiptCount:initial.receipts.length,final,response:phaseResponse(final),changedTables:changed,before,after};await writeFile('/private/tmp/phase4-final-independent-review/store-rehearsal-result.json',JSON.stringify(out,null,2)+'\n');console.log(JSON.stringify({qualification:out.qualification,response:out.response,changedTables:changed}));
+}finally{client.close();}

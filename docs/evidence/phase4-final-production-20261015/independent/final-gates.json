@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "6f5ebdcb205390925dc367fa92cc28e8a95d9821",
+  "sourceTree": "ed0a7260de6b304811f3ee6f90ac53e082bf1955",
+  "globalVerdict": "NO_GO",
+  "releaseApproval": false,
+  "scopedTests": {
+    "definitions": 669,
+    "pass": 669,
+    "fail": 0,
+    "skip": 0,
+    "cancelled": 0,
+    "processExit": 0
+  },
+  "scopedGates": {
+    "protectedIdentity": "GO",
+    "ordinaryControlLifetime": "GO",
+    "closedLiveResultAuthorityRouting": "GO",
+    "boundedExecutionModeReceipt": "GO",
+    "metadataPaginationModel": "GO",
+    "selectedSemanticSafety": "GO"
+  },
+  "openGates": {
+    "weeklyCurrentPublication": "NO_GO",
+    "targetLinuxHttpCapacity": "NO_GO",
+    "nativeCleanupContainment": "NO_GO",
+    "originalMetadataRecoveryExecution": "NO_GO",
+    "controllerNonproductiveBookkeeping": "NO_GO",
+    "fullMonitoredStage6Convergence": "NO_GO",
+    "productionMigrationDeployment": "NO_GO"
+  },
+  "originalMetadata": "Preserved original RID, diagnostic receipt, RESPONSE503 and spent dispatch; no original mutation",
+  "reportSha256": "06462e1fc6c1aebd59da33cc061c2c1be00f3d3d039e61a7fa4c014b11e67c6f"
+}

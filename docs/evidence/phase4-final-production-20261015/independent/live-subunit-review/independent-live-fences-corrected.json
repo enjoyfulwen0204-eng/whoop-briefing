@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=20000",
+    "/private/tmp/phase4-final-independent-review/live-subunit-review/independent-live-boundaries.test.mjs"
+  ],
+  "returncode": 0,
+  "outerTimeout": false,
+  "durationSeconds": 4.2531750202178955,
+  "commit": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1"
+}

@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "6f5ebdcb205390925dc367fa92cc28e8a95d9821",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-name-pattern=Aggregate: purge erases",
+    "test/phase4-foundation-privacy.test.js"
+  ],
+  "returncode": 1,
+  "durationSeconds": 2.9826958179473877
+}

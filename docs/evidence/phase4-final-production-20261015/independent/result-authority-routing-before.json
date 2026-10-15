@@ -1,0 +1,36 @@
+{
+  "qualification": "SQL_SELECTION_ONLY_NOT_ROW_AUTHENTICATION_OR_FULL_PRODUCER",
+  "sourceCommit": "e74ac26e45ea9095db553f0900783a27927561f2",
+  "observations": [
+    {
+      "mode": "SHADOW",
+      "query": {
+        "sql": "SELECT * FROM phase4_evidence_result_authorities WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope=?",
+        "args": [
+          "synthetic-routing-user",
+          "SHADOW",
+          "synthetic-routing-item",
+          "METRIC"
+        ]
+      },
+      "error": "PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE",
+      "expectedTable": "phase4_evidence_result_authorities",
+      "correctTable": true
+    },
+    {
+      "mode": "LIVE",
+      "query": {
+        "sql": "SELECT * FROM phase4_evidence_result_authorities WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope=?",
+        "args": [
+          "synthetic-routing-user",
+          "LIVE",
+          "synthetic-routing-item",
+          "METRIC"
+        ]
+      },
+      "error": "PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE",
+      "expectedTable": "stage8_live_evidence_result_authorities",
+      "correctTable": false
+    }
+  ]
+}

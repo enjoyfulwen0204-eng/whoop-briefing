@@ -1,0 +1,27 @@
+{
+  "source": "89d68520931ae9cecfc559e4f2d74f4e841a972e",
+  "scope": "PURE_ORIGINAL_SELECTOR_CALCULATOR_PLUS_DATA_HELPER_NOT_FULL_LIVE_ARTIFACT_REPRODUCTION",
+  "manifestAsOfEpochMs": 1792080000000,
+  "authenticatedReadAsOfExample": 1792080600000,
+  "sourceAgesAtCalculationMs": [
+    5100000,
+    5100000,
+    5100000
+  ],
+  "elapsedAtReadMs": 600000,
+  "sourceAgesAtReadMs": [
+    5700000,
+    5700000,
+    5700000
+  ],
+  "originalFreshMaximumMs": 5400000,
+  "legacyFreshRulePasses": false,
+  "rowQuality": "AVAILABLE",
+  "rowValue": 70,
+  "oldProjection": {
+    "value": 70,
+    "quality": "AVAILABLE",
+    "estimated": true,
+    "interpretation": "KELVIN_HEALTH_OS_ENGINEERING_ESTIMATE_NOT_MEDICAL_OR_REALTIME"
+  }
+}

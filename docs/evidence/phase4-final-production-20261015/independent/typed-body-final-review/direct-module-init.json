@@ -1,0 +1,23 @@
+[
+  {
+    "module": "stage8BodyEnergyProjection.js",
+    "returncode": 0,
+    "durationSeconds": 0.21354108400000002,
+    "stdout": "DIRECT_IMPORT_OK\n",
+    "stderr": ""
+  },
+  {
+    "module": "stage8DerivedReader.js",
+    "returncode": 0,
+    "durationSeconds": 0.1938905,
+    "stdout": "DIRECT_IMPORT_OK\n",
+    "stderr": ""
+  },
+  {
+    "module": "stage8Runtime.js",
+    "returncode": 0,
+    "durationSeconds": 0.19614937500000007,
+    "stdout": "DIRECT_IMPORT_OK\n",
+    "stderr": ""
+  }
+]

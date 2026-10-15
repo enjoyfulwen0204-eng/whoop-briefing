@@ -1,0 +1,15 @@
+{
+  "commit": "fd07931db0e2cb503b53a7a93f1f723b09f8ae02",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "/private/tmp/phase4-final-independent-review/fd-native-review/independent-boundary.test.mjs",
+    "/private/tmp/phase4-final-independent-review/fd-native-review/checkout/test/stage6-native-fairness.test.mjs",
+    "/private/tmp/phase4-final-independent-review/fd-native-review/checkout/test/stage6-receiver-lifetime.test.js",
+    "/private/tmp/phase4-final-independent-review/fd-native-review/checkout/test/phase4-integrated-control-lifetime.test.js",
+    "/private/tmp/phase4-final-independent-review/fd-native-review/checkout/test/phase4-synthetic-coverage-time.test.mjs"
+  ],
+  "returncode": 1,
+  "durationSeconds": 5.2177698612213135
+}

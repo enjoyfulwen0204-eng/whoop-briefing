@@ -66,7 +66,7 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
   const ctx=await capture(userId),{computation}=await core.assertContext(ctx);
   let publication={status:'ANALYSIS_UPDATING'};
   if(computation.last_completed_generation===ctx.inputGeneration){
-   publication={status:'CURRENT',...await publishStage8Live(core,ctx,capability)};
+   publication={status:'CURRENT',...await db.withRuntimeFence(()=>ready(userId),()=>publishStage8Live(core,ctx,capability))};
   }
   await assertContext(ctx);return Object.freeze({...result,publication});
  }

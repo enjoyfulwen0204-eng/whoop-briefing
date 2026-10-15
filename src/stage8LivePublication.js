@@ -31,7 +31,7 @@ export async function recordLiveJobCompletion(core,context,b,cursor){
 async function manifests(core,ctx){
  const client=core.client,keys=core.keys;
  const bounds=(await client.execute({sql:`SELECT count(*) n,COALESCE(sum(bytes),0) bytes FROM
-  (SELECT length(e.result_json)+length(e.canonical_request_json)+4096 bytes FROM stage8_live_execution_producers p
+  (SELECT COALESCE(length(e.result_json),0)+COALESCE(length(e.canonical_request_json),0)+4096 bytes FROM stage8_live_execution_producers p
    JOIN stage8_live_executions e ON e.execution_id=p.producing_execution_id WHERE p.user_id=? AND p.execution_mode='LIVE' AND p.input_generation=? LIMIT 4097)`,args:[ctx.userId,ctx.inputGeneration]})).rows[0];
  if(!bounds.n||bounds.n>4096||bounds.bytes>16*1024*1024)fail();
  const producers=[];

@@ -1,0 +1,20 @@
+{
+  "zh-TW": {
+    "CLEARLY_NONURGENT": 8,
+    "CURRENT_URGENT": 13,
+    "POSSIBLE_CURRENT_URGENT": 1,
+    "SAFETY": 1
+  },
+  "en": {
+    "CLEARLY_NONURGENT": 2,
+    "CURRENT_URGENT": 4,
+    "POSSIBLE_CURRENT_URGENT": 1
+  },
+  "vi": {
+    "CLEARLY_NONURGENT": 2,
+    "CURRENT_URGENT": 3
+  },
+  "mixed": {
+    "CURRENT_URGENT": 2
+  }
+}

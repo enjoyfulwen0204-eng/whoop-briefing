@@ -1,0 +1,1326 @@
+{
+  "baselineHead": "d538b07e097fedb42481c305de0738761c512a4d",
+  "baselineTree": "75122d94febecfcd86129949863ed3b3b8c84849",
+  "branch": "codex/stage8-two-false-warning-repair-20261015",
+  "runtimeSourceCommit": "52934e90bfacc987f4af52eda2af1a43475e9e41",
+  "runtimeSha256": {
+    "src/bot/triage.js": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+    "src/bot/safetyGate.js": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d"
+  },
+  "runtimeChangedPaths": [
+    "src/bot/triage.js"
+  ],
+  "safetyGateUnchanged": true,
+  "existingExpectationsChanged": false,
+  "repairCycleCount": 1,
+  "defects": {
+    "A": {
+      "status": "CLOSED",
+      "before": "POSSIBLE_CURRENT_URGENT",
+      "after": "CLEARLY_NONURGENT"
+    },
+    "B": {
+      "status": "CLOSED",
+      "before": "CURRENT_URGENT",
+      "after": "CLEARLY_NONURGENT"
+    }
+  },
+  "original3275": {
+    "definitions": 3275,
+    "observedFunctionalPass": 3275,
+    "failuresRemaining": 0,
+    "functionalCaseCoverage": "PASS",
+    "singleClean27CommandRun": false,
+    "initial27CommandPass": 26,
+    "initial27CommandFail": 1,
+    "qualification": "The regression command hit the known native SIGSEGV; all 164 assertions have passing observations across the retained initial run, stable-HEAD rerun and one targeted missing-case run. Do not describe either failed full regression command as PASS."
+  },
+  "new275": {
+    "definitions": 275,
+    "directCaseChecks": 204,
+    "structuralChecks": 7,
+    "sharedProcessorChecks": 64,
+    "passCount": 275,
+    "failCount": 0,
+    "baseStatements": 37,
+    "metamorphic": 111,
+    "recoveredPriorDirect": 56
+  },
+  "diagnostics": {
+    "recoveredProcessor56": {
+      "passCount": 56,
+      "failCount": 0
+    },
+    "coachContinuation6": {
+      "passCount": 6,
+      "failCount": 0
+    }
+  },
+  "preserved62": {
+    "closed": 62,
+    "openCount": 0,
+    "families": {
+      "NEGATIVE_TOKEN_CONTAINMENT": 9,
+      "OUTER_CONDITIONAL_OWNERSHIP": 27,
+      "QUOTED_FRAME_CROSSES_BOUNDARY": 21,
+      "REPORTED_BARE_SYMPTOM": 5
+    }
+  },
+  "originalNative": {
+    "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "status": "OPEN",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "rootCause": "UNASSIGNED",
+    "reportSha256": "2a573099578fb3c8eb79fbdf76181b14b152c741c230afb8279f12b3cf3ae5e2",
+    "captureTime": "2026-10-15 15:34:18.2002 +0700",
+    "signal": "SIGSEGV",
+    "nativeFrames": [
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 4618472,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 2513860,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 2740588,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 506516,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 380320,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 470324,
+        "symbol": null
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 863876,
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 843712,
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 720876,
+        "symbol": "v8impl::Reference::Finalize()"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 864492,
+        "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 645076,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 641908,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 661444,
+        "symbol": "node::Environment::InitializeLibuv()::$_0::__invoke(uv_async_s*)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 13598104,
+        "symbol": "uv__async_io"
+      }
+    ],
+    "baselineUuidAndSixOffsetsMatch": true,
+    "baselineReportSha256": "829f72dda8ad52673bbe193ff03d368b417a8d3b025a9474b437ba8c59e0a5b6",
+    "passingRerunDoesNotResolve": true,
+    "scope": "Fingerprint only; raw host diagnostic is not copied into repository evidence."
+  },
+  "nativeRetry": {
+    "report": "node-2026-10-15-154545.ips",
+    "sha256": "e79402ed9bfffcfb4d6e8f31c1d954a7e877ce6698b1ad483e420b92c43ba807",
+    "captureTime": "2026-10-15 15:45:44.0586 +0700",
+    "signal": "SIGSEGV",
+    "frames": [
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 4618472,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 2513860,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 2740588,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 506516,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 380320,
+        "symbol": null
+      },
+      {
+        "image": "index.node",
+        "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+        "offset": 470324,
+        "symbol": null
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 863876,
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 843712,
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 720876,
+        "symbol": "v8impl::Reference::Finalize()"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 864492,
+        "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 645076,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 641908,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 639264,
+        "symbol": "node::Environment::CheckImmediate(uv_check_s*)"
+      },
+      {
+        "image": "node",
+        "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+        "offset": 13628976,
+        "symbol": "uv__run_check"
+      }
+    ]
+  },
+  "headTransition": {
+    "sourceCommit": "52934e90bfacc987f4af52eda2af1a43475e9e41",
+    "commitTime": "2026-10-15T15:30:33+07:00",
+    "phaseStartedUTC": "2026-10-15T08:30:33.108Z",
+    "phaseCompletedUTC": "2026-10-15T08:30:34.231Z",
+    "phaseReleaseSha": "d538b07e097fedb42481c305de0738761c512a4d",
+    "mechanism": "runningReleaseSha checks actual HEAD during originalAuthority.assert; the local source-freeze commit crossed the phase interval. The known failing SYNC path does not invoke triage.",
+    "classification": "LOCAL_VERIFICATION_HEAD_TRANSITION",
+    "rawAttemptRetained": true,
+    "applicationCodeChangedToAddressFailure": false,
+    "stableHeadRerunRequired": true
+  },
+  "statuses": {
+    "independentDeltaReviewReadiness": "GO",
+    "wholeStage8Readiness": "NO-GO",
+    "productionReadiness": "NO-GO",
+    "independentAcceptanceClaimed": false,
+    "nativeStability": "OPEN"
+  },
+  "newHighMediumRegressions": [],
+  "F02": "Owner Accepted Risk; unchanged",
+  "restrictions": {
+    "productionAccessOrMutation": false,
+    "credentialsAccessOrChange": false,
+    "pushMergeDeploy": false,
+    "realTelegram": false,
+    "paidExternalExecution": false,
+    "Stage6OrLiveModified": false,
+    "schemaOrMigrationCodeModified": false,
+    "syntheticFixtureMigrationsOnly": true
+  },
+  "generatedAtUTC": "2026-10-15T09:05:43.179759+00:00",
+  "exactFinalReceipt": "/private/tmp/stage8-two-false-warning-repair-candidate-freeze.json",
+  "runtimeEditsStopped": true,
+  "independentAcceptanceOfThisCandidate": "NOT_PERFORMED",
+  "runs": [
+    {
+      "id": "focused-direct",
+      "command": "node --test --test-concurrency=2 test/stage8-two-false-warning-repair/semantic.test.mjs test/stage8-two-false-warning-repair/ownership.test.mjs",
+      "exitCode": 0,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/focused-direct.tap",
+      "durationSeconds": 0.218337125,
+      "countedNew": true,
+      "observedDefinitions": 211,
+      "passCount": 211,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 211,
+        "pass": 211,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "8ce93247b1ea2d3998812c7895276599cea0763a6116ac7844054aa34b43b7fd"
+    },
+    {
+      "id": "ownership-semantic",
+      "command": "node --test --test-concurrency=2 test/stage8-final-quotation-repair/semantic.test.mjs test/stage8-final-quotation-repair/ownership.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 0.5508739948272705,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/ownership-semantic.tap",
+      "observedDefinitions": 298,
+      "passCount": 298,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 298,
+        "pass": 298,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "120733578846f4968f5c7c0e5186dbe21a69e68829c730064f73dc0bc063944c"
+    },
+    {
+      "id": "focused-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 STAGE8_TWO_WARNING_OUTPUT_DIR=/private/tmp/stage8-two-false-warning-repair/final/focused-processor node --test test/stage8-two-false-warning-repair/processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 119.21102476119995,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/focused-ingress1.tap",
+      "observedDefinitions": 21,
+      "passCount": 21,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "99f7f1748bc8f83aff1fc21883b7ac0ec5d31e41ae7c7b5c0f5b457e63e7e4dd"
+    },
+    {
+      "id": "focused-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 STAGE8_TWO_WARNING_OUTPUT_DIR=/private/tmp/stage8-two-false-warning-repair/final/focused-processor node --test test/stage8-two-false-warning-repair/processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 119.77214002609253,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/focused-ingress2.tap",
+      "observedDefinitions": 21,
+      "passCount": 21,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "5e5be9b5cf27f777d26dfe7ee3765f4736d042501635a99aeadeca3c2a725684"
+    },
+    {
+      "id": "focused-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 STAGE8_TWO_WARNING_OUTPUT_DIR=/private/tmp/stage8-two-false-warning-repair/final/focused-processor node --test test/stage8-two-false-warning-repair/processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 126.91154408454895,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/focused-ingress0.tap",
+      "observedDefinitions": 22,
+      "passCount": 22,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "8b0fa1a424bb92726aebfa2ad8ea9ed31ce4a1d12e54856a68c75a5b08b1eddb"
+    },
+    {
+      "id": "regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+      "exitCode": 1,
+      "durationSeconds": 279.5832061767578,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/regression.tap",
+      "observedDefinitions": 163,
+      "passCount": 162,
+      "failCount": 1,
+      "processRows": [
+        {
+          "title": "test/telegram-webhook.test.js",
+          "occurrence": 1,
+          "passed": false
+        }
+      ],
+      "summary": {
+        "tests": 164,
+        "pass": 162,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": true,
+      "sha256": "58b95a0e812e7fbeb8fa28e3c3e0694603b829fcb885299bf81f37360f5b0fe2"
+    },
+    {
+      "id": "new-semantic",
+      "command": "node --test test/stage8-final-evidence/semantic.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 0.390977144241333,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/new-semantic.tap",
+      "observedDefinitions": 195,
+      "passCount": 195,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 195,
+        "pass": 195,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "13b59d4bd70cd1005a73bf16638b475d89c14e6d85dd4e8f1e0ccaf926de0ec6"
+    },
+    {
+      "id": "gate-semantic",
+      "command": "node --test test/stage8-safety-gate/semantic.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 0.5885748863220215,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/gate-semantic.tap",
+      "observedDefinitions": 417,
+      "passCount": 417,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 417,
+        "pass": 417,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "d6c7ab3f292d2c89d3c31db4f980fee0cca9772098be93f81b8cf7c3bef38a26"
+    },
+    {
+      "id": "adjudicated-semantic",
+      "command": "node --test test/stage8-adjudicated-repair/semantic.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 0.3864450454711914,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/adjudicated-semantic.tap",
+      "observedDefinitions": 221,
+      "passCount": 221,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 221,
+        "pass": 221,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "3b65b975c9d902ea5b70620d8b7a1fea31481a21e51d991abb0e807eb9cf73f4"
+    },
+    {
+      "id": "quotation-semantic",
+      "command": "node --test test/stage8-quotation-fallback/semantic.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 0.4596099853515625,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/quotation-semantic.tap",
+      "observedDefinitions": 235,
+      "passCount": 235,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 235,
+        "pass": 235,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "093ea08c7a394d2adb36d054b9b2d8c2ac70e4dea52ea8b76704e67f86bfdcb6"
+    },
+    {
+      "id": "safety",
+      "command": "node --test --test-concurrency=2 test/stage8-three-blocker/controls.test.mjs test/stage8-three-blocker/fairness.test.mjs test/stage8-three-blocker/ingress.test.mjs test/stage8-three-blocker/ordinary.test.mjs test/stage8-three-blocker/retry.test.mjs test/stage8-three-blocker/urgency.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/boundaries.test.mjs test/stage8-triage-architecture/corpus.test.mjs test/stage8-triage-architecture/ingress-authority.test.mjs test/stage8-triage-architecture/open-gate.test.mjs /private/tmp/stage8-two-false-warning-repair/final/test-stage8-triage-architecture-processor.test.mjs test/stage8-triage-architecture/uncertainty.test.mjs test/stage8-predicate-ownership/ownership.test.mjs test/stage8-predicate-ownership/processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 468.6215617656708,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/safety.tap",
+      "observedDefinitions": 576,
+      "passCount": 576,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 576,
+        "pass": 576,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "db4d812bd566d53f50e966dc4558fb507e4b72d3fa9b74b9bf1ec38db590b03f"
+    },
+    {
+      "id": "local-frame",
+      "command": "node --test --test-concurrency=2 test/stage8-quotation-fallback/local-frame.test.mjs /private/tmp/stage8-two-false-warning-repair/final/test-stage8-quotation-fallback-scope-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 79.19975876808167,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/local-frame.tap",
+      "observedDefinitions": 30,
+      "passCount": 30,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "f1e4300a1366e7cfb4de4e2835970351b09baaf060e05bb1b5b0811af7848786"
+    },
+    {
+      "id": "final-adversarial",
+      "command": "node --test --test-concurrency=2 test/stage8-adjudicated-repair/final-adversarial.test.mjs /private/tmp/stage8-two-false-warning-repair/final/test-stage8-adjudicated-repair-residual-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 120.79556179046631,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/final-adversarial.tap",
+      "observedDefinitions": 27,
+      "passCount": 27,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 27,
+        "pass": 27,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "b64915ca0fe0c5919bbf10534bb400c7203a74ca8e30c0b3cd41daed396148c8"
+    },
+    {
+      "id": "scoped",
+      "command": "node --test --test-concurrency=2 /private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-independent-coach.test.mjs /private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-independent-processor.test.mjs /private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-independent-targeted-processor.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs /private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-processor.test.mjs test/stage8-scoped-repair/semantic.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 529.768965959549,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/scoped.tap",
+      "observedDefinitions": 348,
+      "passCount": 348,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 348,
+        "pass": 348,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "494486d38103efeface701b8d7be5cfa2726d91b2d4fe2c4b28fb25bd88ab869"
+    },
+    {
+      "id": "integration",
+      "command": "node --test --test-concurrency=3 test/stage8-adversarial.test.js test/stage8-derived-reader.test.js test/stage8-identity-localization.test.js test/stage8-migration.test.js test/stage8-morning-provider.test.js test/stage8-morning.test.js test/stage8-owner.test.js test/stage8-provider.test.js test/stage8-retry-scheduling.test.js test/stage8-safety-repair.test.js test/stage8-scoped-context.test.js test/stage8-stage6-domain-compatibility.test.js test/stage8-stage6-journal-compatibility.test.js test/stage7-adversarial.test.js test/stage7-breaker.test.js test/stage7-cards.test.js test/stage7-daily.test.js test/stage7-decision-store.test.js test/stage7-decision.test.js test/stage7-delivery.test.js test/stage7-interaction.test.js test/stage7-journal.test.js test/stage7-migration.test.js test/stage7-missing-alias.test.js test/stage7-missing-correction.test.js test/stage7-preferences.test.js test/stage7-process.test.js test/stage7-review-regressions.test.js test/stage7-runtime-decision.test.js test/stage7-telegram.test.js test/stage7-weekly.test.js test/companion-invitation.test.js test/companion-production.test.js test/companion-reply-boundary.test.js test/companion-timing-policy.test.js test/companion-v33-recovery.test.js",
+      "exitCode": 0,
+      "durationSeconds": 739.0956091880798,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/integration.tap",
+      "observedDefinitions": 200,
+      "passCount": 200,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "6166812cc706693bf9fa2d03160454b746fd448d48a3cc44062a3308dac11be2"
+    },
+    {
+      "id": "legacy-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-safety-gate-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 714.406937122345,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/legacy-ingress0.tap",
+      "observedDefinitions": 75,
+      "passCount": 75,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 75,
+        "pass": 75,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "7bbff7b6de1270f3ccc94163cf9ccffb580f40e6e697a1a0d381980d4c8a6e47"
+    },
+    {
+      "id": "adjudicated-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-adjudicated-repair-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 402.48840284347534,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/adjudicated-ingress0.tap",
+      "observedDefinitions": 45,
+      "passCount": 45,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "6bd6b96576f5e4b901b80409f8b210596ecd3030865b2de64a1d9fb16d6a3bf0"
+    },
+    {
+      "id": "legacy-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-safety-gate-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 697.1845819950104,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/legacy-ingress1.tap",
+      "observedDefinitions": 75,
+      "passCount": 75,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 75,
+        "pass": 75,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "2b01b022be62fdd2875361ab0c9a5f8d2337bd75791775c205f3abad75fb7197"
+    },
+    {
+      "id": "legacy-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-safety-gate-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 691.82776927948,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/legacy-ingress2.tap",
+      "observedDefinitions": 74,
+      "passCount": 74,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 74,
+        "pass": 74,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "e3f5af6f1d397ef2ae8c0e8a983fbedfd93a90eca9921ed3b997c76ea3478f20"
+    },
+    {
+      "id": "quotation-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-quotation-fallback-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 177.17025685310364,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/quotation-ingress0.tap",
+      "observedDefinitions": 26,
+      "passCount": 26,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "cfe8ad37b1bb269c7a8bc4025c47070c840b4c3ac88dcea1b347ad38db222a6f"
+    },
+    {
+      "id": "quotation-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-quotation-fallback-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 170.62007093429565,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/quotation-ingress1.tap",
+      "observedDefinitions": 25,
+      "passCount": 25,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "a2077a0f14a695ff60a1bac0233cb7107aab6155ca3282a670c8c7b4fecb2463"
+    },
+    {
+      "id": "adjudicated-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-adjudicated-repair-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 330.04777479171753,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/adjudicated-ingress1.tap",
+      "observedDefinitions": 45,
+      "passCount": 45,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "5b34b4f8420f8dfbc1bcfef200a23952b5831b9e61f0d66cb779174165e25bc0"
+    },
+    {
+      "id": "adjudicated-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-adjudicated-repair-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 319.95477294921875,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/adjudicated-ingress2.tap",
+      "observedDefinitions": 44,
+      "passCount": 44,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 44,
+        "pass": 44,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "5018dc06cca0084cf8cf4f86debe2a8e2e99c3e8a4d5e76a34e0bd425e8fa3f0"
+    },
+    {
+      "id": "stop-processor",
+      "command": "node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-evidence-stop-regressions.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 74.44772505760193,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/stop-processor.tap",
+      "observedDefinitions": 12,
+      "passCount": 12,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "956aa3b87b0d052eb0f41db0a8c102df5a170faec0fe8509515e9fb7b7d6431d"
+    },
+    {
+      "id": "name",
+      "command": "node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-contract-limit.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 6.605664968490601,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/name.tap",
+      "observedDefinitions": 1,
+      "passCount": 1,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "505af2e0f70fe88b776df0b2984c42cdc960335bfe06639d70d1566b6d8d9a75"
+    },
+    {
+      "id": "polling",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 0,
+      "durationSeconds": 48.1252863407135,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/polling.tap",
+      "observedDefinitions": 16,
+      "passCount": 16,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "26890ecac76aa5247a2c6dfa28838bebe02cd7bb99bfe213ccd5d070f27ac97a"
+    },
+    {
+      "id": "quotation-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-quotation-fallback-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 168.121276140213,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/quotation-ingress2.tap",
+      "observedDefinitions": 25,
+      "passCount": 25,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "d282672f335348b6c72a26f62169be9dd9a1757645bc6d00ef56225292fc6b02"
+    },
+    {
+      "id": "processor",
+      "command": "node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-evidence-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 172.31819915771484,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/processor.tap",
+      "observedDefinitions": 25,
+      "passCount": 25,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "575f9983ccd97bdb254108e1740bb6c579684c53129fa6501723adf2d91dbf33"
+    },
+    {
+      "id": "ownership-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-quotation-repair-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 172.18667006492615,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/ownership-ingress0.tap",
+      "observedDefinitions": 26,
+      "passCount": 26,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "3c96af9a2214e37d7df3c9fc66e393be39232f7c9f4edc98639cf5ef3545155a"
+    },
+    {
+      "id": "ownership-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-quotation-repair-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 164.53689408302307,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/ownership-ingress1.tap",
+      "observedDefinitions": 25,
+      "passCount": 25,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "79a899ef205f133a70bd35fdbbd61ed3d095ca8f849967a854bb9a0d6d8b268a"
+    },
+    {
+      "id": "ownership-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test /private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-quotation-repair-processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 161.17419695854187,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/ownership-ingress2.tap",
+      "observedDefinitions": 25,
+      "passCount": 25,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "4f02d2a89db1ffc9dfd8eb09b831a25bf8c8b804e2a7c852a416142641efd085"
+    },
+    {
+      "id": "recovered-ingress56",
+      "command": "node --test /private/tmp/stage8-two-false-warning-repair/final/recovered-ingress/processor.test.mjs",
+      "exitCode": 0,
+      "durationSeconds": 295.9697570800781,
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/recovered-ingress56.tap",
+      "observedDefinitions": 56,
+      "passCount": 56,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 56,
+        "pass": 56,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "ef949f6ca9c7977791be82ac097521406fdddb3303eddde8e65f8eac258bafbb"
+    }
+  ],
+  "regressionAttempts": [
+    {
+      "id": "regression",
+      "observedDefinitions": 163,
+      "passCount": 162,
+      "failCount": 1,
+      "processRows": [
+        {
+          "title": "test/telegram-webhook.test.js",
+          "occurrence": 1,
+          "passed": false
+        }
+      ],
+      "summary": {
+        "tests": 164,
+        "pass": 162,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": true,
+      "sha256": "58b95a0e812e7fbeb8fa28e3c3e0694603b829fcb885299bf81f37360f5b0fe2",
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/regression.tap"
+    },
+    {
+      "id": "regression-stable-head",
+      "observedDefinitions": 160,
+      "passCount": 160,
+      "failCount": 0,
+      "processRows": [
+        {
+          "title": "test/telegram-webhook.test.js",
+          "occurrence": 1,
+          "passed": false
+        }
+      ],
+      "summary": {
+        "tests": 161,
+        "pass": 160,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": true,
+      "sha256": "4322e3988973769a3037d6f128f6d8b116624e62ed102c77cfd5f4db30821b9f",
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/regression-stable-head.tap"
+    },
+    {
+      "id": "regression-webhook-targeted",
+      "observedDefinitions": 1,
+      "passCount": 1,
+      "failCount": 0,
+      "processRows": [],
+      "summary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "nativeSignal": false,
+      "sha256": "ed12dd47fb14772a4db19c57ed3cb5217a033db8ba6474d755382a82a788dcd8",
+      "log": "/private/tmp/stage8-two-false-warning-repair/final/regression-webhook-targeted.tap"
+    }
+  ],
+  "matrices": {
+    "legacy": {
+      "definitions": 224,
+      "passCount": 224,
+      "safetyRows": 144,
+      "clearRows": 80,
+      "allSafetyGuards": true,
+      "completeDisjointShards": true
+    },
+    "new": {
+      "definitions": 134,
+      "passCount": 134,
+      "safetyRows": 84,
+      "clearRows": 50,
+      "allSafetyGuards": true,
+      "completeDisjointShards": true
+    },
+    "quotation": {
+      "definitions": 76,
+      "passCount": 76,
+      "safetyRows": 28,
+      "clearRows": 48,
+      "allSafetyGuards": true,
+      "completeDisjointShards": true
+    },
+    "ownership": {
+      "definitions": 76,
+      "passCount": 76,
+      "safetyRows": 44,
+      "clearRows": 32,
+      "allSafetyGuards": true,
+      "completeDisjointShards": true
+    },
+    "scope": {
+      "definitions": 12,
+      "passCount": 12,
+      "safetyRows": 12,
+      "clearRows": 0,
+      "allSafetyGuards": true
+    },
+    "residual": {
+      "definitions": 16,
+      "passCount": 16,
+      "safetyRows": 16,
+      "clearRows": 0,
+      "allSafetyGuards": true
+    }
+  },
+  "focusedMatrix": {
+    "rows": 64,
+    "passCount": 64,
+    "failCount": 0,
+    "safetyRows": 36,
+    "clearRows": 28,
+    "locales": [
+      "en",
+      "vi",
+      "zh-TW"
+    ],
+    "allSafetyGuards": true,
+    "originalEight": {
+      "negation-original name": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 2,
+        "statePreserved": false
+      },
+      "negation-original health": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 2,
+        "statePreserved": true
+      },
+      "education-original name": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 2,
+        "statePreserved": false
+      },
+      "education-original health": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 2,
+        "statePreserved": true
+      },
+      "negation-original note": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 1,
+        "statePreserved": false
+      },
+      "education-original note": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 1,
+        "statePreserved": false
+      },
+      "negation-original coach": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 2,
+        "statePreserved": true
+      },
+      "education-original coach": {
+        "passCount": 1,
+        "classification": "CLEARLY_NONURGENT",
+        "normalConsumers": 2,
+        "statePreserved": true
+      }
+    }
+  },
+  "logArchives": {
+    "adjudicated-ingress0": {
+      "file": "adjudicated-ingress0.tap.gz",
+      "sha256": "6bd6b96576f5e4b901b80409f8b210596ecd3030865b2de64a1d9fb16d6a3bf0",
+      "gzipSha256": "34cfacc302f71f6ade45e3741cc4901d0f4e8ed47e4144590842a0c57236048f"
+    },
+    "adjudicated-ingress1": {
+      "file": "adjudicated-ingress1.tap.gz",
+      "sha256": "5b34b4f8420f8dfbc1bcfef200a23952b5831b9e61f0d66cb779174165e25bc0",
+      "gzipSha256": "aebcf6c66dd5607cd40843fa275249fe60bdeec3611f67f0bac3b0a25783429e"
+    },
+    "adjudicated-ingress2": {
+      "file": "adjudicated-ingress2.tap.gz",
+      "sha256": "5018dc06cca0084cf8cf4f86debe2a8e2e99c3e8a4d5e76a34e0bd425e8fa3f0",
+      "gzipSha256": "a3df2adb1c8f9658dca786727c12d4e7ee5e96d4a55b132582d36f32e8568b90"
+    },
+    "adjudicated-semantic": {
+      "file": "adjudicated-semantic.tap.gz",
+      "sha256": "3b65b975c9d902ea5b70620d8b7a1fea31481a21e51d991abb0e807eb9cf73f4",
+      "gzipSha256": "77fa7588334909b1f9e443fb71725edda50ca51d4368de14453c699fa0a6e874"
+    },
+    "coach-continuation": {
+      "file": "coach-continuation.tap.gz",
+      "sha256": "db302133fd28860350fb519e4bd7fa115e627c58682d45fa2df68f16c23cee09",
+      "gzipSha256": "52c5a0fe4f03c2619f04f3f29912a123929790f4de0208b561e791791ebf8d65"
+    },
+    "final-adversarial": {
+      "file": "final-adversarial.tap.gz",
+      "sha256": "b64915ca0fe0c5919bbf10534bb400c7203a74ca8e30c0b3cd41daed396148c8",
+      "gzipSha256": "2c71a282c5413444bb034265cb78daf0932da4d88d5c323ad83fa792adc29243"
+    },
+    "focused-direct": {
+      "file": "focused-direct.tap.gz",
+      "sha256": "8ce93247b1ea2d3998812c7895276599cea0763a6116ac7844054aa34b43b7fd",
+      "gzipSha256": "59dcc332b8dc1a6d0a1ae7a939d0934bf92929f72d1fdd540d400125eb5e6644"
+    },
+    "focused-ingress0": {
+      "file": "focused-ingress0.tap.gz",
+      "sha256": "8b0fa1a424bb92726aebfa2ad8ea9ed31ce4a1d12e54856a68c75a5b08b1eddb",
+      "gzipSha256": "d30018b3b364a25ff0e2871181ed713d4d6ac13dd9d2f775243907eb2ca9381f"
+    },
+    "focused-ingress1": {
+      "file": "focused-ingress1.tap.gz",
+      "sha256": "99f7f1748bc8f83aff1fc21883b7ac0ec5d31e41ae7c7b5c0f5b457e63e7e4dd",
+      "gzipSha256": "cdc2e91e4b9ff8b3d12c5231d58bda8d0a133f746547f281f834e193d8e50b4b"
+    },
+    "focused-ingress2": {
+      "file": "focused-ingress2.tap.gz",
+      "sha256": "5e5be9b5cf27f777d26dfe7ee3765f4736d042501635a99aeadeca3c2a725684",
+      "gzipSha256": "406cc1f7974a089d4d454312e42e15305e984e1f679cd63ef4a3e889eb16b1e4"
+    },
+    "gate-semantic": {
+      "file": "gate-semantic.tap.gz",
+      "sha256": "d6c7ab3f292d2c89d3c31db4f980fee0cca9772098be93f81b8cf7c3bef38a26",
+      "gzipSha256": "b4f67456276d2737ec4a91262ecf69214c529efef416d680b626fc7c37706e82"
+    },
+    "integration": {
+      "file": "integration.tap.gz",
+      "sha256": "6166812cc706693bf9fa2d03160454b746fd448d48a3cc44062a3308dac11be2",
+      "gzipSha256": "6d7558c04a57b3e5e9d93803ef79e2700bec5a574dca237b4a7c887b75d8bdb2"
+    },
+    "legacy-ingress0": {
+      "file": "legacy-ingress0.tap.gz",
+      "sha256": "7bbff7b6de1270f3ccc94163cf9ccffb580f40e6e697a1a0d381980d4c8a6e47",
+      "gzipSha256": "f7b35725c20010fa243f06f9de9c58e445c7587a27c86a9b205b6e05d94b6086"
+    },
+    "legacy-ingress1": {
+      "file": "legacy-ingress1.tap.gz",
+      "sha256": "2b01b022be62fdd2875361ab0c9a5f8d2337bd75791775c205f3abad75fb7197",
+      "gzipSha256": "467e4725e1e4edd9f31005fdf8f2c8a5dfdd7191a06bc1ad82c94ed3d93b4409"
+    },
+    "legacy-ingress2": {
+      "file": "legacy-ingress2.tap.gz",
+      "sha256": "e3f5af6f1d397ef2ae8c0e8a983fbedfd93a90eca9921ed3b997c76ea3478f20",
+      "gzipSha256": "9627eff2478b54893a96509fbc586e2b8b08990f4a2f7118665f815a198d6829"
+    },
+    "local-frame": {
+      "file": "local-frame.tap.gz",
+      "sha256": "f1e4300a1366e7cfb4de4e2835970351b09baaf060e05bb1b5b0811af7848786",
+      "gzipSha256": "07f2c87f69ec2f05886d197944dd894d93ac08b841fc48b879e262364bf64fba"
+    },
+    "name": {
+      "file": "name.tap.gz",
+      "sha256": "505af2e0f70fe88b776df0b2984c42cdc960335bfe06639d70d1566b6d8d9a75",
+      "gzipSha256": "e7d518cce89d01fc2e7992caa8a7d1d828e988203dd47136ecbb63cb2959c1b3"
+    },
+    "new-semantic": {
+      "file": "new-semantic.tap.gz",
+      "sha256": "13b59d4bd70cd1005a73bf16638b475d89c14e6d85dd4e8f1e0ccaf926de0ec6",
+      "gzipSha256": "10c5fade1b33fe2f473b3b63422b841a173d1bf0d6aba9be5ecba20d713916e0"
+    },
+    "ownership-ingress0": {
+      "file": "ownership-ingress0.tap.gz",
+      "sha256": "3c96af9a2214e37d7df3c9fc66e393be39232f7c9f4edc98639cf5ef3545155a",
+      "gzipSha256": "6fe67dcb315cc5c3b59193f685e21f5141a44d88be1cde18d7b73b8024b81bda"
+    },
+    "ownership-ingress1": {
+      "file": "ownership-ingress1.tap.gz",
+      "sha256": "79a899ef205f133a70bd35fdbbd61ed3d095ca8f849967a854bb9a0d6d8b268a",
+      "gzipSha256": "8d1699c2a951bf4009cb92ceee70f1aa19985e0d58811ad37f67ff6892189066"
+    },
+    "ownership-ingress2": {
+      "file": "ownership-ingress2.tap.gz",
+      "sha256": "4f02d2a89db1ffc9dfd8eb09b831a25bf8c8b804e2a7c852a416142641efd085",
+      "gzipSha256": "5936ec66b0d39f0881162b5e0c397bbf31c306b3752a213591e3eaf0c3809308"
+    },
+    "ownership-semantic": {
+      "file": "ownership-semantic.tap.gz",
+      "sha256": "120733578846f4968f5c7c0e5186dbe21a69e68829c730064f73dc0bc063944c",
+      "gzipSha256": "a81ac1b0e3e075a99ac648f4828a5631eaa1dde64da889469fca328742807a5c"
+    },
+    "polling": {
+      "file": "polling.tap.gz",
+      "sha256": "26890ecac76aa5247a2c6dfa28838bebe02cd7bb99bfe213ccd5d070f27ac97a",
+      "gzipSha256": "a85e3bd3b1f21f695f577cfd05e6c0a946f0a53c2f0b769d6c22b7001c8d8e58"
+    },
+    "processor": {
+      "file": "processor.tap.gz",
+      "sha256": "575f9983ccd97bdb254108e1740bb6c579684c53129fa6501723adf2d91dbf33",
+      "gzipSha256": "6614df21705d57a7c53093cc4d48797da7067b39634621d245211f7f941aff6c"
+    },
+    "quotation-ingress0": {
+      "file": "quotation-ingress0.tap.gz",
+      "sha256": "cfe8ad37b1bb269c7a8bc4025c47070c840b4c3ac88dcea1b347ad38db222a6f",
+      "gzipSha256": "b1a97183b00488344617cfdf7eed379a4f346feff613a9b8756f6ced96690140"
+    },
+    "quotation-ingress1": {
+      "file": "quotation-ingress1.tap.gz",
+      "sha256": "a2077a0f14a695ff60a1bac0233cb7107aab6155ca3282a670c8c7b4fecb2463",
+      "gzipSha256": "b8304084a80676640b3e3c7c98b650cec9d5daacd22880a265e564c2805ba213"
+    },
+    "quotation-ingress2": {
+      "file": "quotation-ingress2.tap.gz",
+      "sha256": "d282672f335348b6c72a26f62169be9dd9a1757645bc6d00ef56225292fc6b02",
+      "gzipSha256": "6b61b8cef42177a426e32bb22359c9834a1fa7998d8e73e0e1e1e3bd781145c1"
+    },
+    "quotation-semantic": {
+      "file": "quotation-semantic.tap.gz",
+      "sha256": "093ea08c7a394d2adb36d054b9b2d8c2ac70e4dea52ea8b76704e67f86bfdcb6",
+      "gzipSha256": "dacc4cf196ecf0e044a958dba9a3e92ad37d1f5519783c8ff41c3f46ef74c63f"
+    },
+    "recovered-ingress56": {
+      "file": "recovered-ingress56.tap.gz",
+      "sha256": "ef949f6ca9c7977791be82ac097521406fdddb3303eddde8e65f8eac258bafbb",
+      "gzipSha256": "72f3d70b554f1ff7c97da1ecbf381507a038420f4d61694242be54a7391d892e"
+    },
+    "regression-stable-head": {
+      "file": "regression-stable-head.tap.gz",
+      "sha256": "4322e3988973769a3037d6f128f6d8b116624e62ed102c77cfd5f4db30821b9f",
+      "gzipSha256": "2a5dc9cbcf3ad85c1c3748d544eb3922bf2634707c94be1ced4fca493f323061"
+    },
+    "regression-webhook-targeted": {
+      "file": "regression-webhook-targeted.tap.gz",
+      "sha256": "ed12dd47fb14772a4db19c57ed3cb5217a033db8ba6474d755382a82a788dcd8",
+      "gzipSha256": "5bbed857a3636c95447ac96514208feb8889266d53a425170a37d58d078b7fda"
+    },
+    "regression": {
+      "file": "regression.tap.gz",
+      "sha256": "58b95a0e812e7fbeb8fa28e3c3e0694603b829fcb885299bf81f37360f5b0fe2",
+      "gzipSha256": "aa2528135dbbe2b65fd255b9e8af40c301eb2e591630df20153ab9ddd52618a2"
+    },
+    "safety": {
+      "file": "safety.tap.gz",
+      "sha256": "db4d812bd566d53f50e966dc4558fb507e4b72d3fa9b74b9bf1ec38db590b03f",
+      "gzipSha256": "f21255f1c390bac3abbcc0248d562f113d5388ca477823242ebee11d55bcf36e"
+    },
+    "scoped": {
+      "file": "scoped.tap.gz",
+      "sha256": "494486d38103efeface701b8d7be5cfa2726d91b2d4fe2c4b28fb25bd88ab869",
+      "gzipSha256": "90d408e8c373ba022850f24ee9574ef9005bee40dae7cd2b0df9e80be21fcf61"
+    },
+    "stop-processor": {
+      "file": "stop-processor.tap.gz",
+      "sha256": "956aa3b87b0d052eb0f41db0a8c102df5a170faec0fe8509515e9fb7b7d6431d",
+      "gzipSha256": "960a89b7ef82201ef1348afef5c2f46c004233bd2e3099c5a3aba97d9da9dd08"
+    },
+    "baseline-semantic": {
+      "file": "baseline-semantic.tap.gz",
+      "sha256": "64af958f96cb745353f743ca57962b33856518c937a9230b9021215c2a65bc27",
+      "gzipSha256": "875bee2ebc5db3a18574beb133c28cad00c8da2dffd292d1a5927c6de68cf472"
+    },
+    "baseline-ownership": {
+      "file": "baseline-ownership.tap.gz",
+      "sha256": "2a92d004abdb24cc491d3ac055a35d1e5869a8b0aa5016ee320eeca2aad49bdf",
+      "gzipSha256": "770515b3cce3f23d91ea4f3d590f94565f1a693679740881722ad1ee3f12692c"
+    },
+    "baseline-original-eight-processor": {
+      "file": "baseline-original-eight-processor.tap.gz",
+      "sha256": "1758ee9891b096b29652ed20c070938a15a6f883438300dfa9dec0261a774dc9",
+      "gzipSha256": "4c77cd99537a758b7a346e6b882e3f869f4de187f37ea3565e36e48a837672c8"
+    }
+  },
+  "performanceFiles": [
+    "benchmark-baseline.json",
+    "benchmark-candidate.json",
+    "benchmark-paired.json"
+  ],
+  "verificationQualification": "Functional assertion coverage PASS. First 27-command run was 26 process passes / 1 failed regression command. The unchanged 164-check rerun also had a baseline SIGSEGV. All 164 regression assertions have passing observations across those runs and the single targeted local-server check. Neither full regression process is labelled PASS.",
+  "nativeIssue": "OPEN; two observed occurrences match the independently frozen native UUID and six offsets; no native fix or environment-only reclassification.",
+  "remainingDependencies": [
+    "Independent review of this frozen two-defect repair",
+    "Baseline native SIGSEGV root-cause/stability qualification",
+    "Latest owner-frozen Stage 6 successor reconciliation and integrated capacity/authority review, preserving 45,000/15,000ms guards; do not import the old partial caf08fc successor",
+    "Authenticated LIVE producer contract/schema/receipt integration; SHADOW is never promoted to LIVE",
+    "Final integrated Stage 8 review and owner release authorization"
+  ]
+}

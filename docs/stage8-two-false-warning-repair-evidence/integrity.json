@@ -1,0 +1,17 @@
+{
+  "baselineHead": "d538b07e097fedb42481c305de0738761c512a4d",
+  "baselineTree": "75122d94febecfcd86129949863ed3b3b8c84849",
+  "runtimeSourceCommit": "52934e90bfacc987f4af52eda2af1a43475e9e41",
+  "runtimeSha256": {
+    "src/bot/triage.js": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+    "src/bot/safetyGate.js": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d"
+  },
+  "baselineTrackedPathsModified": [
+    "src/bot/triage.js"
+  ],
+  "existingTestsOrExpectationsModified": false,
+  "originalIndependentReviewSha256": "16aac403b7cf1f25d837517009da5406f98ad9a51cc16bb1e905f463c7609d28",
+  "focusedCorpusSha256": "afb35aed13a285826d240dff0ff3e82830b27f8c3a1597db30944bdfbe4ff0f0",
+  "baselineDocsUnchanged": 1641,
+  "schemaMigrationsStage6LiveUnchanged": true
+}

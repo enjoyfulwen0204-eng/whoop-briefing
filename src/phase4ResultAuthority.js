@@ -40,6 +40,9 @@ const rootProjection=(row,type,version)=>[NORMALIZED_ROOT_VERSION,BOUNDED_ROOT_V
  * Derived inputs are flattened from their versioned calculation manifests. */
 export function createResultAuthority(core) {
   const TABLE=analysisTable(core,SHADOW_TABLE);
+  // Pilot prefix budgeting is SHADOW-only. LIVE always uses its separately
+  // allocated static authority table; no shared-table fallback is permitted.
+  const resultAuthorityFrom=(context,id,scope)=>core.liveAllocation?TABLE:pilotResultAuthorityFrom(client,context,id,scope);
   const {client,keys}=core;
   const hash=(salt,domain,value)=>keys.digest(salt,canonicalJson([domain,value]));
   const seal=row=>hash(row.content_digest_salt,VERSION,Object.fromEntries(Object.entries(row)
@@ -213,7 +216,7 @@ export function createResultAuthority(core) {
       try{audit=body.auditPlan(bodySource.row);}catch{}
       let existing=[],authorityError;
       try{
-        const authorityFrom=await pilotResultAuthorityFrom(client,context,itemSource.row.evidence_item_id);
+        const authorityFrom=await resultAuthorityFrom(context,itemSource.row.evidence_item_id);
         existing=(await client.execute({sql:`SELECT * FROM ${authorityFrom} WHERE user_id=? AND execution_mode=? AND evidence_item_id=?`,
           args:[context.userId,context.executionMode,itemSource.row.evidence_item_id]})).rows;
       }catch(error){authorityError=error;}
@@ -483,7 +486,7 @@ export function createResultAuthority(core) {
   }
   async function read(context,evidenceItemId,scope) {
     return core.run(context,async()=>{
-      const from=await pilotResultAuthorityFrom(client,context,evidenceItemId,scope);
+      const from=await resultAuthorityFrom(context,evidenceItemId,scope);
       const row=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope=?`,
         args:[context.userId,context.executionMode,evidenceItemId,scope]})).rows[0];
       if(!row)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
@@ -518,7 +521,7 @@ export function createResultAuthority(core) {
     if(oldItem?.evidence_item_id!==selected.itemId||oldItem.run_id!==selected.runId||oldItem.item_key!==selected.itemKey)invalid();
     return core.run(context,async()=>{
       await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
-      const from=await pilotResultAuthorityFrom(client,context,selected.itemId,'METRIC');
+      const from=await resultAuthorityFrom(context,selected.itemId,'METRIC');
       const row=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
         args:[context.userId,context.executionMode,selected.itemId]})).rows[0];
       if(!row)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');verifyEnvelope(context,row);
@@ -591,7 +594,7 @@ export function createResultAuthority(core) {
     record.authority_hmac=seal(record);
     const fields=Object.keys(record);
     reservePilotMutation(context,client,fields.map(k=>record[k]));
-    await pilotResultAuthorityFrom(client,context,item.row.evidence_item_id,scope);
+    await resultAuthorityFrom(context,item.row.evidence_item_id,scope);
     await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>record[k])});
     await addPrivacyLinks(client,[...roots.roots,{type:'evidence_items',id:item.row.privacy_artifact_id,mode:context.executionMode,as_of:null}]
       .map(source=>({userId:context.userId,mode:context.executionMode,table:TABLE,artifactId:envelope.privacy_artifact_id,

@@ -23,9 +23,9 @@ async function insertCoverage(f, { startDate, endDate, id = 'coverage-caffeine',
   return id;
 }
 
-async function setup(t, { days = 60, createFacts = true,wallClock=nowMs,targetVersion,inputAsOf=nowMs,liveClock=false } = {}) {
+async function setup(t, { days = 60, createFacts = true,wallClock=nowMs,targetVersion,inputAsOf=nowMs,liveClock=false,ownedConnection=false } = {}) {
   let clock = new Date(wallClock);
-  const f = await syntheticPhase4Fixture(t, { now: () => liveClock?new Date():clock,...(targetVersion===undefined?{}:{targetVersion}) });
+  const f = await syntheticPhase4Fixture(t, { now: () => liveClock?new Date():clock,ownedConnection,...(targetVersion===undefined?{}:{targetVersion}) });
   const input = bodyInput({ asOf: inputAsOf, days: days - 1 });
   for (let index = 0; index < input.sources.recovery.length; index += 1) {
     input.sources.recovery[index].recovery_score = index % 2 === 0 ? 40 : 50;

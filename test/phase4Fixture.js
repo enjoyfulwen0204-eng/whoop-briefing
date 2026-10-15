@@ -3,30 +3,39 @@
 import { randomUUID } from 'node:crypto';
 import Database from 'libsql';
 import { Sqlite3Client, Sqlite3Transaction } from '@libsql/client/sqlite3';
-import { composeDb } from '../src/db.js';
+import { composeDb,createStage6OwnedMemoryDb } from '../src/db.js';
 import { fixtureKeys } from './localDb.js';
 import { buildPhase4Core, fail } from '../src/phase4Core.js';
 import { composePhase4Stores } from '../src/phase4Repositories.js';
 
 export async function syntheticPhase4Fixture(t,options={}) {
-  if(Object.keys(options).some(k=>!['now','targetVersion'].includes(k)))fail('SYNTHETIC_FIXTURE_EXTERNAL_INPUT_FORBIDDEN');
-  const {now=()=>new Date('2026-09-19T00:00:00.000Z'),targetVersion=27}=options;
+  if(Object.keys(options).some(k=>!['now','targetVersion','ownedConnection'].includes(k)))fail('SYNTHETIC_FIXTURE_EXTERNAL_INPUT_FORBIDDEN');
+  const {now=()=>new Date('2026-09-19T00:00:00.000Z'),targetVersion=27,ownedConnection=false}=options;
+  if(typeof ownedConnection!=='boolean')fail('SYNTHETIC_FIXTURE_EXTERNAL_INPUT_FORBIDDEN');
   if(![27,28,29,30,33,34,35].includes(targetVersion))fail('SYNTHETIC_FIXTURE_VERSION_INVALID');
   // This synthetic authority owns one native in-memory connection. Use the
   // installed driver's SQL executor and transaction implementation on that
   // connection. Application processing serializes root transactions. The
   // driver's normal rotating-connection lifecycle is probed separately.
-  const uri=`file:p4-${randomUUID()}?mode=memory&cache=shared`,anchor=new Database(uri);
-  const client=new Sqlite3Client(uri,{},anchor,'number');
   const collectStatements=async()=>{
     global.gc?.();await new Promise(resolve=>setImmediate(resolve));
     await new Promise(resolve=>setImmediate(resolve));
   };
+  let db;
+  if(ownedConnection){
+    // Real application-owned receiver/lifetime, used only for capacity evidence.
+    // Generic caller-owned/reconnect tests keep their full admission fallback.
+    db=await createStage6OwnedMemoryDb(async()=>{},fixtureKeys);
+  }else{
+  const uri=`file:p4-${randomUUID()}?mode=memory&cache=shared`,anchor=new Database(uri);
+  const client=new Sqlite3Client(uri,{},anchor,'number');
   client.transaction=async(mode='write')=>{
     await client.execute(mode==='write'?'BEGIN IMMEDIATE':mode==='read'?'BEGIN DEFERRED':'BEGIN');
     return new Sqlite3Transaction(anchor,'number');
   };
-  const db=composeDb(client,{phase4Keys:fixtureKeys});t.after(async()=>{
+  db=composeDb(client,{phase4Keys:fixtureKeys});
+  }
+  t.after(async()=>{
     await collectStatements();db.close();
     await collectStatements();
   });

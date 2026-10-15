@@ -1,3 +1,9 @@
 import{createSyntheticDiagnostics}from'./stage6SyntheticDiagnostics.mjs';
+// Reviewed local negative control only, before lifecycle READY and before any
+// start payload, DB connection, lease, execution or reservation can exist.
+if(process.env.STAGE6_SYNTHETIC_READY_FAULT!==undefined){
+ if(process.env.STAGE6_LOCAL_SYNTHETIC!=='explicit-local-test-v1'||process.env.STAGE6_SYNTHETIC_READY_FAULT!=='DELAY_BEFORE_READY_6000_MS')throw Error('SYNTHETIC_STARTUP_FAULT_REJECTED');
+ await new Promise(resolve=>setTimeout(resolve,6000));
+}
 import{installDrainChildLifecycle}from'../src/drainChildLifecycle.js';import{issueDrainProcessAuthority}from'../src/drainProcessAuthority.js';import{runExecutionPhase}from'../src/phase4Execution.js';import{openSyntheticDb,syntheticKeys as keys,syntheticManifest as m}from'./stage6SyntheticAdmission.mjs';import{receiverScopeStatistics}from'../src/receiverScopeLifetime.js';import{stage6CapacityStatus}from'../src/stage6CapacityRuntime.js';import{linuxMetrics}from'./stage6LinuxMetrics.mjs';
 installDrainChildLifecycle({execute:async({request,body,slot,control,notify,environment,env})=>{const userId=environment.STAGE6_SYNTHETIC_TENANT;if(!m.tenants.some(t=>t.id===userId&&t.scope==='qualification')||request.executionMode!=='SHADOW')throw Error('SYNTHETIC_COHORT_REQUIRED');const diagnostics=process.env.STAGE6_SYNTHETIC_DIAGNOSTIC==='1'?createSyntheticDiagnostics('/qualification/phase-profile-'+request.requestId+'.json'):null,metrics=linuxMetrics(),db=await openSyntheticDb();try{const processAuthority=issueDrainProcessAuthority({db,keys,userId,request,slot,control,notify}),result=await runExecutionPhase({request,body,db,keys,environment,env,signal:control.signal,processAuthority});await db.close();return{result,capacity:stage6CapacityStatus(),metrics:metrics.snapshot(),scopes:receiverScopeStatistics()};}finally{await db.close();metrics.close();diagnostics?.close();}}});

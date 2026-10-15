@@ -1,0 +1,13 @@
+# Bounded synthetic HTTP startup recovery
+
+The e97074d full continuation stopped at HTTP leg312 with `DRAIN_CHILD_READY_TIMEOUT`. Child READY was absent; the original supervisor's five-second guard terminated it at5.202s. No execution, work receipt, producer or reservation existed for that failed transport call. Ledger313, all six generation11 jobs and264/864 source visits were retained. The prior unknown503 remains unknown.
+
+Eight no-start-payload Linux1CPU/2GiB probes, using the same approved profile, completed READY in1.258–1.748s with ZERO DB HTTP/SQL operations or reservations. CPU profiles show ESM compilation/loader waiting and GC; they do not reproduce or explain the five-second tail. No timeout/resource/algorithm change is justified by those probes.
+
+One same-code retry of leg312's exact request completed a real subunit with execution generation1, original producer HMAC and named work receipts, one reservation313->314, READY1.097s and phase work15.724s. No source cursor was falsely advanced. Completed jobs remain0/6.
+
+This local TEST-CONTROLLER correction preserves each503. It may schedule at most ONE next outer HTTP iteration with the SAME request, only after a read-only batch proves zero execution/work/producer/parent-slot rows, the original child exited SIGTERM after the five-second guard without READY/output, and both target job snapshots are unchanged. Any admitted/indeterminate/ready/other-error case or second startup failure stops. The retry re-enters every original admission, generation, lease, source and deadline check. No worker subrun is hidden inside an attempt.
+
+The pending retry count is atomically fsynced before retry, so restart cannot reset it. A loop ending with pending retry is failure, not focused completion. Existing successful response replays are labelled; final calculations must be counted by unique durable execution/receipt identities. A default-OFF focused two-call negative control delays only the first test child's pre-READY entry by6s; the original5s guard must reject it before any authority/start payload, then the second call must prove real durable work and exactly one reservation. This adds no Production/runtime path, schema or allowance.
+
+The original cap4096, immutable accounting origin, physical DB/cohort and first-reservation24h expiry remain unchanged. New exact SHA/manifest independent GO is required BEFORE any revised-code reservation. Full monitored six-job, integrated service/crash and sustained resource qualification are still pending. Production12/12, F02, Stage7/8, JournalTENANT_LIMIT and SHADOW/LIVE separation remain untouched.

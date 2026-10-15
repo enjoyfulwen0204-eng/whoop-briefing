@@ -1,0 +1,1572 @@
+{
+  "expectationsFrozenBeforeRuntimeEdit": true,
+  "baselineHead": "10b68fa5f4f9501c424ad4c16b4bab0eae500595",
+  "cases": [
+    {
+      "id": "current-en",
+      "locale": "en",
+      "text": "\"chest pain\" is precisely what I am feeling now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "current-zh",
+      "locale": "zh-TW",
+      "text": "「胸悶」就是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "current-vi",
+      "locale": "vi",
+      "text": "\"tức ngực\" đúng là triệu chứng tôi đang cảm thấy.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "current-mixed",
+      "locale": "en",
+      "text": "「胸痛」 is exactly what I am experiencing now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "uncertain-en",
+      "locale": "en",
+      "text": "\"chest pain\" might be what I am experiencing now.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "uncertain-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」可能是我現在感到的症狀。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "uncertain-vi",
+      "locale": "vi",
+      "text": "\"đau ngực\" có thể là triệu chứng tôi đang cảm thấy.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "unproven-en",
+      "locale": "en",
+      "text": "\"chest pain\" sounds like what I am feeling now.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "unproven-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」好像我現在感到的症狀。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "unproven-vi",
+      "locale": "vi",
+      "text": "\"đau ngực\" giống điều tôi đang cảm thấy.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "negated-en",
+      "locale": "en",
+      "text": "\"chest pain\" is precisely what I am not experiencing now.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negated-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」正是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negated-vi",
+      "locale": "vi",
+      "text": "\"đau ngực\" đúng là triệu chứng tôi không cảm thấy.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "history-en",
+      "locale": "en",
+      "text": "\"chest pain\" is what I experienced last year.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "history-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我昨天感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "history-vi",
+      "locale": "vi",
+      "text": "\"đau ngực\" là triệu chứng tôi cảm thấy hôm qua.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "resolved-en",
+      "locale": "en",
+      "text": "I had \"chest pain\" last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "resolved-zh",
+      "locale": "zh-TW",
+      "text": "我昨天「胸痛」，現在已經好了。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "resolved-vi",
+      "locale": "vi",
+      "text": "Tôi đã hết hẳn \"đau ngực\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "reading-en",
+      "locale": "en",
+      "text": "I am reading about \"chest pain\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "reading-zh",
+      "locale": "zh-TW",
+      "text": "我正在閱讀「胸痛」。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "reading-vi",
+      "locale": "vi",
+      "text": "Tôi đang đọc về \"đau ngực\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "learning-en",
+      "locale": "en",
+      "text": "I am learning about \"chest pain\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "learning-zh",
+      "locale": "zh-TW",
+      "text": "我想知道「胸痛」是什麼意思。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "learning-vi",
+      "locale": "vi",
+      "text": "Tôi đang tìm hiểu về \"đau ngực\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "question-en",
+      "locale": "en",
+      "text": "What causes \"chest pain\" in general?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "question-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」通常是什麼原因？",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "question-vi",
+      "locale": "vi",
+      "text": "Nguyên nhân \"đau ngực\" thường là gì?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "hypothetical-en",
+      "locale": "en",
+      "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "hypothetical-zh",
+      "locale": "zh-TW",
+      "text": "假設「胸痛」是我現在感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "hypothetical-vi",
+      "locale": "vi",
+      "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-object-en",
+      "locale": "en",
+      "text": "\"chest pain\" is a phrase I am feeling refreshed now.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-object-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」是一個詞我現在覺得很放鬆。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-object-vi",
+      "locale": "vi",
+      "text": "\"đau ngực\" là một cụm từ tôi đang cảm thấy dễ chịu.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-sentence-en",
+      "locale": "en",
+      "text": "\"chest pain\". I am feeling calm now.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-sentence-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」。我現在覺得很放鬆。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-sentence-vi",
+      "locale": "vi",
+      "text": "\"đau ngực\". Tôi đang cảm thấy dễ chịu.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-activity-en",
+      "locale": "en",
+      "text": "\"chest pain\" I am busy now.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-activity-zh",
+      "locale": "zh-TW",
+      "text": "「胸痛」我現在忙碌。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-activity-vi",
+      "locale": "vi",
+      "text": "\"đau ngực\" tôi đang làm việc.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "standalone-en",
+      "locale": "en",
+      "text": "\"I have chest pain now\"",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "standalone-zh",
+      "locale": "zh-TW",
+      "text": "「我現在胸痛」",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "standalone-vi",
+      "locale": "vi",
+      "text": "\"Tôi đang đau ngực\"",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "metric-en",
+      "locale": "en",
+      "text": "\"chest pain\" What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "other-assertion",
+      "locale": "en",
+      "text": "\"chest pain\" is exactly what my friend Ana is experiencing now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "other-unrelated",
+      "locale": "en",
+      "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+      "expected": "CLEARLY_NONURGENT"
+    }
+  ],
+  "metamorphic": [
+    {
+      "id": "current-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" is precisely what I am feeling now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" is precisely what I am feeling now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "current-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” is precisely what I am feeling now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "current-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" is precisely what I am feeling now. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "current-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸悶」就是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸悶」就是我現在感到的症狀。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "current-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸悶』就是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "current-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸悶」就是我現在感到的症狀。 What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "current-vi-nfd",
+      "locale": "vi",
+      "text": "\"tức ngực\" đúng là triệu chứng tôi đang cảm thấy.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-vi-space",
+      "locale": "vi",
+      "text": "  \"tức ngực\" đúng là triệu chứng tôi đang cảm thấy.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "current-vi-quote-style",
+      "locale": "vi",
+      "text": "“tức ngực” đúng là triệu chứng tôi đang cảm thấy.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "current-vi-metric",
+      "locale": "vi",
+      "text": "\"tức ngực\" đúng là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "current-mixed-nfd",
+      "locale": "en",
+      "text": "「胸痛」 is exactly what I am experiencing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-mixed-space",
+      "locale": "en",
+      "text": "  「胸痛」 is exactly what I am experiencing now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "current-mixed-quote-style",
+      "locale": "en",
+      "text": "『胸痛』 is exactly what I am experiencing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "current-mixed-metric",
+      "locale": "en",
+      "text": "「胸痛」 is exactly what I am experiencing now. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "uncertain-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" might be what I am experiencing now.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "uncertain-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" might be what I am experiencing now.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "uncertain-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” might be what I am experiencing now.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "uncertain-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" might be what I am experiencing now. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "uncertain-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」可能是我現在感到的症狀。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "uncertain-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」可能是我現在感到的症狀。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "uncertain-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』可能是我現在感到的症狀。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "uncertain-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」可能是我現在感到的症狀。 What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "uncertain-vi-nfd",
+      "locale": "vi",
+      "text": "\"đau ngực\" có thể là triệu chứng tôi đang cảm thấy.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "uncertain-vi-space",
+      "locale": "vi",
+      "text": "  \"đau ngực\" có thể là triệu chứng tôi đang cảm thấy.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "uncertain-vi-quote-style",
+      "locale": "vi",
+      "text": "“đau ngực” có thể là triệu chứng tôi đang cảm thấy.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "uncertain-vi-metric",
+      "locale": "vi",
+      "text": "\"đau ngực\" có thể là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unproven-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" sounds like what I am feeling now.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unproven-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" sounds like what I am feeling now.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unproven-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” sounds like what I am feeling now.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unproven-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" sounds like what I am feeling now. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unproven-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」好像我現在感到的症狀。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unproven-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」好像我現在感到的症狀。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unproven-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』好像我現在感到的症狀。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unproven-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」好像我現在感到的症狀。 What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unproven-vi-nfd",
+      "locale": "vi",
+      "text": "\"đau ngực\" giống điều tôi đang cảm thấy.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unproven-vi-space",
+      "locale": "vi",
+      "text": "  \"đau ngực\" giống điều tôi đang cảm thấy.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unproven-vi-quote-style",
+      "locale": "vi",
+      "text": "“đau ngực” giống điều tôi đang cảm thấy.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unproven-vi-metric",
+      "locale": "vi",
+      "text": "\"đau ngực\" giống điều tôi đang cảm thấy. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "negated-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" is precisely what I am not experiencing now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negated-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" is precisely what I am not experiencing now.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "negated-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” is precisely what I am not experiencing now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "negated-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" is precisely what I am not experiencing now. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "negated-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」正是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negated-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」正是我現在沒有感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "negated-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』正是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "negated-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」正是我現在沒有感到的症狀。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "negated-vi-nfd",
+      "locale": "vi",
+      "text": "\"đau ngực\" đúng là triệu chứng tôi không cảm thấy.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negated-vi-space",
+      "locale": "vi",
+      "text": "  \"đau ngực\" đúng là triệu chứng tôi không cảm thấy.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "negated-vi-quote-style",
+      "locale": "vi",
+      "text": "“đau ngực” đúng là triệu chứng tôi không cảm thấy.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "negated-vi-metric",
+      "locale": "vi",
+      "text": "\"đau ngực\" đúng là triệu chứng tôi không cảm thấy. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "history-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" is what I experienced last year.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "history-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" is what I experienced last year.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "history-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” is what I experienced last year.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "history-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" is what I experienced last year. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "history-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我昨天感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "history-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」是我昨天感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "history-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』是我昨天感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "history-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我昨天感到的症狀。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "history-vi-nfd",
+      "locale": "vi",
+      "text": "\"đau ngực\" là triệu chứng tôi cảm thấy hôm qua.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "history-vi-space",
+      "locale": "vi",
+      "text": "  \"đau ngực\" là triệu chứng tôi cảm thấy hôm qua.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "history-vi-quote-style",
+      "locale": "vi",
+      "text": "“đau ngực” là triệu chứng tôi cảm thấy hôm qua.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "history-vi-metric",
+      "locale": "vi",
+      "text": "\"đau ngực\" là triệu chứng tôi cảm thấy hôm qua. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "resolved-en-nfd",
+      "locale": "en",
+      "text": "I had \"chest pain\" last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "resolved-en-space",
+      "locale": "en",
+      "text": "  I had \"chest pain\" last year, and it completely resolved.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "resolved-en-quote-style",
+      "locale": "en",
+      "text": "I had “chest pain” last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "resolved-en-metric",
+      "locale": "en",
+      "text": "I had \"chest pain\" last year, and it completely resolved. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "resolved-zh-nfd",
+      "locale": "zh-TW",
+      "text": "我昨天「胸痛」，現在已經好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "resolved-zh-space",
+      "locale": "zh-TW",
+      "text": "  我昨天「胸痛」，現在已經好了。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "resolved-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "我昨天『胸痛』，現在已經好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "resolved-zh-metric",
+      "locale": "zh-TW",
+      "text": "我昨天「胸痛」，現在已經好了。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "resolved-vi-nfd",
+      "locale": "vi",
+      "text": "Tôi đã hết hẳn \"đau ngực\".",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "resolved-vi-space",
+      "locale": "vi",
+      "text": "  Tôi đã hết hẳn \"đau ngực\".  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "resolved-vi-quote-style",
+      "locale": "vi",
+      "text": "Tôi đã hết hẳn “đau ngực”.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "resolved-vi-metric",
+      "locale": "vi",
+      "text": "Tôi đã hết hẳn \"đau ngực\". What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "reading-en-nfd",
+      "locale": "en",
+      "text": "I am reading about \"chest pain\".",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "reading-en-space",
+      "locale": "en",
+      "text": "  I am reading about \"chest pain\".  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "reading-en-quote-style",
+      "locale": "en",
+      "text": "I am reading about “chest pain”.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "reading-en-metric",
+      "locale": "en",
+      "text": "I am reading about \"chest pain\". What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "reading-zh-nfd",
+      "locale": "zh-TW",
+      "text": "我正在閱讀「胸痛」。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "reading-zh-space",
+      "locale": "zh-TW",
+      "text": "  我正在閱讀「胸痛」。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "reading-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "我正在閱讀『胸痛』。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "reading-zh-metric",
+      "locale": "zh-TW",
+      "text": "我正在閱讀「胸痛」。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "reading-vi-nfd",
+      "locale": "vi",
+      "text": "Tôi đang đọc về \"đau ngực\".",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "reading-vi-space",
+      "locale": "vi",
+      "text": "  Tôi đang đọc về \"đau ngực\".  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "reading-vi-quote-style",
+      "locale": "vi",
+      "text": "Tôi đang đọc về “đau ngực”.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "reading-vi-metric",
+      "locale": "vi",
+      "text": "Tôi đang đọc về \"đau ngực\". What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "learning-en-nfd",
+      "locale": "en",
+      "text": "I am learning about \"chest pain\".",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "learning-en-space",
+      "locale": "en",
+      "text": "  I am learning about \"chest pain\".  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "learning-en-quote-style",
+      "locale": "en",
+      "text": "I am learning about “chest pain”.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "learning-en-metric",
+      "locale": "en",
+      "text": "I am learning about \"chest pain\". What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "learning-zh-nfd",
+      "locale": "zh-TW",
+      "text": "我想知道「胸痛」是什麼意思。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "learning-zh-space",
+      "locale": "zh-TW",
+      "text": "  我想知道「胸痛」是什麼意思。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "learning-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "我想知道『胸痛』是什麼意思。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "learning-zh-metric",
+      "locale": "zh-TW",
+      "text": "我想知道「胸痛」是什麼意思。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "learning-vi-nfd",
+      "locale": "vi",
+      "text": "Tôi đang tìm hiểu về \"đau ngực\".",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "learning-vi-space",
+      "locale": "vi",
+      "text": "  Tôi đang tìm hiểu về \"đau ngực\".  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "learning-vi-quote-style",
+      "locale": "vi",
+      "text": "Tôi đang tìm hiểu về “đau ngực”.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "learning-vi-metric",
+      "locale": "vi",
+      "text": "Tôi đang tìm hiểu về \"đau ngực\". What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "question-en-nfd",
+      "locale": "en",
+      "text": "What causes \"chest pain\" in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "question-en-space",
+      "locale": "en",
+      "text": "  What causes \"chest pain\" in general?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "question-en-quote-style",
+      "locale": "en",
+      "text": "What causes “chest pain” in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "question-en-metric",
+      "locale": "en",
+      "text": "What causes \"chest pain\" in general? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "question-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」通常是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "question-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」通常是什麼原因？  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "question-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』通常是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "question-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」通常是什麼原因？ What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "question-vi-nfd",
+      "locale": "vi",
+      "text": "Nguyên nhân \"đau ngực\" thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "question-vi-space",
+      "locale": "vi",
+      "text": "  Nguyên nhân \"đau ngực\" thường là gì?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "question-vi-quote-style",
+      "locale": "vi",
+      "text": "Nguyên nhân “đau ngực” thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "question-vi-metric",
+      "locale": "vi",
+      "text": "Nguyên nhân \"đau ngực\" thường là gì? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "hypothetical-en-nfd",
+      "locale": "en",
+      "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "hypothetical-en-space",
+      "locale": "en",
+      "text": "  If \"chest pain\" is what I am experiencing, what should I do?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "hypothetical-en-quote-style",
+      "locale": "en",
+      "text": "If “chest pain” is what I am experiencing, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "hypothetical-en-metric",
+      "locale": "en",
+      "text": "If \"chest pain\" is what I am experiencing, what should I do? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "hypothetical-zh-nfd",
+      "locale": "zh-TW",
+      "text": "假設「胸痛」是我現在感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "hypothetical-zh-space",
+      "locale": "zh-TW",
+      "text": "  假設「胸痛」是我現在感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "hypothetical-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "假設『胸痛』是我現在感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "hypothetical-zh-metric",
+      "locale": "zh-TW",
+      "text": "假設「胸痛」是我現在感到的症狀。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "hypothetical-vi-nfd",
+      "locale": "vi",
+      "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "hypothetical-vi-space",
+      "locale": "vi",
+      "text": "  Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "hypothetical-vi-quote-style",
+      "locale": "vi",
+      "text": "Nếu “đau ngực” là triệu chứng tôi đang cảm thấy.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "hypothetical-vi-metric",
+      "locale": "vi",
+      "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-object-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" is a phrase I am feeling refreshed now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-object-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" is a phrase I am feeling refreshed now.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-object-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” is a phrase I am feeling refreshed now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-object-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" is a phrase I am feeling refreshed now. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-object-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」是一個詞我現在覺得很放鬆。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-object-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」是一個詞我現在覺得很放鬆。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-object-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』是一個詞我現在覺得很放鬆。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-object-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」是一個詞我現在覺得很放鬆。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-object-vi-nfd",
+      "locale": "vi",
+      "text": "\"đau ngực\" là một cụm từ tôi đang cảm thấy dễ chịu.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-object-vi-space",
+      "locale": "vi",
+      "text": "  \"đau ngực\" là một cụm từ tôi đang cảm thấy dễ chịu.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-object-vi-quote-style",
+      "locale": "vi",
+      "text": "“đau ngực” là một cụm từ tôi đang cảm thấy dễ chịu.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-object-vi-metric",
+      "locale": "vi",
+      "text": "\"đau ngực\" là một cụm từ tôi đang cảm thấy dễ chịu. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-sentence-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\". I am feeling calm now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-sentence-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\". I am feeling calm now.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-sentence-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain”. I am feeling calm now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-sentence-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\". I am feeling calm now. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-sentence-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」。我現在覺得很放鬆。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-sentence-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」。我現在覺得很放鬆。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-sentence-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』。我現在覺得很放鬆。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-sentence-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」。我現在覺得很放鬆。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-sentence-vi-nfd",
+      "locale": "vi",
+      "text": "\"đau ngực\". Tôi đang cảm thấy dễ chịu.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-sentence-vi-space",
+      "locale": "vi",
+      "text": "  \"đau ngực\". Tôi đang cảm thấy dễ chịu.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-sentence-vi-quote-style",
+      "locale": "vi",
+      "text": "“đau ngực”. Tôi đang cảm thấy dễ chịu.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-sentence-vi-metric",
+      "locale": "vi",
+      "text": "\"đau ngực\". Tôi đang cảm thấy dễ chịu. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-activity-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" I am busy now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-activity-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" I am busy now.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-activity-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” I am busy now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-activity-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" I am busy now. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-activity-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」我現在忙碌。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-activity-zh-space",
+      "locale": "zh-TW",
+      "text": "  「胸痛」我現在忙碌。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-activity-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『胸痛』我現在忙碌。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-activity-zh-metric",
+      "locale": "zh-TW",
+      "text": "「胸痛」我現在忙碌。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "unrelated-activity-vi-nfd",
+      "locale": "vi",
+      "text": "\"đau ngực\" tôi đang làm việc.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-activity-vi-space",
+      "locale": "vi",
+      "text": "  \"đau ngực\" tôi đang làm việc.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-activity-vi-quote-style",
+      "locale": "vi",
+      "text": "“đau ngực” tôi đang làm việc.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "unrelated-activity-vi-metric",
+      "locale": "vi",
+      "text": "\"đau ngực\" tôi đang làm việc. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "standalone-en-nfd",
+      "locale": "en",
+      "text": "\"I have chest pain now\"",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "standalone-en-space",
+      "locale": "en",
+      "text": "  \"I have chest pain now\"  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "standalone-en-quote-style",
+      "locale": "en",
+      "text": "“I have chest pain now”",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "standalone-en-metric",
+      "locale": "en",
+      "text": "\"I have chest pain now\" What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "standalone-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「我現在胸痛」",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "standalone-zh-space",
+      "locale": "zh-TW",
+      "text": "  「我現在胸痛」  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "standalone-zh-quote-style",
+      "locale": "zh-TW",
+      "text": "『我現在胸痛』",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "standalone-zh-metric",
+      "locale": "zh-TW",
+      "text": "「我現在胸痛」 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "standalone-vi-nfd",
+      "locale": "vi",
+      "text": "\"Tôi đang đau ngực\"",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "standalone-vi-space",
+      "locale": "vi",
+      "text": "  \"Tôi đang đau ngực\"  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "standalone-vi-quote-style",
+      "locale": "vi",
+      "text": "“Tôi đang đau ngực”",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "standalone-vi-metric",
+      "locale": "vi",
+      "text": "\"Tôi đang đau ngực\" What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "metric-en-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "metric-en-space",
+      "locale": "en",
+      "text": "  \"chest pain\" What is my HRV today?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "metric-en-quote-style",
+      "locale": "en",
+      "text": "“chest pain” What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "metric-en-metric",
+      "locale": "en",
+      "text": "\"chest pain\" What is my HRV today? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "other-assertion-nfd",
+      "locale": "en",
+      "text": "\"chest pain\" is exactly what my friend Ana is experiencing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "other-assertion-space",
+      "locale": "en",
+      "text": "  \"chest pain\" is exactly what my friend Ana is experiencing now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "other-assertion-quote-style",
+      "locale": "en",
+      "text": "“chest pain” is exactly what my friend Ana is experiencing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "other-assertion-metric",
+      "locale": "en",
+      "text": "\"chest pain\" is exactly what my friend Ana is experiencing now. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "other-unrelated-nfd",
+      "locale": "en",
+      "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "other-unrelated-space",
+      "locale": "en",
+      "text": "  My friend Ana said \"chest pain\". I am feeling relaxed now.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "other-unrelated-quote-style",
+      "locale": "en",
+      "text": "My friend Ana said “chest pain”. I am feeling relaxed now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quote-style"
+    },
+    {
+      "id": "other-unrelated-metric",
+      "locale": "en",
+      "text": "My friend Ana said \"chest pain\". I am feeling relaxed now. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    }
+  ]
+}

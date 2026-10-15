@@ -1,0 +1,53 @@
+{
+  "frozenBeforeExecution": true,
+  "cases": [
+    {
+      "id": "no-emphasis-chest",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "no-emphasis-breathing",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "no-emphasis-no-now",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "no-emphasis-no-feel",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在沒有的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "no-emphasis-negative",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在並沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "no-emphasis-not-yet",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "no-emphasis-positive",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在有的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "no-emphasis-feel-positive",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT"
+    }
+  ]
+}

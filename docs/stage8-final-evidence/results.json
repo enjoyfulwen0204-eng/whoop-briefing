@@ -1,0 +1,280 @@
+{
+  "baselineHead": "9dc287fc5d916409002caafe5b845012da476032",
+  "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+  "runtimeSha256": "563015e819e237b3d3f88d32c3a0a4e373c56779760639c8f55cc38a21c11023",
+  "oneFocusedCycleStopped": true,
+  "families": {
+    "A": "OPEN: frozen barrier graph regression",
+    "B": "CLOSED on reproduced matrix",
+    "C": "OPEN: new current-continuation false negative",
+    "D": "CLOSED on reproduced matrix"
+  },
+  "exactMandatory": {
+    "pass": 6,
+    "fail": 0
+  },
+  "independent40": {
+    "pass": 40,
+    "fail": 0
+  },
+  "metamorphic149": {
+    "pass": 149,
+    "fail": 0
+  },
+  "preserved956": {
+    "pass": 954,
+    "fail": 2
+  },
+  "priorScoped349": {
+    "pass": 348,
+    "fail": 1
+  },
+  "newSemantic195": {
+    "pass": 195,
+    "fail": 0
+  },
+  "copiedProcessor25": {
+    "pass": 25,
+    "fail": 0
+  },
+  "stopProcessor12": {
+    "pass": 0,
+    "fail": 12
+  },
+  "distinctFinalTotal": {
+    "tests": 1537,
+    "pass": 1522,
+    "fail": 15,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "semanticExpectationsChanged": 0,
+  "settingsCorrection": "Explicit independently adjudicated INVALID TEST; preserved 64-grapheme/256-byte runtime limit, rejection/session/profile assertions and valid continuation; original failure retained",
+  "native": {
+    "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "status": "OPEN",
+    "rootCause": "UNASSIGNED",
+    "newNativeFailureObserved": false,
+    "passingRunsDoNotResolveIt": true
+  },
+  "statuses": {
+    "independentReviewReadiness": "NO-GO",
+    "wholeStage8": "NO-GO",
+    "production": "NO-GO"
+  },
+  "F02": "Owner Accepted Risk preserved",
+  "runs": [
+    {
+      "id": "safety",
+      "command": "node --test --test-concurrency=2 test/stage8-three-blocker/*.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/*.test.mjs test/stage8-predicate-ownership/*.test.mjs",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 1,
+      "tests": 576,
+      "pass": 574,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "safety.tap.gz",
+      "sha256": "bd8424bf2e84b3b42e9ee34d342f0e12340e3386504bad8393375b8ef6dbe228",
+      "gzipSha256": "c043f4a5f97a43f6f243501f8a7b3aef0d148f8519cdb21f3581123fa0f02541",
+      "failures": [
+        "not ok 8 - preserved ownership invariant independent-004",
+        "not ok 285 - independent-004 scope_or_preserved_control"
+      ],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "integration",
+      "command": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 0,
+      "tests": 200,
+      "pass": 200,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "integration.tap.gz",
+      "sha256": "11e5ee082504921f84f6c9690009568efcc69b2b110b4eadf2606dce6dc3bd24",
+      "gzipSha256": "3e435e148dea5aed14e25a74b79d08267a08db2fb95ef5e0ad485da5c5f7b989",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 0,
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "regression.tap.gz",
+      "sha256": "0406ef665bc7b59160979866c7d0611aec69d9c4f2e16c18e02a8fca495ab9c6",
+      "gzipSha256": "a35f6794db096dc34bc60f80e582202f591380c858f1b9d1317fb592882832ca",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "polling",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 0,
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "polling.tap.gz",
+      "sha256": "f0a26e0b4ad2cf99fd8b90053bfaf4c6cc52cd465ca06953c558f37dcda4271b",
+      "gzipSha256": "6ea43bb2d16c4008bccf94414078ac25e35532e0522a960ba5f36732848167f5",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "scoped",
+      "command": "node --test --test-concurrency=2 test/stage8-scoped-repair/independent-coach.test.mjs test/stage8-scoped-repair/independent-processor.test.mjs test/stage8-scoped-repair/independent-targeted-processor.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-scoped-repair/processor.test.mjs test/stage8-scoped-repair/semantic.test.mjs",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 1,
+      "tests": 348,
+      "pass": 347,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "scoped.tap.gz",
+      "sha256": "46f3f7c3e15aa2d32cc6865841b84898aa9c1a49f3e521dbe2604ccef5d92aed",
+      "gzipSha256": "a0214a46452a9f7f00baa9f23703e7b628e3f2f6752c6d3d92e88a4fedbd5013",
+      "failures": [
+        "not ok 342 - frozen scoped finding PO-H01"
+      ],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "name",
+      "command": "node --test test/stage8-scoped-repair/contract-limit.test.mjs",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 0,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "name.tap.gz",
+      "sha256": "ad471230d334d8b96605ed45a0d91c72d32aea79dc270390811a58838406fbcf",
+      "gzipSha256": "c62dced13d744123f2eb497d4f887b880c2ab2d89d9f50baf8cf1d1611414d86",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "new-semantic",
+      "command": "node --test test/stage8-final-evidence/semantic.test.mjs",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 0,
+      "tests": 195,
+      "pass": 195,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "new-semantic.tap.gz",
+      "sha256": "dcc21a74b90d82a8d07b8ffdd1ca5da0f9130a2fa33084d44728d3b9c1cc1b23",
+      "gzipSha256": "fcb5b7f4225796f95e969bf909cdacbfb9fe7046d2bd79daa6ae912f55d7122d",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "processor",
+      "command": "node --test test/stage8-final-evidence/processor.test.mjs",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 0,
+      "tests": 25,
+      "pass": 25,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "processor.tap.gz",
+      "sha256": "4bc474400841a62d7d53b79789c6ffd66c514abc7603c68d40b1055806d9db6b",
+      "gzipSha256": "42e18b1f445a3eb51062c4cc80f00150c571a2ee192e6f83ed81dac58f0504b1",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "stop-processor",
+      "command": "node --test test/stage8-final-evidence/stop-regressions.test.mjs",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 1,
+      "tests": 12,
+      "pass": 0,
+      "fail": 12,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "stop-processor.tap.gz",
+      "sha256": "221bb547f930190bb0bd0ab0b944b9af7d7399be519f4719a19a76f1a0513226",
+      "gzipSha256": "0b7a9a0ed117dbb175429711fea42d8cfee555fad45088394988ac486d643342",
+      "failures": [
+        "not ok 1 - STOP current continuation 0 name",
+        "not ok 2 - STOP current continuation 0 note",
+        "not ok 3 - STOP current continuation 0 coach",
+        "not ok 4 - STOP current continuation 0 health",
+        "not ok 5 - STOP current continuation 1 name",
+        "not ok 6 - STOP current continuation 1 note",
+        "not ok 7 - STOP current continuation 1 coach",
+        "not ok 8 - STOP current continuation 1 health",
+        "not ok 9 - STOP current continuation 2 name",
+        "not ok 10 - STOP current continuation 2 note",
+        "not ok 11 - STOP current continuation 2 coach",
+        "not ok 12 - STOP current continuation 2 health"
+      ],
+      "nativeSignals": [],
+      "countedFinal": true
+    },
+    {
+      "id": "direct",
+      "command": "node --test test/stage8-final-evidence/semantic.test.mjs test/stage8-scoped-repair/semantic.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-architecture/corpus.test.mjs test/stage8-triage-architecture/boundaries.test.mjs test/stage8-triage-architecture/uncertainty.test.mjs test/stage8-predicate-ownership/ownership.test.mjs",
+      "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+      "exitCode": 1,
+      "tests": 904,
+      "pass": 901,
+      "fail": 3,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "direct.tap.gz",
+      "sha256": "ea846b8252fc289bdf6963a51ca96362d75e5596e26bc0489e79b4bdfeebb688",
+      "gzipSha256": "aa1587c4f78f5ebcdd87c895357befd16dd32ee1d64d6a37747d72e3a1d3069f",
+      "failures": [
+        "not ok 203 - preserved ownership invariant independent-004",
+        "not ok 607 - frozen scoped finding PO-H01",
+        "not ok 673 - independent-004 scope_or_preserved_control"
+      ],
+      "nativeSignals": [],
+      "countedFinal": false
+    },
+    {
+      "id": "focused",
+      "command": "node --test test/stage8-final-evidence/semantic.test.mjs",
+      "runtimeSourceCommit": "pre-Vietnamese-word-boundary development source",
+      "exitCode": 1,
+      "tests": 195,
+      "pass": 194,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "focused.tap.gz",
+      "sha256": "aa70ca5ed4f95af8b9b0cfeda48cffc1081fa19c27cfa0ef00e0fc6d07d583bb",
+      "gzipSha256": "68c83188f61b21e499d2f9565362561ce625972b138286f7a03de9d5ded88382",
+      "failures": [
+        "not ok 109 - final metamorphic 62 matching vi"
+      ],
+      "nativeSignals": [],
+      "countedFinal": false
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "stage6ObservedHead": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+  "stage6Tree": "ef2a9d7a8bd653c3924eca94c805b8d2f31975e6",
+  "stage6ReadOnlyStatus": "",
+  "mergeBase": "2340e8bc305c6acde29bbfa540753e79dbd34408",
+  "acceptanceInferred": false,
+  "sixFileOverlap": [
+    {
+      "file": "src/phase4Reanalysis.js",
+      "acceptedLiveSha256": "91b5d883c685481a046b7ea6905ba03b77029fd2075ff3b398239027edc79d63",
+      "currentSha256": "91b5d883c685481a046b7ea6905ba03b77029fd2075ff3b398239027edc79d63",
+      "stage6Sha256": "a296a6d2e0537eddceebcf4e4581c933495d7a6cedaee8237cb1bb6438c3ccbe",
+      "newInThisDelta": false,
+      "newStage6Imports": []
+    },
+    {
+      "file": "src/phase4IntelligenceStore.js",
+      "acceptedLiveSha256": "c65a74ac766c794feb8f65667d16706ff7b3d60ed3d23d72b63a0afb13087a80",
+      "currentSha256": "c65a74ac766c794feb8f65667d16706ff7b3d60ed3d23d72b63a0afb13087a80",
+      "stage6Sha256": "996f3b727021dc2f4521cde3068237a028c4440567db02a8d744bf4bb8e258c1",
+      "newInThisDelta": false,
+      "newStage6Imports": []
+    },
+    {
+      "file": "src/phase4MetricUnitReceipt.js",
+      "acceptedLiveSha256": "4ddbe9d805ad3530e223fecfc6974c36869ef902dfb2a3394cd70c491793f524",
+      "currentSha256": "4ddbe9d805ad3530e223fecfc6974c36869ef902dfb2a3394cd70c491793f524",
+      "stage6Sha256": "5723b5ad59a029ed17883c531316398c357f50a1d4037698e417dff856aa0b1c",
+      "newInThisDelta": false,
+      "newStage6Imports": []
+    },
+    {
+      "file": "src/phase4OperationReceipts.js",
+      "acceptedLiveSha256": "9a79b731c4524b7e506f684223733dfac3cf6909a7ab7543a871d5ad10ee8966",
+      "currentSha256": "9a79b731c4524b7e506f684223733dfac3cf6909a7ab7543a871d5ad10ee8966",
+      "stage6Sha256": "475e41345e7820a53038131d7d40f4c55449718a602d7ae045e14cf40c29fd71",
+      "newInThisDelta": false,
+      "newStage6Imports": [
+        "./receiverScopeLifetime.js"
+      ]
+    },
+    {
+      "file": "src/phase4Repositories.js",
+      "acceptedLiveSha256": "b600a3ab38f1daa22acd5b11cf59ac8937d65aeba7ed5ce9128b2c4920f9c33f",
+      "currentSha256": "b600a3ab38f1daa22acd5b11cf59ac8937d65aeba7ed5ce9128b2c4920f9c33f",
+      "stage6Sha256": "ea6c25391f4b45a58ffd0b46c3ac75ab7788c208404e9ffe451d799d8db3059a",
+      "newInThisDelta": false,
+      "newStage6Imports": [
+        "./stage6CurrentCaptureTime.js"
+      ]
+    },
+    {
+      "file": "src/phase4ResultAuthority.js",
+      "acceptedLiveSha256": "0181712aed11a8177fa97038802244fd3505445eb6a1749ab65d6c237d6bb2bf",
+      "currentSha256": "0181712aed11a8177fa97038802244fd3505445eb6a1749ab65d6c237d6bb2bf",
+      "stage6Sha256": "280375dfe36a9344fd1dffa3d6cfa7fe4cd687f33638e02bcba3061fdb767e87",
+      "newInThisDelta": false,
+      "newStage6Imports": []
+    }
+  ]
+}

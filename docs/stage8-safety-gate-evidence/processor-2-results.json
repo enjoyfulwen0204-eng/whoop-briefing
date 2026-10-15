@@ -1,0 +1,1413 @@
+{
+  "count": 74,
+  "pass": 74,
+  "fail": 0,
+  "results": [
+    {
+      "id": "unparsed-current-en",
+      "locale": "en",
+      "lane": "coach",
+      "text": "My chest pain started yesterday and persists.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unparsed-current-zh-TW",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我昨天胸痛而且持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unparsed-current-vi",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi đau ngực hôm qua và vẫn còn.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unparsed-current-vi",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi đau ngực hôm qua và vẫn còn. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unparsed-current-mixed",
+      "locale": "en",
+      "lane": "coach",
+      "text": "My chest pain started yesterday and 持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "onset-current-en",
+      "locale": "en",
+      "lane": "note",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "onset-current-zh-TW",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "onset-current-zh-TW",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "我昨天胸痛而且目前仍然存在。 What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "onset-current-vi",
+      "locale": "vi",
+      "lane": "coach",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "onset-current-mixed",
+      "locale": "en",
+      "lane": "note",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "open-perfect-en",
+      "locale": "en",
+      "lane": "name",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "open-perfect-en",
+      "locale": "en",
+      "lane": "health",
+      "text": "I have had chest pain since this morning. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "open-perfect-zh-TW",
+      "locale": "zh-TW",
+      "lane": "coach",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "open-perfect-vi",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "open-perfect-mixed",
+      "locale": "en",
+      "lane": "name",
+      "text": "I have had chest pain since this morning. 我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "open-perfect-mixed",
+      "locale": "en",
+      "lane": "health",
+      "text": "I have had chest pain since this morning. 我目前胸痛。 What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unrelated-outcome-en",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unrelated-outcome-zh-TW",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unrelated-outcome-vi",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unrelated-outcome-vi",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unrelated-outcome-mixed",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I have chest pain. 頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "other-identities-en",
+      "locale": "en",
+      "lane": "note",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "other-identities-zh-TW",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "other-identities-zh-TW",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。 What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "other-identities-vi",
+      "locale": "vi",
+      "lane": "coach",
+      "text": "Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "other-identities-mixed",
+      "locale": "en",
+      "lane": "note",
+      "text": "My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "local-conditional-en",
+      "locale": "en",
+      "lane": "name",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "local-conditional-en",
+      "locale": "en",
+      "lane": "health",
+      "text": "If chest pain is dangerous, please help: I have chest pain now. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "local-conditional-zh-TW",
+      "locale": "zh-TW",
+      "lane": "coach",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "local-conditional-vi",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "local-conditional-mixed",
+      "locale": "en",
+      "lane": "name",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "local-conditional-mixed",
+      "locale": "en",
+      "lane": "health",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。 What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "epistemic-en",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "epistemic-zh-TW",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "epistemic-vi",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "epistemic-vi",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "epistemic-mixed",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unknown-currentness-en",
+      "locale": "en",
+      "lane": "note",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unknown-currentness-zh-TW",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unknown-currentness-zh-TW",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "胸痛。 What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unknown-currentness-vi",
+      "locale": "vi",
+      "lane": "coach",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "unknown-currentness-mixed",
+      "locale": "en",
+      "lane": "note",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-list-en",
+      "locale": "en",
+      "lane": "name",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Confirm display name:\nI am not having chest pain or difficulty breathing.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-list-en",
+      "locale": "en",
+      "lane": "health",
+      "text": "I am not having chest pain or difficulty breathing. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 1,
+      "reply": "2026-09-19 — 2026-09-19\nHRV: 50.0 ms\nWHOOP source records · Data as of: 2026-09-19T01:10:00.000Z",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-list-zh-TW",
+      "locale": "zh-TW",
+      "lane": "coach",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "我不太確定你想問什麼。可以試試：\n· 我今天狀態怎樣？\n· 最近 HRV 如何？\n· 最近睡眠有沒有變差？\n· 最近 30 天最好是哪一天？\n\n或輸入 /help 看完整說明。",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-list-vi",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "☕ Caffeine · Ngày ghi nhật ký: 2026-09-18\nCó\nTôi không bị đau ngực hoặc khó thở.",
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-list-mixed",
+      "locale": "en",
+      "lane": "name",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Confirm display name:\nI am not having chest pain or 呼吸困難。",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-list-mixed",
+      "locale": "en",
+      "lane": "health",
+      "text": "I am not having chest pain or 呼吸困難。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 1,
+      "reply": "2026-09-19 — 2026-09-19\nHRV: 50.0 ms\nWHOOP source records · Data as of: 2026-09-19T01:10:00.000Z",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-possessors-en",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "I am not sure what you mean. You could ask:\n· How am I doing today?\n· How has my HRV been lately?\n· Has my sleep been getting worse?\n· What was my best day in the past 30 days?\n\nUse /help for the full guide.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-possessors-zh-TW",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "☕ 咖啡因 · 記錄日期: 2026-09-18\n有\n我沒有我的胸痛、我的呼吸困難。",
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-possessors-vi",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Xác nhận tên hiển thị:\nTôi không bị đau ngực của tôi, khó thở của tôi.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-possessors-vi",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 1,
+      "reply": "2026-09-19 — 2026-09-19\nHRV: 50.0 ms\nBản ghi nguồn WHOOP · Dữ liệu tính đến: 2026-09-19T01:10:00.000Z",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "clear-possessors-mixed",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "I am not sure what you mean. You could ask:\n· How am I doing today?\n· How has my HRV been lately?\n· Has my sleep been getting worse?\n· What was my best day in the past 30 days?\n\nUse /help for the full guide.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "completed-en",
+      "locale": "en",
+      "lane": "note",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nI had chest pain last year, and it completely resolved.",
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "completed-zh-TW",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "確認顯示名稱：\n我以前胸痛，而且它完全好了。",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "completed-zh-TW",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "我以前胸痛，而且它完全好了。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 1,
+      "reply": "2026-09-19 — 2026-09-19\nHRV: 50.0 ms\nWHOOP 來源紀錄 · 資料截至: 2026-09-19T01:10:00.000Z",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "completed-vi",
+      "locale": "vi",
+      "lane": "coach",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Tôi chưa rõ ý bạn. Bạn có thể hỏi:\n· Hôm nay tình trạng của tôi thế nào?\n· HRV gần đây ra sao?\n· Giấc ngủ của tôi có kém đi không?\n· Ngày tốt nhất trong 30 ngày qua là ngày nào?\n\nDùng /help để xem hướng dẫn đầy đủ.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "completed-mixed",
+      "locale": "en",
+      "lane": "note",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nI had chest pain last year, and 它完全好了。",
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "educational-en",
+      "locale": "en",
+      "lane": "name",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Confirm display name:\nWhat causes chest pain in general?",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "educational-en",
+      "locale": "en",
+      "lane": "health",
+      "text": "What causes chest pain in general? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "I cannot determine what is causing symptoms such as chest pain, trouble breathing, or changes in awareness. They need an assessment by a health professional. A list of possible causes here could lead you to dismiss something serious.\n\nIf you are experiencing these symptoms now, seek medical care. If you are asking generally, a doctor or nurse can consider your history. I can help with your own WHOOP data, such as how you are doing today or how your HRV has changed.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "educational-zh-TW",
+      "locale": "zh-TW",
+      "lane": "coach",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "這類症狀的成因我沒辦法幫你判斷 —— 胸痛、呼吸困難、意識改變這些都需要真人評估，我如果給你一份「常見原因」清單，反而可能讓你把真正要緊的可能排除掉。\n\n如果你現在正在經歷這些症狀，請直接尋求醫療協助。如果只是想了解，建議問醫師或護理人員 —— 他們可以結合你的病史一起看。\n\n我這邊能幫的是你自己的 WHOOP 數據，例如「我今天狀態怎樣」或「最近 HRV 如何」。",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "educational-vi",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "☕ Caffeine · Ngày ghi nhật ký: 2026-09-18\nCó\nNguyên nhân đau ngực thường là gì?",
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "educational-mixed",
+      "locale": "en",
+      "lane": "name",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Confirm display name:\nWhat causes 胸痛 in general?",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "educational-mixed",
+      "locale": "en",
+      "lane": "health",
+      "text": "What causes 胸痛 in general? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "I cannot determine what is causing symptoms such as chest pain, trouble breathing, or changes in awareness. They need an assessment by a health professional. A list of possible causes here could lead you to dismiss something serious.\n\nIf you are experiencing these symptoms now, seek medical care. If you are asking generally, a doctor or nurse can consider your history. I can help with your own WHOOP data, such as how you are doing today or how your HRV has changed.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "hypothetical-en",
+      "locale": "en",
+      "lane": "coach",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Which of your metrics and which time range? For example, “my HRV over the last 7 days.”",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "hypothetical-zh-TW",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "☕ 咖啡因 · 記錄日期: 2026-09-18\n有\n如果我胸痛，要怎麼辦？",
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "hypothetical-vi",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Xác nhận tên hiển thị:\nNếu tôi bị đau ngực, tôi nên làm gì?",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": false,
+      "peerPreserved": true
+    },
+    {
+      "id": "hypothetical-vi",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Bạn muốn hỏi chỉ số nào của mình, trong khoảng thời gian nào? Ví dụ: “HRV của tôi trong 7 ngày qua”.",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "hypothetical-mixed",
+      "locale": "en",
+      "lane": "coach",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 1,
+      "reply": "2026-09-19 — 2026-09-19\nRecovery: 99.0 %\nHRV: 50.0 ms\nRHR: 60.0 bpm\nWHOOP source records · Data as of: 2026-09-19T01:10:00.000Z",
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "new-reference-uncertain-en",
+      "locale": "en",
+      "lane": "note",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "我昨天胸痛而且目前很嚴重。 What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "new-reference-uncertain-vi",
+      "locale": "vi",
+      "lane": "coach",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    },
+    {
+      "id": "new-reference-uncertain-mixed",
+      "locale": "en",
+      "lane": "note",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "scopeReads": 0,
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      },
+      "statePreserved": true,
+      "peerPreserved": true
+    }
+  ]
+}

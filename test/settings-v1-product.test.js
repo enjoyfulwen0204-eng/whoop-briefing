@@ -7,7 +7,7 @@ const root=new URL('../',import.meta.url).href;const {createDb}=await import(roo
 const {runExecutionPhase}=await import(root+'src/phase4Execution.js');const {configurationProof}=await import(root+'src/phase4ExecutionStore.js');const {publicBetaConfiguration}=await import(root+'src/publicBetaConfig.js');const {runningReleaseSha}=await import(root+'src/phase4Release.js');const {RECONCILE_RESULT}=await import(root+'src/schema.js');
 for(const shadow of ['off','on'])test(`post-Settings three-user Morning Brief/Journal/Coach and synthetic typed Beta consumer use saved profiles with SHADOW ${shadow}`,async t=>{
  const now=new Date('2026-10-09T00:00:00Z'),ids=['alice','bob','lan'],locales=['zh-TW','en','vi'],names=['REVIEW_ALICE','REVIEW_BOB','REVIEW_LAN'],data=new Map();
- const dir=await mkdtemp('/private/tmp/rc4-three-language-'),url=`file:${join(dir,'db.sqlite')}`,seed=createOwnedDb({url});await seed.migrate({targetVersion:32});
+ const dir=await mkdtemp('/private/tmp/rc4-three-language-'),url=`file:${join(dir,'db.sqlite')}`,seed=createOwnedDb({url});await seed.migrate({targetVersion:34});
  for(const [i,id] of ids.entries()){
   await seed.createUser({id,displayName:"Before",status:'ACTIVE',timezone:'Asia/Taipei'});await seed.setLocale(id,'zh-TW');await seed.linkTelegram({userId:id,chatId:String(1001+i)});
   await seed.saveTokens(id,{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date(Date.now()+3600000),whoopUserId:String(12345+i)});await seed.saveCapabilities(id,[{key:'sleep',status:'SUPPORTED'}],{expectedLifecycleGeneration:1});

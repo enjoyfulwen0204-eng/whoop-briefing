@@ -1,0 +1,267 @@
+{
+  "head": "e941fdac95aaeaa4028900e214f428051f7b0073",
+  "tree": "0a33c6a5960814e07ccbcb78933ae3ac22967ee0",
+  "trackedDiff": "",
+  "sourceCount": 47,
+  "allCommittedExact": true,
+  "files": [
+    {
+      "file": "src/bodyEnergyDerivedTime.js",
+      "sha256": "d22c7b68651a155811ffdaa6c3913d8716d076353a951b261b03c74892aea553",
+      "committedExact": true
+    },
+    {
+      "file": "src/db.js",
+      "sha256": "4231cef0da8080e7edbc51b57d3072c70b5f912dda73da423e5f10d0cb760c94",
+      "committedExact": true
+    },
+    {
+      "file": "src/migrations.js",
+      "sha256": "0c71d6b2a37e0cc4e23661136cdc3df7b34e4eed2c1ec20a64da0c71f6f215c8",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4AuthorityClosure.js",
+      "sha256": "aca76ebb35b893bf2acaf1217e9ab4b864f44e8a302ddaffc315a5bcdb8e0e08",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4Core.js",
+      "sha256": "3ae6cad0ede3edfa0bf3535e675352435fec5a7113c6ab82fac8d2b4401adbd3",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4EpisodeRecurrence.js",
+      "sha256": "46f827437e6710fcf6b3c14c41dd59440dcc579b0b88449f0fdaa972b1adb418",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4ExecutionContext.js",
+      "sha256": "d2edf7e8f696134399bca1297ce42575a290e833118d09d672de7882c7467d57",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4FamilyDirectory.js",
+      "sha256": "e1e0d5bd66313dc454c68b788b6b2b12eb4e5f697d15ee7dae635669a6d640d4",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4InsightRefresh.js",
+      "sha256": "fe2ea07ae67e5dacf85b0ef4075504588d0afddf16db531437ff6b53f08bca61",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4IntelligenceStore.js",
+      "sha256": "c65a74ac766c794feb8f65667d16706ff7b3d60ed3d23d72b63a0afb13087a80",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4LegacyDiscovery.js",
+      "sha256": "a3c489813e4370c6d02dcf15381c825eeb7a912b268b8042b63c98150479918b",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4MetricRefresh.js",
+      "sha256": "fe3ab1d7b76676ef0ac9312436245758d91a9534f709864e5237f1e1304fb279",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4MetricUnitReceipt.js",
+      "sha256": "4ddbe9d805ad3530e223fecfc6974c36869ef902dfb2a3394cd70c491793f524",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4OperationReceipts.js",
+      "sha256": "9a79b731c4524b7e506f684223733dfac3cf6909a7ab7543a871d5ad10ee8966",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4QueueStore.js",
+      "sha256": "4a28def3ff54a238d6676eebea790a23a6c5d6e922243fd99e0ab7a6100758d9",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4Reanalysis.js",
+      "sha256": "91b5d883c685481a046b7ea6905ba03b77029fd2075ff3b398239027edc79d63",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4ReanalysisQueue.js",
+      "sha256": "f7eb78b6fb7e9a81402f8b45cfe156c8995b6a3d72c24c9d714a1afaa5000602",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4ReceiptRouting.js",
+      "sha256": "d78b83d350ce616e2e4209de32c6dc82f4f9d23bc97bdf66c1abba4ad01f695c",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4Redaction.js",
+      "sha256": "7fd26a796911d0f5fb43b81428751d6781b0cd883f48d7e6acf058f85bf906d1",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4Repositories.js",
+      "sha256": "b600a3ab38f1daa22acd5b11cf59ac8937d65aeba7ed5ce9128b2c4920f9c33f",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4ResultAuthority.js",
+      "sha256": "0181712aed11a8177fa97038802244fd3505445eb6a1749ab65d6c237d6bb2bf",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4Schema.js",
+      "sha256": "a0705907c163ba2242099470f20ed7b11546013b14a05cadb8d9c45a22f16464",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4Stage5Privacy.js",
+      "sha256": "25fe4c9338a759ff462e0e73ca673d3c261ff19075cfd3e61cff12d53a8f7034",
+      "committedExact": true
+    },
+    {
+      "file": "src/phase4V35Schema.js",
+      "sha256": "3e7144ae5e76b75d4dedce2f86264618a9ed6abd422bcb309d0624a25a8b7156",
+      "committedExact": true
+    },
+    {
+      "file": "src/recipientIdentity.js",
+      "sha256": "9ec81a15f33cad7fba1421db523267c49ccadb793e4e79c8336a7ea7815b78bd",
+      "committedExact": true
+    },
+    {
+      "file": "src/runtimeAdmission.js",
+      "sha256": "6b26fa38980606c8642779a2f4f6cdeb069ef0f0418fb3021575191a67aad13e",
+      "committedExact": true
+    },
+    {
+      "file": "src/runtimeSchemaGuard.js",
+      "sha256": "186e0283b348fa3b0dc3a834220073aa9b73a811f039f2da115e95e22e00790c",
+      "committedExact": true
+    },
+    {
+      "file": "src/schema.js",
+      "sha256": "bdda9a3325a1626f6ed552f0a5874231ed7c267d1704a5f06eab03d2813530ac",
+      "committedExact": true
+    },
+    {
+      "file": "src/scopedHealthContext.js",
+      "sha256": "47d96f68cc1b91a5be8a277b5ea87ab592ac36023e42cc66c8d05c5dc11afc02",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage6CurrentCaptureTime.js",
+      "sha256": "74a815c0ec58a61a2551a2197be5543dcbe94338d4d65e5245bab46a1a1cf04a",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage7DecisionStore.js",
+      "sha256": "84fb8f3ad15abdca667b03bd50afe5bd66fd1f34ca71abad604f9f0fd1c64fd1",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage7InteractionStore.js",
+      "sha256": "af91d1ad4852cf620fb0cbfd9537c45c314fc0619c6034d1ba896e4d37db8297",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage7Runtime.js",
+      "sha256": "e75eccb68e657abf1ca06c1a124167279ada1f61c16e2bfeda4149f71a928536",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage7TransportAuthority.js",
+      "sha256": "e7e4aacf3a0ef92f55227134e8eb773b6451e1ae9fe46c0f4815e966a51a5016",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage7TrustedRegistry.js",
+      "sha256": "640fa7ac8adfe1580cfe7bba2d6d97fc6ef9ff257f2ffdffcf632b403c1ff2ce",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8DerivedReader.js",
+      "sha256": "1395e1e4af8a90b19c27afb2eaec5ca2e779da97570e70c47584bab01d9a133c",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8LiveAllocation.js",
+      "sha256": "83085a97fcf4c322d99330f919ab2333cd64d6f899051b9910465003b2976f5a",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8LiveAuthority.js",
+      "sha256": "2ee868aec2927e499289df792b78676611ef29030c7e0a36d9bf9be7d2444017",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8LiveExecution.js",
+      "sha256": "172d02b9241d7e73fb23dc2c84ccdc83dd065850244bc881e1f364adfb1263dd",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8LiveProducer.js",
+      "sha256": "6179f859d869f19652a12ee25949e30d0c10a378103a2311a68fc1f6153e6f05",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8LiveProducerAuthority.js",
+      "sha256": "7eda0fb4f4e0f97740a902183ae4bdd8e0472c0427d0a4d8095a5d6820327bc3",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8LivePublication.js",
+      "sha256": "1da28162f08b8625c19056ede56cf12cc698ac4e4a9eaedb13c3042dade05845",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8MorningPlan.js",
+      "sha256": "94423e5f5476162536c770f72d44eec59efb94708c87aa73ab04a52048f1fbc0",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8MorningStore.js",
+      "sha256": "4d8f79422bec31cddcfceaa97a4bddd9a480617dcaaece8a946946f4b5b2a58c",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8OwnerMonitoring.js",
+      "sha256": "1f5cc98af12416b605d3047af03422d6f149496b3fb39806c7ea1dffc652c339",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8Policy.js",
+      "sha256": "625d35de92d4066f03174749a75708a79fc1774c5bd694c5dd5f87b1982748da",
+      "committedExact": true
+    },
+    {
+      "file": "src/stage8Runtime.js",
+      "sha256": "2467dc2e46ad4dba917e9081752f051da17104910f979793cafbca9e93742d4d",
+      "committedExact": true
+    }
+  ],
+  "preserved": [
+    {
+      "file": "src/bot/triage.js",
+      "acceptedExact": true,
+      "sha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d"
+    },
+    {
+      "file": "src/bot/safetyGate.js",
+      "acceptedExact": true,
+      "sha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d"
+    },
+    {
+      "file": "src/phase4V33Schema.js",
+      "acceptedExact": true,
+      "sha256": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c"
+    },
+    {
+      "file": "src/phase4V34Schema.js",
+      "acceptedExact": true,
+      "sha256": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd"
+    }
+  ],
+  "stage7ReviewedAncestor": true
+}

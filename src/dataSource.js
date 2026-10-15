@@ -12,7 +12,7 @@ import { BASELINE, WAKE } from './config.js';
 
 const DAY_MS = 86_400_000;
 
-export function createDataSource({ whoop, now = new Date() }) {
+export function createDataSource({ whoop, now = new Date(), pollMaxPages }) {
   let pollPromise = null;
   let historyPromise = null;
 
@@ -21,8 +21,8 @@ export function createDataSource({ whoop, now = new Date() }) {
       const start = new Date(now.getTime() - WAKE.POLL_LOOKBACK_DAYS * DAY_MS);
       pollPromise = (async () => {
         const [sleeps, recoveries] = await Promise.all([
-          whoop.sleeps(start, now),
-          whoop.recoveries(start, now),
+          whoop.sleeps(start, now, pollMaxPages===undefined?undefined:{maxPages:pollMaxPages}),
+          whoop.recoveries(start, now, pollMaxPages===undefined?undefined:{maxPages:pollMaxPages}),
         ]);
         return { sleeps, recoveries };
       })();

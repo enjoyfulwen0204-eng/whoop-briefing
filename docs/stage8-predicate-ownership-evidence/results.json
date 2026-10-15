@@ -1,0 +1,239 @@
+{
+  "runtimeSha256": "b0a11d15b3e956682baabedfd9fb2357ba04ce9e518ec354f56349aa586ebccf",
+  "baselineOpen": {
+    "head": "dbb89360315a1cf6f1d9291b5310a24204c2e7b1",
+    "command": "node --test test/stage8-triage-architecture/open-gate.test.mjs",
+    "pass": 0,
+    "fail": 3
+  },
+  "candidateOpen": {
+    "command": "node --test test/stage8-triage-architecture/open-gate.test.mjs",
+    "pass": 3,
+    "fail": 0
+  },
+  "distinctFinalCounts": {
+    "documentedOriginal": {
+      "pass": 560,
+      "fail": 0
+    },
+    "permanent": {
+      "pass": 203,
+      "fail": 0,
+      "includesHistoricalCases": 94
+    },
+    "new": {
+      "pass": 193,
+      "fail": 0,
+      "ownership": 172,
+      "sharedProcessor": 21
+    },
+    "total": {
+      "pass": 956,
+      "fail": 0
+    }
+  },
+  "originalSubsets": {
+    "originalAdversarial": 21,
+    "closure": 11,
+    "independent": 17,
+    "scope": 125,
+    "ingress": 6,
+    "integration": 200,
+    "regression": 164,
+    "pollingTransport": 16
+  },
+  "finalExecutionIds": [
+    "frozen-safety",
+    "frozen-integration",
+    "frozen-regression",
+    "frozen-polling-retry"
+  ],
+  "runs": [
+    {
+      "id": "frozen-safety",
+      "command": "node --test --test-concurrency=2 test/stage8-three-blocker/*.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/*.test.mjs test/stage8-predicate-ownership/*.test.mjs",
+      "exitCode": 0,
+      "tests": 576,
+      "pass": 576,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "frozen-safety.tap.gz",
+      "sha256": "2e0463a1183f7c4966aa2438315c30006a4d0cf3b5ddda0b8510ad1d8fc1fb31",
+      "gzipSha256": "be6b6e502cfe829faafa01728d59041fd4af11e966734679f9f894afb674df9a",
+      "failures": [],
+      "phase": "frozen"
+    },
+    {
+      "id": "frozen-integration",
+      "command": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+      "exitCode": 0,
+      "tests": 200,
+      "pass": 200,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "frozen-integration.tap.gz",
+      "sha256": "a34eedf88863fa2d4349e7cfb48c1401a018474f901526313698c5ec0748f70a",
+      "gzipSha256": "e8c5e52b329d39a5a58290f544d8fbc74f486cfc88487744404f3af6b3789dab",
+      "failures": [],
+      "phase": "frozen"
+    },
+    {
+      "id": "frozen-regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+      "exitCode": 0,
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "frozen-regression.tap.gz",
+      "sha256": "a563c3a878617b575c0314afb21919846fbb99afb7769fbf64c897dfe6d799cc",
+      "gzipSha256": "13c28c37626b7d5060d8c68bf7789e25139ddca1044032ff036c55fa4d3da657",
+      "failures": [],
+      "phase": "frozen"
+    },
+    {
+      "id": "frozen-polling",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 1,
+      "tests": 17,
+      "pass": 16,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "frozen-polling.tap.gz",
+      "sha256": "67394005c79cd8823fcedec377de5ee3089c05c944fafde44eb61b3c63a1ca86",
+      "gzipSha256": "de7a7c48b6145ad83621eb211839a08d5a6b8e976fdd4955866bb2edb7d8227c",
+      "failures": [
+        "not ok 1 - test/bot-polling.test.js"
+      ],
+      "phase": "frozen"
+    },
+    {
+      "id": "frozen-polling-retry",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 0,
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "frozen-polling-retry.tap.gz",
+      "sha256": "856b11258716dc20c884e984ff314759303d3ac1116a1c91ac389d56f455a5ca",
+      "gzipSha256": "5d9189d2b6bbe696a78e35658a38361732b7a1e8884f07bf383e01f9e25584b8",
+      "failures": [],
+      "phase": "frozen"
+    },
+    {
+      "id": "regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 1,
+      "tests": 180,
+      "pass": 179,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "regression.tap.gz",
+      "sha256": "b6f46b7b72322275bc595e9032e815d77232e071d6d943183756928ce5d99f5c",
+      "gzipSha256": "266d153fb67cf14db34fb95f92cd0e8cc2dd5dde396cdc3b1622ea80dbd35e5d",
+      "failures": [
+        "not ok 180 - \u2605\u2605\u2605 webhook: \u771f\u7684\u8d77\u4e00\u500b server\uff0c/health \u8207 webhook \u90fd\u901a"
+      ],
+      "phase": "intermediate"
+    },
+    {
+      "id": "polling-final",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 1,
+      "tests": 17,
+      "pass": 16,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "polling-final.tap.gz",
+      "sha256": "9be683619a4cec250f960d06720a33e3daa77e16c8cc4323ed8a9a6aacd2d4dc",
+      "gzipSha256": "d7b97a101cae2a74ac96353bae9ed8ee6be00170d9959db7bd0edf67ed78d910",
+      "failures": [
+        "not ok 1 - test/bot-polling.test.js"
+      ],
+      "phase": "intermediate"
+    },
+    {
+      "id": "polling-retry",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 0,
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "polling-retry.tap.gz",
+      "sha256": "33cdd2a581941063c9ce02084bb37fc18f2951882e7d1356ed0039a944a6c736",
+      "gzipSha256": "540cdc6f282c2d184fe787609dc74e3254b05795c80c4acc76b1711d4c0fe1c4",
+      "failures": [],
+      "phase": "intermediate"
+    },
+    {
+      "id": "permanent",
+      "command": "node --test --test-concurrency=2 test/stage8-triage-architecture/*.test.mjs",
+      "exitCode": 1,
+      "tests": 203,
+      "pass": 199,
+      "fail": 4,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "permanent.tap.gz",
+      "sha256": "f5690164528c791d75c12ee1ff2a2139c9074f30410f9a83fbdaa5e4bcc8415d",
+      "gzipSha256": "35518208db0e74e063984e8de1f8ac9c61c0a189ab05a7f08acc2599d397864e",
+      "failures": [
+        "not ok 47 - separate-predicate-7",
+        "not ok 189 - assertion-currentness-2",
+        "not ok 190 - assertion-currentness-3",
+        "not ok 191 - assertion-currentness-4"
+      ],
+      "phase": "intermediate"
+    },
+    {
+      "id": "scope",
+      "command": "node --test test/stage8-triage-semantic/scope.test.mjs",
+      "exitCode": 1,
+      "tests": 125,
+      "pass": 124,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "scope.tap.gz",
+      "sha256": "267208aad5e00cdd9db9742ec6631aa26fad07e01c66cc93cb7c3d48ad71ed72",
+      "gzipSha256": "da107b5ab6082b0bfa26f25055dbe864c95ec2d0421396c26c5019a4ad909e06",
+      "failures": [
+        "not ok 56 - historical \u2014 I had chest pain and it returned last year."
+      ],
+      "phase": "intermediate"
+    },
+    {
+      "id": "direct-final",
+      "command": "node --test test/stage8-predicate-ownership/ownership.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-architecture/corpus.test.mjs test/stage8-triage-architecture/boundaries.test.mjs test/stage8-triage-architecture/uncertainty.test.mjs",
+      "exitCode": 0,
+      "tests": 463,
+      "pass": 463,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "direct-final.tap.gz",
+      "sha256": "a3fdce21ea70789ca6f08939b97b46bae594617a0d80c843039df258de47cdf7",
+      "gzipSha256": "8898b68f8afbfff2bd28b642df3218879f695704ea8690bd4e2c253096799756",
+      "failures": [],
+      "phase": "intermediate"
+    }
+  ],
+  "nativeIssue": "STAGE8_NATIVE_BASELINE_SIGSEGV remains OPEN; failures retained; passing retries do not resolve it",
+  "reviewStatuses": {
+    "predicateOwnershipImplementation": "GO",
+    "independentRepairReviewReadiness": "GO",
+    "independentRepairAcceptance": "PENDING",
+    "wholeStage8": "NO-GO",
+    "production": "NO-GO"
+  }
+}

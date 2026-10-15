@@ -1,0 +1,52 @@
+{
+  "type": "INDEPENDENT_READ_ONLY_APPENDED_DDL_REVIEW_BEFORE_EXECUTION",
+  "baseHead": "649676e030aa8d25639985d397c5d3837462f484",
+  "worktree": "/Users/kelvin/.codex/worktrees/stage8-live-controlled-integration/whoop-briefing",
+  "sourceSha256": "eea5de4265d5034f5747555f0f031858f35a4c8b9f09ff3ac949c07dd2b32de8",
+  "scope": "new stage8_live_job_completions and stage8_live_publications definitions only; no runtime implementation acceptance",
+  "verdict": "NO_GO_AS_WRITTEN_CORRECT_IMMUTABILITY_AND_METADATA_CONTRACT_FIRST",
+  "schemaExecutedByReviewer": false,
+  "sourceEditedByReviewer": false,
+  "frozenV33V34Unchanged": true,
+  "blockingFindings": [
+    {
+      "id": "REPLACE_BYPASSES_CLAIMED_IMMUTABILITY",
+      "sourceLines": [
+        60,
+        62,
+        74,
+        76
+      ],
+      "severity": "HIGH_CONTRACT",
+      "mechanism": "Only UPDATE and DELETE triggers exist. SQLite INSERT OR REPLACE can replace an existing primary-key row without firing DELETE triggers when recursive_triggers is off; runtime admission does not require recursive_triggers. Add explicit BEFORE INSERT WHEN EXISTS same identity RAISE(ABORT) for both tables, matching frozen v32 no-replace pattern. Do not rely on the caller avoiding OR REPLACE or an unenforced PRAGMA. This is code inspection, not an executed probe in this review."
+    },
+    {
+      "id": "PROOF_JSON_IS_NOT_METADATA_ONLY_OR_TWO_REQUIRED_JOBS",
+      "sourceLines": [
+        69
+      ],
+      "severity": "MEDIUM_CONTRACT",
+      "mechanism": "Array length2 permits duplicate proofs, arbitrary text, arbitrary object keys and unbounded-within16KiB health text. Permanent non-redacted metadata storage needs a closed proof serialization. Prefer exactly two canonical opaque hash references with strict type/64-lowerhex checks and no duplicates, with publisher proving one current completion for each required job; alternatively enforce an exact closed metadata object shape and reject unknown keys/free text. Array length alone cannot prove two different approved jobs."
+    }
+  ],
+  "schemaHardeningConditions": [
+    "Integer generation/revision/time fields should enforce typeof integer and safe bounds, consistent with v32; current CHECK >0 allows fractional REAL values under SQLite affinity. Hash/HMAC fields should enforce canonical64-lowercasehex, not length alone.",
+    "Deferred receipt FK permits completion insertion before the named work receipt is appended in the same transaction. It proves receipt existence only. Publisher must additionally match receipt.execution_id, receipt.generation, scope/request digests, exact named completion step and original tenant/input scope; the two independent single-column FKs do not enforce these relationships.",
+    "Publisher must authenticate both completion_hmac values, demand exactly RECOMPUTE_DERIVED and REPAIR_CURRENTNESS with compatible same-tenant/current scope, and reject stale/duplicate/same-job/peer proof pairs. No completion is minted from counters, flags, metadata rows or a copied SHADOW result.",
+    "Completion.original_deadline_at must be derived from original producing execution created_at+45000, not renewed deadline_at. Verify original receipt/finalization ordering and reject finalized_at beyond original deadline; finalized partial recovery is not full publication authority.",
+    "Publication signs the complete canonical metadata record, both exact completion proofs, artifact/source/generation manifest and producer seals. Fresh provider/currentness/auth/resource/lifecycle/purge fences must bracket generation and read. These are runtime conditions not proved by DDL alone.",
+    "Expiration maximum15min and one immutable publication per input generation are coherent only if expiry never triggers re-signing old work. New input-generation recomputation must perform actual current computation, preserve unchanged source_generation truthfully, and produce new original ACKs.",
+    "Unreleased v35 DDL extension must use fresh synthetic fixtures or an explicit successor for any retained durable v35 fixture. Existing version35 databases must fail closed on changed postconditions; do not silently repair previously applied schemas or markers.",
+    "After schema correction, test missing/deferred receipt FK, wrong execution/generation, duplicate/no-replace/update/delete attempts, invalid numeric/hash/proof shape, expiry bounds, partial migration interruption/resume and exact profile admission before full functional review."
+  ],
+  "nonblockingPositiveObservations": [
+    "LIVE-only mode",
+    "only two approved job kinds",
+    "composite completion identity",
+    "deferred original receipt FK supports atomic original completion ACK",
+    "immutable original deadline field direction addresses earlier renewal issue",
+    "publication max15min TTL and same-user/input key",
+    "old v33/v34 unchanged"
+  ],
+  "fullLiveProducerAcceptance": "NO_GO_PENDING_IMPLEMENTATION_AND_FINAL_REVIEW"
+}

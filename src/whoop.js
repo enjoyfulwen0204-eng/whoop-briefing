@@ -107,7 +107,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * 用的是官方 v2 `/user/profile/basic`，只讀 `user_id`，
  * **不儲存也不 log 姓名或 email**。
  */
-export async function fetchWhoopUserId({
+const verifiedProfiles=new WeakSet();
+export const isVerifiedWhoopProfile=profile=>Boolean(profile&&verifiedProfiles.has(profile));
+export async function fetchWhoopUserId(options){return (await fetchWhoopProfile(options)).whoopUserId;}
+export async function fetchWhoopProfile({
   accessToken, apiBase = WHOOP.API_BASE, fetchImpl = fetch,
 }) {
   if (!accessToken) throw new WhoopAuthError('fetchWhoopUserId：沒有 access token');
@@ -131,7 +134,7 @@ export async function fetchWhoopUserId({
   if (id === null || id === undefined || id === '' || Number(id) === 0) {
     throw new WhoopApiError('WHOOP 身分查詢沒有回傳 user_id', res.status);
   }
-  return String(id);
+  const profile=Object.freeze({whoopUserId:String(id),firstName:typeof json.first_name==='string'?json.first_name:null});verifiedProfiles.add(profile);return profile;
 }
 
 /** 建立授權網址（一次性授權腳本用）。 */
@@ -651,6 +654,7 @@ export function createWhoopClient({
    * maxPages 是安全上限，避免異常時無限抓。
    */
   async function collect(path, params = {}, { maxPages = WHOOP.MAX_PAGES } = {}) {
+    if(!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>WHOOP.MAX_PAGES)throw new Error('WHOOP_PAGE_LIMIT_INVALID');
     const out = [];
     let nextToken = null;
     let pages = 0;
@@ -681,9 +685,9 @@ export function createWhoopClient({
     apiGet,
     collect,
     /** 睡眠（含小睡）。 */
-    sleeps: (start, end) => collect('/activity/sleep', { start: iso(start), end: iso(end) }),
+    sleeps: (start, end, options) => collect('/activity/sleep', { start: iso(start), end: iso(end) }, options),
     /** 恢復。 */
-    recoveries: (start, end) => collect('/recovery', { start: iso(start), end: iso(end) }),
+    recoveries: (start, end, options) => collect('/recovery', { start: iso(start), end: iso(end) }, options),
     /** 生理週期（day strain 在這裡）。 */
     cycles: (start, end) => collect('/cycle', { start: iso(start), end: iso(end) }),
     /**

@@ -1,0 +1,435 @@
+{
+  "baseline": "177bfbc9c7ff41b9d3021ded136598f871bcfcfd",
+  "frozenSource": "cd24e9ecfe14438b0a7e7a52f90a93b1d1739c3b",
+  "node": "v22.23.2",
+  "verdict": "FAIL",
+  "runtimeEditsStopped": true,
+  "stopReason": "Three systematic later-current-predicate false negatives at bounded off-corpus gate; no further runtime patches.",
+  "distinctRecoveredCorpus": 94,
+  "reconstructionRequired": false,
+  "before": {
+    "distinct": {
+      "pass": 61,
+      "fail": 33
+    },
+    "originalNovel58": {
+      "pass": 37,
+      "fail": 21
+    },
+    "sharedProcessor19": {
+      "pass": 4,
+      "fail": 15
+    }
+  },
+  "after": {
+    "distinctRecoveredCorpus": {
+      "pass": 94,
+      "fail": 0
+    },
+    "originalNovel58": {
+      "pass": 58,
+      "fail": 0
+    },
+    "sharedProcessor19": {
+      "pass": 19,
+      "fail": 0
+    },
+    "documented560": {
+      "pass": 560,
+      "fail": 0
+    },
+    "permanentNew203": {
+      "pass": 200,
+      "fail": 3
+    }
+  },
+  "reproducedFailureCauses": {
+    "unrelated_past_context": 10,
+    "quoted_actual_assertion": 3,
+    "negation_scope": 10,
+    "resolution_scope": 5,
+    "hypothetical_scope": 3,
+    "educational_coordination": 1,
+    "fictional_actor_reference": 1
+  },
+  "openCases": [
+    "I had chest pain yesterday whereas my friend has difficulty breathing.",
+    "I had chest pain yesterday whereas I have difficulty breathing.",
+    "我昨天胸痛然而我呼吸困難。"
+  ],
+  "fixtureCorrections": "Urgent-only throwing provider guard was retained for urgent input; clearly nonurgent input uses existing null-provider fallback. Destination check now composes actual createSendReply and fake API after synthetic revoke/rebind. Inputs and expected results are unchanged; superseded failures retained.",
+  "codeReadiness": "NO_GO",
+  "wholeStage8": "NO_GO",
+  "production": "NO_GO",
+  "nativeCrash": {
+    "trackingId": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "status": "OPEN",
+    "rootCause": "UNASSIGNED",
+    "newNativeFailureObserved": false,
+    "optionalRun": "3/3 PASS; not resolution evidence"
+  },
+  "morningStaleEligible": "INDEPENDENTLY_CLOSED_BYTE_IDENTICAL",
+  "stage6": "Separate successor freeze/capacity qualification and semantic integration required",
+  "live": "Authenticated LIVE producer successor and admission/selector/typed-reader integration required; no SHADOW promotion",
+  "paidTesting": false,
+  "realTelegramMessages": 0,
+  "productionOperations": 0,
+  "credentialAccessOrChanges": false,
+  "F02": "Owner Accepted Risk",
+  "runs": [
+    {
+      "log": "stage8-triage-architecture-final-original21.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "2c2bc1a35dc1c6d3d347334eb3115b59929cbb106a858179262597be7b0ecb87",
+      "uncompressedSha256": "4dff50b1547df5dfec1b391f040f92edd56d8dddcdf373c1a092b4c55fd6c2b0",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-closure11.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "570e3faa8f16fea41bd7bd2a25f6c1c48fdbd21bb4c36e8e0cb3e45272d66c69",
+      "uncompressedSha256": "126736726f5101fac82ce37acdfab32c3b966c519a669990030f0d21cfdd9404",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-independent17.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "5332e25ceffb748cc20b6b5fa997930824b3e27a4a2a1705cbb3304c0e87bd49",
+      "uncompressedSha256": "49d858d1cde7fcc76819b66733c8519975c908f76ddf5eb69ac6beed00753e2f",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-scope125.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 125,
+        "pass": 125,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "31511d36db9b836c89fb953725bb9b2de8445b6440de436f1951cf381ba4942a",
+      "uncompressedSha256": "5defd5aecdd62acf54198f8d74e1deb7561948203000a4f3f659a9ecebdf983d",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-processor6.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "8f39733192542ad0579d712fe200dc24ecde2be5e7d9cce16612f266ca411321",
+      "uncompressedSha256": "6a17befc697372694f71c4da54d9d8e914ba7eed892239bea1f64f943a1621af",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-integration200.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "190f9fd2ddb311d3bc619ddde831628f956f6fc2bc7daf01d9d17f9de8ea7a2b",
+      "uncompressedSha256": "aa74c945ca45eddcd77532760e09de910d40a3f92d1184c3caf8442d966e5020",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-regression164.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "05156632f9726aeba3539881d6c13a1fca366b90dc80e5ddb60bd153bc58fa61",
+      "uncompressedSha256": "06655724cbec1e9e19cecf3beb38713300ddd4b639b2414c0350cfad6df5720a",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-transport16.tap.gz",
+      "classification": "FINAL_SOURCE_VERIFICATION",
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "f4a834ac8895fd85bf68a43fda19863f623e0a7d3d43bd697fd5fb1d7db92052",
+      "uncompressedSha256": "cd26282122cf9cc3ca714727994c9e90fe8b76394194fa5e8ad8e8af0803e884",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-final-new203.tap.gz",
+      "classification": "OPEN_GATE",
+      "counts": {
+        "tests": 203,
+        "pass": 200,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "b34f3191d16c75e150d1a5c822d4ee0f05034aeaa73a80f7b8e31de4d1b029bb",
+      "uncompressedSha256": "bda87d54a30d4cbf634c40be17529f0e4e55be40b807105e9ceb6ed53ec0873b",
+      "failures": [
+        "not ok 166 - OPEN later-current-predicate-1",
+        "not ok 167 - OPEN later-current-predicate-2",
+        "not ok 168 - OPEN later-current-predicate-3"
+      ]
+    },
+    {
+      "log": "stage8-triage-architecture-native-optional.tap.gz",
+      "classification": "OPTIONAL_NATIVE_STABILITY_NOT_RESOLVED",
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "8f0329f444fe5f2064e4007531e65d01deb07305e081a89ffea063b7b68c3cbf",
+      "uncompressedSha256": "a4570c6da91fb2689d93f569799ef15d3453d2c65976a74bb83e802158e56e09",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-before-processor.tap.gz",
+      "classification": "BASELINE_REPRODUCTION",
+      "counts": {
+        "tests": 19,
+        "pass": 4,
+        "fail": 15,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "feca4d74f6c5374776f5f07467167fb75576d5f11a7957156a737a23c2310619",
+      "uncompressedSha256": "29475a86059779d13b825d874b10b6e5a9861542c9efc90023778b3bf4fa06e7",
+      "failures": [
+        "not ok 1 - independent shared scope 1 health en",
+        "not ok 2 - independent shared scope 2 health vi",
+        "not ok 3 - independent shared scope 3 health zh-TW",
+        "not ok 4 - independent shared scope 1 name en",
+        "not ok 5 - independent shared scope 2 note en",
+        "not ok 6 - independent shared scope 3 health en",
+        "not ok 7 - independent shared scope 4 name en",
+        "not ok 8 - independent shared scope 5 note en",
+        "not ok 9 - independent shared scope 6 health en",
+        "not ok 10 - independent shared scope 7 coach en",
+        "not ok 11 - independent shared scope 8 name en",
+        "not ok 12 - independent shared scope 9 note vi",
+        "not ok 13 - independent shared scope 10 note zh-TW",
+        "not ok 14 - independent shared scope 11 coach en",
+        "not ok 15 - independent shared scope 12 health vi"
+      ]
+    },
+    {
+      "log": "stage8-triage-architecture-direct-final.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 275,
+        "pass": 275,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "2605865c5b252962697fa1db29e3ec4a0952ba374208d414cd30916532412d15",
+      "uncompressedSha256": "3a336dbeadbb08993c02570c373c9f1fb616af6aa7344b601d99fc42aa67c702",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-direct-frozen.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 291,
+        "pass": 291,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "d19f74f14ca2bdf9c96259b53ec59dd1686ac6a8266c6f7256e5a55c887f953a",
+      "uncompressedSha256": "c72ef6f8287b46cd80af19da6d5a93520f0b5b489bbba79dbd14e8a63302fbfb",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-direct.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 275,
+        "pass": 274,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "2aa14301765579939bb00ab5cb51ce388c44fe6232d04faecb6b1aa623b204bf",
+      "uncompressedSha256": "675165a805ab9916f8d5ced0c9b28a4573987c01e181428d38f8b882be394205",
+      "failures": [
+        "not ok 144 - assertion-currentness-10"
+      ]
+    },
+    {
+      "log": "stage8-triage-architecture-final-authority15.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 15,
+        "pass": 14,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "0d1b6541563d926dea8baac8d6c8965dddf6ad8d30d87d0ac22bf1fff5e8b3f4",
+      "uncompressedSha256": "0b349c2f734a08814c3218122d0811b45aa513965571da4a37181f4e98c0bcf2",
+      "failures": [
+        "not ok 15 - possible-current authority cross_tenant_destination"
+      ]
+    },
+    {
+      "log": "stage8-triage-architecture-final-new185.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 185,
+        "pass": 183,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "dbe613a6bb65993631b3538aa46d91b0d71a3679ee06424e1ad0da53f1d4723e",
+      "uncompressedSha256": "dfcc1fe12c35647e509042f6d4fcd980fe8dfc22df3f0903aa697fc33e771396",
+      "failures": [
+        "not ok 161 - independent shared scope 11 coach en",
+        "not ok 162 - independent shared scope 12 health vi"
+      ]
+    },
+    {
+      "log": "stage8-triage-architecture-focused.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 134,
+        "pass": 134,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "6c851d473bd9911916baacee051b208fb0c72c1d67297b78e3a54ef8ecff0a1f",
+      "uncompressedSha256": "2be457829b0ff647fa27e9bae47dccc5d6474b76f275c79f085f073a618f826e",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-initial-scope.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 125,
+        "pass": 120,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "97aad9fd50fb2740c57919978960179117627e984e1a2c068ee84b5f237705db",
+      "uncompressedSha256": "73729b33be84e4f3bdae91a9af47dd4ef8db50392fd9beea81ad005e89c03f49",
+      "failures": [
+        "not ok 20 - current — What is this chest pain I am having right now?",
+        "not ok 42 - resolved — I had chest pain yesterday but it has completely resolved.",
+        "not ok 49 - resolved — Tôi đã hết đau ngực và khó thở.",
+        "not ok 50 - resolved — I had chest pain. I am experiencing it now. It has completely resolved.",
+        "not ok 71 - educational — The textbook explains that he has chest pain."
+      ]
+    },
+    {
+      "log": "stage8-triage-architecture-processor.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 19,
+        "pass": 17,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "4b40ff7ef9375aeb64205307001368ef328af3137e10955a95880f9a649c6482",
+      "uncompressedSha256": "cdd0316ba1cb5fdebedc42f9cdfa246c2bb16f8ff28b3d9d56a1388631d630f5",
+      "failures": [
+        "not ok 11 - independent shared scope 11 coach en",
+        "not ok 12 - independent shared scope 12 health vi"
+      ]
+    },
+    {
+      "log": "stage8-triage-architecture-relationships-scope.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 125,
+        "pass": 125,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "940be1c5266ac5881b59ff7abfcd51c2a0d8e012ebc0c1699425b3632fb62dc0",
+      "uncompressedSha256": "8f2999fec82849fa16271cb75d94cbf04ff9fa5c0bd431fc563aa5ea7a1229c8",
+      "failures": []
+    },
+    {
+      "log": "stage8-triage-architecture-structured-final.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_OR_FIXTURE_RUN",
+      "counts": {
+        "tests": 283,
+        "pass": 282,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "ed465ee2bc4bc6fc827289c1178dc838c3b94bd32d9e47ed241a4fe4a0cf0c3c",
+      "uncompressedSha256": "7fd4ef71d1b03cee2ee05b257bdcd87224ab1efdaecc937820d9cde3540c287c",
+      "failures": [
+        "not ok 42 - separate-predicate-2"
+      ]
+    }
+  ]
+}

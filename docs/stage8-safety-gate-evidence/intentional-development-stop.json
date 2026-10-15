@@ -1,0 +1,20 @@
+{
+  "reason": "Runtime frozen; terminate superseded duplicate development run to avoid processor output collision; not a SIGSEGV or an accepted final test run",
+  "terminatedProcesses": [
+    {
+      "pid": 8930,
+      "ppid": 2557,
+      "command": "zsh /private/tmp/stage8-safety-gate-run-a.sh"
+    },
+    {
+      "pid": 13459,
+      "ppid": 8930,
+      "command": "node --test test/stage8-safety-gate/processor.test.mjs"
+    },
+    {
+      "pid": 13460,
+      "ppid": 13459,
+      "command": "/Users/kelvin/.local/node-v22.23.2-darwin-arm64/bin/node test/stage8-safety-gate/processor.test.mjs"
+    }
+  ]
+}

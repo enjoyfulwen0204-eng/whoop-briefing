@@ -85,14 +85,14 @@ const object = ddl => {
   return { type: kind.toLowerCase().replace('unique ', ''), name, ddl };
 };
 
-export function canonicalRuntimeContract() {
+export function canonicalRuntimeContract(version=SCHEMA_VERSION) {
   const objects = new Map();
   for (const ddl of SCHEMA) { const item = object(ddl); objects.set(item.name, item); }
   const additions = ADDITIVE_COLUMNS.map(c => ({...c,
     definition: c.ddl.slice(c.ddl.indexOf(`ADD COLUMN ${c.column} `) + `ADD COLUMN ${c.column} `.length),
   }));
   const retired = new Set();
-  for (const migration of PHASE4_MIGRATIONS) {
+  for (const migration of PHASE4_MIGRATIONS.filter(m=>m.version<=version)) {
     additions.push(...(migration.columns ?? []));
     for (const ddl of [...migration.ddl, ...(migration.indexes ?? []), ...(migration.triggers ?? [])]) {
       const item = object(ddl); objects.set(item.name, item);
@@ -114,7 +114,7 @@ export function canonicalRuntimeContract() {
   }
   return { objects, retired };
 }
-const contract = canonicalRuntimeContract();
+const contracts = new Map([34,35].map(version=>[version,canonicalRuntimeContract(version)]));
 function tableMatches(actual, expected) {
   if (normalizeSql(actual.slice(actual.lastIndexOf(')') + 1)) !== normalizeSql(expected.ddl.slice(expected.ddl.lastIndexOf(')') + 1))) return false;
   const parts = elements(actual).map(normalizeSql).sort();
@@ -133,7 +133,7 @@ export function requireRuntimeAdmission(client, capability, keys, transaction) {
   if (!issued || issued.client !== client || !state || state.closed || client.closed
       || issued.lifetime.revoked || issued.lifetime !== state.lifetime || issued.keys !== keys || (transaction && state.transaction !== transaction))
     fail('PHASE4_RUNTIME_ADMISSION_REQUIRED');
-  return SCHEMA_VERSION;
+  return issued.version;
 }
 
 // Runner reuse checks the private issuer record, never a caller's facade method.
@@ -178,7 +178,8 @@ async function admitChecked(client, keys,stats) {
   const versions=(await read('SELECT version,note FROM schema_version')).rows;
   const version=Math.max(0,...versions.map(r=>Number(r.version)));
   if(version<SCHEMA_VERSION)fail('PHASE4_CONTROLLED_MIGRATION_REQUIRED',`${version}/${SCHEMA_VERSION}`);
-  if (version !== SCHEMA_VERSION) fail('phase4_schema_version_mismatch', `${version}/${SCHEMA_VERSION}`);
+  if (!contracts.has(version)) fail('phase4_schema_version_mismatch', `${version}/${SCHEMA_VERSION}`);
+  const contract=contracts.get(version);
   for (const expected of contract.objects.values()) {
     const got = actual.get(expected.name);
     if (!got || got.type !== expected.type || (expected.type === 'table'
@@ -186,7 +187,7 @@ async function admitChecked(client, keys,stats) {
       fail('phase4_schema_postcondition_failed', expected.name);
   }
   for (const name of contract.retired) if (actual.has(name)) fail('phase4_retired_index_present', name);
-  for(const migration of PHASE4_MIGRATIONS)if(!versions.some(r=>Number(r.version)===migration.version&&r.note===`phase4 v${migration.version} postconditions verified`))fail('PHASE4_VERSION_AUTHORITY_INCOMPLETE',String(migration.version));
+  for(const migration of PHASE4_MIGRATIONS.filter(m=>m.version<=version))if(!versions.some(r=>Number(r.version)===migration.version&&r.note===`phase4 v${migration.version} postconditions verified`))fail('PHASE4_VERSION_AUTHORITY_INCOMPLETE',String(migration.version));
   const rows = (await read(`SELECT target_version,step_key,last_cursor,postcondition_state
     FROM phase4_migration_checkpoints WHERE target_version IN (21,22,23,32)`)).rows;
   for (const [v, step] of [[21,'tenant_metadata'],[22,'privacy_backfill'],[22,'lookup_key_check'],[22,'audit_key_check'],[23,'legacy_insights'],[32,'execution_authority']]) {
@@ -205,6 +206,6 @@ async function admitChecked(client, keys,stats) {
   if (lifetime.revoked || lifetime !== state.lifetime || state.closed) fail('PHASE4_RUNTIME_CONNECTION_CHANGED');
   currentExecutionBudget()?.assert();
   state.admitted=true;
-  const capability = Object.freeze({}); capabilities.set(capability, { client, lifetime, keys });
+  const capability = Object.freeze({}); capabilities.set(capability, { client, lifetime, keys, version });
   return capability;
 }

@@ -1,0 +1,432 @@
+[
+  {
+    "id": "vi-completion-0",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-completion-1",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-completion-2",
+    "text": "Tôi đã hết đau ngực.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-completion-3",
+    "text": "Tôi đã hết hoàn toàn đau ngực.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-completion-4",
+    "text": "Tôi đã hoàn toàn hết đau ngực.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-completion-5",
+    "text": "Tôi đã khỏi hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-completion-6",
+    "text": "Tôi đã hết hẳn khó thở.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-completion-7",
+    "text": "Tôi đã hết đau ngực hẳn.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-current-preservation-0",
+    "text": "Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-preservation-1",
+    "text": "Tôi đã hết hẳn đau ngực, nhưng tôi không thở được.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-preservation-2",
+    "text": "Tôi đang đau ngực. Cơn đau đầu đã hết hẳn.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-preservation-3",
+    "text": "Tôi chưa hết hẳn đau ngực.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-preservation-4",
+    "text": "Tôi không hết hẳn đau ngực.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-preservation-5",
+    "text": "Tôi đã hết hẳn đau ngực và tôi đang khó thở.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-preservation-6",
+    "text": "Tôi đã hết hẳn đau ngực nhưng đau ngực tái phát.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "precision-0",
+    "text": "đau ngực",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-1",
+    "text": "đau ngực What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-2",
+    "text": "chest pain 胸痛",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-3",
+    "text": "chest pain 胸痛 What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-4",
+    "text": "chest pain",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-5",
+    "text": "chest pain What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-6",
+    "text": "胸痛",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-7",
+    "text": "胸痛 What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-8",
+    "text": "đau ngực. What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "precision-9",
+    "text": "chest pain 胸痛. What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "quote-education-0",
+    "text": "What does \"I have chest pressure now\" mean?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-education-1",
+    "text": "The textbook gives the example \"I have chest pressure now\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-education-2",
+    "text": "Suppose I say \"I have chest pressure now\" in a fictional example.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-education-3",
+    "text": "「我現在胸悶」是什麼意思？",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-education-4",
+    "text": "Trong ví dụ, \"Tôi đang tức ngực\" nghĩa là gì?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-education-5",
+    "text": "Nếu tôi nói \"Tôi đang tức ngực\" thì sao?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-actual-self-0",
+    "text": "I have \"chest pressure\" right now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-1",
+    "text": "I am saying \"I have chest pressure\" because it is happening to me now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-2",
+    "text": "I am reading about \"chest pressure\", and I am experiencing it now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-3",
+    "text": "我現在「胸悶」。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-4",
+    "text": "我想知道「胸悶」的意思，但是我正在胸悶。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-5",
+    "text": "Tôi đang \"tức ngực\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-6",
+    "text": "Tôi tìm hiểu \"đau ngực\", nhưng tôi đang đau ngực.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-7",
+    "text": "\"chest pressure\" is what I am experiencing right now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-actual-self-8",
+    "text": "\"I have chest pressure\" describes what I am experiencing now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-reported-0",
+    "text": "My father says \"I have chest pressure now\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-reported-1",
+    "text": "My friend says \"I cannot breathe\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-reported-2",
+    "text": "我朋友說「我現在胸悶」。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-reported-3",
+    "text": "Bạn tôi nói \"Tôi đang đau ngực\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quote-reported-4",
+    "text": "My father said \"I had chest pain yesterday\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-reported-5",
+    "text": "我朋友說「我昨天胸痛」。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-reported-6",
+    "text": "Bạn tôi nói \"Tôi đau ngực hôm qua\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quote-uncertainty-0",
+    "text": "I am unsure whether \"chest pressure\" describes what I feel now.",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "quote-uncertainty-1",
+    "text": "I am not sure whether I have \"chest pressure\".",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "quote-uncertainty-2",
+    "text": "我不確定我是否「胸悶」。",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "quote-uncertainty-3",
+    "text": "Tôi không chắc tôi đang \"đau ngực\".",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "quote-uncertainty-4",
+    "text": "\"I have chest pressure now",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "quote-uncertainty-5",
+    "text": "\"I have 'chest pressure' now\"",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "original-stopped-0",
+    "text": "My chest pain started yesterday and is still present.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "original-stopped-1",
+    "text": "My chest pain started yesterday and is still severe.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "original-stopped-2",
+    "text": "I had chest pain yesterday and is still present.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "original-stopped-3",
+    "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "ownership-safety-0",
+    "text": "I have chest pain. The headache has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "ownership-safety-1",
+    "text": "我現在胸痛。頭痛已經好了。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "ownership-safety-2",
+    "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "ownership-safety-3",
+    "text": "I had chest pain yesterday whereas my friend has difficulty breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "ownership-safety-4",
+    "text": "I am not having chest pain, but I am currently struggling to breathe.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "ownership-clear-0",
+    "text": "I have chest pain. The chest pain has resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "ownership-clear-1",
+    "text": "I am not having my chest pain, my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "ownership-clear-2",
+    "text": "我沒有胸痛、呼吸困難。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "ownership-clear-3",
+    "text": "Tôi không đau ngực và không khó thở.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "ownership-clear-4",
+    "text": "I had chest pain last year for the last week of my holiday.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "ownership-clear-5",
+    "text": "I had chest pain yesterday since I exercised too hard.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "post-assertion-en-quoted",
+    "text": "\"chest pain\" is what I am experiencing now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "post-assertion-en-unquoted",
+    "text": "chest pain is what I am experiencing now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "post-assertion-zh-quoted",
+    "text": "「胸痛」是我現在感到的症狀。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "post-assertion-zh-unquoted",
+    "text": "胸痛是我現在感到的症狀。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "post-assertion-vi-quoted",
+    "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "post-assertion-vi-unquoted",
+    "text": "đau ngực là triệu chứng tôi đang cảm thấy.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "uncertainty-en-quoted",
+    "text": "I am unsure whether I am experiencing \"chest pain\".",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "uncertainty-en-unquoted",
+    "text": "I am unsure whether I am experiencing chest pain.",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "uncertainty-zh-quoted",
+    "text": "我不確定我是否「胸悶」。",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "uncertainty-zh-unquoted",
+    "text": "我不確定我是否胸悶。",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "uncertainty-vi-quoted",
+    "text": "Tôi không chắc liệu tôi có \"đau ngực\".",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "uncertainty-vi-unquoted",
+    "text": "Tôi không chắc liệu tôi có đau ngực.",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "reading-quote-en",
+    "text": "I am reading about \"chest pain\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "reading-quote-zh",
+    "text": "我正在閱讀「胸痛」。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "reading-quote-vi",
+    "text": "Tôi đang đọc về \"đau ngực\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "learning-quote-en",
+    "text": "I am learning about \"chest pain\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "learning-quote-zh",
+    "text": "我想知道「胸痛」是什麼意思。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "learning-quote-vi",
+    "text": "Tôi đang tìm hiểu \"đau ngực\".",
+    "expected": "CLEARLY_NONURGENT"
+  }
+]

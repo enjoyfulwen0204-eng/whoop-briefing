@@ -3,6 +3,7 @@ import { R_COLUMNS } from './phase4V22Schema.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 
 const IDENTITIES=Object.freeze({
+  morning_brief_plans:['plan_id'],
   body_energy_results:['result_lookup_key'],body_energy_checkpoints:['checkpoint_lookup_key'],
   evidence_runs:['deterministic_run_key'],evidence_items:['run_id','item_key'],
   observation_episodes:['episode_id'],episode_observations:['episode_id','observation_key'],

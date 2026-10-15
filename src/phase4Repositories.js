@@ -1,4 +1,5 @@
 import {stage6CurrentCaptureTime} from './stage6CurrentCaptureTime.js';
+import {analysisTable} from './stage8LiveAllocation.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import { createLegacyDiscovery } from './phase4LegacyDiscovery.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
@@ -19,8 +20,8 @@ import { createPhase4CoverageStore } from './phase4CoverageStore.js';
 import { createPhase4JournalAnswers } from './phase4JournalAnswers.js';
 import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
-import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+import { OPERATION_RECEIPT_TABLE as SHADOW_OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
+import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { PHASE4_METRICS,phase4Metric } from './phase4IntelligenceRegistry.js';
 import { createBodyEnergyPublicationReader } from './bodyEnergyPublicationReader.js';
 import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
@@ -31,6 +32,8 @@ import {createReanalysisInputs} from './phase4ReanalysisInputs.js';
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
 export function composePhase4Stores(core) {
+  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
+  const OPERATION_RECEIPT_TABLE=analysisTable(core,SHADOW_OPERATION_RECEIPT_TABLE);
   const {client,transaction,timestamp}=core;
   const receipts=createOperationReceipts(core),discover=createLegacyDiscovery(core);
   const contextScopes=new WeakSet();
@@ -115,7 +118,7 @@ export function composePhase4Stores(core) {
   async function computeForCurrentDrain(context){
     const request=await core.run(context,async()=>{
       const execution=await assertExecutionWorkOwner(client);
-      if(context.executionMode!=='SHADOW'||execution?.phase!=='STAGE6_DRAIN')fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+      if(!core.analysisModeAllowed(context)||execution?.phase!=='STAGE6_DRAIN')fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const supportedClock=core.now().getTime(),actualClock=Date.now();
       if(supportedClock>actualClock)fail('BODY_ENERGY_CURRENT_DRAIN_CLOCK_FENCED');
       const clock=Math.min(supportedClock,actualClock);
@@ -136,7 +139,7 @@ export function composePhase4Stores(core) {
     if(!bundle?.fallback)return bundle;
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
-      if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+      if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
         fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const rows=(await client.execute({sql:`SELECT result_id FROM body_energy_results
         WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL
@@ -241,7 +244,7 @@ export function composePhase4Stores(core) {
       // A facade retained across a controlled migration cannot keep the old
       // publication contract. Read the durable schema, never a captured version.
       const runtimeVersion=Number((await client.execute('SELECT MAX(version) AS v FROM schema_version')).rows[0].v);
-      if(runtimeVersion>32)fail('phase4_schema_version_mismatch');
+      if(runtimeVersion>34)fail('phase4_schema_version_mismatch');
       if(runtimeVersion>=32){
         const producers=(await client.execute({sql:`SELECT p.*,e.state,e.phase,e.generation AS final_generation,e.execution_seq AS final_seq
           FROM phase4_execution_producers p JOIN phase4_executions e ON e.execution_id=p.producing_execution_id

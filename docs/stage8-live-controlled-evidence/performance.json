@@ -1,0 +1,51 @@
+{
+  "workerLegCount": 64,
+  "workerLegMaxMs": 7853.993082999998,
+  "workerLegMeanMs": 1586.8833489375,
+  "resources": [
+    {
+      "kind": "LIVE_CERTIFICATE_READER_RESOURCES",
+      "samplesMs": [
+        103.84545899999648,
+        117.16237499999988,
+        106.4653330000001,
+        113.47154099999898,
+        111.26041599999735
+      ],
+      "before": {
+        "rss": 285097984,
+        "heapTotal": 114311168,
+        "heapUsed": 40419664,
+        "external": 3892749,
+        "arrayBuffers": 92714
+      },
+      "after": {
+        "rss": 314802176,
+        "heapTotal": 116228096,
+        "heapUsed": 53211824,
+        "external": 3892789,
+        "arrayBuffers": 92714
+      },
+      "maxRssKiB": 405104
+    },
+    {
+      "kind": "LIVE_PIPELINE_SYNTHETIC_RESOURCES",
+      "durationMs": 71764.910875,
+      "before": {
+        "rss": 101875712,
+        "heapTotal": 54247424,
+        "heapUsed": 28159648,
+        "external": 3874317,
+        "arrayBuffers": 76330
+      },
+      "after": {
+        "rss": 344670208,
+        "heapTotal": 151027712,
+        "heapUsed": 116236584,
+        "external": 3904696,
+        "arrayBuffers": 109098
+      },
+      "maxRssKiB": 827760
+    }
+  ]
+}

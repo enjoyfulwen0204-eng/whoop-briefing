@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "52934e90bfacc987f4af52eda2af1a43475e9e41",
+  "commitTime": "2026-10-15T15:30:33+07:00",
+  "phaseStartedUTC": "2026-10-15T08:30:33.108Z",
+  "phaseCompletedUTC": "2026-10-15T08:30:34.231Z",
+  "phaseReleaseSha": "d538b07e097fedb42481c305de0738761c512a4d",
+  "mechanism": "runningReleaseSha checks actual HEAD during originalAuthority.assert; the local source-freeze commit crossed the phase interval. The known failing SYNC path does not invoke triage.",
+  "classification": "LOCAL_VERIFICATION_HEAD_TRANSITION",
+  "rawAttemptRetained": true,
+  "applicationCodeChangedToAddressFailure": false,
+  "stableHeadRerunRequired": true
+}

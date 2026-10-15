@@ -1,0 +1,138 @@
+{
+  "source": "/Users/kelvin/.codex/worktrees/stage8-two-false-warning-repair/whoop-briefing/src/bot/triage.js",
+  "node": "v22.23.2",
+  "samplesPerShape": 500,
+  "warmupsPerShape": 100,
+  "concurrentHostTests": true,
+  "measurements": {
+    "ordinary": {
+      "characters": 63,
+      "p50ms": 0.1043340000000228,
+      "p95ms": 0.5200419999999895,
+      "maxMs": 9.667666999999994,
+      "retainedHeapDeltaBytes": 76592,
+      "sampledTransientGrowthBytes": 1959904,
+      "rssBytes": 60768256,
+      "decisions": {
+        "CURRENT_URGENT": 212,
+        "POSSIBLE_CURRENT_URGENT": 72,
+        "CLEARLY_NONURGENT": 216
+      },
+      "reasons": {}
+    },
+    "quoted": {
+      "characters": 70,
+      "p50ms": 0.15416700000002947,
+      "p95ms": 0.7588749999999891,
+      "maxMs": 2.8774999999999977,
+      "retainedHeapDeltaBytes": 38384,
+      "sampledTransientGrowthBytes": 2108944,
+      "rssBytes": 78168064,
+      "decisions": {
+        "CURRENT_URGENT": 259,
+        "POSSIBLE_CURRENT_URGENT": 33,
+        "CLEARLY_NONURGENT": 208
+      },
+      "reasons": {}
+    },
+    "fallback": {
+      "characters": 91,
+      "p50ms": 0.1981670000000122,
+      "p95ms": 0.8337089999999989,
+      "maxMs": 9.165166,
+      "retainedHeapDeltaBytes": 136608,
+      "sampledTransientGrowthBytes": 2441744,
+      "rssBytes": 105398272,
+      "decisions": {
+        "CURRENT_URGENT": 235,
+        "CLEARLY_NONURGENT": 199,
+        "POSSIBLE_CURRENT_URGENT": 66
+      },
+      "reasons": {}
+    },
+    "focused": {
+      "characters": 77,
+      "p50ms": 0.09587499999997817,
+      "p95ms": 1.1261250000000018,
+      "maxMs": 19.472667,
+      "retainedHeapDeltaBytes": 39488,
+      "sampledTransientGrowthBytes": 2015520,
+      "rssBytes": 106725376,
+      "decisions": {
+        "CLEARLY_NONURGENT": 166,
+        "CURRENT_URGENT": 307,
+        "POSSIBLE_CURRENT_URGENT": 27
+      },
+      "reasons": {}
+    },
+    "quoted40": {
+      "characters": 1960,
+      "p50ms": 3.0113750000000437,
+      "p95ms": 7.405042000000321,
+      "maxMs": 14.448250000000144,
+      "retainedHeapDeltaBytes": 304272,
+      "sampledTransientGrowthBytes": 15765696,
+      "rssBytes": 118996992,
+      "decisions": {
+        "CURRENT_URGENT": 500
+      },
+      "reasons": {}
+    },
+    "predicates80": {
+      "characters": 1520,
+      "p50ms": 1.8586669999999685,
+      "p95ms": 5.531582999999955,
+      "maxMs": 12.097749999999905,
+      "retainedHeapDeltaBytes": -19872,
+      "sampledTransientGrowthBytes": 16026752,
+      "rssBytes": 104792064,
+      "decisions": {
+        "CURRENT_URGENT": 500
+      },
+      "reasons": {}
+    },
+    "operatorOverflow120": {
+      "characters": 2280,
+      "p50ms": 2.1811250000000655,
+      "p95ms": 5.951750000000175,
+      "maxMs": 19.11133299999983,
+      "retainedHeapDeltaBytes": -122872,
+      "sampledTransientGrowthBytes": 16251272,
+      "rssBytes": 111509504,
+      "decisions": {
+        "POSSIBLE_CURRENT_URGENT": 500
+      },
+      "reasons": {
+        "scope_limit": 500
+      }
+    },
+    "nearCharacterLimit": {
+      "characters": 7867,
+      "p50ms": 2.9943339999999807,
+      "p95ms": 5.560999999999694,
+      "maxMs": 8.249958000000333,
+      "retainedHeapDeltaBytes": 71920,
+      "sampledTransientGrowthBytes": 16349024,
+      "rssBytes": 110510080,
+      "decisions": {
+        "CLEARLY_NONURGENT": 500
+      },
+      "reasons": {}
+    },
+    "characterOverflow": {
+      "characters": 8193,
+      "p50ms": 0.0004579999986162875,
+      "p95ms": 0.0005409999994299142,
+      "maxMs": 0.045540999999502674,
+      "retainedHeapDeltaBytes": -4464,
+      "sampledTransientGrowthBytes": 104376,
+      "rssBytes": 110624768,
+      "decisions": {
+        "POSSIBLE_CURRENT_URGENT": 500
+      },
+      "reasons": {
+        "scope_limit": 500
+      }
+    }
+  }
+}

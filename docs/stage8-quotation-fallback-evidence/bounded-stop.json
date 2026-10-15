@@ -1,0 +1,26 @@
+{
+  "status": "NO-GO",
+  "baselineHead": "10b68fa5f4f9501c424ad4c16b4bab0eae500595",
+  "runtimeSha256": {
+    "src/bot/triage.js": "a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c",
+    "src/bot/safetyGate.js": "d9ce578b9fb8fcbb15c42ecd308bcb32b7fb7c695908358293ff5e107f32bf87"
+  },
+  "runtimeEditsStopped": true,
+  "trigger": "Introduced systematic Chinese negation false positive",
+  "subsequentlyVerifiedHigh": "Quote-local conditional with empty outer connector span suppresses outside actual current assertion",
+  "exactResidualsClosed": {
+    "semantic": 4,
+    "processor": 16
+  },
+  "introducedFailures": {
+    "falseClearSemantic": 9,
+    "falseClearProcessor": 12,
+    "falseWarningSemantic": 5,
+    "falseWarningProcessor": 4
+  },
+  "expectationsChanged": 0,
+  "independentReviewAcceptanceReady": false,
+  "wholeStage8": "NO-GO",
+  "production": "NO-GO",
+  "nextAction": "Independent failure validation of local-frame and nested-negation ownership at the frozen successor; no further runtime edits in this cycle."
+}

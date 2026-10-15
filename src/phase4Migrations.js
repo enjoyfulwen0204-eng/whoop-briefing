@@ -1,4 +1,5 @@
 import { PHASE4_MIGRATIONS, SCHEMA_VERSION } from './schema.js';
+import {V34_HEALTH_FIELDS} from './phase4V34Schema.js';
 import { backfillV22, verifyV22Data } from './phase4V22Backfill.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { establishPhase4KeyContinuity, hasPhase4KeyContinuityAuthority } from './phase4KeyContinuity.js';
@@ -326,6 +327,20 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
     const checkpoint=(await client.execute("SELECT last_cursor,postcondition_state FROM phase4_migration_checkpoints WHERE target_version=32 AND step_key='execution_authority'")).rows[0];
     if(checkpoint?.postcondition_state!=='COMPLETE'||checkpoint.last_cursor!=='phase4-execution-v2')throw new Phase4SchemaError('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE','execution_authority');
   }
+  if(version>=33){
+    for(const table of ['quick_action_interactions','journal_tracking_preferences','journal_prompt_deliveries'])
+      await requireZero(client,`SELECT 1 FROM ${table} p LEFT JOIN users u ON u.id=p.user_id WHERE u.id IS NULL LIMIT 1`,'v33_tenant');
+    await requireZero(client,`SELECT 1 FROM journal_events WHERE content_state='PRESENT' AND provenance_mode='TRUSTED_REGISTRY' AND
+      (source_kind<>'quick_action' OR registry_version IS NULL OR interaction_id IS NULL OR raw_answer_excerpt IS NOT NULL AND note IS NULL) LIMIT 1`,'v33_provenance');
+  }
+  if(version>=34){
+    for(const [table,fields] of Object.entries(V34_HEALTH_FIELDS)){
+      await requireZero(client,`SELECT 1 FROM ${table} p LEFT JOIN users u ON u.id=p.user_id WHERE u.id IS NULL LIMIT 1`,'v34_tenant');
+      await requireZero(client,`SELECT 1 FROM ${table} WHERE content_state='REDACTED' AND (${fields.map(field=>`${field} IS NOT NULL`).join(' OR ')}) LIMIT 1`,'v34_redacted_plaintext');
+    }
+    if((await client.execute('PRAGMA integrity_check')).rows[0]?.integrity_check!=='ok')throw new Phase4SchemaError('v34_integrity_check_failed');
+    if((await client.execute('PRAGMA foreign_key_check')).rows.length)throw new Phase4SchemaError('v34_foreign_key_check_failed');
+  }
   if (version >= 22) await verifyV22Data(client, { backfill: options.backfillVersion === 22 });
   if (version >= 23 && options.backfillVersion === 23) await requireZero(client, `SELECT 1 FROM health_insights
     WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL
@@ -370,6 +385,11 @@ export async function applyPhase4Migrations(client, from, target, options = {}) 
   // Applied versions are immutable. Do not repair drift with IF NOT EXISTS.
   if (from >= 21) await verifyPhase4Schema(client, from, { resuming: from < target });
   for (const migration of PHASE4_MIGRATIONS.filter(m => m.version > from && m.version <= target)) {
+    if(migration.version===34){
+      const markers=(await client.execute('SELECT version,note FROM schema_version')).rows;
+      for(const prior of PHASE4_MIGRATIONS.filter(m=>m.version<34))if(!markers.some(row=>row.version===prior.version&&row.note===`phase4 v${prior.version} postconditions verified`))
+        throw new Phase4SchemaError('PHASE4_VERSION_AUTHORITY_INCOMPLETE',String(prior.version));
+    }
     if (migration.version === 22) await establishPhase4KeyContinuity(client, options.privacyKeys, 21);
     for (const ddl of migration.ddl) {
       await client.execute(ddl);

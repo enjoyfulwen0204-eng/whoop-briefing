@@ -1,0 +1,83 @@
+{
+  "checkedAtUtc": "2026-10-15T15:05:46.332628+00:00",
+  "reviewSnapshotHead": "0a1dd0e4844522aa438a09902da2eada70d57739",
+  "reviewSnapshotTree": "3749ce817bb3b574e5f6b6459c78e2bf815e37a2",
+  "base": "98a6f80d2304479b61e1b2ffe83d2fa4a889ad72",
+  "a6fcInitialReview": "a6fcfa121dae31d734a0094020d97a6c670ef167",
+  "onlyRuntimeDeltaSinceA6fc": "diff --git a/src/stage8SubjectAlerts.js b/src/stage8SubjectAlerts.js\nindex 73fd955..8f93af9 100644\n--- a/src/stage8SubjectAlerts.js\n+++ b/src/stage8SubjectAlerts.js\n@@ -50,7 +50,7 @@ export async function createStage8SubjectAlerts({core,stores,db,capability,provi\n    const row=(await core.client.execute({sql:`SELECT d.mode,d.lifecycle_generation,d.auth_generation,n.notifications_paused,o.state\n     FROM tenant_delivery_modes d JOIN user_notification_preferences n ON n.user_id=d.user_id JOIN user_onboarding o ON o.user_id=d.user_id\n     WHERE d.user_id=? AND d.execution_mode='LIVE' AND d.message_family='EPISODE_NOTIFICATION'`,args:[ctx.userId]})).rows[0];\n-   return row?.mode==='PHASE4'&&row.lifecycle_generation===ctx.lifecycleGeneration&&row.auth_generation===ctx.authGeneration&&!row.notifications_paused&&row.state==='READY';\n+   return await db.isProactiveEnabled(ctx.userId)&&row?.mode==='PHASE4'&&row.lifecycle_generation===ctx.lifecycleGeneration&&row.auth_generation===ctx.authGeneration&&!row.notifications_paused&&row.state==='READY';\n   };\n   await step('begin',[],()=>bindProducingExecution(core.client,ctx));\n   const pending=(await core.client.execute({sql:\"SELECT message_id,revision FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_class='EPISODE_NOTIFICATION' AND state='DELIVERY_STARTED' ORDER BY created_at,message_id LIMIT 4\",args:[ctx.userId]})).rows;",
+  "sourceHashes": {
+    "src/index.js": "70a6538236428adbe6734a36eb1d05dee923ce7bb3325522b8b2b8a7b4774c50",
+    "src/phase4Execution.js": "00e7ee43d632c61b5be64380383c9b2efb028ac119e6db46baf48ae1984a5574",
+    "src/stage7DecisionStore.js": "27cc5966ce5e8316d14a15ca4f269db2477f85235ab40fda957115945376061c",
+    "src/stage8LiveExecution.js": "1661d8ff59c85765c89778f8c518e4c7d327342762a5270677b02ab24300ab1c",
+    "src/stage8LiveProducer.js": "43cd2c3f95b7b310722448b8317af59cef5cf4b3af3bf69e9f0afa6487136435",
+    "src/stage8LivePublication.js": "4fb0cafdc939b6407aa9d5b36301f3351b1ba9e67575d7e659801e3242926bf5",
+    "src/stage8OwnerMonitoring.js": "7d33fe1ace475b1c6831791b46dde9724ab4eaa0b6f725dffba4f8b11272e373",
+    "src/stage8Policy.js": "b39483f5c0baba43a498f603d3635b9dcfc6126f734aa2f83409399e02e1d046",
+    "src/stage8PostSync.js": "f548a6cec6aedcf14955304cda9ec498669cf3ab95af04fac0655e87755d948f",
+    "src/stage8Runtime.js": "cf099121dc0a4c16c1dc43ceb9d327951cb2f17561bcbbd5d17c4df16cba194b",
+    "src/stage8SubjectAlertManifest.js": "5d42e117098d335cc599579cb538c1eab4c5e98b79ec93f7ef71d6efd5bd5d2e",
+    "src/stage8SubjectAlerts.js": "9da60dfcfda6682ad11a0920042eccf93df1792f67207a9bac44dc53a1394419"
+  },
+  "protectedFiles": {
+    "src/bot/triage.js": {
+      "sha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+      "sameAsAccepted98a6f80": true,
+      "sameAsImplementation": true
+    },
+    "src/bot/safetyGate.js": {
+      "sha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d",
+      "sameAsAccepted98a6f80": true,
+      "sameAsImplementation": true
+    },
+    "src/phase4V33Schema.js": {
+      "sha256": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c",
+      "sameAsAccepted98a6f80": true,
+      "sameAsImplementation": true
+    },
+    "src/phase4V34Schema.js": {
+      "sha256": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd",
+      "sameAsAccepted98a6f80": true,
+      "sameAsImplementation": true
+    },
+    "src/phase4V35Schema.js": {
+      "sha256": "3e7144ae5e76b75d4dedce2f86264618a9ed6abd422bcb309d0624a25a8b7156",
+      "sameAsAccepted98a6f80": true,
+      "sameAsImplementation": true
+    }
+  },
+  "ancestors": {
+    "98a6f80": true,
+    "828b3ba": true,
+    "0acd29f9": true
+  },
+  "implementation": {
+    "path": "/Users/kelvin/.codex/worktrees/stage8-live-final-functional/whoop-briefing",
+    "head": "0a1dd0e4844522aa438a09902da2eada70d57739",
+    "tree": "3749ce817bb3b574e5f6b6459c78e2bf815e37a2",
+    "status": "?? docs/stage8-live-functional-evidence/\n?? docs/stage8-live-functional-review-handoff.md\n?? node_modules",
+    "allRuntimeHashesMatchSnapshot": true,
+    "physicalIdentity": [
+      16777229,
+      77819746
+    ]
+  },
+  "stage6ReadOnlyObservation": {
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+    "head": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+    "tree": "ef2a9d7a8bd653c3924eca94c805b8d2f31975e6",
+    "status": "",
+    "physicalIdentity": [
+      16777229,
+      71452797
+    ],
+    "independentAcceptanceInferred": false
+  },
+  "physicallySeparate": true,
+  "reviewCloneCleanup": {
+    "checkedAtUtc": "2026-10-15T15:21:28.226330+00:00",
+    "bothDetachedReviewClonesClean": true,
+    "temporaryDependencySymlinksRemoved": true,
+    "reviewerProbeSourcesPreservedOutsideRepo": true
+  }
+}

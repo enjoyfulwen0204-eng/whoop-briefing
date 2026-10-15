@@ -1,0 +1,492 @@
+{
+  "count": 25,
+  "pass": 25,
+  "fail": 0,
+  "results": [
+    {
+      "id": "explicit-other-outcome",
+      "locale": "en",
+      "lane": "name",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"pAJuGxiGHwWy6Jnw1E-WVg\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome",
+      "locale": "en",
+      "lane": "note",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome",
+      "locale": "en",
+      "lane": "health",
+      "text": "I have chest pain. The headache has resolved. What is my HRV today?",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-zh",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":3,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"vp8wXKC4yHvgEmikTVJ9ag\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"zh-TW\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-zh",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-zh",
+      "locale": "zh-TW",
+      "lane": "coach",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-zh",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "我現在胸痛。頭痛已經好了。 What is my HRV today?",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-vi",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":3,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"Cj2iSmgqmq-ECy_ucsu29Q\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"vi\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-vi",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-vi",
+      "locale": "vi",
+      "lane": "coach",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "explicit-other-outcome-vi",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết. What is my HRV today?",
+      "expected": "SAFETY",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "comma-negation",
+      "locale": "en",
+      "lane": "name",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Confirm display name:\nI am not having my chest pain, my trouble breathing.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"eYEBPFoz_91Fp7AOa2IO3w\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\",\"pendingName\":\"I am not having my chest pain, my trouble breathing.\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "comma-negation",
+      "locale": "en",
+      "lane": "note",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nI am not having my chest pain, my trouble breathing.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "I am not having my chest pain, my trouble breathing.",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "ideographic-object-list",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我沒有胸痛、我的呼吸困難或心悸。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "確認顯示名稱：\n我沒有胸痛、我的呼吸困難或心悸。",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":3,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"Vyi08aPnGQ4NGU5mkfIBKw\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"zh-TW\",\"pendingName\":\"我沒有胸痛、我的呼吸困難或心悸。\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "ideographic-object-list",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我沒有胸痛、我的呼吸困難或心悸。",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "☕ 咖啡因 · 記錄日期: 2026-09-18\n有\n我沒有胸痛、我的呼吸困難或心悸。",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "我沒有胸痛、我的呼吸困難或心悸。",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "closed-duration",
+      "locale": "en",
+      "lane": "name",
+      "text": "I had chest pain last year for the last week of my holiday.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Confirm display name:\nI had chest pain last year for the last week of my holiday.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"5pt6oLDuFmXPBGqHEQYMOA\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\",\"pendingName\":\"I had chest pain last year for the last week of my holiday.\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "closed-duration",
+      "locale": "en",
+      "lane": "note",
+      "text": "I had chest pain last year for the last week of my holiday.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nI had chest pain last year for the last week of my holiday.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "I had chest pain last year for the last week of my holiday.",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "causal-since",
+      "locale": "en",
+      "lane": "name",
+      "text": "I had chest pain yesterday since I exercised too hard.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Confirm display name:\nI had chest pain yesterday since I exercised too hard.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"z1J64kJnT7hxqi6LFzZITg\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\",\"pendingName\":\"I had chest pain yesterday since I exercised too hard.\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "causal-since",
+      "locale": "en",
+      "lane": "note",
+      "text": "I had chest pain yesterday since I exercised too hard.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nI had chest pain yesterday since I exercised too hard.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "I had chest pain yesterday since I exercised too hard.",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "explicit-same-outcome",
+      "locale": "en",
+      "lane": "name",
+      "text": "I have chest pain. The chest pain has resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Confirm display name:\nI have chest pain. The chest pain has resolved.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"NRLk4PKCOVlQtV1GWntS2A\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\",\"pendingName\":\"I have chest pain. The chest pain has resolved.\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "explicit-same-outcome",
+      "locale": "en",
+      "lane": "note",
+      "text": "I have chest pain. The chest pain has resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "classification": "CLEARLY_NONURGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nI have chest pain. The chest pain has resolved.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "I have chest pain. The chest pain has resolved.",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "settings-adjudication",
+      "locale": "en",
+      "pass": true,
+      "failures": [],
+      "graphemes": 67,
+      "limit": 64,
+      "classification": "CLEARLY_NONURGENT",
+      "validationReply": "Invalid name. Enter 1–64 characters without control characters.",
+      "rejectionPreservesStateAndProfiles": true,
+      "validNamePreviewAndSave": true,
+      "replaySends": 3,
+      "scopedHealthReads": 0
+    },
+    {
+      "id": "settings-adjudication",
+      "locale": "zh-TW",
+      "pass": true,
+      "failures": [],
+      "graphemes": 67,
+      "limit": 64,
+      "classification": "CLEARLY_NONURGENT",
+      "validationReply": "名稱無效，請輸入 1–64 個字，避免控制字元。",
+      "rejectionPreservesStateAndProfiles": true,
+      "validNamePreviewAndSave": true,
+      "replaySends": 3,
+      "scopedHealthReads": 0
+    },
+    {
+      "id": "settings-adjudication",
+      "locale": "vi",
+      "pass": true,
+      "failures": [],
+      "graphemes": 67,
+      "limit": 64,
+      "classification": "CLEARLY_NONURGENT",
+      "validationReply": "Tên không hợp lệ. Nhập 1–64 ký tự, không dùng ký tự điều khiển.",
+      "rejectionPreservesStateAndProfiles": true,
+      "validNamePreviewAndSave": true,
+      "replaySends": 3,
+      "scopedHealthReads": 0
+    }
+  ]
+}

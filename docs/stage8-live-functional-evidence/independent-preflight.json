@@ -1,0 +1,94 @@
+{
+  "type": "INDEPENDENT_READ_ONLY_FUNCTIONAL_INTEGRATION_PREFLIGHT",
+  "acceptedBaselineHead": "98a6f80d2304479b61e1b2ffe83d2fa4a889ad72",
+  "acceptedBaselineTree": "88788e45862127caff8bccf4268af4053895a723",
+  "successorPath": "/Users/kelvin/.codex/worktrees/stage8-live-final-functional/whoop-briefing",
+  "initialHead": "98a6f80d2304479b61e1b2ffe83d2fa4a889ad72",
+  "initialTree": "88788e45862127caff8bccf4268af4053895a723",
+  "initialClean": true,
+  "physicalIdentity": "16777229:77819746",
+  "stage6ObservedHead": "58e491b2bb4f2b654013adc199fd4707e13b7333",
+  "stage6PhysicalIdentity": "16777229:71452797",
+  "stage6AcceptedOrEdited": false,
+  "implementationAuthorization": "Current owner mission authorizes bounded additive functional integration; the absent implementation is work to implement, not by itself a missing owner policy decision.",
+  "syncHandoff": {
+    "existing": [
+      "src/phase4ExecutionStore.js:175 completionRecord derives keyed phase4-sync-handoff-v3 from immutable finalized SYNC identity/result/timestamps.",
+      "src/phase4ExecutionStore.js:362 requireSyncHandoff verifies actual finalized DB parent, exact running release/source/original mode/configuration, signed handoff and15min freshness/original age.",
+      "src/phase4Execution.js:198-215 finalizes original phase outside root work; finally:279 closes original budgets.",
+      "src/briefingEndpoint.js:26,63 and src/briefingTriggerAuth.js:1 bind authenticated HTTP method/path/body/requestID/timestamp and bounded body."
+    ],
+    "constraints": [
+      "Original phase requests and handoff are OFF/SHADOW-only; never inject executionMode LIVE into the old contract or flip SHADOW drainAuthorized as LIVE authority.",
+      "OFF-mode finalized SYNC can provide a source-prerequisite proof even though old drainAuthorized=false; LIVE authority must come independently from explicit admitted35 server capability/cohort policy. No beta/pilot permission needs to be fabricated.",
+      "Consume only a fresh finalized successful actual parent, never a supplied JSON response, WORK_COMMITTED/uncertain/resumable/cancelled/partial result.",
+      "Invoke separate LIVE execution after original runExecutionPhase scope/budgets settle, outside currentDurableExecution. Bind replay identity to parent+tenant and recheck release/config/READY/source/auth/lifecycle/purge before work and publication.",
+      "Parent SYNC is aggregate; request cannot select arbitrary subjects or claim per-user completion. Use explicit server eligible users and fresh per-tenant computation scope."
+    ],
+    "compatibilityEdges": [
+      "src/phase4ExecutionStore.js:125 readPhaseProgress rejects35.",
+      "src/publicBeta.js:130 existing SHADOW worker composer excludes35. These are compatibility guards if exercised; do not widen beta/pilot authority just to wire LIVE."
+    ],
+    "tests": [
+      "test/phase4-split-execution.test.js",
+      "test/phase4-sync-ownership.test.js",
+      "test/sync-scoped-worker-continuation.test.js",
+      "test/phase4-worker-transport.test.js"
+    ]
+  },
+  "weekly": {
+    "existing": [
+      "src/stage8OwnerMonitoring.js:106 typed-reads max3 current LIVE SUPPORTED insights, checks publication and emits observational nonCausal claims.",
+      "src/phase4Reanalysis.js:240-308 calculates two bounded association windows EVIDENCE_ONLY, then uses existing public lifecycle create/transition guards; two strong independent supports can promote SUPPORTED.",
+      "src/phase4ReanalysisInputs.js:112-147 selects two disjoint30-day windows and actual WHOOP/Journal roots with lag1.",
+      "test/stage5AssociationFixture.js:30-79 supplies alternating recovery/caffeine facts plus explicit unexposed coverage; adapt dates/user/mode while retaining genuine source math."
+    ],
+    "requirements": [
+      "Use real current canonical LIVE computation over sufficient synthetic source days. Do not insert SUPPORTED status, completion metadata, operation receipts or reader outputs to manufacture the positive test.",
+      "Preserve multiplicity, confidence, independent non-overlapping replication and missingness thresholds. Explicit unexposed coverage is necessary; missing Journal facts alone do not prove unexposed.",
+      "Use real current timestamps/health dates and source provenance. Synthetic fixtures may explicitly seed authorization/coverage but must not be mistaken for Production consent.",
+      "Test typed current insight+Owner authorize/propose/validate/settle, then changed generation/source/revoked follow/enrollment, expiry, tenant and replay rejection."
+    ],
+    "tests": [
+      "test/stage7-runtime-decision.test.js:74 positive replicated association",
+      "test/phase4-stage6-worker.test.js:187 legacy supported refresh",
+      "test/stage8-live-owner-subject.test.js existing negative policy coverage"
+    ],
+    "blocker": "No positive qualifying LIVE weekly fixture existed at baseline; no new architecture required. The old60-day target28 capacity failures remain separate and must not be marked fixed by a new35 positive fixture."
+  },
+  "authenticSubjectAlert": {
+    "existing": [
+      "src/stage8OwnerMonitoring.js:113 IMPORTANT requires same-tenant current LIVE EPISODE_NOTIFICATION in DELIVERED/AMBIGUOUS with original NOTIFY decision/event and typed episode.",
+      "src/stage7DecisionStore.js:16 is explicitly SHADOW-only; evaluate also reads SHADOW-only betaSummary (src/phase4Repositories.js:224-232). Simply removing guard is unsafe: LIVE gets no supported-association inventory and can alter ASK/NO/DEFER policy.",
+      "src/stage7DecisionStore.js:100-117 proposes deterministic localized notification through actual NOTIFY decision and episode-semantic reservation.",
+      "src/phase4MessageStore.js:20-78 verifies matching decision/event/family, reserves once and binds actual destination.",
+      "src/phase4TransportStore.js:35-57,70-143 enforces current completed computation, expiration, destination, READY, pause and explicit PHASE4 family cutover, original attempt lifecycle and consumed semantic reservation.",
+      "src/stage7Dispatcher.js:70-100 is a branded synthetic provider+isolated-memory Phase4 dispatcher; it cannot be promoted to a production provider by arbitrary transport injection.",
+      "src/stage8OwnerDispatcher.js:15-61 preserves separate Owner authorization, validated durable claims, destination/currentness and definite-versus-ambiguous delivery outcomes."
+    ],
+    "concreteMissing": [
+      "No authenticated LIVE subject EPISODE_NOTIFICATION decision/dispatch composition exists at baseline.",
+      "No generic production EPISODE_NOTIFICATION cutover creator exists. stage8MorningStore.js cutover is Morning-only; do not reuse it or force delivery mode flags automatically. New alert path can fail closed unless explicitly authorized PHASE4 family mode already exists."
+    ],
+    "constraints": [
+      "New LIVE composition must have explicit server producing/alert authority and fresh full publication/typed roots, retaining original metric/policy/association/question guards. Do not turn ASK into NOTIFY or skip supported-association evidence because betaSummary is empty for LIVE.",
+      "Only actual canonical concerning metric/event evidence may generate NOTIFY. No decision/action/delivery metadata seeding counts as genuine positive alert output.",
+      "Preserve SOURCE/private typed authority, self destination, family cutover, notified semantics, abnormal-volume/localization/narrative controls and pause/enrollment/auth/lifecycle/purge fences.",
+      "Use a closed branded isolated synthetic provider to exercise real propose\u2192eligible\u2192claim\u2192start\u2192provider\u2192settle. No real Telegram required or allowed. DELIVERED/AMBIGUOUS must come from real durable attempt outcome.",
+      "Only after authentic subject delivery may separately authorized Owner IMPORTANT copy be approved; subject computation never creates follows or broader Coach access.",
+      "Explicitly test cross-user isolation, revoked follow and subject authorization, pending purge, current certificate changes, duplicate event/request and crash-started ambiguous recovery without resend."
+    ],
+    "tests": [
+      "test/stage7-runtime-decision.test.js:39 genuine current metric reaches NOTIFY in SHADOW",
+      "test/stage7-delivery.test.js existing durable ambiguous/restart controls",
+      "test/stage8-live-owner-subject.test.js existing no-approved-alert case",
+      "test/stage8-provider.test.js and test/stage8-retry-scheduling.test.js existing Owner boundaries"
+    ]
+  },
+  "reviewStatus": "PREIMPLEMENTATION_SOURCE_ADVICE_ONLY; no new functional/security delta reviewed or accepted yet.",
+  "testsExecuted": false,
+  "productionMutations": false,
+  "repositoryEdits": false,
+  "stage6Edits": false,
+  "followup": "Review exact frozen integration delta and actual synthetic positive/negative/restart evidence, reuse unchanged53/0 accepted producer review, then issue separate component/Stage8/Production verdicts. NativeSIGSEGV and Stage6 full reconciliation remainOPEN."
+}

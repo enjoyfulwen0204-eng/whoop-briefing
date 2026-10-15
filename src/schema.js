@@ -522,7 +522,9 @@ export const lifecycleActiveSql = (userCol) => `EXISTS (
 // v20 remains the frozen legacy installation boundary. Post-v20 versions are
 // installed and verified separately; never flatten them into one version write.
 export const LEGACY_SCHEMA_VERSION = 20;
-export const SCHEMA_VERSION = 32;
+export const SCHEMA_VERSION = 34;
+/** Opt-in successor; ordinary migrations remain pinned to the accepted v34. */
+export const LATEST_SCHEMA_VERSION = 35;
 export { PHASE4_MIGRATIONS } from './phase4Schema.js';
 
 export const VERSION_SCHEMA = [

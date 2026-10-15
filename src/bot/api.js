@@ -1,6 +1,6 @@
 import {transportAuthority} from '../transportAuthority.js';
 import {abortableResponse,boundedBody} from '../executionBudget.js';
-import {validImmediateMessage,validApiSuccess} from '../telegramAcknowledgment.js';
+import {validImmediateMessage,validApiSuccess,validMessageId} from '../telegramAcknowledgment.js';
 /**
  * Telegram Bot API client（long polling 用）。
  *
@@ -169,8 +169,11 @@ export function createTelegramApi({
     sendMessage: async (chatId, reply) => {
       const text=typeof reply==='string'?reply:reply?.text;
       if(typeof text!=='string'||!text)throw new TelegramApiError('TELEGRAM_REPLY_INVALID',{sendOutcome:SEND_OUTCOME.DEFINITE_FAILURE,sendStage:'preflight'});
-      const result = await call('sendMessage', {
+      const editId=typeof reply==='object'?reply.editMessageId:null;
+      if(editId!==null&&editId!==undefined&&!validMessageId(Number(editId)))throw new TelegramApiError('TELEGRAM_EDIT_ID_INVALID',{sendOutcome:SEND_OUTCOME.DEFINITE_FAILURE,sendStage:'preflight'});
+      const result = await call(editId?'editMessageText':'sendMessage', {
         chat_id: chatId,
+        ...(editId?{message_id:Number(editId)}:{}),
         text,
         disable_web_page_preview: true,
         ...(typeof reply==='object'&&reply.replyMarkup?{reply_markup:reply.replyMarkup}:{}),

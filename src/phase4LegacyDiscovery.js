@@ -1,10 +1,11 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import { fail, readableRow } from './phase4Core.js';
 import { INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { canonicalInstant } from './phase4Time.js';
 import { canonicalSourceVersion } from './phase4SourceVersion.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import {metricPreparationContinuation,metricUnitReceipt,metricRunReceipt} from './phase4MetricUnitReceipt.js';
 
 export const LEGACY_DISCOVERY_BUDGET=Object.freeze({runs:500,authorities:1000,deadlineMs:5000});
@@ -18,6 +19,7 @@ const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
  * never the completeness boundary. Missing old operation facts are unavailable,
  * never filled in from the new request or rewritten as new receipts. */
 export function createLegacyDiscovery(core) {
+  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
   const authority=createResultAuthority(core);
   return async function discover(context,kind,request) {
     if(!['analyzeMetric','analyzeAssociationFamily'].includes(kind))return;

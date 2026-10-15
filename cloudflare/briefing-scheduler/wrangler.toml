@@ -3,7 +3,7 @@ main = "worker.js"
 compatibility_date = "2026-09-01"
 
 [triggers]
-crons = [] # Enable morning cron only after coordinated RC3 validation.
+crons = ["*/10 0-3 * * *", "10 4-23 * * *"] # Apply only after compatible readiness code/proof is verified.
 
 [vars]
 # Reviewed values must match the admitted server configuration before activation.

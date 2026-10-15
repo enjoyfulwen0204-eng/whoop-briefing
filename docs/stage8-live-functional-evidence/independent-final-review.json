@@ -1,0 +1,206 @@
+{
+  "type": "INDEPENDENT_FINAL_FUNCTIONAL_LIVE_DELTA_REVIEW",
+  "reviewedAtUtc": "2026-10-15T15:21:08.266444+00:00",
+  "role": "READ_ONLY_INDEPENDENT_REVIEWER",
+  "acceptedBaseline": "98a6f80d2304479b61e1b2ffe83d2fa4a889ad72",
+  "reviewedRuntimeHead": "0a1dd0e4844522aa438a09902da2eada70d57739",
+  "reviewedRuntimeTree": "3749ce817bb3b574e5f6b6459c78e2bf815e37a2",
+  "initialFrozenHead": "a6fcfa121dae31d734a0094020d97a6c670ef167",
+  "initialFrozenTree": "26f2db915f8716874088da231a2386d4462f8109",
+  "implementationWorktree": "/Users/kelvin/.codex/worktrees/stage8-live-final-functional/whoop-briefing",
+  "reviewClone": "/private/tmp/stage8-live-final-functional/final-review-successor",
+  "verdicts": {
+    "inspectedP0P2SourceAuthoritySecurityPrivacyDelta": "GO",
+    "independentDeltaReviewReadiness": "GO",
+    "completeFinalFunctionalAcceptance": "NO_GO",
+    "wholeStage8": "NO_GO",
+    "production": "NO_GO"
+  },
+  "scope": "GO is limited to the new authenticated first-leg/callable-resume and genuine subject-alert/IMPORTANT source integration. Qualifying positive WEEKLY computation is unverified and blocks complete functional acceptance. This is no entire-project or Production acceptance.",
+  "findings": [
+    {
+      "id": "ALERT_EXECUTION_NOT_ORIGINALLY_BOUND",
+      "priority": "HIGH",
+      "status": "CLOSED",
+      "evidence": "src/stage8SubjectAlerts.js:55,83; src/stage8SubjectAlertManifest.js:23-32",
+      "resolution": "Source registers before side effects and signs exact final manifest; original execution, named ACK, producer tenant proof and snapshot digest are independently verified."
+    },
+    {
+      "id": "KNOWN_PRE_SEND_FAILURE_IS_AMBIGUOUS",
+      "priority": "HIGH",
+      "status": "CLOSED",
+      "evidence": "src/stage8SubjectAlerts.js:20-27,73-80",
+      "resolution": "Known pre-IO failures tagged definite; actual unknown acceptance remains AMBIGUOUS. Existing source recovery fixture passes both before-IO suppression and settlement uncertainty."
+    },
+    {
+      "id": "SOURCE_STARTED_ATTEMPT_RECOVERY_MISSING",
+      "priority": "HIGH",
+      "status": "CLOSED",
+      "evidence": "src/stage8SubjectAlerts.js:55-58; test/stage8-live-alert-recovery.test.js",
+      "resolution": "Canonical recover settles durable started attempt after real deadline without resend; source registered before failure and new computation generation required."
+    },
+    {
+      "id": "OPTIONAL_POST_SYNC_COMPOSITION_MASKS_FINAL_SUCCESS",
+      "priority": "HIGH",
+      "status": "CLOSED",
+      "evidence": "src/phase4Execution.js:45-56; src/index.js:644",
+      "resolution": "Whole optional composition fenced/logged; exact finalized ordinary SYNC response returned; actual recorder cohort restricted."
+    },
+    {
+      "id": "PROVIDER_ADMISSION_RENEWAL",
+      "priority": "MEDIUM",
+      "status": "CLOSED",
+      "evidence": "src/stage8SubjectAlerts.js:18; reviewer final probe",
+      "resolution": "Exact db/key/transaction renewal follows replacement lifetime; old admission rejected and genuine server-owned adapter sends via stub after renewed admission."
+    },
+    {
+      "id": "PROGRESS_SIGNATURE_CONTEXT_BINDING",
+      "priority": "MEDIUM",
+      "status": "CLOSED",
+      "evidence": "src/stage8PostSync.js:52,62,66",
+      "resolution": "Signed progress includes parent/tenant/scope-derived progressKey; durable bounded ordinal and request identity retained."
+    },
+    {
+      "id": "SOURCE_MANIFEST_PRETRANSFER_BOUNDS",
+      "priority": "MEDIUM",
+      "status": "CLOSED",
+      "evidence": "src/stage8SubjectAlertManifest.js:10-19",
+      "resolution": "Preflight row/escaped-byte bounds then ten-row pages; attempts scoped by same-tenant parent message generation. Max10decisions/10messages/30attempts/4MiB per table."
+    },
+    {
+      "id": "LAZY_DEFAULT_PREFERENCES",
+      "priority": "MEDIUM",
+      "status": "CLOSED",
+      "evidence": "src/stage8PostSync.js:13-15",
+      "resolution": "Approved lazy default uses LEFT JOIN+COALESCE0, with all READY/auth/source/enrollment fences retained."
+    },
+    {
+      "id": "SUBJECT_PROACTIVE_DISABLED_IGNORED",
+      "priority": "HIGH",
+      "status": "CLOSED",
+      "evidence": "src/stage8SubjectAlerts.js:53; independent-boundary-probes-a6fc.tap; independent-disabled-boundary-0a1dd0e-gc.tap",
+      "resolution": "Independently reproduced a6fc1provider call with public proactive disable; successor reaches CURRENT with0provider calls and nooutbound rows. Guard also reused immediately before actual IO."
+    }
+  ],
+  "newOpenSecurityFindings": [],
+  "testResults": {
+    "distinctCompletedPass": 57,
+    "distinctCompletedFail": 0,
+    "repositoryChecks": {
+      "head": "a6fcfa121dae31d734a0094020d97a6c670ef167",
+      "pass": 53,
+      "fail": 0,
+      "exitCode": 0,
+      "elapsedMs": 1198016.599667,
+      "coverage": [
+        "actual canonical per-subject SYNC recording1",
+        "post-sync authorization/replay/partial/stale/enrollment/auth/purge/preferences and optional v34 response16",
+        "genuineDELIVERED/AMBIGUOUS source to separately authorized IMPORTANT14",
+        "source pre-send and post-send settlement recovery2",
+        "genuine typed LIVE pipeline/currentness/privacy9",
+        "legitimate typed empty/nonqualifying/defaultoff10",
+        "Stage7 unchanged guarded decision1"
+      ]
+    },
+    "newIndependentChecks": {
+      "head": "0a1dd0e4844522aa438a09902da2eada70d57739",
+      "pass": 4,
+      "fail": 0,
+      "cleanExitCodes": [
+        0,
+        0
+      ],
+      "coverage": [
+        "Public proactive disable blocks subject output while preserving CURRENT metric analysis",
+        "Actual server provider with stub fetch follows replaced runtime lifetime; exact destination and no SQL transaction during IO",
+        "Tampered exact original named source ACK is rejected by fresh typed reader; rollback restores CURRENT",
+        "Canonical Journal deletion fences producer/read/Owner, physically scrubs dependent decision/message/Owner health fields, leaves peer purge untouched"
+      ]
+    },
+    "reuseRationale": "53 repository definitions ran at a6fc. The only runtime delta to0a1dd0e is the proactive guard, freshly inspected and independently exercised at0a1dd0e; no unchanged suite result represented as a final-source rerun. Prior accepted98a6 review53/0 reused without inflating new57 count.",
+    "testCountEvidence": "/private/tmp/stage8-live-final-functional/independent-final-test-counts.json"
+  },
+  "retainedFailuresAndLimits": [
+    {
+      "artifact": "independent-boundary-probes-a6fc.tap",
+      "disposition": "0PASS/2FAIL before repair: one real proactive permission defect, one reviewer fixture mistake (old admission expected revoked without lifetime replacement). Original source+failure retained. Corrected setup explicitly replaces lifetime before renewal; expectations unchanged."
+    },
+    {
+      "artifact": "independent-final-tests.tap",
+      "disposition": "Initial CLI used wrong cwd; no definitions executed. Corrected CLI produced53/0; setup failure retained."
+    },
+    {
+      "artifact": "independent-server-boundary-a6fc.tap",
+      "disposition": "2nestedPASS, then bounded only-own-session interruption without parent/footer. Not credited as clean success."
+    },
+    {
+      "artifact": "independent-boundary-probes-0a1dd0e.tap",
+      "disposition": "3PASS body assertions, then bounded only-own-session interruption without final parent/footer. Not credited as clean success."
+    },
+    {
+      "artifact": "independent-privacy-isolation-0a1dd0e-gc.tap",
+      "disposition": "Separately named diagnostic omitted only raw-schema-corruption test to isolate cleanup; stopped as redundant after full original GC probe completed3/0. Never credited or substituted for original negative test."
+    },
+    {
+      "artifact": "independent-server-boundary-0a1dd0e-gc.tap",
+      "disposition": "Full original corrected server/ACK/privacy expectations completed3/0/exit0; duration472015.2ms includes slow completion. Does not establish root cause or repair of earlier cleanup delay/native stability."
+    }
+  ],
+  "sourceSecurityAssessment": {
+    "authority": "Separate private LIVE execution and producer capability; genuine canonical jobs finalized with original ACKs before source execution; no SHADOW flags promoted. Source binds before decision/start/IO/settle and aggregate publication follows exact signed source finalization.",
+    "tenant": "Cohort/private capability/context/source-generation plus same-user joins; real destination binding checked before server IO. Owner has separate explicit follow/class/enrollment/provider/destination capability. Synthetic peer purge remains0.",
+    "privacy": "Existing canonical graph links facts/evidence to LIVE source decisions and outbound payload; canonical purge test physically NULLs v24/v34 health columns and fences Owner copies. Publications/source execution result persist only keyed opaque metadata. v35/privacy authority code unchanged.",
+    "replayAndRecovery": "Original named SYNC receipt, handoff mode/config/release, keyed subject snapshot, signed context-bound progress and deterministic request IDs; source has canonical START-before-IO and no-resend AMBIGUOUS recovery after actual original expiry.",
+    "reportedCrashLimit": "New source recovery test injects post-send settlement failure and creates new producer within same Node process; not an OS process-kill test. Prior accepted baseline real child-process/lostCOMMITACK evidence is reused only for its unchanged kernel path.",
+    "allocation": "v33/v34/v35 source files byte-identical to accepted baseline; no new migration. Only owned synthetic memory fixtures migrated during review."
+  },
+  "operationalQualifications": [
+    "Canonical stage8Configuration enforces exactly one configured owner cohort. Private producer factory can support separately authorized subjects but this does not establish automatic multi-user Production activation or consent.",
+    "Canonical wrapper starts one bounded first LIVE leg and discards continuation result. Durable afterSync resume works without another full SYNC; no automatic continuation scheduler/queue was introduced. Intentional bounded interface, not an additional code defect for that contract.",
+    "Per-execution45000ms source fences are not a hard45000ms total afterSync wall budget. Canonical computation, separate subject execution, bounded publication and originalSYNC timing must be capacity-qualified together.",
+    "Original default-off controls and both existing recovery profiles preserved. No family cutover, consent, follow or delivery is fabricated by runtime.",
+    "Reviewer initially mentioned100canonical subjects but source recheck showed enabled canonical cohort exactly1;100 applies only private factory. Correction retained; no finding based on incorrect100-leg assumption."
+  ],
+  "remainingBlockers": [
+    {
+      "id": "QUALIFYING_WEEKLY_CAPACITY",
+      "status": "OPEN",
+      "mechanism": "Actual60day LIVE association fixture reached3zero-progress unchanged-budget legs(30923.903ms,38386.587ms,40046.947ms), then explicitly interrupted. No genuine typed current SUPPORTED qualifying WEEKLY positive has completed. Positive expectation and failure evidence remain intact; no direct insight insertion or relaxed math/window/budget accepted."
+    },
+    {
+      "id": "STAGE6_RECONCILIATION",
+      "status": "OPEN",
+      "observedHead": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+      "observedTree": "ef2a9d7a8bd653c3924eca94c805b8d2f31975e6",
+      "mechanism": "Stage6 separate clean worktree inspected read-only, not independently accepted/imported. Six shared canonical files remain unchanged from98a6; reconcile raw-source continuation/receiver lifetime with LIVE namespace/private authority/original ACKs only after exact Stage6 runtime acceptance. Include transitive receiverScopeLifetime."
+    },
+    {
+      "id": "NATIVE_STABILITY_AND_RESOURCE_CAPACITY",
+      "status": "OPEN",
+      "mechanism": "Known nativeSIGSEGV remains separate. This review53/0 and GC4/0 do not fix it. Preserve prior failing/interrupted invocations and current slow/incomplete no-GC probe completions. RSS highwater observed >2GiB under concurrent local tests; no matched benchmark attributing a new delta regression."
+    },
+    {
+      "id": "DIRECT_PRODUCTION_INTEGRATION",
+      "status": "OPEN",
+      "mechanism": "No Production schema/flags/cutover/multi-user composition/delivery exercised. After functional/Stage6/stability requirements pass, obtain explicit direct ordered migration/deployment/LIVE activation approval; no added Owner pilot or Public Beta rollout stage."
+    }
+  ],
+  "performanceEvidence": "/private/tmp/stage8-live-final-functional/independent-final-performance.json",
+  "exactSourceEvidence": "/private/tmp/stage8-live-final-functional/independent-final-integrity.json",
+  "reviewerProbeSources": {
+    "independent-boundary-probes.initial-test.txt": {
+      "path": "/private/tmp/stage8-live-final-functional/independent-boundary-probes.initial-test.txt",
+      "sha256": "4bf52f95bd2d309bfadd1b8f50064bf9ac33cac50d79a8e8386ad1b849b9295d"
+    },
+    "independent-boundary-probes.final-test.txt": {
+      "path": "/private/tmp/stage8-live-final-functional/independent-boundary-probes.final-test.txt",
+      "sha256": "c54ed11876641d45d99c553d66aad7d75a50e933c6fa2b4ad4740ec902408a10"
+    },
+    "independent-boundary-privacy-isolation.final-test.txt": {
+      "path": "/private/tmp/stage8-live-final-functional/independent-boundary-privacy-isolation.final-test.txt",
+      "sha256": "c34834f5e351e0fced4b0d01074139db32079329ed4935084ec8d350df70cce3"
+    }
+  },
+  "nextReviewerAction": "Bind any later docs-only final HEAD/tree to0a1dd0e runtime hashes; reuse this57/0 bounded source/security review and unchanged98a6 component reviews. Keep complete functional/Stage8/ProductionNO-GO. Independently accept exact Stage6 runtime, reconcile six shared files+receiverScopeLifetime while preserving LIVE physical/private boundaries, rerun actual qualifying WEEKLY source plus restart/empty-family/capacity/stability suites, then review direct deployment/activation. Do not rerun accepted Triage architecture.",
+  "reviewerMutations": "Only immutable detached private/tmp review clones, test-only synthetic fixtures/probes, temporary dependency symlinks and reports. Implementation/Stage6 source, credentials, Production and actual Telegram untouched. No push/merge/deploy/paid execution."
+}

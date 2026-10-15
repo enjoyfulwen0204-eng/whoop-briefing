@@ -1,0 +1,13 @@
+import {fileURLToPath} from 'node:url';
+import test from 'node:test';import assert from 'node:assert/strict';
+const root=fileURLToPath(new URL('../..',import.meta.url));
+const {stage8Fixture}=await import(root+'/test/stage8Fixture.js');const {createStage7Runtime}=await import(root+'/src/stage7Runtime.js');const {createUpdateProcessor}=await import(root+'/src/bot/updateProcessor.js');const {createSettings}=await import(root+'/src/bot/settings.js');const {createRouter}=await import(root+'/src/bot/router.js');const {urgentReply}=await import(root+'/src/bot/triage.js');
+for(const locale of ['zh-TW','en','vi'])test('active Coach urgent precedence and normal continuation '+locale,async t=>{
+ const f=await stage8Fixture(t);await f.db.setLocale('a',locale);await f.app.identity.recordTelegram({...f.input,message:{chat:{id:123,type:'private'},from:{id:123,is_bot:false,first_name:'Synthetic'}}});
+ const app=await createStage7Runtime({...f,environment:{STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'a',PHASE4_BETA_PILOT_USER_ID:'a'},now:f.now});await app.coach.handle({...f.input,text:'/coach'});const state=JSON.stringify((await f.db.raw.execute("SELECT * FROM quick_action_interactions WHERE user_id='a' AND kind='COACH'")).rows);
+ const settings=createSettings({db:f.db,stage8:f.app,now:f.now}),router=createRouter({db:f.db,stage8:f.app,now:f.now,coachFor(){throw Error('MODEL_FORBIDDEN');}});let sent;
+ const processor=createUpdateProcessor({db:f.db,now:f.now,resolveUser:id=>f.db.resolveUserByChatId(id),authenticatedIdentity:f.app.captureIdentity,stage7Inbound:app.stage7Inbound,stage7Reply:app.stage7Reply,handleMessage:async input=>(await settings(input))??router.handle(input),sendReply:input=>app.sendReply(async inp=>{sent=inp.reply;return {sent:true,messageId:84};},input)});
+ const text={'zh-TW':'我現在胸痛並且呼吸困難，今天HRV多少？',en:'I have chest pain and cannot breathe. HRV hôm nay?',vi:'Tôi đang khó thở. What is my HRV?'}[locale];const update=(id,text)=>({update_id:id,message:{text,message_id:id,chat:{id:123,type:'private'},from:{id:123,is_bot:false,first_name:'Synthetic'}}});
+ assert.equal((await processor.processUpdate(update(95501,text))).outcome,'processed');assert.equal(sent.text,urgentReply(locale));assert.equal(JSON.stringify((await f.db.raw.execute("SELECT * FROM quick_action_interactions WHERE user_id='a' AND kind='COACH'")).rows),state);assert.equal((await f.db.raw.execute('SELECT count(*) n FROM stage8_scoped_read_audit')).rows[0].n,0);
+ assert.equal((await processor.processUpdate(update(95502,'/coach'))).outcome,'processed');assert.ok(sent.replyMarkup.inline_keyboard.flat().length>0);console.log('COACH_BOUNDARY_PASS',locale);
+});

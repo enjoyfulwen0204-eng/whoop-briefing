@@ -1,0 +1,28 @@
+{
+  "classificationExpectationChanged": false,
+  "baselineExpectationChangesStillOnly20": true,
+  "sourceSha256": "6f0389a100106209f29068129ab51eb8a3fcdee3ca4cfb6997cdc81def95e241",
+  "failure": {
+    "id": "new-reported-generic-education",
+    "locale": "en",
+    "lane": "name",
+    "reviewed": false,
+    "text": "My friend Ana says \"People with chest pain generally need assessment\".",
+    "expected": "CLEARLY_NONURGENT",
+    "classification": "CLEARLY_NONURGENT",
+    "pass": false,
+    "failures": [
+      "NAME_FLOW_BLOCKED"
+    ],
+    "scopeReads": 0,
+    "reply": "Invalid name. Enter 1–64 characters without control characters.",
+    "statePreserved": true,
+    "peerPreserved": true,
+    "observed": {
+      "sends": 1,
+      "consumers": 2,
+      "captures": 1
+    }
+  },
+  "disposition": "New author harness incorrectly assumed all CLEAR messages fit Settings name limit. Verify unchanged 64-grapheme/256-byte rejection, unchanged state and valid continuation; retain original failure. No Settings runtime or existing frozen assertion changed."
+}

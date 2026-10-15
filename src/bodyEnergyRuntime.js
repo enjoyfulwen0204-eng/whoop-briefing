@@ -1,6 +1,7 @@
+import {BODY_ENERGY_PROVISIONAL_POLICY} from './bodyEnergyProvisionalPolicy.js';
 import {createPhase4Foundation} from './phase4Foundation.js';
 import {requireUserId} from './userContext.js';
-import {authorizeBodyEnergyPublication} from './bodyEnergyQualificationAuthority.js';
+import {authorizeBodyEnergyPublication,authorizeBodyEnergyOwnerProvisional} from './bodyEnergyQualificationAuthority.js';
 import {createBodyEnergyIntegration} from './bodyEnergyIntegration.js';
 import {createBodyEnergyAlertDelivery} from './bodyEnergyAlertDelivery.js';
 export function bodyEnergyConfiguration(environment={}){
@@ -20,8 +21,16 @@ export function bodyEnergyConfiguration(environment={}){
 export async function createBodyEnergyRuntime({db,keys,admission,environment={},env,now=()=>new Date()}={}){
   const config=bodyEnergyConfiguration(environment);
   const stores=await createPhase4Foundation({db,keys,admission:admission??await db.admitRuntime()});
-  const publicationCapability=config.publication==='on'?authorizeBodyEnergyPublication({db,userIds:config.userIds,
-    notificationUserIds:config.alerts==='on'?config.notificationUserIds:[],qualificationId:config.qualificationId}):null;
+  let publicationCapability=null;
+  if(config.publication==='on'){
+    if(config.qualificationId===BODY_ENERGY_PROVISIONAL_POLICY.version){
+      const owner=environment.PHASE4_BETA_PILOT_USER_ID;
+      if(environment.PHASE4_PUBLIC_BETA_MODE!=='allowlist'||environment.PHASE4_PUBLIC_BETA_USER_IDS!==owner
+        ||config.alerts!=='off'||config.notificationUserIds.length)throw Error('BODY_ENERGY_PROVISIONAL_OWNER_ONLY');
+      publicationCapability=authorizeBodyEnergyOwnerProvisional({db,userIds:config.userIds,ownerUserId:owner,qualificationId:config.qualificationId});
+    }else publicationCapability=authorizeBodyEnergyPublication({db,userIds:config.userIds,
+      notificationUserIds:config.alerts==='on'?config.notificationUserIds:[],qualificationId:config.qualificationId});
+  }
   const bodyEnergy=createBodyEnergyIntegration({db,stores,keys,publicationCapability,environment,now});
   const bodyEnergyAlerts=publicationCapability&&config.alerts==='on'
     ?createBodyEnergyAlertDelivery({db,stores,keys,publicationCapability,env,now}):null;

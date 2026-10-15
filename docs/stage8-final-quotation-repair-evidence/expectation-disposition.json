@@ -1,0 +1,55 @@
+{
+  "source": "/private/tmp/stage8-quotation-independent-adjudication/review.json",
+  "originalSha256": "729c9ce99c92eb1e73553ca77255831db6cecdaa8bd0492e5a1437fb8ab72226",
+  "changes": [
+    {
+      "original": {
+        "id": "other-unrelated",
+        "locale": "en",
+        "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+        "expected": "CLEARLY_NONURGENT"
+      },
+      "adjudicatedExpected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "original": {
+        "id": "other-unrelated-nfd",
+        "locale": "en",
+        "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "nfd"
+      },
+      "adjudicatedExpected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "original": {
+        "id": "other-unrelated-space",
+        "locale": "en",
+        "text": "  My friend Ana said \"chest pain\". I am feeling relaxed now.  ",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "space"
+      },
+      "adjudicatedExpected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "original": {
+        "id": "other-unrelated-quote-style",
+        "locale": "en",
+        "text": "My friend Ana said “chest pain”. I am feeling relaxed now.",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "quote-style"
+      },
+      "adjudicatedExpected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "original": {
+        "id": "other-unrelated-metric",
+        "locale": "en",
+        "text": "My friend Ana said \"chest pain\". I am feeling relaxed now. What is my HRV today?",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "metric"
+      },
+      "adjudicatedExpected": "POSSIBLE_CURRENT_URGENT"
+    }
+  ]
+}

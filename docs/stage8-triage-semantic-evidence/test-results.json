@@ -1,0 +1,711 @@
+{
+  "baseline": "5a6e0a5764a75ec303acfaf52f356694f717b750",
+  "runtimeSourceCommit": "e59e38353343cf229a2597f5d9dd793b876f3476",
+  "runtimeSourceTree": "3f6d5522b548674beb08d7c97905f51b3db475b3",
+  "nodeVersion": "v22.23.2",
+  "originalAdversarialCases": 21,
+  "additionalClosureCases": 11,
+  "newIndependentCases": 17,
+  "directScopeCases": 125,
+  "additionalSharedProcessorCases": 6,
+  "finalTotal": {
+    "tests": 560,
+    "pass": 560,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "findings": {
+    "currentUrgencyEducationalExclusion": "CLOSED_IMPLEMENTER_VERIFICATION",
+    "negatedResolvedFalsePositives": "CLOSED_IMPLEMENTER_VERIFICATION",
+    "globalIngress": "VERIFIED_UNCHANGED_COMPOSITION",
+    "morningStaleEligibleClosure": "INDEPENDENTLY_CLOSED_PRESERVED_BYTE_IDENTICAL"
+  },
+  "codeAcceptanceReadiness": "GO_FOR_INDEPENDENT_REVIEW",
+  "independentAcceptance": "PENDING",
+  "wholeStage8FinalReview": "NO_GO",
+  "production": "NO_GO",
+  "stage6": "SEPARATE_BLOCKED_DEPENDENCY",
+  "liveProducer": "SEPARATE_BLOCKED_DEPENDENCY",
+  "nativeCrash": {
+    "trackingId": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "status": "OPEN",
+    "resolved": false,
+    "rootCause": "UNASSIGNED"
+  },
+  "productionOperations": 0,
+  "realTelegramMessages": 0,
+  "credentialAccessOrChanges": false,
+  "F02": "Owner Accepted Risk",
+  "runs": [
+    {
+      "log": "baseline32.tap.gz",
+      "classification": "BASELINE_REPRODUCTION",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "e45cd2293f1038ee0edfda338e267384b82d762e6e5ed4653e3c7a24f1177398",
+      "uncompressedSha256": "83831499d442970019189aea20accfe4ff327cdfabfd2d6e145c54d45bb5f68b",
+      "failures": []
+    },
+    {
+      "log": "baseline17.tap.gz",
+      "classification": "BASELINE_REPRODUCTION",
+      "counts": {
+        "tests": 17,
+        "pass": 5,
+        "fail": 12,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "865ea9f096ae0029e8e8b31a4f5a747477821ef2045545b355d6a31b7a758e34",
+      "uncompressedSha256": "74d7f2145e6c8663a291986a04a69b9262272d9c50f9b003f949b8dcc34eb4c6",
+      "failures": [
+        "context What causes my current chest pain and difficulty breathing? What is my HRV?",
+        "context T\u00f4i mu\u1ed1n t\u00ecm hi\u1ec3u HRV v\u00ec t\u00f4i kh\u00f4ng th\u1edf \u0111\u01b0\u1ee3c.",
+        "context \u6211\u60f3\u77e5\u9053\u6211\u76ee\u524d\u80f8\u75db\u4e14\u547c\u5438\u56f0\u96e3\u7684\u539f\u56e0\uff0c\u4eca\u5929\u6211\u7684 HRV \u591a\u5c11\uff1f",
+        "context What does this chest pain mean? I am experiencing it now.",
+        "context I am not having chest pain or difficulty breathing. What is my HRV?",
+        "context T\u00f4i \u0111\u00e3 h\u1ebft \u0111au ng\u1ef1c. HRV h\u00f4m nay?",
+        "context No longer having chest pain.",
+        "real shared ingress health en",
+        "real shared ingress health vi",
+        "real shared ingress health zh-TW",
+        "real shared ingress name en",
+        "real shared ingress note en"
+      ]
+    },
+    {
+      "log": "scope-initial.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 80,
+        "pass": 75,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "0b9942db48bd78469f2094db95131997f36f63ad58513383c1d5b8105d599a3b",
+      "uncompressedSha256": "f0a150cbcc94f78d7830e50406f3e4948488c39f38a1dc931018c17721677169",
+      "failures": [
+        "resolved \u2014 T\u00f4i b\u1ecb \u0111au ng\u1ef1c h\u00f4m qua nh\u01b0ng hi\u1ec7n t\u1ea1i t\u00f4i \u1ed5n.",
+        "historical \u2014 T\u00f4i b\u1ecb \u0111au ng\u1ef1c h\u00f4m qua.",
+        "educational \u2014 I want to learn about chest pain right now.",
+        "quoted \u2014 \u300c\u5598\u4e0d\u904e\u6c23\u300d\u662f\u4ec0\u9ebc\u610f\u601d\uff1f",
+        "ambiguous \u2014 \u5598\u4e0d\u904e\u6c23"
+      ]
+    },
+    {
+      "log": "pure-initial.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 3,
+        "pass": 1,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "13a3fc008ce2ae9db1722374ecc3c0036d04a6d41bf2266d28fe5198e0ba0b08",
+      "uncompressedSha256": "db2f9e0e17404dfa9890da7f1ae1f5b08be3c3c134afdba6b96a2e02fa254a6a",
+      "failures": [
+        "\u2605\u2605\u2605 D1: \u771f\u6b63\u7684\u7dca\u6025\u4e00\u500b\u90fd\u4e0d\u80fd\u6f0f\uff08\u542b\u7b2c\u4e09\u4eba\u7a31\u8f49\u8ff0\uff09",
+        "native, mixed and repeated symptom mentions retain clause-specific currentness"
+      ]
+    },
+    {
+      "log": "scope-recheck.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 80,
+        "pass": 80,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "cee9c07dc05eadce078d61766af878c6ab629ea847af48bc0e2497a98cc9904e",
+      "uncompressedSha256": "901aaeac72d4f3beed195b6537d173e19463c060f560ef2c9a15321282415aa9",
+      "failures": []
+    },
+    {
+      "log": "pure-recheck.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "7495eb64846549b2d0a22e88a97861cf8ebf244a3c1b945615c16bba8f7e8987",
+      "uncompressedSha256": "d84b350ed91e0bbd4ffcf5e99f0c1b34ddf526e307c62e4eb189ef78ff154677",
+      "failures": []
+    },
+    {
+      "log": "scope-boundaries.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 80,
+        "pass": 79,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "748ae84918ea53b0ebd157145bc6b1604a5f94ed01dfb461091da48323337f43",
+      "uncompressedSha256": "8f011a3d6c68cc386d4baef9ce6e7f57b32714bcb628ad81582eba86308ac335",
+      "failures": [
+        "educational \u2014 T\u00f4i c\u00f3 th\u1ec3 h\u1ecfi \u0111au ng\u1ef1c l\u00e0 g\u00ec?"
+      ]
+    },
+    {
+      "log": "scope-expanded.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 96,
+        "pass": 96,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "ecc1bc685bfc1463a0a8c2d261a1539cbfabcf931a3e82c330193ed0c12f4f21",
+      "uncompressedSha256": "8ff04519684748e59de3a638e52dbbf58e2e6ae40267d670c8a17519be2dbb81",
+      "failures": []
+    },
+    {
+      "log": "scope-final.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 107,
+        "pass": 107,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "9696f92ba91da5c0a6faaee3350b71111c850fd98c32cd2d07e82a45f63a0857",
+      "uncompressedSha256": "cbe587f6bf0197734cadbb2fb63cb314fa5c43280352323be8175c2eb4c1f30f",
+      "failures": []
+    },
+    {
+      "log": "scope-frozen.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 109,
+        "pass": 109,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "3b38ae0be768a04d2e7d7917d592e0a607054d870f17d6fefa4f767b7195734a",
+      "uncompressedSha256": "b637ce58f1db10f14da1a9d6752ada06fb7f5d84614840b6deaa16810d6b2558",
+      "failures": []
+    },
+    {
+      "log": "scope-final-source.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 111,
+        "pass": 111,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "b80ef6a6143af846e10ccd87e7c95e4b6f579f6a473455209fb4cf8b915543b4",
+      "uncompressedSha256": "f1c99fcc5629f6d3ac072c097ac2c8ff0f339fdc7a68f03055b870c5e8249938",
+      "failures": []
+    },
+    {
+      "log": "focused32.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "a825f5a37813cf541552172333d5e6a4419bcfcd427423d1a6d1bbfb6ded2da2",
+      "uncompressedSha256": "21ce1512acdc72bb1a83bb9dbef2130627c2ef26acfc5e78d9f9c0ddc816d0fa",
+      "failures": []
+    },
+    {
+      "log": "focused17.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "39ca5b2a0c4ac08520404044f4ec2e7f934bcd0101bcb3e39362f41e9dc452e5",
+      "uncompressedSha256": "f98575e289c324101ff234cc77c63610e94668c6228b0dfb1cdf43dcbb68e009",
+      "failures": []
+    },
+    {
+      "log": "focused-ingress6.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "d646d384ab3e570b7952359b4372e0925fccc085fe605f65e6a2c1cf42205e70",
+      "uncompressedSha256": "95a8f245028b7d7d9a89fa9fded07c5f51028fa6ea1dda2b60d812bd55e6ed06",
+      "failures": []
+    },
+    {
+      "log": "frozen32.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "010c488b2c72f668a412c94ebdab46549f443fff92b2529455264eac47aae2ce",
+      "uncompressedSha256": "c998bc6059606fef78dab309095f1be6025267acca0c6da1ddf6dc1a979c97c3",
+      "failures": []
+    },
+    {
+      "log": "frozen134.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 134,
+        "pass": 134,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "eda10a342b901e1416b0daa8153427ed8f5f5835a52ad5a29996acc00528c67c",
+      "uncompressedSha256": "c42f0b77cf17f5d94bc2b9c3a38377318856d1c1c9ba4a012032fccb3d1fbfcf",
+      "failures": []
+    },
+    {
+      "log": "frozen164.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "3f528a2ec0d1723a2b075c3232a513a3839365fab54325dd83f5d8605e31dc0b",
+      "uncompressedSha256": "2df4bc346d467e136079d48c60c22d87dd4299ad4c181bb2b3c744c58565a576",
+      "failures": []
+    },
+    {
+      "log": "frozen16.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "b1b865391ddc179fab44925899b04904d65adf2045a1006bf62c491e87ec88f2",
+      "uncompressedSha256": "94dcb97af1346cbe871cde190165cc5ece62249b02c49c51131be9bf8feb7e28",
+      "failures": []
+    },
+    {
+      "log": "scope-final2.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 119,
+        "pass": 119,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "2983377aafc8167cb299443057d2342783544c93f648d086a0394c3651d6f0c5",
+      "uncompressedSha256": "47c154ec23e1bf1e8630066993f821d6f2a64b3f15364f5372beb7cd0aeac253",
+      "failures": []
+    },
+    {
+      "log": "pure-final2.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "996e949677aedf1b1a94c8a8bf581e7764514df1bbbc6a560c4f8b5ddb30e7ad",
+      "uncompressedSha256": "3e2de93c63df7f32e559e48196ee9ff0e6103948a8853452f807a714d3af12d5",
+      "failures": []
+    },
+    {
+      "log": "final32.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "d90430fbc7be38ca8cc61de88cd7a173512bdf92b1fb6fae547ad38f4e5c93b9",
+      "uncompressedSha256": "8a5519b101758d71ab67bb0fa5c1f97ee770fd5ad56cff3c41bb925a360a1549",
+      "failures": []
+    },
+    {
+      "log": "final142.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 142,
+        "pass": 142,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "39f8fa3746197f5f4dcb4ef3d87bf7580b8ea6e39188223988766d46a057ae54",
+      "uncompressedSha256": "8420986c86d844c5a5b3efaa1bce727d68dc4d9889ea3d857b8883063ccbe412",
+      "failures": []
+    },
+    {
+      "log": "final200.tap.gz",
+      "classification": "EXCLUDED_SOURCE_CHANGED_DURING_RUN",
+      "counts": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "812fd7b495ede9cde115dba3a1967100c5fce61f0321a7de12fc8c521d8d5de8",
+      "uncompressedSha256": "e9866ab365c1d2fc76d106c654c4bdcb4c78b145c1024d9ac0ed5ecac9afb799",
+      "failures": []
+    },
+    {
+      "log": "final164.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "9d9859c08c8c0d37d5f21cde7d98ad1ebbc06e3989d5da604cc23a86ded72754",
+      "uncompressedSha256": "4dd2893641e855aed8df21e16baac99c50b1e443139bcdc8509bfc9f710a0cdb",
+      "failures": []
+    },
+    {
+      "log": "final16.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "fa05144c97d583adbd0f07490356274c93abfa818f258219c6ad8869eb907e7c",
+      "uncompressedSha256": "3ece8a987d56137f452404c9ac1ac8fa0de255d4f24ef8074bc04222814d8ed6",
+      "failures": []
+    },
+    {
+      "log": "scope-sealed.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 122,
+        "pass": 122,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "2ba76fe016ef6e7057ffe97fecbbd2a7b6c40f23ba0968ff87b1143038c3004b",
+      "uncompressedSha256": "0806b45ab6754f9e9dc7a59e8d996dba8c9ce90b6785f609a00773946c910848",
+      "failures": []
+    },
+    {
+      "log": "pure-sealed.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "689cdffcd2e1d37c834dbb8f55b2cbcdd2be1d9aa6527fdde20b899e35960ebb",
+      "uncompressedSha256": "5c455ede14e28a1287e62254b0378333297e14af9627556cdbe57e283a7f9e3e",
+      "failures": []
+    },
+    {
+      "log": "sealed32.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "acc4ece6e32f13192808443bc6e0e01577559b69cdbccffecc2ec9143c96e842",
+      "uncompressedSha256": "a57a15d93976d874c4df86bf2b4aad8a8bbd26d3f2cdc699323e818b2eb9b4f4",
+      "failures": []
+    },
+    {
+      "log": "sealed145.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 145,
+        "pass": 145,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "5895ebe9d546ba81bd5b9a5c34c5580541e81f786b3dd0b54800143b78d51361",
+      "uncompressedSha256": "ec09724458576e884c211c9791aaaee16d65403b3ecceef3f1f2ff696ba82a58",
+      "failures": []
+    },
+    {
+      "log": "sealed200.tap.gz",
+      "classification": "EXCLUDED_SOURCE_CHANGED_DURING_RUN",
+      "counts": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "0bb398a7055f195bf96aff6ab22cff45ab58c10a94db49facc824ea8e33c920b",
+      "uncompressedSha256": "4de31df9e4279ed359256454c71b6233f3d741290339603c5773f94aa64cd228",
+      "failures": []
+    },
+    {
+      "log": "sealed164.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "16a02622bc051cc5afc7120f1fd514da6fb2675fd7630282a48d9c1282ee0a4d",
+      "uncompressedSha256": "5dac629543e00bb06733b1a0db5c7c2fa416e367244f9cfdcbee9f8594dd22b7",
+      "failures": []
+    },
+    {
+      "log": "sealed16.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "00ebb8778841d5a9f0cc39053e100793a7ed2e3ab3e8f02f58e3ac843b59415f",
+      "uncompressedSha256": "74064070827eebd9ef4edfca4e6c2dd9f93ba2cde5e46448024493fd91f5e703",
+      "failures": []
+    },
+    {
+      "log": "scope-acceptance.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 125,
+        "pass": 123,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "d2092eb634a6a8ccf1422630b504e8f9fbaaec3bb8afa732acd9afe59a7180bf",
+      "uncompressedSha256": "53ef19fc28cbe1bcf760acf671ebeed2e709743bc6f4dd28a784195088885533",
+      "failures": [
+        "educational \u2014 T\u00f4i c\u00f3 th\u1ec3 h\u1ecfi \u0111au ng\u1ef1c l\u00e0 g\u00ec?",
+        "educational \u2014 Can chest pain be caused by stress?"
+      ]
+    },
+    {
+      "log": "pure-acceptance.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 3,
+        "pass": 2,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "adeb637cdeb0408e21cb61ac4ce2d4412e13a302913b504eaa3d96aaacefccb9",
+      "uncompressedSha256": "f8479ff4392bce5217adab6a7172eaff8fdddfdb9094fa8c1611fac08d829fb4",
+      "failures": [
+        "native, mixed and repeated symptom mentions retain clause-specific currentness"
+      ]
+    },
+    {
+      "log": "scope-acceptance-final.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 125,
+        "pass": 125,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "a9dcc63d503ad49d6f610d46c431164659c755259e2131b871f7c0367b050a6f",
+      "uncompressedSha256": "0ae05d650548aee21ecbbeccc27da6dd9d1913ff785018887ba6d16d2ed6daa4",
+      "failures": []
+    },
+    {
+      "log": "pure-acceptance-final.tap.gz",
+      "classification": "SUPERSEDED_FOCUSED_RUN",
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "c0a742d79d1ce8ac139858f222aa0c4f936fd3046db419f5d8da0701cf99dbb8",
+      "uncompressedSha256": "92a57504f26095462293ffb887f2eba25e3a3024562ca4a9fee788cfee47ab44",
+      "failures": []
+    },
+    {
+      "log": "acceptance32.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "bc31194e0d9ced1fa7686bccd12ab42726c0289aba4957154a8f6051888e5614",
+      "uncompressedSha256": "918c3ecc36374655851d5eb45ab3ff41570a37c648f2cc99403ba0ad22761ee0",
+      "failures": []
+    },
+    {
+      "log": "acceptance148.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 148,
+        "pass": 148,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "8bc6ad2422e0612176ef1056577fa10e46fe649495da5f0c094899630aefd437",
+      "uncompressedSha256": "819aa607e129a8551dc05df4b9518db51af0cb773f686b5c2ddee01bc0529f98",
+      "failures": []
+    },
+    {
+      "log": "acceptance200.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "9b0a8178d6491b4e712742074756951343a100900251e53f6e53840a54c05282",
+      "uncompressedSha256": "b1fbf0360b20828ade01b3adc0b5acc8d92e97c524f401ca5511e89cb48e52d6",
+      "failures": []
+    },
+    {
+      "log": "acceptance164.tap.gz",
+      "classification": "NATIVE_BASELINE_STABILITY_FAILURE",
+      "counts": {
+        "tests": 164,
+        "pass": 163,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 1,
+      "compressedSha256": "bebe466187a9af48a89e6a6e0a80c6366489a2ffac47072f0caaf038b4d724be",
+      "uncompressedSha256": "e7cb2a050101b928cbe42ca90742e4b0166f3f438fdef4fee7e5b43c0f9781d5",
+      "failures": [
+        "test/telegram-webhook.test.js"
+      ]
+    },
+    {
+      "log": "acceptance164-recheck.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "8b04c8e0ff3c695fcde694cabd8faff03a52f46075509e87068c239fad6bb44a",
+      "uncompressedSha256": "33590fbbf9feac4b04a4fa44bf48b24fa63632883b024d48e6713799e2cd3df7",
+      "failures": []
+    },
+    {
+      "log": "acceptance16.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "processExitCode": 0,
+      "compressedSha256": "a097c764b3fc72f037d19cfac4341464f172547f7879db2e9a61072c20b07871",
+      "uncompressedSha256": "0b2fce5e1047e5219f392d85fea9c030a849364dc554d2174a4d4c3f31b40fa1",
+      "failures": []
+    },
+    {
+      "log": "superseded-integration.tap.gz",
+      "classification": "EXCLUDED_SOURCE_CHANGED_DURING_RUN",
+      "compressedSha256": "3433e002a136de30ee6f91a9bb8948ad0d032e42554a5a203e61f82cf842c3a6",
+      "uncompressedSha256": "280217e619a824648c19b5e972c2a7d0123876d709e7fae6c308ea206fdb7c60"
+    }
+  ],
+  "excluded": "Superseded focused failures/passes and source-change integration are retained; Only passing final acceptance* runs count once per test group; the failed native regression invocation and all superseded runs are excluded from PASS totals and retained."
+}

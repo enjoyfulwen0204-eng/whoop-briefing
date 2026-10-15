@@ -154,3 +154,25 @@ export function buildQuestionText({ category, signal, locale = 'zh-TW' }) {
  * 不是給呼叫端調整的旋鈕。
  */
 export const MAX_QUESTIONS_PER_EVENT = INFORMATION_GAIN_POLICY.MAX_QUESTIONS_PER_EVENT;
+
+/** Deterministic daily sampling across normal and abnormal days. Scores are
+ * product heuristics; selection is recorded and is never a random sample. */
+export function selectDailyQuestion({topics,trackingTopics=[],excludedTopics=[],history=[],knownFacts=[],healthDay,targetDate,signal=null,metricSeries=[]}){
+ const candidates=topics.filter(c=>JOURNAL_CATEGORIES.includes(c)&&!excludedTopics.includes(c))
+  .filter(c=>!knownFacts.some(f=>f.category===c&&f.health_date===targetDate&&['EXPOSED','CONFIRMED_UNEXPOSED'].includes(f.exposure_state)))
+  .map(category=>{
+   const past=history.filter(h=>h.category===category).sort((a,b)=>String(b.target_date).localeCompare(String(a.target_date)));
+   const last=past[0]?.target_date,age=last?Math.max(0,Math.round((Date.parse(targetDate)-Date.parse(last))/86400000)):30;
+   if(age<3)return null;
+   const covered=new Set(knownFacts.filter(f=>f.category===category&&f.health_date>=addDays(targetDate,-13)&&f.health_date<=targetDate&&['EXPOSED','CONFIRMED_UNEXPOSED'].includes(f.exposure_state)).map(f=>f.health_date)).size;
+   const information=scoreCandidate({category,signal:signal??{level:'MILD'},journalEvents:knownFacts,metricSeries});
+   const rotation=Math.min(age,14)/14,tracking=trackingTopics.includes(category)?1:0,missingness=1-Math.min(covered,14)/14;
+   const relevance=signal?information.score:0;
+   const reason=tracking?'PERSONAL_TRACKING':signal&&relevance>=0.5?'MISSING_CONTEXT':'ROTATION_NEUTRAL';
+   const score=0.45*rotation+0.25*tracking+0.15*missingness+0.15*relevance;
+   const stable=(Date.parse(healthDay)/86400000+topics.indexOf(category))%topics.length;
+   return {category,reason,score,rotation,tracking,missingness,relevance,lastAsked:last??null,tie:stable};
+  }).filter(Boolean).sort((a,b)=>b.score-a.score||a.tie-b.tie||a.category.localeCompare(b.category));
+ if(!candidates.length)return null;
+ return {...candidates[0],targetDate,candidates,sampling:'ADAPTIVE_OBSERVATIONAL',policyVersion:'smart-daily-v1'};
+}

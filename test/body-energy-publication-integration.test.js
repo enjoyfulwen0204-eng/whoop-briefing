@@ -1,3 +1,4 @@
+import {BODY_ENERGY_PROVISIONAL_POLICY as PROVISIONAL} from '../src/bodyEnergyProvisionalPolicy.js';
 import {withPhaseTelemetry} from '../src/executionTelemetry.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import Database from 'libsql';
@@ -22,14 +23,14 @@ import {bodyEnergyMetricAnalysisTime,verifyBodyEnergyProducer} from '../src/body
 import {canonicalMetricSourceValue} from '../src/phase4IntelligenceStore.js';
 import {bodyHealthDate} from '../src/bodyEnergyInputs.js';
 const AT=Date.now()-1000,DATE=bodyHealthDate(AT,'Asia/Taipei');
-async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=false,measure=false}={}){
+async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=false,measure=false,days=30,provisional=false}={}){
   let time=AT,revision=0,closed=false;const anchor=new Database('file::memory:?cache=shared'),db=createDb({url:'file::memory:?cache=shared',phase4Keys:fixtureKeys});
   const close=async()=>{if(closed)return;closed=true;global.gc?.();await new Promise(resolve=>setImmediate(resolve));db.close();anchor.close();};
   t.after(close);
   await db.migrate();for(const id of ['a','b'])await db.createUser({id,displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'},{now:new Date(AT)});
   const stores=await createPhase4Foundation({db,keys:fixtureKeys,admission:await db.admitRuntime()});
   for(const id of ['a','b'])await stores.initializeTenant(id,'SHADOW');const f={db,stores,keys:fixtureKeys};await f.db.setLocale('a','zh-TW');await f.db.setLocale('b','vi');
-  const input=bodyInput({asOf:captureAt-wakeMinutes*60000});input.asOfEpochMs=captureAt;
+  const input=bodyInput({asOf:captureAt-wakeMinutes*60000,days});input.asOfEpochMs=captureAt;
   input.sources.recovery[0].cycle_id=input.sources.cycle[0].id;
   input.sources.cycle[0].start_at=input.sources.sleep[0].start_at;
   input.sources.cycle[0].score_state='SCORED';
@@ -52,7 +53,7 @@ async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=fal
   };
   if(drain&&measure)await withPhaseTelemetry({phase:'STAGE6_DRAIN',source:'manual',releaseSha:'b37fd100754a8d76ea009f97cd392b38ae786abd',emit:(event,fields)=>{if(event==='phase4_trace_summary'||event==='phase4_operation_totals')process.stdout.write('BODY_ENERGY_NATIVE_TELEMETRY '+JSON.stringify({event,...fields})+'\n');}},drainAll);
   else if(drain)await drainAll();
-  const grant=await authorizeBodyEnergyFixturePublication({db:f.db,userIds:['a'],notificationUserIds:['a']});
+  const grant=await authorizeBodyEnergyFixturePublication({db:f.db,userIds:['a'],notificationUserIds:provisional?[]:['a'],presentationPolicy:provisional?PROVISIONAL.version:null});
   return {...f,worker,grant,close,drainAll,input,now:()=>new Date(Math.max(time,Date.now())),setNow:value=>{time=value;},advanceProfile:async()=>{const user=await db.getUser('a');await db.updateUser('a',{displayName:'Synthetic ABA'});await db.updateUser('a',{displayName:user.displayName});}};
 }
 const service=f=>createBodyEnergyIntegration({db:f.db,stores:f.stores,keys:f.keys,publicationCapability:f.grant,now:f.now});
@@ -299,4 +300,14 @@ test('late consent revocation suppresses a prepared eligible alert before any is
   f.db.claimReport=async request=>{const value=await claim(request);await f.sender.controls.handle({text:'/energy alerts off',user,chatId:'100001'});return value;};
   const result=await f.sender.deliver({userId:'a',drainAuthority:f.drainAuthority});assert.equal(result.status,'fenced');assert.equal(f.transport.messages.length,0);
   const row=(await f.db.raw.execute("SELECT sent_at,outcome FROM proactive_events WHERE user_id='a'")).rows[0];assert.equal(row.sent_at,null);assert.notEqual(row.outcome,'DELIVERED');
+});
+
+test('baseline-limited provisional section is sent with the future ordinary brief exactly once; later availability does not resend',async t=>{
+ const f=await setup(t,{wakeMinutes:31,days:27,provisional:true}),ui=service(f),dataset=whoopDataset(f.input),messages=[];
+ const args={db:f.db,userId:'a',source:{poll:async()=>dataset,history:async()=>dataset},coach:fakeCoach(),bodyEnergy:ui,
+  telegram:{send:async(text,{authorize}={})=>{if(authorize&&await authorize()===false)return {messageId:null,suppressed:'ACCOUNT_INACTIVE'};messages.push(text);return {messageId:1};}},timezone:'Asia/Taipei',locale:'zh-TW',now:f.now(),expectedLifecycleGeneration:1};
+ const result=await runDaily(args);assert.equal(result.status,'sent');assert.equal(messages.length,1);
+ assert.match(messages[0],/試用估計／個人基準仍在建立中/);assert.match(messages[0],/HRV 27\/30 · RHR 27\/30/);assert.match(messages[0],/LIMITED/);
+ assert.equal((await f.db.getClaim('a','daily',DATE)).deliveryState,'DELIVERED');
+ assert.equal((await runDaily({...args,now:f.now()})).status,'already_sent');assert.equal(messages.length,1);
 });

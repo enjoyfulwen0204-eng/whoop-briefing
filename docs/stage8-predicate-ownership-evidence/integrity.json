@@ -1,0 +1,59 @@
+{
+  "baselineHead": "dbb89360315a1cf6f1d9291b5310a24204c2e7b1",
+  "baselineTree": "ec86b6a6caeb70c47b98c1c510abe29702868c80",
+  "branch": "codex/stage8-predicate-ownership-20261014",
+  "runtimeChangedPaths": [
+    "src/bot/triage.js"
+  ],
+  "unchangedTrackedPathCount": 2027,
+  "runtimeSha256": "b0a11d15b3e956682baabedfd9fb2357ba04ce9e518ec354f56349aa586ebccf",
+  "contractSha256": "5d812c0f1d4af88bb1b2011aa2abb3ff3c23f3e2b318c404b7477c2c5fcf68d1",
+  "historicalCorpusSha256": "5b7f649a4a1ba9ccec64bdd9ca4b40bd572e0f75e6785074a21562869fc9e8e5",
+  "designReviewSha256": "6e3115f13a7094d304623d6efaffeb12c14f1acf80c742c19a71cbd29cf5f4a6",
+  "newSyntaxChecks": {
+    "pass": 3,
+    "fail": 0
+  },
+  "diffWhitespaceCheck": "PASS",
+  "nativeIssue": {
+    "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "status": "OPEN",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "rootCause": "UNASSIGNED",
+    "baselineImageUuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+    "baselineNativeOffsets": [
+      4618472,
+      2513860,
+      2740588,
+      506516,
+      380320,
+      470324
+    ],
+    "currentReports": [
+      {
+        "path": "/Users/kelvin/Library/Logs/DiagnosticReports/node-2026-10-14-141630.ips",
+        "sha256": "eb0bc44c908230667e9d1e70e6b3b5a65d2ee91990da171d4ce3a00cc53c512e",
+        "signal": "SIGSEGV",
+        "nativeImages": [
+          {
+            "name": "index.node",
+            "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+          }
+        ],
+        "nativeOffsets": [
+          4618472,
+          2513860,
+          2740588,
+          506516,
+          380320,
+          470324
+        ],
+        "matchesIndependentBaseline": true
+      }
+    ]
+  },
+  "productionOperations": 0,
+  "realTelegramSends": 0,
+  "credentialChanges": 0,
+  "stage6Writes": 0
+}

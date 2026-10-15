@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {bodySha256} from './briefingTriggerAuth.js';
@@ -8,7 +9,7 @@ import {phase4Metric,INTELLIGENCE_VERSIONS} from './phase4IntelligenceRegistry.j
 const kinds=new Set(['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY']),proofs=new WeakMap();
 const continuationScope=new AsyncLocalStorage();
 export function withMetricPreparationContinuation(core,context,work){
- if(core.schemaVersion!==32||!core.jobAuthority()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN')fail();
+ if(![32,33,34,35].includes(core.schemaVersion)||!core.jobAuthority()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN')fail();
  return continuationScope.run({core,context,execution:currentDurableExecution(),job:core.jobAuthority()},work);
 }
 export function metricPreparationContinuation(core,context){
@@ -82,16 +83,16 @@ function validateReceipt(core,context,owner,p,receipt,keys){
    ||!['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','DISABLED','POLICY_DEFERRED'].includes(record.outcome))fail();
  }
 }
-const producerSql=`SELECT p.*,e.state,e.phase,e.generation final_generation,
+const producerSql=core=>`SELECT p.*,e.state,e.phase,e.generation final_generation,
  e.execution_seq final_seq,e.identity_digest,e.scope_key,e.created_at,e.deadline_at,e.finalized_at,
- e.result_json,e.result_digest,e.release_sha,e.trigger_source,e.config_proof FROM phase4_execution_producers p
- JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
+ e.result_json,e.result_digest,e.release_sha,e.trigger_source,e.config_proof FROM ${analysisTable(core,'phase4_execution_producers')} p
+ JOIN ${analysisTable(core,'phase4_executions')} e ON e.execution_id=p.producing_execution_id
  WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=?
  AND p.producing_execution_id>? COLLATE BINARY
  ORDER BY p.producing_execution_id COLLATE BINARY LIMIT 65`;
 function requireUnitPurpose(core,context){
- requireSettledOperation();const execution=currentDurableExecution();
- if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||!core.jobAuthority()
+ requireSettledOperation();core.assertAnalysisWrite(context);const execution=currentDurableExecution();
+ if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||!core.jobAuthority()
   ||!execution||execution.receipts===false)fail();
 }
 async function finishUnitObservation(core,context){
@@ -115,7 +116,7 @@ async function* namedObservations(core,context,steps){
  let cursor='',count=0,bytes=0;
  for(;;){
   requireUnitPurpose(core,context);
-  const rows=(await core.client.execute({sql:producerSql,args:[context.userId,context.executionMode,context.inputGeneration,cursor]})).rows;
+  const rows=(await core.client.execute({sql:producerSql(core),args:[context.userId,context.executionMode,context.inputGeneration,cursor]})).rows;
   if(rows.length>65)fail();const page=rows.slice(0,64),observations=[];
   if(!count&&!page.length)fail();
   for(const p of page){
@@ -130,9 +131,9 @@ async function* namedObservations(core,context,steps){
   if(pairs.length){
    try{
     const selected=(await core.client.execute({sql:`WITH expected(execution_id,receipt_key) AS (VALUES ${pairs.map(()=>'(?,?)').join(',')})
-     SELECT r.* FROM expected x JOIN phase4_execution_producers p ON p.producing_execution_id=x.execution_id
+     SELECT r.* FROM expected x JOIN ${analysisTable(core,'phase4_execution_producers')} p ON p.producing_execution_id=x.execution_id
       AND p.user_id=? AND p.execution_mode=? AND p.input_generation=?
-     JOIN phase4_execution_work_receipts r ON r.execution_id=x.execution_id AND r.receipt_key=x.receipt_key`,
+     JOIN ${analysisTable(core,'phase4_execution_work_receipts')} r ON r.execution_id=x.execution_id AND r.receipt_key=x.receipt_key`,
      args:[...pairs.flat(),context.userId,context.executionMode,context.inputGeneration]})).rows;
     bytes+=Buffer.byteLength(JSON.stringify(selected));if(bytes>2*1024*1024||selected.length>pairs.length)fail();
     for(const r of selected){const o=valid.find(o=>o.p.producing_execution_id===r.execution_id&&o.keys.includes(r.receipt_key));if(!o)fail();o.receipts.push(r);}

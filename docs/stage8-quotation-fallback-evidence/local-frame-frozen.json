@@ -1,0 +1,128 @@
+{
+  "frozenBeforeProbeExecution": true,
+  "runtimeAlreadyFrozen": true,
+  "cases": [
+    {
+      "id": "local-frame-en",
+      "locale": "en",
+      "text": "\"if I have chest pain\" is what I am feeling right now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "local-frame-zh",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "local-frame-vi",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "local-frame-control-en",
+      "locale": "en",
+      "text": "\"if I have chest pain\"",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "local-frame-control-zh",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "local-frame-control-vi",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\"",
+      "expected": "CLEARLY_NONURGENT"
+    }
+  ],
+  "metamorphic": [
+    {
+      "id": "local-frame-en-nfd",
+      "locale": "en",
+      "text": "\"if I have chest pain\" is what I am feeling right now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-frame-en-metric",
+      "locale": "en",
+      "text": "\"if I have chest pain\" is what I am feeling right now. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "local-frame-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-frame-zh-metric",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」是我現在感到的症狀。 What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "local-frame-vi-nfd",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-frame-vi-metric",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "local-frame-control-en-nfd",
+      "locale": "en",
+      "text": "\"if I have chest pain\"",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-frame-control-en-metric",
+      "locale": "en",
+      "text": "\"if I have chest pain\" What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "local-frame-control-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-frame-control-zh-metric",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    },
+    {
+      "id": "local-frame-control-vi-nfd",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\"",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-frame-control-vi-metric",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\" What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "metric"
+    }
+  ]
+}

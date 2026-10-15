@@ -1,0 +1,3158 @@
+{
+  "frozenBeforeRuntimeGate": true,
+  "contract": "Conservative safety gate owner instruction 2026-10-14; semantic expectations unchanged",
+  "cases": [
+    {
+      "id": "onset-current-en",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "onset-current-zh-TW",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "onset-current-vi",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "onset-current-mixed",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "open-perfect-en",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "open-perfect-zh-TW",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "open-perfect-vi",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "open-perfect-mixed",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning. 我目前胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "unrelated-outcome-en",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "unrelated-outcome-vi",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "unrelated-outcome-mixed",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain. 頭痛好了。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "other-identities-en",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "other-identities-zh-TW",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "other-identities-vi",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "other-identities-mixed",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "local-conditional-en",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "local-conditional-zh-TW",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "local-conditional-vi",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "local-conditional-mixed",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "epistemic-en",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "epistemic-zh-TW",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "epistemic-vi",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "epistemic-mixed",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "unknown-currentness-en",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "unknown-currentness-zh-TW",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "unknown-currentness-vi",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "unknown-currentness-mixed",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "clear-list-en",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "clear-list-zh-TW",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "clear-list-vi",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "clear-list-mixed",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "clear-possessors-en",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "clear-possessors-zh-TW",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "clear-possessors-vi",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "clear-possessors-mixed",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "completed-en",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "completed-zh-TW",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "completed-vi",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "completed-mixed",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "educational-en",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "educational-zh-TW",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "educational-vi",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "educational-mixed",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "hypothetical-en",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "hypothetical-zh-TW",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "hypothetical-vi",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "hypothetical-mixed",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-pressure-en",
+      "family": "new-pressure",
+      "locale": "en",
+      "text": "I am experiencing chest pressure right now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-pressure-zh-TW",
+      "family": "new-pressure",
+      "locale": "zh-TW",
+      "text": "我現在胸悶。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-pressure-vi",
+      "family": "new-pressure",
+      "locale": "vi",
+      "text": "Tôi hiện tại tức ngực.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-pressure-mixed",
+      "family": "new-pressure",
+      "locale": "mixed",
+      "text": "Tôi hiện tại have chest pressure.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-breathing-en",
+      "family": "new-breathing",
+      "locale": "en",
+      "text": "My friend Ana is struggling to breathe.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-breathing-zh-TW",
+      "family": "new-breathing",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在呼吸困難。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-breathing-vi",
+      "family": "new-breathing",
+      "locale": "vi",
+      "text": "Bạn tôi Ana hiện tại khó thở.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-breathing-mixed",
+      "family": "new-breathing",
+      "locale": "mixed",
+      "text": "My friend Ana hiện tại khó thở.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-quote-en",
+      "family": "new-quote",
+      "locale": "en",
+      "text": "My friend Ana says \"I have chest pressure now\".",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-quote-zh-TW",
+      "family": "new-quote",
+      "locale": "zh-TW",
+      "text": "我朋友Ana說「我現在胸悶」。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-quote-vi",
+      "family": "new-quote",
+      "locale": "vi",
+      "text": "Bạn tôi Ana nói \"Tôi đang tức ngực\".",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-quote-mixed",
+      "family": "new-quote",
+      "locale": "mixed",
+      "text": "My friend Ana says \"我現在胸悶\".",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "new-unknown-speaker-en",
+      "family": "new-unknown-speaker",
+      "locale": "en",
+      "text": "\"I have chest pressure now\"",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "new-unknown-speaker-zh-TW",
+      "family": "new-unknown-speaker",
+      "locale": "zh-TW",
+      "text": "「我現在胸悶」",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "new-unknown-speaker-vi",
+      "family": "new-unknown-speaker",
+      "locale": "vi",
+      "text": "\"Tôi đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "new-unknown-speaker-mixed",
+      "family": "new-unknown-speaker",
+      "locale": "mixed",
+      "text": "\"I đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "new-denial-en",
+      "family": "new-denial",
+      "locale": "en",
+      "text": "I am not experiencing chest pressure.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-denial-zh-TW",
+      "family": "new-denial",
+      "locale": "zh-TW",
+      "text": "我沒有胸悶。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-denial-vi",
+      "family": "new-denial",
+      "locale": "vi",
+      "text": "Tôi không bị tức ngực.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-denial-mixed",
+      "family": "new-denial",
+      "locale": "mixed",
+      "text": "I am not experiencing tức ngực.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-metric-barrier-en",
+      "family": "new-metric-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my HRV is still low.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-metric-barrier-zh-TW",
+      "family": "new-metric-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-metric-barrier-vi",
+      "family": "new-metric-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và HRV của tôi hiện tại thấp.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-metric-barrier-mixed",
+      "family": "new-metric-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-actor-barrier-en",
+      "family": "new-actor-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my friend is still working.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-actor-barrier-zh-TW",
+      "family": "new-actor-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-actor-barrier-vi",
+      "family": "new-actor-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và bạn tôi hiện tại làm việc.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-actor-barrier-mixed",
+      "family": "new-actor-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "new-reference-uncertain-en",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "new-reference-uncertain-vi",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "new-reference-uncertain-mixed",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    }
+  ],
+  "metamorphic": [
+    {
+      "id": "onset-current-en-space",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "  My chest pain started yesterday and is still present.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "onset-current-en-newline",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "onset-current-en-width-punct",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "onset-current-en-nfd",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "onset-current-zh-TW-space",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "  我昨天胸痛而且目前仍然存在。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "onset-current-zh-TW-newline",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "onset-current-zh-TW-width-punct",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "onset-current-zh-TW-nfd",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "onset-current-vi-space",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "  Tôi đau ngực hôm qua và hiện tại vẫn còn.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "onset-current-vi-newline",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "onset-current-vi-width-punct",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "onset-current-vi-nfd",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "onset-current-mixed-space",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "  My chest pain started yesterday and 目前仍然存在。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "onset-current-mixed-newline",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "onset-current-mixed-width-punct",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "onset-current-mixed-nfd",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "open-perfect-en-space",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "  I have had chest pain since this morning.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "open-perfect-en-newline",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "open-perfect-en-width-punct",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "open-perfect-en-nfd",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "open-perfect-zh-TW-space",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "  我從今天早上到現在一直胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "open-perfect-zh-TW-newline",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "open-perfect-zh-TW-width-punct",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "open-perfect-zh-TW-nfd",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "open-perfect-vi-space",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "  Tôi bị đau ngực từ sáng nay đến giờ.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "open-perfect-vi-newline",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "open-perfect-vi-width-punct",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "open-perfect-vi-nfd",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "open-perfect-mixed-space",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "  I have had chest pain since this morning. 我目前胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "open-perfect-mixed-newline",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning.\n我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "open-perfect-mixed-width-punct",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning。 我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "open-perfect-mixed-nfd",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning. 我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-outcome-en-space",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "  I have chest pain. The headache has resolved.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-outcome-en-newline",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain.\nThe headache has resolved.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unrelated-outcome-en-width-punct",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain。 The headache has resolved。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unrelated-outcome-en-nfd",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW-space",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "  我現在胸痛。頭痛已經好了。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW-newline",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW-width-punct",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW-nfd",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-outcome-vi-space",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "  Tôi đang đau ngực. Đau đầu đã hết.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-outcome-vi-newline",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực.\nĐau đầu đã hết.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unrelated-outcome-vi-width-punct",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực。 Đau đầu đã hết。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unrelated-outcome-vi-nfd",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unrelated-outcome-mixed-space",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "  I have chest pain. 頭痛好了。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unrelated-outcome-mixed-newline",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain.\n頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unrelated-outcome-mixed-width-punct",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain。 頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unrelated-outcome-mixed-nfd",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain. 頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "other-identities-en-space",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "  My friend Ana has chest pain. My friend Bo has no chest pain.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "other-identities-en-newline",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain.\nMy friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "other-identities-en-width-punct",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain。 My friend Bo has no chest pain。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "other-identities-en-nfd",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "other-identities-zh-TW-space",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "  我朋友Ana現在胸痛。我朋友Bo沒有胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "other-identities-zh-TW-newline",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "other-identities-zh-TW-width-punct",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "other-identities-zh-TW-nfd",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "other-identities-vi-space",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "  Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "other-identities-vi-newline",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực.\nBạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "other-identities-vi-width-punct",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực。 Bạn tôi Bo không bị đau ngực。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "other-identities-vi-nfd",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "other-identities-mixed-space",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "  My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "other-identities-mixed-newline",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain.\nBạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "other-identities-mixed-width-punct",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain。 Bạn tôi Bo không bị đau ngực。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "other-identities-mixed-nfd",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-conditional-en-space",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "  If chest pain is dangerous, please help: I have chest pain now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "local-conditional-en-newline",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "local-conditional-en-width-punct",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous， please help: I have chest pain now。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "local-conditional-en-nfd",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-conditional-zh-TW-space",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "  如果胸痛很危險，請幫忙：我現在胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "local-conditional-zh-TW-newline",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "local-conditional-zh-TW-width-punct",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "local-conditional-zh-TW-nfd",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-conditional-vi-space",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "  Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "local-conditional-vi-newline",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "local-conditional-vi-width-punct",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm， xin giúp: tôi đang đau ngực。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "local-conditional-vi-nfd",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "local-conditional-mixed-space",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "  If chest pain is dangerous, please help: 我現在胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "local-conditional-mixed-newline",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "local-conditional-mixed-width-punct",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous， please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "local-conditional-mixed-nfd",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "epistemic-en-space",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "  I cannot say that I do not have chest pain.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "epistemic-en-newline",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "epistemic-en-width-punct",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "epistemic-en-nfd",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "epistemic-zh-TW-space",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "  我不能確定我沒有胸痛。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "epistemic-zh-TW-newline",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "epistemic-zh-TW-width-punct",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "epistemic-zh-TW-nfd",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "epistemic-vi-space",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "  Tôi không thể nói rằng tôi không bị đau ngực.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "epistemic-vi-newline",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "epistemic-vi-width-punct",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "epistemic-vi-nfd",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "epistemic-mixed-space",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "  I cannot say that 我沒有胸痛。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "epistemic-mixed-newline",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "epistemic-mixed-width-punct",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "epistemic-mixed-nfd",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unknown-currentness-en-space",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "  I have had chest pain.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unknown-currentness-en-newline",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unknown-currentness-en-width-punct",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unknown-currentness-en-nfd",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unknown-currentness-zh-TW-space",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "  胸痛。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unknown-currentness-zh-TW-newline",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unknown-currentness-zh-TW-width-punct",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unknown-currentness-zh-TW-nfd",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unknown-currentness-vi-space",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "  đau ngực  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unknown-currentness-vi-newline",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unknown-currentness-vi-width-punct",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unknown-currentness-vi-nfd",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "unknown-currentness-mixed-space",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "  chest pain 胸痛  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "unknown-currentness-mixed-newline",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "unknown-currentness-mixed-width-punct",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "unknown-currentness-mixed-nfd",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-list-en-space",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "  I am not having chest pain or difficulty breathing.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-list-en-newline",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-list-en-width-punct",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-list-en-nfd",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-list-zh-TW-space",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "  我沒有胸痛或呼吸困難。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-list-zh-TW-newline",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-list-zh-TW-width-punct",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-list-zh-TW-nfd",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-list-vi-space",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "  Tôi không bị đau ngực hoặc khó thở.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-list-vi-newline",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-list-vi-width-punct",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-list-vi-nfd",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-list-mixed-space",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "  I am not having chest pain or 呼吸困難。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-list-mixed-newline",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-list-mixed-width-punct",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-list-mixed-nfd",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-possessors-en-space",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "  I am not having my chest pain, my trouble breathing.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-possessors-en-newline",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-possessors-en-width-punct",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain， my trouble breathing。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-possessors-en-nfd",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-possessors-zh-TW-space",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "  我沒有我的胸痛、我的呼吸困難。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-possessors-zh-TW-newline",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-possessors-zh-TW-width-punct",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-possessors-zh-TW-nfd",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-possessors-vi-space",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "  Tôi không bị đau ngực của tôi, khó thở của tôi.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-possessors-vi-newline",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-possessors-vi-width-punct",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi， khó thở của tôi。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-possessors-vi-nfd",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "clear-possessors-mixed-space",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "  I am not having my chest pain, my 呼吸困難。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "clear-possessors-mixed-newline",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "clear-possessors-mixed-width-punct",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain， my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "clear-possessors-mixed-nfd",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "completed-en-space",
+      "family": "completed",
+      "locale": "en",
+      "text": "  I had chest pain last year, and it completely resolved.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "completed-en-newline",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "completed-en-width-punct",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year， and it completely resolved。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "completed-en-nfd",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "completed-zh-TW-space",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "  我以前胸痛，而且它完全好了。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "completed-zh-TW-newline",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "completed-zh-TW-width-punct",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "completed-zh-TW-nfd",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "completed-vi-space",
+      "family": "completed",
+      "locale": "vi",
+      "text": "  Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "completed-vi-newline",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "completed-vi-width-punct",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây， và nó đã hết hoàn toàn。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "completed-vi-nfd",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "completed-mixed-space",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "  I had chest pain last year, and 它完全好了。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "completed-mixed-newline",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "completed-mixed-width-punct",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year， and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "completed-mixed-nfd",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "educational-en-space",
+      "family": "educational",
+      "locale": "en",
+      "text": "  What causes chest pain in general?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "educational-en-newline",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "educational-en-width-punct",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "educational-en-nfd",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "educational-zh-TW-space",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "  一般來說胸痛是什麼原因？  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "educational-zh-TW-newline",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "educational-zh-TW-width-punct",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "educational-zh-TW-nfd",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "educational-vi-space",
+      "family": "educational",
+      "locale": "vi",
+      "text": "  Nguyên nhân đau ngực thường là gì?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "educational-vi-newline",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "educational-vi-width-punct",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "educational-vi-nfd",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "educational-mixed-space",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "  What causes 胸痛 in general?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "educational-mixed-newline",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "educational-mixed-width-punct",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "educational-mixed-nfd",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "hypothetical-en-space",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "  If I have chest pain, what should I do?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "hypothetical-en-newline",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "hypothetical-en-width-punct",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain， what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "hypothetical-en-nfd",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "hypothetical-zh-TW-space",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "  如果我胸痛，要怎麼辦？  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "hypothetical-zh-TW-newline",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "hypothetical-zh-TW-width-punct",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "hypothetical-zh-TW-nfd",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "hypothetical-vi-space",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "  Nếu tôi bị đau ngực, tôi nên làm gì?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "hypothetical-vi-newline",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "hypothetical-vi-width-punct",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực， tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "hypothetical-vi-nfd",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "hypothetical-mixed-space",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "  If tôi bị đau ngực, what should I do?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "hypothetical-mixed-newline",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "hypothetical-mixed-width-punct",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực， what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "hypothetical-mixed-nfd",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-pressure-en-space",
+      "family": "new-pressure",
+      "locale": "en",
+      "text": "  I am experiencing chest pressure right now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-pressure-en-newline",
+      "family": "new-pressure",
+      "locale": "en",
+      "text": "I am experiencing chest pressure right now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-pressure-en-width-punct",
+      "family": "new-pressure",
+      "locale": "en",
+      "text": "I am experiencing chest pressure right now。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-pressure-en-nfd",
+      "family": "new-pressure",
+      "locale": "en",
+      "text": "I am experiencing chest pressure right now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-pressure-zh-TW-space",
+      "family": "new-pressure",
+      "locale": "zh-TW",
+      "text": "  我現在胸悶。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-pressure-zh-TW-newline",
+      "family": "new-pressure",
+      "locale": "zh-TW",
+      "text": "我現在胸悶。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-pressure-zh-TW-width-punct",
+      "family": "new-pressure",
+      "locale": "zh-TW",
+      "text": "我現在胸悶。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-pressure-zh-TW-nfd",
+      "family": "new-pressure",
+      "locale": "zh-TW",
+      "text": "我現在胸悶。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-pressure-vi-space",
+      "family": "new-pressure",
+      "locale": "vi",
+      "text": "  Tôi hiện tại tức ngực.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-pressure-vi-newline",
+      "family": "new-pressure",
+      "locale": "vi",
+      "text": "Tôi hiện tại tức ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-pressure-vi-width-punct",
+      "family": "new-pressure",
+      "locale": "vi",
+      "text": "Tôi hiện tại tức ngực。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-pressure-vi-nfd",
+      "family": "new-pressure",
+      "locale": "vi",
+      "text": "Tôi hiện tại tức ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-pressure-mixed-space",
+      "family": "new-pressure",
+      "locale": "mixed",
+      "text": "  Tôi hiện tại have chest pressure.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-pressure-mixed-newline",
+      "family": "new-pressure",
+      "locale": "mixed",
+      "text": "Tôi hiện tại have chest pressure.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-pressure-mixed-width-punct",
+      "family": "new-pressure",
+      "locale": "mixed",
+      "text": "Tôi hiện tại have chest pressure。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-pressure-mixed-nfd",
+      "family": "new-pressure",
+      "locale": "mixed",
+      "text": "Tôi hiện tại have chest pressure.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-breathing-en-space",
+      "family": "new-breathing",
+      "locale": "en",
+      "text": "  My friend Ana is struggling to breathe.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-breathing-en-newline",
+      "family": "new-breathing",
+      "locale": "en",
+      "text": "My friend Ana is struggling to breathe.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-breathing-en-width-punct",
+      "family": "new-breathing",
+      "locale": "en",
+      "text": "My friend Ana is struggling to breathe。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-breathing-en-nfd",
+      "family": "new-breathing",
+      "locale": "en",
+      "text": "My friend Ana is struggling to breathe.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-breathing-zh-TW-space",
+      "family": "new-breathing",
+      "locale": "zh-TW",
+      "text": "  我朋友Ana現在呼吸困難。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-breathing-zh-TW-newline",
+      "family": "new-breathing",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-breathing-zh-TW-width-punct",
+      "family": "new-breathing",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-breathing-zh-TW-nfd",
+      "family": "new-breathing",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-breathing-vi-space",
+      "family": "new-breathing",
+      "locale": "vi",
+      "text": "  Bạn tôi Ana hiện tại khó thở.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-breathing-vi-newline",
+      "family": "new-breathing",
+      "locale": "vi",
+      "text": "Bạn tôi Ana hiện tại khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-breathing-vi-width-punct",
+      "family": "new-breathing",
+      "locale": "vi",
+      "text": "Bạn tôi Ana hiện tại khó thở。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-breathing-vi-nfd",
+      "family": "new-breathing",
+      "locale": "vi",
+      "text": "Bạn tôi Ana hiện tại khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-breathing-mixed-space",
+      "family": "new-breathing",
+      "locale": "mixed",
+      "text": "  My friend Ana hiện tại khó thở.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-breathing-mixed-newline",
+      "family": "new-breathing",
+      "locale": "mixed",
+      "text": "My friend Ana hiện tại khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-breathing-mixed-width-punct",
+      "family": "new-breathing",
+      "locale": "mixed",
+      "text": "My friend Ana hiện tại khó thở。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-breathing-mixed-nfd",
+      "family": "new-breathing",
+      "locale": "mixed",
+      "text": "My friend Ana hiện tại khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-quote-en-space",
+      "family": "new-quote",
+      "locale": "en",
+      "text": "  My friend Ana says \"I have chest pressure now\".  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-quote-en-newline",
+      "family": "new-quote",
+      "locale": "en",
+      "text": "My friend Ana says \"I have chest pressure now\".",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-quote-en-width-punct",
+      "family": "new-quote",
+      "locale": "en",
+      "text": "My friend Ana says \"I have chest pressure now\"。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-quote-en-nfd",
+      "family": "new-quote",
+      "locale": "en",
+      "text": "My friend Ana says \"I have chest pressure now\".",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-quote-zh-TW-space",
+      "family": "new-quote",
+      "locale": "zh-TW",
+      "text": "  我朋友Ana說「我現在胸悶」。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-quote-zh-TW-newline",
+      "family": "new-quote",
+      "locale": "zh-TW",
+      "text": "我朋友Ana說「我現在胸悶」。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-quote-zh-TW-width-punct",
+      "family": "new-quote",
+      "locale": "zh-TW",
+      "text": "我朋友Ana說「我現在胸悶」。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-quote-zh-TW-nfd",
+      "family": "new-quote",
+      "locale": "zh-TW",
+      "text": "我朋友Ana說「我現在胸悶」。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-quote-vi-space",
+      "family": "new-quote",
+      "locale": "vi",
+      "text": "  Bạn tôi Ana nói \"Tôi đang tức ngực\".  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-quote-vi-newline",
+      "family": "new-quote",
+      "locale": "vi",
+      "text": "Bạn tôi Ana nói \"Tôi đang tức ngực\".",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-quote-vi-width-punct",
+      "family": "new-quote",
+      "locale": "vi",
+      "text": "Bạn tôi Ana nói \"Tôi đang tức ngực\"。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-quote-vi-nfd",
+      "family": "new-quote",
+      "locale": "vi",
+      "text": "Bạn tôi Ana nói \"Tôi đang tức ngực\".",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-quote-mixed-space",
+      "family": "new-quote",
+      "locale": "mixed",
+      "text": "  My friend Ana says \"我現在胸悶\".  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-quote-mixed-newline",
+      "family": "new-quote",
+      "locale": "mixed",
+      "text": "My friend Ana says \"我現在胸悶\".",
+      "expected": "CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-quote-mixed-width-punct",
+      "family": "new-quote",
+      "locale": "mixed",
+      "text": "My friend Ana says \"我現在胸悶\"。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-quote-mixed-nfd",
+      "family": "new-quote",
+      "locale": "mixed",
+      "text": "My friend Ana says \"我現在胸悶\".",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-unknown-speaker-en-space",
+      "family": "new-unknown-speaker",
+      "locale": "en",
+      "text": "  \"I have chest pressure now\"  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-unknown-speaker-en-newline",
+      "family": "new-unknown-speaker",
+      "locale": "en",
+      "text": "\"I have chest pressure now\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-unknown-speaker-en-width-punct",
+      "family": "new-unknown-speaker",
+      "locale": "en",
+      "text": "\"I have chest pressure now\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-unknown-speaker-en-nfd",
+      "family": "new-unknown-speaker",
+      "locale": "en",
+      "text": "\"I have chest pressure now\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-unknown-speaker-zh-TW-space",
+      "family": "new-unknown-speaker",
+      "locale": "zh-TW",
+      "text": "  「我現在胸悶」  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-unknown-speaker-zh-TW-newline",
+      "family": "new-unknown-speaker",
+      "locale": "zh-TW",
+      "text": "「我現在胸悶」",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-unknown-speaker-zh-TW-width-punct",
+      "family": "new-unknown-speaker",
+      "locale": "zh-TW",
+      "text": "「我現在胸悶」",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-unknown-speaker-zh-TW-nfd",
+      "family": "new-unknown-speaker",
+      "locale": "zh-TW",
+      "text": "「我現在胸悶」",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-unknown-speaker-vi-space",
+      "family": "new-unknown-speaker",
+      "locale": "vi",
+      "text": "  \"Tôi đang tức ngực\"  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-unknown-speaker-vi-newline",
+      "family": "new-unknown-speaker",
+      "locale": "vi",
+      "text": "\"Tôi đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-unknown-speaker-vi-width-punct",
+      "family": "new-unknown-speaker",
+      "locale": "vi",
+      "text": "\"Tôi đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-unknown-speaker-vi-nfd",
+      "family": "new-unknown-speaker",
+      "locale": "vi",
+      "text": "\"Tôi đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-unknown-speaker-mixed-space",
+      "family": "new-unknown-speaker",
+      "locale": "mixed",
+      "text": "  \"I đang tức ngực\"  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-unknown-speaker-mixed-newline",
+      "family": "new-unknown-speaker",
+      "locale": "mixed",
+      "text": "\"I đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-unknown-speaker-mixed-width-punct",
+      "family": "new-unknown-speaker",
+      "locale": "mixed",
+      "text": "\"I đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-unknown-speaker-mixed-nfd",
+      "family": "new-unknown-speaker",
+      "locale": "mixed",
+      "text": "\"I đang tức ngực\"",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-denial-en-space",
+      "family": "new-denial",
+      "locale": "en",
+      "text": "  I am not experiencing chest pressure.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-denial-en-newline",
+      "family": "new-denial",
+      "locale": "en",
+      "text": "I am not experiencing chest pressure.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-denial-en-width-punct",
+      "family": "new-denial",
+      "locale": "en",
+      "text": "I am not experiencing chest pressure。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-denial-en-nfd",
+      "family": "new-denial",
+      "locale": "en",
+      "text": "I am not experiencing chest pressure.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-denial-zh-TW-space",
+      "family": "new-denial",
+      "locale": "zh-TW",
+      "text": "  我沒有胸悶。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-denial-zh-TW-newline",
+      "family": "new-denial",
+      "locale": "zh-TW",
+      "text": "我沒有胸悶。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-denial-zh-TW-width-punct",
+      "family": "new-denial",
+      "locale": "zh-TW",
+      "text": "我沒有胸悶。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-denial-zh-TW-nfd",
+      "family": "new-denial",
+      "locale": "zh-TW",
+      "text": "我沒有胸悶。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-denial-vi-space",
+      "family": "new-denial",
+      "locale": "vi",
+      "text": "  Tôi không bị tức ngực.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-denial-vi-newline",
+      "family": "new-denial",
+      "locale": "vi",
+      "text": "Tôi không bị tức ngực.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-denial-vi-width-punct",
+      "family": "new-denial",
+      "locale": "vi",
+      "text": "Tôi không bị tức ngực。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-denial-vi-nfd",
+      "family": "new-denial",
+      "locale": "vi",
+      "text": "Tôi không bị tức ngực.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-denial-mixed-space",
+      "family": "new-denial",
+      "locale": "mixed",
+      "text": "  I am not experiencing tức ngực.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-denial-mixed-newline",
+      "family": "new-denial",
+      "locale": "mixed",
+      "text": "I am not experiencing tức ngực.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-denial-mixed-width-punct",
+      "family": "new-denial",
+      "locale": "mixed",
+      "text": "I am not experiencing tức ngực。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-denial-mixed-nfd",
+      "family": "new-denial",
+      "locale": "mixed",
+      "text": "I am not experiencing tức ngực.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-metric-barrier-en-space",
+      "family": "new-metric-barrier",
+      "locale": "en",
+      "text": "  I had chest pain yesterday and my HRV is still low.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-metric-barrier-en-newline",
+      "family": "new-metric-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my HRV is still low.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-metric-barrier-en-width-punct",
+      "family": "new-metric-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my HRV is still low。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-metric-barrier-en-nfd",
+      "family": "new-metric-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my HRV is still low.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-metric-barrier-zh-TW-space",
+      "family": "new-metric-barrier",
+      "locale": "zh-TW",
+      "text": "  我昨天胸痛，而且我的HRV目前很低。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-metric-barrier-zh-TW-newline",
+      "family": "new-metric-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-metric-barrier-zh-TW-width-punct",
+      "family": "new-metric-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-metric-barrier-zh-TW-nfd",
+      "family": "new-metric-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-metric-barrier-vi-space",
+      "family": "new-metric-barrier",
+      "locale": "vi",
+      "text": "  Tôi đau ngực hôm qua và HRV của tôi hiện tại thấp.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-metric-barrier-vi-newline",
+      "family": "new-metric-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và HRV của tôi hiện tại thấp.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-metric-barrier-vi-width-punct",
+      "family": "new-metric-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và HRV của tôi hiện tại thấp。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-metric-barrier-vi-nfd",
+      "family": "new-metric-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và HRV của tôi hiện tại thấp.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-metric-barrier-mixed-space",
+      "family": "new-metric-barrier",
+      "locale": "mixed",
+      "text": "  I had chest pain yesterday and 我的HRV目前很低。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-metric-barrier-mixed-newline",
+      "family": "new-metric-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-metric-barrier-mixed-width-punct",
+      "family": "new-metric-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-metric-barrier-mixed-nfd",
+      "family": "new-metric-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我的HRV目前很低。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-actor-barrier-en-space",
+      "family": "new-actor-barrier",
+      "locale": "en",
+      "text": "  I had chest pain yesterday and my friend is still working.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-actor-barrier-en-newline",
+      "family": "new-actor-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my friend is still working.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-actor-barrier-en-width-punct",
+      "family": "new-actor-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my friend is still working。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-actor-barrier-en-nfd",
+      "family": "new-actor-barrier",
+      "locale": "en",
+      "text": "I had chest pain yesterday and my friend is still working.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-actor-barrier-zh-TW-space",
+      "family": "new-actor-barrier",
+      "locale": "zh-TW",
+      "text": "  我昨天胸痛，而且我朋友現在工作。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-actor-barrier-zh-TW-newline",
+      "family": "new-actor-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-actor-barrier-zh-TW-width-punct",
+      "family": "new-actor-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-actor-barrier-zh-TW-nfd",
+      "family": "new-actor-barrier",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛，而且我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-actor-barrier-vi-space",
+      "family": "new-actor-barrier",
+      "locale": "vi",
+      "text": "  Tôi đau ngực hôm qua và bạn tôi hiện tại làm việc.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-actor-barrier-vi-newline",
+      "family": "new-actor-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và bạn tôi hiện tại làm việc.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-actor-barrier-vi-width-punct",
+      "family": "new-actor-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và bạn tôi hiện tại làm việc。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-actor-barrier-vi-nfd",
+      "family": "new-actor-barrier",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và bạn tôi hiện tại làm việc.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-actor-barrier-mixed-space",
+      "family": "new-actor-barrier",
+      "locale": "mixed",
+      "text": "  I had chest pain yesterday and 我朋友現在工作。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-actor-barrier-mixed-newline",
+      "family": "new-actor-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-actor-barrier-mixed-width-punct",
+      "family": "new-actor-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-actor-barrier-mixed-nfd",
+      "family": "new-actor-barrier",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 我朋友現在工作。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-reference-uncertain-en-space",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "  I had chest pain yesterday and is still severe.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-reference-uncertain-en-newline",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-reference-uncertain-en-width-punct",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-reference-uncertain-en-nfd",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW-space",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "  我昨天胸痛而且目前很嚴重。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW-newline",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW-width-punct",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW-nfd",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-reference-uncertain-vi-space",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "  Tôi đau ngực hôm qua và hiện tại nghiêm trọng.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-reference-uncertain-vi-newline",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-reference-uncertain-vi-width-punct",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-reference-uncertain-vi-nfd",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "new-reference-uncertain-mixed-space",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "  I had chest pain yesterday and 目前很嚴重。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "space"
+    },
+    {
+      "id": "new-reference-uncertain-mixed-newline",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "newline"
+    },
+    {
+      "id": "new-reference-uncertain-mixed-width-punct",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "width-punct"
+    },
+    {
+      "id": "new-reference-uncertain-mixed-nfd",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    }
+  ],
+  "benignWarnings": [
+    {
+      "id": "benign-warning-en",
+      "locale": "en",
+      "text": "I had chest pain yesterday and am still working.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "benignWarning": true
+    },
+    {
+      "id": "benign-warning-zh-TW",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前忙碌。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "benignWarning": true
+    },
+    {
+      "id": "benign-warning-vi",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại làm việc.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "benignWarning": true
+    },
+    {
+      "id": "benign-warning-mixed",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前忙碌。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "benignWarning": true
+    }
+  ]
+}

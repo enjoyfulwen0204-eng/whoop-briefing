@@ -1,0 +1,149 @@
+{
+  "checkedAtUtc": "2026-10-15T15:21:08.184903+00:00",
+  "uniqueCompletedPass": 57,
+  "uniqueCompletedFail": 0,
+  "creditedCompletedRunsOnly": true,
+  "repositoryChecks": 53,
+  "newReviewerChecks": 4,
+  "runs": [
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-final-tests.tap",
+      "head": "a6fcfa121dae31d734a0094020d97a6c670ef167",
+      "command": "initial CLI setup ran from /private/tmp instead of review clone",
+      "disposition": "SETUP_ERROR_NO_TEST_DEFINITIONS",
+      "exitCode": 1,
+      "creditedUnique": false,
+      "completedAssertionsPass": 0,
+      "completedAssertionsFail": 0,
+      "footer": {},
+      "hasCompleteFooter": false,
+      "sha256": "f2028138cffa5b370141df036a65a03a73bd96e4c492dc4a4cbd56ad6a8a226b"
+    },
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-boundary-probes-a6fc.tap",
+      "head": "a6fcfa121dae31d734a0094020d97a6c670ef167",
+      "command": "node --test --test-concurrency=1 test/independent-stage8-functional-review.test.js",
+      "disposition": "COMPLETE_BEFORE_REPAIR_1_APPLICATION_FINDING_1_REVIEWER_FIXTURE_ERROR",
+      "exitCode": 1,
+      "creditedUnique": false,
+      "completedAssertionsPass": 0,
+      "completedAssertionsFail": 2,
+      "footer": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "hasCompleteFooter": true,
+      "sha256": "b09765c9d7eac4f31ece80f3f24216c19dfd57817e2ee9cf6f8a1b75c43d2dd4"
+    },
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-final-tests-candidate.tap",
+      "head": "a6fcfa121dae31d734a0094020d97a6c670ef167",
+      "command": "node --test --test-concurrency=1 test/stage8-canonical-post-sync.test.js test/stage8-post-sync.test.js test/stage8-live-important-functional.test.js test/stage8-live-negative-functional.test.js test/stage8-live-alert-recovery.test.js test/stage7-decision-store.test.js test/stage8-live-pipeline.test.js",
+      "disposition": "COMPLETE_53_PASS_0_FAIL",
+      "exitCode": 0,
+      "creditedUnique": true,
+      "completedAssertionsPass": 53,
+      "completedAssertionsFail": 0,
+      "footer": {
+        "tests": 53,
+        "pass": 53,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "hasCompleteFooter": true,
+      "sha256": "34741f868a4c3a116975e34243ac8c8c5d735f0610e5d6fd0caee2622117a273"
+    },
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-server-boundary-a6fc.tap",
+      "head": "a6fcfa121dae31d734a0094020d97a6c670ef167",
+      "command": "node --test --test-concurrency=1 --test-name-pattern='genuine server adapter' test/independent-stage8-functional-review.test.js",
+      "disposition": "INTERRUPTED_OWN_SESSION_AFTER_COMPLETION_STALL_2_NESTED_PASS_NOT_CLEAN_INVOCATION",
+      "exitCode": 1,
+      "creditedUnique": false,
+      "completedAssertionsPass": 2,
+      "completedAssertionsFail": 0,
+      "footer": {},
+      "hasCompleteFooter": false,
+      "sha256": "da47e76aba92818a8576ed626eb1c799d24eb21258e06d04dc603e0ffb660c3f"
+    },
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-boundary-probes-0a1dd0e.tap",
+      "head": "0a1dd0e4844522aa438a09902da2eada70d57739",
+      "command": "node --test --test-concurrency=1 test/independent-stage8-functional-review.test.js",
+      "disposition": "INTERRUPTED_OWN_SESSION_AFTER_COMPLETION_STALL_3_PASS_NOT_CLEAN_INVOCATION",
+      "exitCode": 1,
+      "creditedUnique": false,
+      "completedAssertionsPass": 3,
+      "completedAssertionsFail": 0,
+      "footer": {},
+      "hasCompleteFooter": false,
+      "sha256": "dac4f28f7ac875815d85d8b5d3584f3a230f49697ae66cc85e2d4b9a43d441cb"
+    },
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-disabled-boundary-0a1dd0e-gc.tap",
+      "head": "0a1dd0e4844522aa438a09902da2eada70d57739",
+      "command": "node --expose-gc --test --test-concurrency=1 --test-name-pattern='explicit existing proactive disable' test/independent-stage8-functional-review.test.js",
+      "disposition": "COMPLETE_1_PASS_0_FAIL",
+      "exitCode": 0,
+      "creditedUnique": true,
+      "completedAssertionsPass": 1,
+      "completedAssertionsFail": 0,
+      "footer": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "hasCompleteFooter": true,
+      "sha256": "3313cede0b8858b7f8ea47a6bf57a6a8667b446b895eb3a4adceea3c28899fb6"
+    },
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-server-boundary-0a1dd0e-gc.tap",
+      "head": "0a1dd0e4844522aa438a09902da2eada70d57739",
+      "command": "node --expose-gc --test --test-concurrency=1 --test-name-pattern='genuine server adapter' test/independent-stage8-functional-review.test.js",
+      "disposition": "COMPLETE_3_PASS_0_FAIL",
+      "exitCode": 0,
+      "creditedUnique": true,
+      "completedAssertionsPass": 3,
+      "completedAssertionsFail": 0,
+      "footer": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "hasCompleteFooter": true,
+      "sha256": "b61e6d8da66aa8002206b33fbc8218971a684554c2e24916cbeed8c7b67d7683"
+    },
+    {
+      "tap": "/private/tmp/stage8-live-final-functional/independent-privacy-isolation-0a1dd0e-gc.tap",
+      "head": "0a1dd0e4844522aa438a09902da2eada70d57739",
+      "command": "node --expose-gc --test --test-concurrency=1 --test-name-pattern='independent isolation:' test/independent-stage8-privacy-isolation.test.js",
+      "disposition": "INTERRUPTED_REDUNDANT_DIAGNOSTIC_AFTER_FULL_ORIGINAL_PROBE_PASSED_NOT_CREDITED",
+      "exitCode": 1,
+      "creditedUnique": false,
+      "completedAssertionsPass": 0,
+      "completedAssertionsFail": 0,
+      "footer": {},
+      "hasCompleteFooter": false,
+      "sha256": "053588ba3014f35c0f25d3834833387c406dbf8a84496c19375628541b7db4b4"
+    }
+  ],
+  "countRules": [
+    "No overlapping reruns or reused baseline review added to57",
+    "Interrupted bodies are not clean completed definitions",
+    "Initial actual proactive defect and reviewer fixture mistake remain retained; neither is silently converted to PASS",
+    "Node --expose-gc invokes unchanged synthetic fixture collectStatements(global.gc) cleanup; no runtime or expectation changes",
+    "Passing GC rerun does not fix or invalidate native SIGSEGV/stability evidence"
+  ]
+}

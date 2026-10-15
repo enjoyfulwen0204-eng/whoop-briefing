@@ -1,0 +1,120 @@
+{
+  "frozenBeforeExecution": true,
+  "cases": [
+    {
+      "id": "reference-other-headache",
+      "text": "I have chest pain. My friend has a headache. It has gone away.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "reference-self-headache",
+      "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "reference-other-rash",
+      "text": "I have chest pain. My mother has a rash. It has resolved.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "reference-zh",
+      "text": "我現在胸痛。我朋友頭痛。它已經好了。",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "reference-vi",
+      "text": "Tôi đang đau ngực. Bạn tôi đau đầu. Nó đã hết.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "reference-explicit-self",
+      "text": "I have chest pain. My friend has a headache. My chest pain has resolved.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "reference-explicit-other",
+      "text": "I have chest pain. My friend has a headache. His headache has resolved.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "reference-generic-education",
+      "text": "I have chest pain. The article describes a headache. It has resolved.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "current-specific-past-other",
+      "text": "My friend Alice has chest pain now. My friend Bob had chest pain yesterday.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "same-other-resolution",
+      "text": "My friend Alice has chest pain. My friend Alice no longer has chest pain.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "specific-other-ambiguous-pronoun",
+      "text": "My friend Alice has chest pain. My friend Bob has chest pain. His chest pain has resolved.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "modal-actual",
+      "text": "If chest pain can be serious, I have chest pain right now.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "actual-comma-before-hypo",
+      "text": "I have chest pain now, but if I had it yesterday I would have called someone.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "current-vi-after-if",
+      "text": "Nếu đau ngực nguy hiểm, tôi đang đau ngực.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "current-zh-after-if",
+      "text": "如果胸痛很危險，我現在胸痛。",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "present-perfect-now",
+      "text": "I have had chest pain since this morning and I still have it.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "negated-object-en",
+      "text": "I am not having my chest pain and my difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negated-object-zh",
+      "text": "我沒有胸痛和我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negated-object-vi",
+      "text": "Tôi không có đau ngực và tôi không khó thở.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "past-adjacent-zh",
+      "text": "我昨天胸痛昨天我呼吸困難。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "current-with-unrelated-time",
+      "text": "I have chest pain. Yesterday my friend was fine.",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "zero-copula-other-outcome",
+      "text": "我朋友小明胸痛。我朋友小華沒有胸痛。",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "distinct-friends-mixed",
+      "text": "My friend Alice has chest pain. 我朋友小華胸痛已經好了。",
+      "expected": "SAFETY"
+    }
+  ]
+}

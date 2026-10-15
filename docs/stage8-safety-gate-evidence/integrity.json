@@ -1,0 +1,13 @@
+{
+  "foundationHead": "a6eeccfbf3d33f72fb9aabb8aae080f909926587",
+  "stage7Ancestor": true,
+  "prototypeAncestor": false,
+  "unchangedRuntimeConfigDependencyPaths": 304,
+  "changedExistingRuntimePaths": [
+    "src/bot/triage.js"
+  ],
+  "newRuntimePath": "src/bot/safetyGate.js",
+  "retainedFrozenEvidenceFiles": 29,
+  "frozenEvidenceByteIdentity": true,
+  "exceptions": []
+}

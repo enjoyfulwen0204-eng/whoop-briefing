@@ -1,0 +1,340 @@
+{
+  "baseline": "5dc3462de7e67e63246657e9c7e4ae92249bf108",
+  "runtimeSourceCommit": "41d298caee041beedb3f5c182b340edf7d8e45eb",
+  "runtimeSourceTree": "1128db7ddc8d4f2281c3687fcca648c312083428",
+  "documentedDistinctTests": 364,
+  "documentedPassingTests": 364,
+  "documentedFailingTests": 0,
+  "documentedSkippedTests": 0,
+  "documentedCancelledTests": 0,
+  "stage8Implementation": "INDEPENDENT_REPAIRS_VERIFIED_DEPENDENCIES_BLOCKED_NOT_COMPLETE",
+  "formalFinalReview": "NO_GO",
+  "production": "NO_GO",
+  "liveEvidence": "NOT_PERFORMED",
+  "stage6Successor": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+  "stage6Integrated": false,
+  "providerSends": "SYNTHETIC_ONLY",
+  "credentialAccess": false,
+  "productionMutations": 0,
+  "runs": [
+    {
+      "log": "baseline-historical-fixture.tap.gz",
+      "classification": "BASELINE_FAILURE_CONFIRMED_NOT_PASS",
+      "counts": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "a4f092df9dd45248c3b04599c5834585531e404f3c786c70726c6892d66ed0d0",
+      "uncompressedSha256": "17d4125239bd0e6b0c8e47944682f22c39051adffb4b9438fb45d65e06faa2b2",
+      "failures": [
+        "v30 rejects fabricated v13 hybrid (onboarding-self-service historical contract)",
+        "v30 rejects fabricated v13 hybrid (onboarding-self-service historical contract)"
+      ]
+    },
+    {
+      "log": "final-capture-composition.tap.gz",
+      "classification": "SUPERSEDED_FAILURE_NOT_PASS",
+      "counts": {
+        "tests": 44,
+        "pass": 41,
+        "fail": 3,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "39c98f5bcbd6aae31bf7585e721d74b0ceaf66ebe06640b61d61641b8782a75a",
+      "uncompressedSha256": "53844f923a89385a7ffd2dade82517243a598ffb4809e1d66ed26d9af86d2d18",
+      "failures": [
+        "test/bot-polling.test.js",
+        "v30 rejects fabricated v13 hybrid (onboarding-self-service historical contract)",
+        "v30 rejects fabricated v13 hybrid (onboarding-self-service historical contract)"
+      ]
+    },
+    {
+      "log": "final-identity-regression.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 54,
+        "pass": 54,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "a0ebefb7afd2c2c37205cf8cb026b039d27979cac05488ccc9758e5941b0d34a",
+      "uncompressedSha256": "15680f237d4de3ae7583daeb25222a6c506f23068b170c518aa6c23e85924ef8",
+      "failures": [],
+      "processExitCode": 0
+    },
+    {
+      "log": "final-integration-interrupted-before-freeze.tap.gz",
+      "classification": "INTERRUPTED_EXCLUDED",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "skipped": null,
+        "cancelled": null
+      },
+      "compressedSha256": "b5cd91bba49d9078e1771f5337e5c380ddcbb652d881f52a3b0b65c97a7dc930",
+      "uncompressedSha256": "ce2e248df13eff3a9401f6be814b4019f2944c44a0efadd8da8e69c8d88a5bb1",
+      "failures": []
+    },
+    {
+      "log": "final-integration-interrupted-lifecycle-hardening.tap.gz",
+      "classification": "INTERRUPTED_EXCLUDED",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "skipped": null,
+        "cancelled": null
+      },
+      "compressedSha256": "adfde2f5cbdbf35c531cbc69780ff1876ed09e8e0b0613da37151389f184b154",
+      "uncompressedSha256": "42fb05ee0eafd85b79a307bafabd04386da270479a45fcf323ee2e861b511375",
+      "failures": []
+    },
+    {
+      "log": "final-integration.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "30ecec26b63c80a35a301b704fd4c39528c61abc6916a86f0057e8eb51c9c6a3",
+      "uncompressedSha256": "6278aa5dc5319451159aaac364ebfda70e9121be196e8d1fcdca59a1675e5cd4",
+      "failures": [],
+      "processExitCode": 0
+    },
+    {
+      "log": "final-regression-interrupted-before-freeze.tap.gz",
+      "classification": "INTERRUPTED_EXCLUDED",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "skipped": null,
+        "cancelled": null
+      },
+      "compressedSha256": "d696f009aa5dcb29d9d5c11df1809b352bb048d270892e96f3cfdb3bcdb32cd6",
+      "uncompressedSha256": "1f5e84b1233be8ab7d9ae3f32a88578b98e384107f4785b1f2eb8c2a66a06f00",
+      "failures": []
+    },
+    {
+      "log": "final-regression-interrupted-lifecycle-hardening.tap.gz",
+      "classification": "INTERRUPTED_EXCLUDED",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "skipped": null,
+        "cancelled": null
+      },
+      "compressedSha256": "2063d9cefcb4207218af81d28bfac7191fe03e0fd5f008019acd5d8e3fd0bfed",
+      "uncompressedSha256": "b2e1dc31fc58bca30c424fa118eb99e3f9a3f6894239ee24b8cbf0a2ce718dea",
+      "failures": []
+    },
+    {
+      "log": "final-regression.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "5adc639f453a13a2c71f3ac322c0390811c7e80272632957ca026b62484f1471",
+      "uncompressedSha256": "f3f8eb7b7853d379ec84d3f0c3e5eddf841fc8bf8253fafde06037455e4a2123",
+      "failures": [],
+      "processExitCode": 0
+    },
+    {
+      "log": "frozen-repair-focused.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 44,
+        "pass": 44,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "8965e1bef73b3a0ef9fdc5505ac7998c126af06b089570e47cd2f5d7cf66b4b8",
+      "uncompressedSha256": "4afc77ed035ae03a1848ef8ad97c58c08e93332e6e0797aea9dbd085ca4ec575",
+      "failures": [],
+      "processExitCode": 0
+    },
+    {
+      "log": "independent-repair-final.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "c4184c5aa683d6db8d1e9b2af811b3d2748ac0eb05d767d5e046ec7cc06a7da6",
+      "uncompressedSha256": "047db73bdc4a0bf43f9922b5067d09aeb20b234dbf1fbf06776adbd281d18c9c",
+      "failures": []
+    },
+    {
+      "log": "independent-repair-focused.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "fb9e47cb5536d5db60e9baa9a3a82d93ed6f87ec5e13c054721d286ae8e267e0",
+      "uncompressedSha256": "66e043de68ade9cd5a196a1bbb7defd5aadce80795e4a86f85eed350d3249961",
+      "failures": []
+    },
+    {
+      "log": "independent-repair-verified.tap.gz",
+      "classification": "SUPERSEDED_FAILURE_NOT_PASS",
+      "counts": {
+        "tests": 39,
+        "pass": 38,
+        "fail": 1,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "6f95ab173be394d8f413d91248f710207d15651a9819e8ded5f6b844a7996835",
+      "uncompressedSha256": "cb9e55c9152ba61cd3665c2bfd1121b75b30ec0c6d0abd2f80e17c3c7ca94b87",
+      "failures": [
+        "Owner tick checks at most six subscriptions and never manufactures LIVE analysis for other classes"
+      ]
+    },
+    {
+      "log": "lifecycle-hardening-final.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "05562ba25a02d7b28cf74e5d9a7a2a7c329f2fcc70188e05acd005d6cd21ece6",
+      "uncompressedSha256": "9c225ede2f8edc021e3f0def97e4ccaddae57652d50d8966b5e1c5de65486025",
+      "failures": [],
+      "processExitCode": 0
+    },
+    {
+      "log": "p0-focused.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "0fd4b143ce4c05518abb9c865b20b6830102e72f1299e268c43fda42ecd0d8fb",
+      "uncompressedSha256": "c21d6902f3f5b0724a52c12f96d06146d436c12e791b2111f2f4fed12cd3110d",
+      "failures": []
+    },
+    {
+      "log": "p1-identity-focused.tap.gz",
+      "classification": "SUPERSEDED_FAILURE_NOT_PASS",
+      "counts": {
+        "tests": 65,
+        "pass": 64,
+        "fail": 1,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "141d34e38df207dd8d99bbb81fd6fd5a4ccd5a3605bebf7128602bf91f19ed6f",
+      "uncompressedSha256": "606ffdee68de60afbba29271566d0bb6da5a3d46f3464b86b7ca1f53cd4a2c98",
+      "failures": [
+        "Telegram provenance is authenticated, idempotent, explicit-name subordinate, and physically erasable"
+      ]
+    },
+    {
+      "log": "p1-independent-final.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "f795ec7e716956b8c7bb5052019921ed63bad486810b1385c564da0e5ccf926f",
+      "uncompressedSha256": "df805bda3e2a713e2a3ce9b488698cd7b715290c63e14b0c3176bbd96688c18e",
+      "failures": []
+    },
+    {
+      "log": "p1-retry-focused.tap.gz",
+      "classification": "SUPERSEDED_FAILURE_NOT_PASS",
+      "counts": {
+        "tests": 31,
+        "pass": 27,
+        "fail": 4,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "88e814ca11bba1c32aa4ffbe28230462b18f129e2f67cf3f481981ae589f1c34",
+      "uncompressedSha256": "d414c6c8ee413e608cc81ee21e74d936881c199539712c1ab288735cd21db878",
+      "failures": [
+        "signed companion service prepares followed subject source plan and dispatches without Stage7, SYNC or permits",
+        "Owner definite retry uses same semantic identity, durable exponential backoff and exhaustion",
+        "Owner uncertain acceptance never retries after restart; revoked subject cannot acquire a new plan",
+        "Morning definite failures exhaust three attempts and close reservation; permanent failure closes without retry"
+      ]
+    },
+    {
+      "log": "p1-retry-recheck.tap.gz",
+      "classification": "SUPERSEDED_FAILURE_NOT_PASS",
+      "counts": {
+        "tests": 6,
+        "pass": 5,
+        "fail": 1,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "2998c033cca28d434fed79e1ff3a026087ffd92f2e866cac1121c7eb9c8e357b",
+      "uncompressedSha256": "6c7b780e75561c160b6c385b1681f9ff2e6a747b8a869fc51f6d798efd3a9895",
+      "failures": [
+        "Morning definite failures exhaust three attempts and close reservation; permanent failure closes without retry"
+      ]
+    },
+    {
+      "log": "polling-isolated-recheck.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "57ddeb6cd608e8142af030c4a0b965c52ad96c31cb989b2c70c6b39e808ff93a",
+      "uncompressedSha256": "2e40f511c9307b3b21563edc7e2f63edcebe0cad966142ec2a25807e1f68ce76",
+      "failures": [],
+      "processExitCode": 0
+    },
+    {
+      "log": "typed-selector-final.tap.gz",
+      "classification": "SYNTHETIC_PASS",
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "compressedSha256": "d51cd525f47479a4fdde7e213bcddd013273804fa7f98ed6776b1b81b595660d",
+      "uncompressedSha256": "9799e4a7fefd8029f95e0f7ec248024b1fd2840f6cbb7d24d42cf28e322c5f4e",
+      "failures": [],
+      "processExitCode": 0
+    }
+  ]
+}

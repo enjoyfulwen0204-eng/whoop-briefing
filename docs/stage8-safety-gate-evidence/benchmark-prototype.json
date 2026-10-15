@@ -1,0 +1,51 @@
+{
+  "source": "/Users/kelvin/.codex/worktrees/stage8-final-evidence-ownership-repair/whoop-briefing",
+  "node": "v22.23.2",
+  "units": "milliseconds per parse",
+  "measurements": {
+    "normal": {
+      "samples": 500,
+      "characters": 63,
+      "p50": 0.10362499999999386,
+      "p95": 0.43695900000000165,
+      "max": 2.164791999999977,
+      "heapAfterGCBytes": 6582440,
+      "heapRetainedDeltaBytes": 66640,
+      "sampledHeapGrowthBytes": 2081096,
+      "rssBytes": 60964864
+    },
+    "boundedPredicates": {
+      "samples": 500,
+      "characters": 2279,
+      "p50": 2.6943330000001424,
+      "p95": 5.1720000000000255,
+      "max": 8.745791000000054,
+      "heapAfterGCBytes": 6847424,
+      "heapRetainedDeltaBytes": 21728,
+      "sampledHeapGrowthBytes": 15616744,
+      "rssBytes": 116195328
+    },
+    "boundedText": {
+      "samples": 500,
+      "characters": 7867,
+      "p50": 3.5297919999998157,
+      "p95": 6.223250000000007,
+      "max": 49.62904200000003,
+      "heapAfterGCBytes": 6665216,
+      "heapRetainedDeltaBytes": -43456,
+      "sampledHeapGrowthBytes": 14975384,
+      "rssBytes": 100384768
+    },
+    "overflow": {
+      "samples": 500,
+      "characters": 8193,
+      "p50": 0.00020799999947485048,
+      "p95": 0.00020900000072288094,
+      "max": 0.0034589999995660037,
+      "heapAfterGCBytes": 6445792,
+      "heapRetainedDeltaBytes": 2600,
+      "sampledHeapGrowthBytes": 195624,
+      "rssBytes": 100433920
+    }
+  }
+}

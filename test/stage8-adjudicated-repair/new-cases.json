@@ -1,0 +1,871 @@
+{
+  "cases": [
+    {
+      "id": "owner-quote-en",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "\"chest pressure\" is what I am experiencing right now."
+    },
+    {
+      "id": "owner-quote-zh",
+      "locale": "zh-TW",
+      "expected": "CURRENT_URGENT",
+      "text": "「胸痛」是我現在感到的症狀。"
+    },
+    {
+      "id": "owner-uncertainty-zh",
+      "locale": "zh-TW",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "我不確定我是否「胸悶」。"
+    },
+    {
+      "id": "quote-reference-vi",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy."
+    },
+    {
+      "id": "quote-statement-en",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "\"I have chest pressure\" describes what I am experiencing now."
+    },
+    {
+      "id": "quote-negation-en",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"chest pain\" is what I am not experiencing now."
+    },
+    {
+      "id": "quote-negation-zh",
+      "locale": "zh-TW",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "「胸痛」是我現在沒有感到的症狀。"
+    },
+    {
+      "id": "quote-negation-vi",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"đau ngực\" là triệu chứng tôi không đang cảm thấy."
+    },
+    {
+      "id": "quote-past-en",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"chest pain\" is what I experienced yesterday."
+    },
+    {
+      "id": "quote-epistemic-en",
+      "locale": "en",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "\"chest pain\" is what I am unsure I am experiencing now."
+    },
+    {
+      "id": "educational-en",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "I am reading about \"chest pain\"."
+    },
+    {
+      "id": "educational-zh",
+      "locale": "zh-TW",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "我正在閱讀「胸痛」。"
+    },
+    {
+      "id": "educational-vi",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đang đọc về \"đau ngực\"."
+    },
+    {
+      "id": "read-then-current-en",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "I am reading about \"chest pain\". I have chest pain now."
+    },
+    {
+      "id": "read-then-current-zh",
+      "locale": "zh-TW",
+      "expected": "CURRENT_URGENT",
+      "text": "我正在閱讀「胸痛」。我現在胸痛。"
+    },
+    {
+      "id": "read-then-current-vi",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đang đọc về \"đau ngực\". Tôi đang khó thở."
+    },
+    {
+      "id": "reported-reading-en",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "My friend Ana says \"I am reading about chest pain\"."
+    },
+    {
+      "id": "reported-current-en",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "My friend Ana says \"I have chest pressure now\"."
+    },
+    {
+      "id": "reported-current-zh",
+      "locale": "zh-TW",
+      "expected": "CURRENT_URGENT",
+      "text": "我朋友Ana說「我現在胸悶」。"
+    },
+    {
+      "id": "reported-current-vi",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Bạn tôi Ana nói \"Tôi đang đau ngực\"."
+    },
+    {
+      "id": "quote-complement-other",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "\"chest pain\" is what my friend Ana is experiencing now."
+    },
+    {
+      "id": "quote-other-resolution",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "I have chest pain now. My friend Ana says \"my chest pain resolved\"."
+    },
+    {
+      "id": "quote-unrelated-tail",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"chest pain\" is a phrase. I am working now."
+    },
+    {
+      "id": "vi-compound",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã hết hẳn đau ngực."
+    },
+    {
+      "id": "vi-compound-analogous",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã khỏi hẳn đau ngực."
+    },
+    {
+      "id": "vi-compound-breathing",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã hết hẳn khó thở."
+    },
+    {
+      "id": "vi-negated-completion",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi chưa hết hẳn đau ngực."
+    },
+    {
+      "id": "vi-current-precedence",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở."
+    },
+    {
+      "id": "vi-unrelated-intervening",
+      "locale": "vi",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "Tôi đã hết công việc hẳn đau ngực."
+    },
+    {
+      "id": "vi-unrelated-target",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đang đau ngực. Cơn đau đầu đã hết hẳn."
+    },
+    {
+      "id": "mixed-completion-current",
+      "locale": "mixed",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đã hết hẳn đau ngực. 我現在呼吸困難。"
+    },
+    {
+      "id": "mixed-quote-reference",
+      "locale": "mixed",
+      "expected": "CURRENT_URGENT",
+      "text": "「胸悶」 is what I am experiencing now."
+    },
+    {
+      "id": "generic-quoted-question",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "What does \"I have chest pressure now\" mean?"
+    },
+    {
+      "id": "hypothetical-quote",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "If he says \"I have chest pain\", what should I do?"
+    },
+    {
+      "id": "bare-metric-en",
+      "locale": "en",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "chest pain What is my HRV today?"
+    },
+    {
+      "id": "bare-metric-zh",
+      "locale": "zh-TW",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "胸痛 What is my HRV today?"
+    },
+    {
+      "id": "bare-metric-vi",
+      "locale": "vi",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "đau ngực What is my HRV today?"
+    },
+    {
+      "id": "bare-metric-mixed",
+      "locale": "mixed",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "chest pain 胸痛 What is my HRV today?"
+    },
+    {
+      "id": "asserted-metric",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "I have chest pain What is my HRV today?"
+    },
+    {
+      "id": "negated-metric",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "I have no chest pain What is my HRV today?"
+    },
+    {
+      "id": "metric-native-0",
+      "locale": "en",
+      "text": "chest pain How is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "metric-native-1",
+      "locale": "zh-TW",
+      "text": "胸痛 我的HRV今天是多少？",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "metric-native-2",
+      "locale": "vi",
+      "text": "đau ngực HRV của tôi hôm nay là gì?",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "metric-native-3",
+      "locale": "mixed",
+      "text": "胸痛 HRV của tôi hôm nay là gì?",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "reported-clinical-question-en",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "My friend Ana says \"What causes my current chest pain?\""
+    },
+    {
+      "id": "reported-clinical-question-zh",
+      "locale": "zh-TW",
+      "expected": "CURRENT_URGENT",
+      "text": "我朋友Ana說「我現在胸痛是什麼原因？」"
+    },
+    {
+      "id": "reported-clinical-question-vi",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Bạn tôi Ana nói \"Tôi đang đau ngực, nguyên nhân là gì?\""
+    },
+    {
+      "id": "reported-generic-education",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "My friend Ana says \"People with chest pain generally need assessment\"."
+    },
+    {
+      "id": "reported-generic-education-zh",
+      "locale": "zh-TW",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "我朋友Ana說「胸痛通常有哪些原因？」"
+    }
+  ],
+  "metamorphic": [
+    {
+      "id": "owner-quote-en-trim",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "  \"chest pressure\" is what I am experiencing right now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "owner-quote-en-punctuation",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "\"chest pressure\" is what I am experiencing right now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "owner-quote-zh-trim",
+      "locale": "zh-TW",
+      "expected": "CURRENT_URGENT",
+      "text": "  「胸痛」是我現在感到的症狀。  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "owner-uncertainty-zh-trim",
+      "locale": "zh-TW",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "  我不確定我是否「胸悶」。  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-reference-vi-trim",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "  \"đau ngực\" là triệu chứng tôi đang cảm thấy.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-reference-vi-nfd",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "quote-reference-vi-punctuation",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-statement-en-trim",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "  \"I have chest pressure\" describes what I am experiencing now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-statement-en-punctuation",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "\"I have chest pressure\" describes what I am experiencing now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-negation-en-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  \"chest pain\" is what I am not experiencing now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-negation-en-punctuation",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"chest pain\" is what I am not experiencing now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-negation-zh-trim",
+      "locale": "zh-TW",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  「胸痛」是我現在沒有感到的症狀。  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-negation-vi-trim",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  \"đau ngực\" là triệu chứng tôi không đang cảm thấy.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-negation-vi-nfd",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"đau ngực\" là triệu chứng tôi không đang cảm thấy.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "quote-negation-vi-punctuation",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"đau ngực\" là triệu chứng tôi không đang cảm thấy。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-past-en-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  \"chest pain\" is what I experienced yesterday.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-past-en-punctuation",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"chest pain\" is what I experienced yesterday。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-epistemic-en-trim",
+      "locale": "en",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "  \"chest pain\" is what I am unsure I am experiencing now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-epistemic-en-punctuation",
+      "locale": "en",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "\"chest pain\" is what I am unsure I am experiencing now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "educational-en-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  I am reading about \"chest pain\".  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "educational-en-punctuation",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "I am reading about \"chest pain\"。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "educational-zh-trim",
+      "locale": "zh-TW",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  我正在閱讀「胸痛」。  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "educational-vi-trim",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  Tôi đang đọc về \"đau ngực\".  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "educational-vi-nfd",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đang đọc về \"đau ngực\".",
+      "transformation": "nfd"
+    },
+    {
+      "id": "educational-vi-punctuation",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đang đọc về \"đau ngực\"。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "read-then-current-en-trim",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "  I am reading about \"chest pain\". I have chest pain now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "read-then-current-en-punctuation",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "I am reading about \"chest pain\"。 I have chest pain now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "read-then-current-zh-trim",
+      "locale": "zh-TW",
+      "expected": "CURRENT_URGENT",
+      "text": "  我正在閱讀「胸痛」。我現在胸痛。  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "read-then-current-vi-trim",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "  Tôi đang đọc về \"đau ngực\". Tôi đang khó thở.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "read-then-current-vi-nfd",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đang đọc về \"đau ngực\". Tôi đang khó thở.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "read-then-current-vi-punctuation",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đang đọc về \"đau ngực\"。 Tôi đang khó thở。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "reported-reading-en-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  My friend Ana says \"I am reading about chest pain\".  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "reported-reading-en-punctuation",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "My friend Ana says \"I am reading about chest pain\"。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "reported-current-en-trim",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "  My friend Ana says \"I have chest pressure now\".  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "reported-current-en-punctuation",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "My friend Ana says \"I have chest pressure now\"。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "reported-current-zh-trim",
+      "locale": "zh-TW",
+      "expected": "CURRENT_URGENT",
+      "text": "  我朋友Ana說「我現在胸悶」。  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "reported-current-vi-trim",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "  Bạn tôi Ana nói \"Tôi đang đau ngực\".  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "reported-current-vi-nfd",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Bạn tôi Ana nói \"Tôi đang đau ngực\".",
+      "transformation": "nfd"
+    },
+    {
+      "id": "reported-current-vi-punctuation",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Bạn tôi Ana nói \"Tôi đang đau ngực\"。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-complement-other-trim",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "  \"chest pain\" is what my friend Ana is experiencing now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-complement-other-punctuation",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "\"chest pain\" is what my friend Ana is experiencing now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-other-resolution-trim",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "  I have chest pain now. My friend Ana says \"my chest pain resolved\".  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-other-resolution-punctuation",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "I have chest pain now。 My friend Ana says \"my chest pain resolved\"。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "quote-unrelated-tail-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  \"chest pain\" is a phrase. I am working now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "quote-unrelated-tail-punctuation",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "\"chest pain\" is a phrase。 I am working now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "vi-compound-trim",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  Tôi đã hết hẳn đau ngực.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "vi-compound-nfd",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã hết hẳn đau ngực.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "vi-compound-punctuation",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã hết hẳn đau ngực。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "vi-compound-analogous-trim",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  Tôi đã khỏi hẳn đau ngực.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "vi-compound-analogous-nfd",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã khỏi hẳn đau ngực.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "vi-compound-analogous-punctuation",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã khỏi hẳn đau ngực。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "vi-compound-breathing-trim",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  Tôi đã hết hẳn khó thở.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "vi-compound-breathing-nfd",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã hết hẳn khó thở.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "vi-compound-breathing-punctuation",
+      "locale": "vi",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "Tôi đã hết hẳn khó thở。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "vi-negated-completion-trim",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "  Tôi chưa hết hẳn đau ngực.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "vi-negated-completion-nfd",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi chưa hết hẳn đau ngực.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "vi-negated-completion-punctuation",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi chưa hết hẳn đau ngực。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "vi-current-precedence-trim",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "  Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "vi-current-precedence-nfd",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "vi-current-precedence-punctuation",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đã hết hẳn đau ngực， nhưng tôi đang khó thở。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "vi-unrelated-intervening-trim",
+      "locale": "vi",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "  Tôi đã hết công việc hẳn đau ngực.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "vi-unrelated-intervening-nfd",
+      "locale": "vi",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "Tôi đã hết công việc hẳn đau ngực.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "vi-unrelated-intervening-punctuation",
+      "locale": "vi",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "Tôi đã hết công việc hẳn đau ngực。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "vi-unrelated-target-trim",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "  Tôi đang đau ngực. Cơn đau đầu đã hết hẳn.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "vi-unrelated-target-nfd",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đang đau ngực. Cơn đau đầu đã hết hẳn.",
+      "transformation": "nfd"
+    },
+    {
+      "id": "vi-unrelated-target-punctuation",
+      "locale": "vi",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đang đau ngực。 Cơn đau đầu đã hết hẳn。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "mixed-completion-current-trim",
+      "locale": "mixed",
+      "expected": "CURRENT_URGENT",
+      "text": "  Tôi đã hết hẳn đau ngực. 我現在呼吸困難。  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "mixed-completion-current-nfd",
+      "locale": "mixed",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đã hết hẳn đau ngực. 我現在呼吸困難。",
+      "transformation": "nfd"
+    },
+    {
+      "id": "mixed-completion-current-punctuation",
+      "locale": "mixed",
+      "expected": "CURRENT_URGENT",
+      "text": "Tôi đã hết hẳn đau ngực。 我現在呼吸困難。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "mixed-quote-reference-trim",
+      "locale": "mixed",
+      "expected": "CURRENT_URGENT",
+      "text": "  「胸悶」 is what I am experiencing now.  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "mixed-quote-reference-punctuation",
+      "locale": "mixed",
+      "expected": "CURRENT_URGENT",
+      "text": "「胸悶」 is what I am experiencing now。",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "generic-quoted-question-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  What does \"I have chest pressure now\" mean?  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "hypothetical-quote-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  If he says \"I have chest pain\", what should I do?  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "hypothetical-quote-punctuation",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "If he says \"I have chest pain\"， what should I do?",
+      "transformation": "punctuation"
+    },
+    {
+      "id": "bare-metric-en-trim",
+      "locale": "en",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "  chest pain What is my HRV today?  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "bare-metric-zh-trim",
+      "locale": "zh-TW",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "  胸痛 What is my HRV today?  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "bare-metric-vi-trim",
+      "locale": "vi",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "  đau ngực What is my HRV today?  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "bare-metric-vi-nfd",
+      "locale": "vi",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "đau ngực What is my HRV today?",
+      "transformation": "nfd"
+    },
+    {
+      "id": "bare-metric-mixed-trim",
+      "locale": "mixed",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "text": "  chest pain 胸痛 What is my HRV today?  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "asserted-metric-trim",
+      "locale": "en",
+      "expected": "CURRENT_URGENT",
+      "text": "  I have chest pain What is my HRV today?  ",
+      "transformation": "trim"
+    },
+    {
+      "id": "negated-metric-trim",
+      "locale": "en",
+      "expected": "CLEARLY_NONURGENT",
+      "text": "  I have no chest pain What is my HRV today?  ",
+      "transformation": "trim"
+    }
+  ],
+  "initialCasesFrozenBeforeRuntimeRepair": 40,
+  "initialMetamorphicFrozenBeforeRuntimeRepair": 81,
+  "additionalContrastsDuringBoundedRepair": 9,
+  "classificationExpectationsChangedAfterObservedResults": 0
+}

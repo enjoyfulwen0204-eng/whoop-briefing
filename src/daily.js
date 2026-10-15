@@ -31,7 +31,7 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  * @param {object} telegram 已經綁定到該使用者 chat 的 telegram client。
  */
 export async function runDaily({
-  db, userId, source, coach, telegram,bodyEnergy, timezone, locale = 'zh-TW', now = new Date(),
+  db, userId, source, coach, telegram,bodyEnergy, timezone, locale = 'zh-TW', now = new Date(),presentationClock,
   // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
   // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
@@ -43,7 +43,7 @@ export async function runDaily({
   // 1) 輕量 polling。刻意放在去重之前：health_date 是從最新那筆睡眠算出來的，
   //    沒抓資料就不知道要用哪個 key 去重。「完全沒事做」的快速返回在 index.js。
   const { sleeps: pollSleeps, recoveries: pollRecoveries } = await source.poll();
-  const liveNow=()=>new Date(currentDurableExecution()?.presentationClock?.()??now);
+  const liveNow=()=>new Date(currentDurableExecution()?.presentationClock?.()??presentationClock?.()??now);
   now=liveNow();
   let wake = detectWake({
     observations: buildObservations({
@@ -219,6 +219,7 @@ export async function runDaily({
   if (claiming) {
     claim = await db.claimReport({
       ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS,
+      ...(presentationClock?{now:liveNow()}:{}),
       // ★ R2：認領屬於這一輪的啟用期（見 db.claimReport）。
       expectedLifecycleGeneration,
     });
@@ -314,7 +315,7 @@ export async function runDaily({
   //    而正常的長工作不該因此失去所有權。續租只是效率 ——
   //    真正的安全邊界是下面 deliverReport() 裡的授權圍欄。
   await renewReportClaim({
-    db, claimKey, claim, ttlMs: REPORT_CLAIM.RENEW_MS, now, stage: 'pre_send',
+    db, claimKey, claim, ttlMs: REPORT_CLAIM.RENEW_MS, now:liveNow(), stage: 'pre_send',
   });
 
   // Provider windows stay fixed; eligibility and late policy use the live
@@ -348,7 +349,7 @@ export async function runDaily({
   }}:telegram;
 
   const delivery = await deliverReport({
-    db, claimKey, claim, telegram:dailySender, text, now: () => now,
+    db, claimKey, claim, telegram:dailySender, text, now: liveNow,
     authorizeContent:typeof coach?.assertSnapshot==='function'?()=>coach.assertSnapshot():undefined,
   });
 

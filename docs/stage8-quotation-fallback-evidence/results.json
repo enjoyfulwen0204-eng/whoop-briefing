@@ -1,0 +1,1573 @@
+{
+  "baselineHead": "10b68fa5f4f9501c424ad4c16b4bab0eae500595",
+  "baselineTree": "38801eb22cb14318f0a0486e915107d58b1b7097",
+  "branch": "codex/stage8-quotation-fallback-20261015",
+  "worktree": "/Users/kelvin/.codex/worktrees/stage8-quotation-safety-fallback/whoop-briefing",
+  "finalReceipt": "/private/tmp/stage8-quotation-fallback-candidate-freeze.json",
+  "generatedAtUTC": "2026-10-15T05:28:46.698297+00:00",
+  "runtimeSha256": {
+    "src/bot/triage.js": "a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c",
+    "src/bot/safetyGate.js": "d9ce578b9fb8fcbb15c42ecd308bcb32b7fb7c695908358293ff5e107f32bf87"
+  },
+  "runtimeEditsStopped": true,
+  "stopConditionTriggered": true,
+  "noFurtherRuntimeEditsAfterObservedNewFalsePositive": true,
+  "fourResidualSemantics": {
+    "pass": 4,
+    "fail": 0,
+    "classifications": [
+      {
+        "text": "\"chest pressure\" is exactly what I am experiencing right now.",
+        "expected": "CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "text": "「胸痛」正是我現在感到的症狀。",
+        "expected": "CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "text": "\"đau ngực\" chính là triệu chứng tôi đang cảm thấy.",
+        "expected": "CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "text": "\"chest pressure\" might be what I am feeling right now.",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "POSSIBLE_CURRENT_URGENT"
+      }
+    ]
+  },
+  "sixteenResidualProcessor": {
+    "tests": 16,
+    "pass": 16,
+    "fail": 0,
+    "safetyRows": 16,
+    "zeroNameNoteProfilePeerWritesAndScopeReadsAndOrdinaryConsumers": true,
+    "locales": [
+      "en",
+      "vi",
+      "zh-TW"
+    ]
+  },
+  "existing2560": {
+    "tests": 2560,
+    "pass": 2560,
+    "fail": 0
+  },
+  "original2151": {
+    "tests": 2151,
+    "pass": 2151,
+    "fail": 0
+  },
+  "previouslyPassing2540": {
+    "tests": 2540,
+    "pass": 2540,
+    "fail": 0
+  },
+  "previous20Failures": {
+    "tests": 20,
+    "pass": 20,
+    "fail": 0
+  },
+  "documented956": {
+    "tests": 956,
+    "pass": 956,
+    "fail": 0
+  },
+  "newSemantic235": {
+    "tests": 235,
+    "pass": 210,
+    "fail": 25
+  },
+  "newProcessor76": {
+    "tests": 76,
+    "pass": 60,
+    "fail": 16
+  },
+  "distinctFinalTestDefinitions": {
+    "tests": 2901,
+    "pass": 2839,
+    "fail": 62
+  },
+  "allRawTapIncludingNativeProcessFailures": {
+    "tests": 2901,
+    "pass": 2839,
+    "fail": 62,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "matrices": {
+    "legacy": {
+      "tests": 224,
+      "pass": 224,
+      "fail": 0,
+      "completeDisjointCoverage": true,
+      "safetyRows": 144,
+      "allSafetyStateReadConsumerReplayGuardsPass": true,
+      "clearRows": 80,
+      "falseWarnings": 0,
+      "failures": []
+    },
+    "new": {
+      "tests": 134,
+      "pass": 134,
+      "fail": 0,
+      "completeDisjointCoverage": true,
+      "safetyRows": 84,
+      "allSafetyStateReadConsumerReplayGuardsPass": true,
+      "clearRows": 50,
+      "falseWarnings": 0,
+      "failures": []
+    },
+    "quotation": {
+      "tests": 76,
+      "pass": 60,
+      "fail": 16,
+      "completeDisjointCoverage": true,
+      "safetyRows": 28,
+      "allSafetyStateReadConsumerReplayGuardsPass": true,
+      "clearRows": 48,
+      "falseWarnings": 16,
+      "failures": [
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "negated-zh",
+          "locale": "zh-TW",
+          "lane": "note",
+          "reviewed": false,
+          "text": "「胸痛」正是我現在沒有感到的症狀。",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NOTE_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-en",
+          "locale": "en",
+          "lane": "coach",
+          "reviewed": false,
+          "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-zh",
+          "locale": "zh-TW",
+          "lane": "note",
+          "reviewed": false,
+          "text": "假設「胸痛」是我現在感到的症狀。",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NOTE_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-vi",
+          "locale": "vi",
+          "lane": "name",
+          "reviewed": false,
+          "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NAME_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-vi",
+          "locale": "vi",
+          "lane": "health",
+          "reviewed": false,
+          "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "negated-zh",
+          "locale": "zh-TW",
+          "lane": "coach",
+          "reviewed": false,
+          "text": "「胸痛」正是我現在沒有感到的症狀。",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-en",
+          "locale": "en",
+          "lane": "name",
+          "reviewed": false,
+          "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NAME_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-en",
+          "locale": "en",
+          "lane": "health",
+          "reviewed": false,
+          "text": "If \"chest pain\" is what I am experiencing, what should I do? What is my HRV today?",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-zh",
+          "locale": "zh-TW",
+          "lane": "coach",
+          "reviewed": false,
+          "text": "假設「胸痛」是我現在感到的症狀。",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-vi",
+          "locale": "vi",
+          "lane": "note",
+          "reviewed": false,
+          "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NOTE_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "negated-zh",
+          "locale": "zh-TW",
+          "lane": "name",
+          "reviewed": false,
+          "text": "「胸痛」正是我現在沒有感到的症狀。",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NAME_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "negated-zh",
+          "locale": "zh-TW",
+          "lane": "health",
+          "reviewed": false,
+          "text": "「胸痛」正是我現在沒有感到的症狀。 What is my HRV today?",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-en",
+          "locale": "en",
+          "lane": "note",
+          "reviewed": false,
+          "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NOTE_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-zh",
+          "locale": "zh-TW",
+          "lane": "name",
+          "reviewed": false,
+          "text": "假設「胸痛」是我現在感到的症狀。",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "NAME_FLOW_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-zh",
+          "locale": "zh-TW",
+          "lane": "health",
+          "reviewed": false,
+          "text": "假設「胸痛」是我現在感到的症狀。 What is my HRV today?",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        },
+        {
+          "invalidName": false,
+          "continuation": null,
+          "id": "hypothetical-vi",
+          "locale": "vi",
+          "lane": "coach",
+          "reviewed": false,
+          "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CURRENT_URGENT",
+          "pass": false,
+          "failures": [
+            "FALSE_EMERGENCY",
+            "NORMAL_CONSUMER_BLOCKED",
+            "CLASSIFICATION_CHANGED"
+          ],
+          "scopeReads": 0,
+          "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 0,
+            "captures": 0
+          }
+        }
+      ]
+    },
+    "residual": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "safetyRows": 16,
+      "zeroNameNoteProfilePeerWritesAndScopeReadsAndOrdinaryConsumers": true,
+      "locales": [
+        "en",
+        "vi",
+        "zh-TW"
+      ]
+    },
+    "localFrame": {
+      "tests": 12,
+      "pass": 0,
+      "fail": 12,
+      "ordinaryConsumerEntries": 12,
+      "identityCaptureEntries": 12,
+      "scopedHealthReads": 0,
+      "stateChanges": 6,
+      "nameStateChanges": 3,
+      "noteStateChanges": 3,
+      "peerIsolationPass": true
+    }
+  },
+  "tradeoff": {
+    "sourceExpectationsChanged": 0,
+    "syntheticCorpusRowsNotPopulationRates": true,
+    "allRows": {
+      "rows": 230,
+      "pass": 205,
+      "fail": 25
+    },
+    "newlyIntroducedFailures": [
+      {
+        "id": "negated-zh",
+        "text": "「胸痛」正是我現在沒有感到的症狀。",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "negated-zh-nfd",
+        "text": "「胸痛」正是我現在沒有感到的症狀。",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "negated-zh-space",
+        "text": "  「胸痛」正是我現在沒有感到的症狀。  ",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "negated-zh-quote-style",
+        "text": "『胸痛』正是我現在沒有感到的症狀。",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "negated-zh-metric",
+        "text": "「胸痛」正是我現在沒有感到的症狀。 What is my HRV today?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      }
+    ],
+    "preexistingUnresolved": [
+      {
+        "id": "hypothetical-en",
+        "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-zh",
+        "text": "假設「胸痛」是我現在感到的症狀。",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-vi",
+        "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-en-nfd",
+        "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-en-space",
+        "text": "  If \"chest pain\" is what I am experiencing, what should I do?  ",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-en-quote-style",
+        "text": "If “chest pain” is what I am experiencing, what should I do?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-en-metric",
+        "text": "If \"chest pain\" is what I am experiencing, what should I do? What is my HRV today?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-zh-nfd",
+        "text": "假設「胸痛」是我現在感到的症狀。",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-zh-space",
+        "text": "  假設「胸痛」是我現在感到的症狀。  ",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-zh-quote-style",
+        "text": "假設『胸痛』是我現在感到的症狀。",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-zh-metric",
+        "text": "假設「胸痛」是我現在感到的症狀。 What is my HRV today?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-vi-nfd",
+        "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-vi-space",
+        "text": "  Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.  ",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-vi-quote-style",
+        "text": "Nếu “đau ngực” là triệu chứng tôi đang cảm thấy.",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "hypothetical-vi-metric",
+        "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      }
+    ],
+    "authorIdentifiedExpectationDispute": {
+      "independentlyAdjudicated": false,
+      "expectationsUnchanged": true,
+      "rows": [
+        {
+          "id": "other-unrelated",
+          "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+          "expected": "CLEARLY_NONURGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CURRENT_URGENT"
+        },
+        {
+          "id": "other-unrelated-nfd",
+          "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+          "expected": "CLEARLY_NONURGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CURRENT_URGENT"
+        },
+        {
+          "id": "other-unrelated-space",
+          "text": "  My friend Ana said \"chest pain\". I am feeling relaxed now.  ",
+          "expected": "CLEARLY_NONURGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CURRENT_URGENT"
+        },
+        {
+          "id": "other-unrelated-quote-style",
+          "text": "My friend Ana said “chest pain”. I am feeling relaxed now.",
+          "expected": "CLEARLY_NONURGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CURRENT_URGENT"
+        },
+        {
+          "id": "other-unrelated-metric",
+          "text": "My friend Ana said \"chest pain\". I am feeling relaxed now. What is my HRV today?",
+          "expected": "CLEARLY_NONURGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CURRENT_URGENT"
+        }
+      ],
+      "reason": "A named reporter utters a serious-symptom term without educational framing. Existing reporter binding routes it urgently, and the authenticated user's later wellness cannot establish that the quoted term was purely informational. The control does not explicitly state Ana has the symptom; its CLEAR expectation is disputed and requires independent adjudication. Keep all original expected CLEAR values and five FAIL outcomes; do not claim independently approved invalidity or clinical currentness."
+    },
+    "rawNegativeRows": {
+      "rows": 175,
+      "safetyResponses": 25
+    },
+    "authorAnalysisExcludingDisputedRows": {
+      "positiveRows": 55,
+      "falseNegative": 0,
+      "negativeRows": 170,
+      "falsePositive": 20,
+      "newlyIntroducedFalsePositive": 5
+    },
+    "residual4": {
+      "pass": 4,
+      "fail": 0,
+      "classifications": [
+        {
+          "text": "\"chest pressure\" is exactly what I am experiencing right now.",
+          "expected": "CURRENT_URGENT",
+          "before": "CLEARLY_NONURGENT",
+          "after": "CURRENT_URGENT"
+        },
+        {
+          "text": "「胸痛」正是我現在感到的症狀。",
+          "expected": "CURRENT_URGENT",
+          "before": "CLEARLY_NONURGENT",
+          "after": "CURRENT_URGENT"
+        },
+        {
+          "text": "\"đau ngực\" chính là triệu chứng tôi đang cảm thấy.",
+          "expected": "CURRENT_URGENT",
+          "before": "CLEARLY_NONURGENT",
+          "after": "CURRENT_URGENT"
+        },
+        {
+          "text": "\"chest pressure\" might be what I am feeling right now.",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "before": "CLEARLY_NONURGENT",
+          "after": "POSSIBLE_CURRENT_URGENT"
+        }
+      ]
+    },
+    "stop": {
+      "runtimeEditsStopped": true,
+      "introducedMechanism": "Head selection matches present 有 inside the negative operator 沒有. Negative end is after the selected head start, so the governing negation fails the before-head check. A supported negative Chinese experiential assertion is promoted to CURRENT. Five semantic variants and four processor lanes expose this new false-positive family.",
+      "preexistingMechanism": "Leading conditional clause ownership is lost at a quote boundary. The new guard checks the inner unit connector, not the outer connector span; the quoted complement remains ACTUAL. These three multilingual examples already returned CURRENT on the baseline.",
+      "noFurtherRuntimeEdits": true,
+      "introducedHighMechanism": "For a conditional inside a quoted phrase, the inner unit connector is conditional but its outer connectorSpan is empty (0..0). The guard accepts that unsupported span and also frames the outside actual QUOTE_COMPLEMENT predicate. This retires independently current outside evidence as hypothetical. Scope crosses the quotation boundary; three languages and nine semantic variants reproduce it."
+    },
+    "localFrame18": {
+      "rows": 18,
+      "positiveRows": 9,
+      "negativeRows": 9,
+      "pass": 9,
+      "fail": 9,
+      "introducedFalseNegatives": [
+        {
+          "id": "local-frame-en",
+          "text": "\"if I have chest pain\" is what I am feeling right now.",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-zh",
+          "text": "「如果我胸痛」是我現在感到的症狀。",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-vi",
+          "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy.",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-en-nfd",
+          "text": "\"if I have chest pain\" is what I am feeling right now.",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-en-metric",
+          "text": "\"if I have chest pain\" is what I am feeling right now. What is my HRV today?",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-zh-nfd",
+          "text": "「如果我胸痛」是我現在感到的症狀。",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-zh-metric",
+          "text": "「如果我胸痛」是我現在感到的症狀。 What is my HRV today?",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-vi-nfd",
+          "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy.",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        },
+        {
+          "id": "local-frame-vi-metric",
+          "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+          "expected": "CURRENT_URGENT",
+          "before": "CURRENT_URGENT",
+          "after": "CLEARLY_NONURGENT"
+        }
+      ],
+      "mechanism": "For a conditional inside a quoted phrase, the inner unit connector is conditional but its outer connectorSpan is empty (0..0). The guard accepts that unsupported span and also frames the outside actual QUOTE_COMPLEMENT predicate. This retires independently current outside evidence as hypothetical. Scope crosses the quotation boundary; three languages and nine semantic variants reproduce it."
+    },
+    "combinedNewInputRows": {
+      "rows": 248,
+      "pass": 214,
+      "fail": 34,
+      "expectedPositiveRows": 64,
+      "falseNegative": 9,
+      "rawExpectedNegativeRows": 184,
+      "rawNegativeSafetyResponses": 25,
+      "disputedAuthorRows": 5,
+      "authorAnalysisExcludingDisputedNegativeRows": 179,
+      "falsePositiveExcludingDisputedRows": 20,
+      "introducedFalsePositiveRows": 5,
+      "populationRatesNotEstablished": true
+    },
+    "measuredTradeoff": {
+      "sameFrozenInputRows": 248,
+      "positiveRows": 64,
+      "rawNegativeRows": 184,
+      "beforeFalseClears": 55,
+      "afterFalseClears": 9,
+      "introducedFalseClearRows": 9,
+      "beforeRawNegativeSafetyResponses": 20,
+      "afterRawNegativeSafetyResponses": 25,
+      "introducedFalseWarningRows": 5,
+      "disputedRowsNotRelabeledOrPassed": 5,
+      "syntheticTransformationsNotPopulationEstimate": true,
+      "aggregateImprovementDoesNotPermitNewSystematicSafetyDefects": true
+    }
+  },
+  "expectationsChanged": 0,
+  "priorEvidenceFilesByteIdentical": 205,
+  "existingTestChangesOnlyOutputDestinations": true,
+  "native": {
+    "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "status": "OPEN",
+    "rootCause": "UNASSIGNED",
+    "observedThisCycle": false,
+    "processFailures": 0,
+    "passingRunDoesNotResolve": true,
+    "baselineEvidence": "../stage8-adjudicated-repair-evidence/results.json"
+  },
+  "statuses": {
+    "repairCode": "NO-GO",
+    "independentAcceptanceReviewReadiness": "NO-GO",
+    "wholeStage8": "NO-GO",
+    "production": "NO-GO"
+  },
+  "remainingDependencies": [
+    "Introduced High quotation-conditional false-clear family",
+    "Introduced Chinese quoted-negation false-positive family",
+    "Preexisting multilingual hypothetical quote-framing defects",
+    "Independent adjudication of five disputed author-created negative expectations",
+    "Stage 6 reconciliation and integration",
+    "Authenticated LIVE producers",
+    "Native SIGSEGV qualification",
+    "Independent final integrated review"
+  ],
+  "F02": "Owner Accepted Risk; Turso Token unchanged",
+  "productionPushMergeRealMigrationPaidExecutionRealTelegramCredentialChanges": 0,
+  "runs": [
+    {
+      "id": "safety",
+      "command": "node --test --test-concurrency=2 test/stage8-three-blocker/*.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/*.test.mjs test/stage8-predicate-ownership/*.test.mjs",
+      "exitCode": 0,
+      "definitions": 576,
+      "pass": 576,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 576,
+        "pass": 576,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "safety.tap.gz",
+      "sha256": "509c5a9de6f5a69fdf52a149e514e5795b6e5fd741122e13e8aba949f30ea8d6",
+      "gzipSha256": "37a8592ff17f4fa7fa7f18c76d1d439387d8f8963e2056ad7533fb6f5f63e6ec",
+      "countedFinal": true
+    },
+    {
+      "id": "integration",
+      "command": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+      "exitCode": 0,
+      "definitions": 200,
+      "pass": 200,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "integration.tap.gz",
+      "sha256": "c7fd6815a4ed9c9ef50b15b70453dd9990d55391f52e5edff8ebf1e60ceea84a",
+      "gzipSha256": "18670aa8f6f76de57c17cf90bafafdf9e850d68ef7ce6dc1cce990d005c8e1af",
+      "countedFinal": true
+    },
+    {
+      "id": "regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+      "exitCode": 0,
+      "definitions": 164,
+      "pass": 164,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "regression.tap.gz",
+      "sha256": "f74d21f00ac73d2e1b2545f3c43f21275a55103b844307b94dd63c4fa32dd4a4",
+      "gzipSha256": "9e4e764fb3c2959877f1ddc7781a0d2a0b19ea7265105557204179476bf3f4b1",
+      "countedFinal": true
+    },
+    {
+      "id": "polling",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 0,
+      "definitions": 16,
+      "pass": 16,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "polling.tap.gz",
+      "sha256": "0ce0764051aeafea3ec6d38615e15d55361cdee3dab86a79de024447ab733d39",
+      "gzipSha256": "e7e61e9b1ae19f6e1f9cb93e11560375f33de199efb1697ef781b43041377a07",
+      "countedFinal": true
+    },
+    {
+      "id": "scoped",
+      "command": "node --test --test-concurrency=2 test/stage8-scoped-repair/independent-coach.test.mjs test/stage8-scoped-repair/independent-processor.test.mjs test/stage8-scoped-repair/independent-targeted-processor.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-scoped-repair/processor.test.mjs test/stage8-scoped-repair/semantic.test.mjs",
+      "exitCode": 0,
+      "definitions": 348,
+      "pass": 348,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 348,
+        "pass": 348,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "scoped.tap.gz",
+      "sha256": "30eefb00f285afaa170c0995df9b95cc543b4976a03214cf54ac4c70ea8c616b",
+      "gzipSha256": "dbfcd87a826ec397d1344df0591f84d125ede93b3a5834111de8091bee3fa6f4",
+      "countedFinal": true
+    },
+    {
+      "id": "name",
+      "command": "node --test test/stage8-scoped-repair/contract-limit.test.mjs",
+      "exitCode": 0,
+      "definitions": 1,
+      "pass": 1,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "name.tap.gz",
+      "sha256": "e562ba408195926cc7dfcd490ea39d9728580b2b471c1a2774136be3e4c1374c",
+      "gzipSha256": "9b8d6b46114998eed72c03112f0822491625dcc38ae1492858bb5e6220b81332",
+      "countedFinal": true
+    },
+    {
+      "id": "new-semantic",
+      "command": "node --test test/stage8-final-evidence/semantic.test.mjs",
+      "exitCode": 0,
+      "definitions": 195,
+      "pass": 195,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 195,
+        "pass": 195,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "new-semantic.tap.gz",
+      "sha256": "c1e5d4529e7d7b333b4c2dc3c80b85d931e88fc76f520d50d9e317fa96b11036",
+      "gzipSha256": "9a78c480762f5c1bb371c8b5ebb3f3209f563a328a3549982cac863d30f0c110",
+      "countedFinal": true
+    },
+    {
+      "id": "processor",
+      "command": "node --test test/stage8-final-evidence/processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 25,
+      "pass": 25,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "processor.tap.gz",
+      "sha256": "5af8e0f964cf040bd9f419a8d9af5768e0cb355461dec2ba7c5b72a1c63f4f76",
+      "gzipSha256": "d1cfae0a2d59b7f014c4031f9e4db13bd07081d96c0f9e6c2ef197c8707ae99a",
+      "countedFinal": true
+    },
+    {
+      "id": "stop-processor",
+      "command": "node --test test/stage8-final-evidence/stop-regressions.test.mjs",
+      "exitCode": 0,
+      "definitions": 12,
+      "pass": 12,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "stop-processor.tap.gz",
+      "sha256": "422a0611ea52717855f0c50ee720a4d75641df586c7007ded8855785a8d820d6",
+      "gzipSha256": "5cccdfaae7ed8f0f3e8c91f87af3acb39861075e85ccf7579b06849541541a3c",
+      "countedFinal": true
+    },
+    {
+      "id": "gate-semantic",
+      "command": "node --test test/stage8-safety-gate/semantic.test.mjs",
+      "exitCode": 0,
+      "definitions": 417,
+      "pass": 417,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 417,
+        "pass": 417,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "gate-semantic.tap.gz",
+      "sha256": "d2e1393a541b943c238c7b74e33ac7a35500c0ff5354e25582cf45ad215a0279",
+      "gzipSha256": "80f4081f4485e74b20e46cbddc5fde3318bd036cb5f943b4a40c646f4f87e16e",
+      "countedFinal": true
+    },
+    {
+      "id": "legacy-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 75,
+      "pass": 75,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 75,
+        "pass": 75,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "legacy-ingress0.tap.gz",
+      "sha256": "d130aa6bbb4e192241094b00f24fda5c47a68b85011da0f1cfeea866348de58c",
+      "gzipSha256": "d4cec3f0ce755087e96d466b42ea5da42360ba99b9e3f91f29bc8f4170580f4a",
+      "countedFinal": true
+    },
+    {
+      "id": "legacy-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 75,
+      "pass": 75,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 75,
+        "pass": 75,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "legacy-ingress1.tap.gz",
+      "sha256": "5896a1ce18347a4cd0ed6adbbd6fcc490c3134d852a496ae2ae5c573b3cb9c17",
+      "gzipSha256": "9a2ec1ef87e67b8099cde3be1f3c7e09af088c46f91b19816943f25ec605e1bf",
+      "countedFinal": true
+    },
+    {
+      "id": "legacy-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 74,
+      "pass": 74,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 74,
+        "pass": 74,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "legacy-ingress2.tap.gz",
+      "sha256": "67d088205cb9c7a56b63b259dcfd6f1965957248776dd431f31282ff15e642de",
+      "gzipSha256": "c6d52925e65ce022b026f25ee460877bf697f16c4098e3fb6155edcc32946fce",
+      "countedFinal": true
+    },
+    {
+      "id": "adjudicated-semantic",
+      "command": "node --test test/stage8-adjudicated-repair/semantic.test.mjs",
+      "exitCode": 0,
+      "definitions": 221,
+      "pass": 221,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 221,
+        "pass": 221,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "adjudicated-semantic.tap.gz",
+      "sha256": "160de79ab3201234dfbb2d7fe174de396650b58e7a4d371d8e81fecc884ebd2f",
+      "gzipSha256": "9f7a30512613958d6e9fe390844d4442ab10c50dab1a60276e6ab407c305ebb1",
+      "countedFinal": true
+    },
+    {
+      "id": "adjudicated-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 45,
+      "pass": 45,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "adjudicated-ingress0.tap.gz",
+      "sha256": "57e1d10a51efefdf7c0504efe61991d3d91c2cccacff2a27137261791690f8b4",
+      "gzipSha256": "491b5e5b3fbb3406c9e99ba9d347a8de28c91554887e9afc4839ea230a6e4632",
+      "countedFinal": true
+    },
+    {
+      "id": "adjudicated-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 45,
+      "pass": 45,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "adjudicated-ingress1.tap.gz",
+      "sha256": "49f98463a55839ff31606e59831449237ac63af36ced107b173cac866b1db0e8",
+      "gzipSha256": "23e882fe60df8ca22e7734c52dbd560c5a67653b3ab73bb9b895bb05a13de885",
+      "countedFinal": true
+    },
+    {
+      "id": "adjudicated-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 44,
+      "pass": 44,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 44,
+        "pass": 44,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "adjudicated-ingress2.tap.gz",
+      "sha256": "dba9e4380e1caa1341a163fab9bac20608bd3241a800f49261e798f717977fa0",
+      "gzipSha256": "89b87168981c5765e9c4166f7bf1e88c9c8ad48ee483ff84f36b13686d5c900b",
+      "countedFinal": true
+    },
+    {
+      "id": "final-adversarial",
+      "command": "node --test --test-concurrency=2 test/stage8-adjudicated-repair/final-adversarial.test.mjs test/stage8-adjudicated-repair/residual-processor.test.mjs",
+      "exitCode": 0,
+      "definitions": 27,
+      "pass": 27,
+      "fail": 0,
+      "rawTapSummary": {
+        "tests": 27,
+        "pass": 27,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "final-adversarial.tap.gz",
+      "sha256": "e618d74c4948ab7f9a1c76d439c1692696eefc60643e8e6565396123657ded80",
+      "gzipSha256": "ed3095b2b4bda633255f4cae438e92b12fac37ec611a525a76f65ec35d2f6d14",
+      "countedFinal": true
+    },
+    {
+      "id": "quotation-semantic",
+      "command": "node --test test/stage8-quotation-fallback/semantic.test.mjs",
+      "exitCode": 1,
+      "definitions": 235,
+      "pass": 210,
+      "fail": 25,
+      "rawTapSummary": {
+        "tests": 235,
+        "pass": 210,
+        "fail": 25,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "quotation-semantic.tap.gz",
+      "sha256": "4a00a4631d13518ca80a25a5bd8cd4ecaf5a1f9ccbd3020fd1e09e27a43ebf9d",
+      "gzipSha256": "0d827647eca59809db07162749b4002390ad1d8b4d1cec01a4a20434879e835e",
+      "countedFinal": true
+    },
+    {
+      "id": "quotation-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-quotation-fallback/processor.test.mjs",
+      "exitCode": 1,
+      "definitions": 26,
+      "pass": 21,
+      "fail": 5,
+      "rawTapSummary": {
+        "tests": 26,
+        "pass": 21,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "quotation-ingress0.tap.gz",
+      "sha256": "18048e3631645f9516c3f3d357f4ea17d883cedb6dfa5e9635220c26039547e7",
+      "gzipSha256": "8572e7d4cedae1bdb732b230163c5a0d2cbf41f0ee5dbb68a1d81603b7f5850a",
+      "countedFinal": true
+    },
+    {
+      "id": "quotation-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-quotation-fallback/processor.test.mjs",
+      "exitCode": 1,
+      "definitions": 25,
+      "pass": 20,
+      "fail": 5,
+      "rawTapSummary": {
+        "tests": 25,
+        "pass": 20,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "quotation-ingress1.tap.gz",
+      "sha256": "0802f472e6b77b89c0406bff81d062b8659fa5d7c8858657b66f96b86e283cab",
+      "gzipSha256": "a4ad22e0c0b88d1b6d0f2964aea55a694e1286635f6f749ece29932e6424c926",
+      "countedFinal": true
+    },
+    {
+      "id": "quotation-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-quotation-fallback/processor.test.mjs",
+      "exitCode": 1,
+      "definitions": 25,
+      "pass": 19,
+      "fail": 6,
+      "rawTapSummary": {
+        "tests": 25,
+        "pass": 19,
+        "fail": 6,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "quotation-ingress2.tap.gz",
+      "sha256": "df18d711ca83e7abea80daeb463e62ea74dcee6697e4fe7b53645ee27fadefc2",
+      "gzipSha256": "55a1cc3adb51ad3379543a9637ad296570d03351cae7ca7e6dcae0e9ed2f5e89",
+      "countedFinal": true
+    },
+    {
+      "id": "local-frame",
+      "command": "node --test --test-concurrency=2 test/stage8-quotation-fallback/local-frame.test.mjs test/stage8-quotation-fallback/scope-processor.test.mjs",
+      "exitCode": 1,
+      "definitions": 30,
+      "pass": 9,
+      "fail": 21,
+      "rawTapSummary": {
+        "tests": 30,
+        "pass": 9,
+        "fail": 21,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "separateNativeProcessFailures": [],
+      "nativeSignals": [],
+      "log": "local-frame.tap.gz",
+      "sha256": "b6a219ed642098026f99ebc7feab210c65ac7dd8a413548e66993a18452d3372",
+      "gzipSha256": "d0288288f367a84733259d8d8ec6769f41ea792cd1e926366055bd4454319f52",
+      "countedFinal": true
+    }
+  ],
+  "diagnosticPreflightCountedFinal": false,
+  "localFrame30": {
+    "tests": 30,
+    "pass": 9,
+    "fail": 21
+  },
+  "capacityResume": {
+    "reason": "Selected model at capacity; previous execution sessions unavailable, no task test processes remain",
+    "runtimeUnchanged": true,
+    "completedCommandsPreserved": [
+      "safety",
+      "new-semantic",
+      "gate-semantic",
+      "adjudicated-semantic",
+      "final-adversarial",
+      "quotation-semantic",
+      "quotation-ingress0",
+      "quotation-ingress1",
+      "quotation-ingress2",
+      "local-frame"
+    ],
+    "resumedCommands": [
+      "integration",
+      "scoped",
+      "regression",
+      "legacy-ingress0",
+      "legacy-ingress1",
+      "legacy-ingress2",
+      "adjudicated-ingress0",
+      "adjudicated-ingress1",
+      "adjudicated-ingress2",
+      "polling",
+      "processor",
+      "stop-processor",
+      "name"
+    ],
+    "archivedBeforeResuming": [
+      {
+        "file": "integration.start",
+        "sha256": "6c4427c72eb2d05f37e8e9010c9a667715888b37e9eb23f2dbd12e2c3b127c9f"
+      },
+      {
+        "file": "integration.tap",
+        "sha256": "2c046de176237dcb42188014e8fc80810a446b40f9b165b2aacf7cc0cefbf810"
+      },
+      {
+        "file": "legacy-ingress0.start",
+        "sha256": "46822a2e00ca57dd6f97640b110ae482dca55b2501970969998bd8fa8807f7c3"
+      },
+      {
+        "file": "legacy-ingress0.tap",
+        "sha256": "c589f9879cbb039bc4c4bdc71bd5d86f58c545d91a065a4d326593f05f220cf7"
+      },
+      {
+        "file": "legacy-ingress1.start",
+        "sha256": "a5412885029e119dd743c50a2a553746636305bfd5e30988c9508b9a4a5531d9"
+      },
+      {
+        "file": "legacy-ingress1.tap",
+        "sha256": "07a5522e6bf684e71602d2c5add440fa4f70fbceb2f65676599561d62fb5bb64"
+      },
+      {
+        "file": "legacy-ingress2.start",
+        "sha256": "5e94c8a39e9756c82764dc3994a91323dce222a429edcae6ac5e67b17fea5887"
+      },
+      {
+        "file": "legacy-ingress2.tap",
+        "sha256": "f209ff8e95984eb83b18ba2b51bded6c9e0519816487d4317276ac550e26dd33"
+      },
+      {
+        "file": "legacy-processor-0-cases.json",
+        "sha256": "f81844e703dc3e7bd9e3e35652426d8311468dde6e30b09a6422752dbc462924"
+      },
+      {
+        "file": "legacy-processor-0-results.json",
+        "sha256": "1bd7e849f9410688fd0b6ff7c698f19622199bbd1f79f4684a34b7d0a9f27268"
+      },
+      {
+        "file": "legacy-processor-1-cases.json",
+        "sha256": "f81844e703dc3e7bd9e3e35652426d8311468dde6e30b09a6422752dbc462924"
+      },
+      {
+        "file": "legacy-processor-1-results.json",
+        "sha256": "13756cb9e4e4226f66bd71f871ade1d1bda7896aae69990633e81b43c8cb17d6"
+      },
+      {
+        "file": "legacy-processor-2-cases.json",
+        "sha256": "f81844e703dc3e7bd9e3e35652426d8311468dde6e30b09a6422752dbc462924"
+      },
+      {
+        "file": "legacy-processor-2-results.json",
+        "sha256": "bc4c7aca87c6147e5a9f19494ee1d80d7e190bc5145bdc5a401920814e972599"
+      },
+      {
+        "file": "regression.start",
+        "sha256": "3cd1551f84b30c2908fbc2f99d867d92b8c29b2083b5c236ba33191782768a2c"
+      },
+      {
+        "file": "regression.tap",
+        "sha256": "debfe242e231a967427e5ebd3b54d633b384ef673dde1f9aae7089aa8e89baac"
+      },
+      {
+        "file": "scoped.start",
+        "sha256": "e39fefa0065e4238b43953facdf1b995bfea56f8138e7b2de37ca2b8bc1241e9"
+      },
+      {
+        "file": "scoped.tap",
+        "sha256": "c6b2f20fe4fe991c4eebf44e4a9294ac7162b7205ed6137f7a621ab4adc7fdac"
+      }
+    ],
+    "maxConcurrentProcesses": 3
+  },
+  "regressionPermissionRerun": {
+    "originalRestrictedRun": {
+      "pass": 163,
+      "fail": 1,
+      "reason": "listen EPERM 0.0.0.0"
+    },
+    "finalRun": {
+      "tests": 164,
+      "pass": 164,
+      "fail": 0
+    },
+    "runtimeChanged": false,
+    "countedOriginalAsDiagnosticOnly": true
+  }
+}

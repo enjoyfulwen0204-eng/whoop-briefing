@@ -1,0 +1,243 @@
+{
+  "baselineHead": "a2dd62ae7be4cf4058952f3d6471e85f5b15fbd1",
+  "baselineTree": "ea5f2fce740632f9d4b6af7e1a5cc3c8027fe8bb",
+  "reviewEvidenceSha256": "cd276d0c064e8b07d29d86e8139f8d52b686e766d064d558cae638395ce7c7ad",
+  "runtimeSha256": "8f291ad1c0c7960c7b128ce15f5c5e11006890d89ba912cf599e548139cb99c1",
+  "runtimeChangedPaths": [
+    "src/bot/triage.js"
+  ],
+  "unchangedPreviouslyTrackedPaths": 2045,
+  "documented956": {
+    "pass": 956,
+    "fail": 0,
+    "partitions": [
+      576,
+      200,
+      164,
+      16
+    ]
+  },
+  "independentSemantic": {
+    "beforeMeasured": {
+      "falseNegative": 19,
+      "falsePositive": 5,
+      "pass": 115,
+      "fail": 24
+    },
+    "after": {
+      "pass": 139,
+      "fail": 0,
+      "expectedSafety": 97,
+      "expectedClear": 42,
+      "falseNegative": 0,
+      "falsePositive": 0
+    }
+  },
+  "independentProcessor": {
+    "beforeFromIndependentReview": {
+      "pass": 29,
+      "fail": 40
+    },
+    "afterMeasured": {
+      "pass": 68,
+      "fail": 1
+    },
+    "assertionConflict": {
+      "id": "neg-other-object/name",
+      "classificationExpected": "CLEARLY_NONURGENT",
+      "classificationActual": "CLEARLY_NONURGENT",
+      "text": "She is not experiencing her chest pain or her difficulty breathing.",
+      "length": 67,
+      "preservedSettingsLimit": 64,
+      "actualReply": "Invalid name. Enter 1–64 characters without control characters.",
+      "originalExpectedPersistenceStillFailing": true,
+      "settingsSource": "src/bot/settings.js:7",
+      "contractVerification": {
+        "pass": 1,
+        "fail": 0,
+        "validContinuation": true
+      }
+    }
+  },
+  "newMetamorphic": {
+    "pass": 100,
+    "fail": 0
+  },
+  "frozenOwnership": {
+    "pass": 7,
+    "fail": 0
+  },
+  "addedProcessor": {
+    "pass": 33,
+    "fail": 0
+  },
+  "distinctFinalTotal": {
+    "pass": 1304,
+    "fail": 1,
+    "tests": 1305
+  },
+  "findings": [
+    {
+      "id": "PO-H01",
+      "semanticStatus": "CLOSED_IN_AUTHOR_VERIFICATION",
+      "independentAcceptance": "PENDING"
+    },
+    {
+      "id": "PO-H02",
+      "semanticStatus": "CLOSED_IN_AUTHOR_VERIFICATION",
+      "independentAcceptance": "PENDING"
+    },
+    {
+      "id": "PO-H03",
+      "semanticStatus": "CLOSED_IN_AUTHOR_VERIFICATION",
+      "independentAcceptance": "PENDING"
+    },
+    {
+      "id": "PO-H04",
+      "semanticStatus": "CLOSED_IN_AUTHOR_VERIFICATION",
+      "independentAcceptance": "PENDING"
+    },
+    {
+      "id": "PO-H05",
+      "semanticStatus": "CLOSED_IN_AUTHOR_VERIFICATION",
+      "independentAcceptance": "PENDING"
+    },
+    {
+      "id": "PO-H06",
+      "semanticStatus": "CLOSED_IN_AUTHOR_VERIFICATION",
+      "independentAcceptance": "PENDING"
+    },
+    {
+      "id": "PO-M01",
+      "semanticStatus": "CLOSED_IN_AUTHOR_VERIFICATION",
+      "independentAcceptance": "PENDING"
+    }
+  ],
+  "runs": [
+    {
+      "id": "frozen-safety",
+      "command": "node --test --test-concurrency=2 test/stage8-three-blocker/*.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/*.test.mjs test/stage8-predicate-ownership/*.test.mjs",
+      "exitCode": 0,
+      "tests": 576,
+      "pass": 576,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "frozen-safety.tap.gz",
+      "sha256": "1aa1a5280c507185041e70592dbb5d28acbb623aafbe07d606d5749e70210282",
+      "gzipSha256": "c78de05f5895b74c12627f6753e06604ad30592460d349a8f769982053dbb16e",
+      "failures": []
+    },
+    {
+      "id": "frozen-integration",
+      "command": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+      "exitCode": 0,
+      "tests": 200,
+      "pass": 200,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "frozen-integration.tap.gz",
+      "sha256": "836109c3699dd226fa32dc33ed86e6c928bb395cfc1ae0b62419445289a9c6a2",
+      "gzipSha256": "5d83ba11b9da2f98e42269cc2f09bd45de90bb1c25ba7987bc5378857441407e",
+      "failures": []
+    },
+    {
+      "id": "frozen-regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+      "exitCode": 0,
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "frozen-regression.tap.gz",
+      "sha256": "e75be32c78449897f360ec975822f8942aa2678ec647cced34aadb8ae6154e64",
+      "gzipSha256": "deb8a4a23a97a37370794e231eff7a31379f9c4a451a9616d5d23185d7a58955",
+      "failures": []
+    },
+    {
+      "id": "frozen-polling",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 0,
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "frozen-polling.tap.gz",
+      "sha256": "8a3ea4df00afacb752cfc01da2b7afdebfdafdfcf78539ca0b6898d5c236ac27",
+      "gzipSha256": "a30c11fe4e68d43572da020272ee1bedea88b1a5cc58b72e6a6cf4c0793da3dd",
+      "failures": []
+    },
+    {
+      "id": "frozen-new",
+      "command": "node --test --test-concurrency=2 test/stage8-scoped-repair/independent-coach.test.mjs test/stage8-scoped-repair/independent-processor.test.mjs test/stage8-scoped-repair/independent-targeted-processor.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-scoped-repair/processor.test.mjs test/stage8-scoped-repair/semantic.test.mjs",
+      "exitCode": 1,
+      "tests": 348,
+      "pass": 347,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "frozen-new.tap.gz",
+      "sha256": "ea43cbb2dc2d4f58ca4dc71999259de12b8dafa09b23486d3cc71e084bf14bf0",
+      "gzipSha256": "df11459e5a10bd1d4fa3beb1431f0704f84168f5598f90d8623d635face65b42",
+      "failures": [
+        "not ok 40 - independent ingress neg-other-object name"
+      ]
+    },
+    {
+      "id": "name-limit",
+      "command": "node --test test/stage8-scoped-repair/contract-limit.test.mjs",
+      "exitCode": 0,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "name-limit.tap.gz",
+      "sha256": "2470b668eb67d6cdbb4eda18a939a9b52b571bb4bc680e16afc89b0b86331dfa",
+      "gzipSha256": "256056e1cd8bf8c46f9609297fe82c6b43432bf82b48b39f782a835cc1ef9d78",
+      "failures": []
+    },
+    {
+      "id": "direct-frozen",
+      "command": "node --test test/stage8-scoped-repair/semantic.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-architecture/corpus.test.mjs test/stage8-triage-architecture/boundaries.test.mjs test/stage8-triage-architecture/uncertainty.test.mjs test/stage8-predicate-ownership/ownership.test.mjs",
+      "exitCode": 0,
+      "tests": 709,
+      "pass": 709,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "direct-frozen.tap.gz",
+      "sha256": "724a42d7e3e0de9c148a13d6998a7d81c817ecdf08bc0bbfe07fddc918a941df",
+      "gzipSha256": "0ba743a492a09d6ddccc91bf4d784edd890153ac75fe55c40bf9be219e09ea8c",
+      "failures": []
+    }
+  ],
+  "native": {
+    "trackingId": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "status": "OPEN",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "rootCause": "UNASSIGNED",
+    "newNativeFailuresInFinalRuns": 0,
+    "passingRunsDoNotResolveIt": true
+  },
+  "statuses": {
+    "independentDeltaReviewReadiness": "NO-GO",
+    "reason": "Original frozen processor persistence assertion conflicts with preserved 64-character Settings limit; independent adjudication required",
+    "wholeStage8": "NO-GO",
+    "production": "NO-GO"
+  },
+  "newRuntimeRegressionsObserved": 0,
+  "productionOperations": 0,
+  "realTelegramSends": 0,
+  "credentialChanges": 0,
+  "stage6Writes": 0,
+  "F02": "Owner Accepted Risk; unchanged",
+  "syntaxChecks": {
+    "pass": 5,
+    "fail": 0
+  },
+  "diffWhitespaceCheck": "PASS"
+}

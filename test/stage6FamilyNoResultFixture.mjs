@@ -5,9 +5,9 @@ import {createPhase4Foundation} from '../src/phase4Foundation.js';
 import {createPhase4Stage6,authorizeStage6ShadowWorker} from '../src/phase4Reanalysis.js';
 import {request,claim} from './v32ReviewFixture.js';import {commitPhaseWork,finalizePhaseWork} from '../src/phase4ExecutionStore.js';
 import {withDurableExecution} from '../src/phase4ExecutionContext.js';
-export async function familyFixture(t,{positive=false}={}){
+export async function familyFixture(t,{positive=false,targetVersion=34}={}){
  const dir=await mkdtemp(join(tmpdir(),'stage6-family-no-result-')),url='file:'+join(dir,'fixture.sqlite');let db=createOwnedDb({url});
- t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:32});
+ t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion});
  await db.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});await db.ensureOnboarding('a',{state:'READY'});
  let stores;const refresh=async()=>{stores=await createPhase4Foundation({db,keys:fixtureKeys,admission:await db.admitRuntime()});};await refresh();await stores.initializeTenant('a','SHADOW');
  const input=bodyInput({asOf:Date.now()-3600000,days:positive?30:0});

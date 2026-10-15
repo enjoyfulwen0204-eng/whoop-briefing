@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import { compareExact } from './phase4CanonicalOrder.js';
@@ -404,7 +405,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return {episode:await episodes.read(context,active.episode_id),created:false,replayed:false,event:revised};
   }
   async function metricPreparation(context,request,currentBody=null) {
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       if(!exactKeys(request,['metricKey','currentSource','baselineSources','asOfUtc','windowFamily',...(request.refresh===true?['refresh']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.windowFamily!=='string'||!request.windowFamily)
         fail('PHASE4_METRIC_ANALYSIS_REQUEST_INVALID');
@@ -452,7 +453,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return (await client.execute({sql:`SELECT r.run_id,r.state,i.evidence_item_id,a.evidence_item_id authority_id
       FROM evidence_runs r LEFT JOIN evidence_items i ON i.user_id=r.user_id AND i.execution_mode=r.execution_mode
         AND i.run_id=r.run_id AND i.item_key=?
-      LEFT JOIN phase4_evidence_result_authorities a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode
+      LEFT JOIN ${analysisTable(core,'phase4_evidence_result_authorities')} a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode
         AND a.evidence_item_id=i.evidence_item_id AND a.result_scope='METRIC'
       WHERE r.user_id=? AND r.execution_mode=? AND r.deterministic_run_key=?`,
       args:[plan.itemKey,context.userId,context.executionMode,plan.runKey]})).rows[0];
@@ -473,7 +474,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function withCurrentBodyMetricObservation(context,request,sourceAsOfUtc,work){
     if(typeof work!=='function')fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
-    if(core.schemaVersion!==32||request.metricKey!=='body_energy'||request.windowFamily!=='STAGE6_CURRENT_BODY_ENERGY'
+    if(![32,33,34,35].includes(core.schemaVersion)||request.metricKey!=='body_energy'||request.windowFamily!=='STAGE6_CURRENT_BODY_ENERGY'
       ||!Array.isArray(request.baselineSources)||request.baselineSources.length||typeof sourceAsOfUtc!=='string')return work(request);
     if(!core.processing.active?.())fail('PHASE4_TRANSACTION_REQUIRED');
     return withMetricPreparationContinuation(core,context,async()=>{
@@ -494,7 +495,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   // complete plan from current authenticated sources and require its exact
   // named START receipt and sealed producer before accepting that clock.
   async function verifyRawMetricPreparationClock(context,request,row){
-    if(!core.processing.active?.()||!core.jobAuthority()||core.schemaVersion!==32
+    if(!core.processing.active?.()||!core.jobAuthority()||![32,33,34,35].includes(core.schemaVersion)
       ||request.refresh!==true||!['sleep','recovery','cycle','workout'].includes(phase4Metric(request.metricKey).sourceType))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     const prepared=await metricPreparation(context,request),{plan,sourceSet,baseline}=prepared;
@@ -525,14 +526,14 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function metricPreparationUnit(context,request,kind){return performMetricPreparationUnit(context,request,kind);}
   async function replayCurrentBodyMetricFamily(context,sourceAsOfUtc,workStepFor,work){
-    if(core.schemaVersion!==32||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
+    if(![32,33,34,35].includes(core.schemaVersion)||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
       fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
     return withMetricPreparationContinuation(core,context,async()=>{
       let request,inventory,purpose;
       const workStepFrom=async()=>{
         const body=await prepareCurrentBodyMetricRequest(context,sourceAsOfUtc);request=body.request;
         if(!request||request.baselineSources.length||!hasOwnedCurrentBodyData(core,context,request.currentSource))return null;
-        inventory=await createFamilyDirectory(client,keys).inventory(context,'body_energy',{create:false});
+        inventory=await createFamilyDirectory(client,keys,{live:core.liveAllocation}).inventory(context,'body_energy',{create:false});
         if(!inventory)return null;
         if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
         const prepared=await metricPreparation(context,request,body.current),hint=await currentBodyMetricHints(context,prepared.plan);
@@ -541,7 +542,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         purpose=issued.purpose;
         // This is an existence hint only. Acceptance remains the original
         // complete typed DOMAIN replay inside the family business callback.
-        const domain=(await client.execute({sql:`SELECT 1 FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
+        const domain=(await client.execute({sql:`SELECT 1 FROM ${analysisTable(core,'phase4_operation_receipts')} WHERE user_id=? AND execution_mode=?
           AND operation_kind='analyzeMetric' AND operation_key=?`,args:[context.userId,context.executionMode,issued.domain.operationKey]})).rows[0];
         if(!domain)return null;
         return workStepFor(request);
@@ -558,11 +559,11 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc)));
   }
   async function performMetricPreparationUnit(context,request,kind,requestFrom=null) {
-    if(core.schemaVersion!==32||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
+    if(![32,33,34,35].includes(core.schemaVersion)||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
       ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null,domainWorkStep=null;
-    const directory=createFamilyDirectory(client,keys);
+    const directory=createFamilyDirectory(client,keys,{live:core.liveAllocation});
     const sourceWork=(name,facts)=>{const job=core.jobAuthority();return workStepOptions(name,[context.userId,context.executionMode,
       job.jobKind,job.requestedGeneration,job.scopeRevision,facts],{discardResult:true}).workStep;};
     const workStepFrom=async()=>{
@@ -605,7 +606,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
           kind=item?'AUTHORITY':'ITEM';
           if(item&&requestFrom&&request.metricKey==='body_energy'&&request.baselineSources.length===0
             &&prepared.plan.input.baseline.samples.length===0&&hasOwnedCurrentBodyData(core,context,request.currentSource)){
-            const authority=closed?run.authority_id:(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+            const authority=closed?run.authority_id:(await client.execute({sql:`SELECT evidence_item_id FROM ${analysisTable(core,'phase4_evidence_result_authorities')}
               WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
               args:[context.userId,context.executionMode,item.evidence_item_id]})).rows[0];
             {
@@ -621,7 +622,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
             }
           }
           if(item&&requestFrom&&request.metricKey!=='body_energy'){
-          const authority=(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+          const authority=(await client.execute({sql:`SELECT evidence_item_id FROM ${analysisTable(core,'phase4_evidence_result_authorities')}
             WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,args:[context.userId,context.executionMode,item.evidence_item_id]})).rows[0];
             if(authority){kind='DOMAIN';domainWorkStep=(await metricDomainWork(context,request)).workStep;}
           }
@@ -723,7 +724,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       const itemProof=!item.created?await metricUnitReceipt(core,context,plan,'ITEM'):null;
       if(!item.created&&!itemProof)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
       if(kind==='ITEM')return {unit:'ITEM',status:'COMPLETE',created:item.created};
-      const prior=(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+      const prior=(await client.execute({sql:`SELECT evidence_item_id FROM ${analysisTable(core,'phase4_evidence_result_authorities')}
         WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
         args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows[0];
       if(prior){
@@ -1028,7 +1029,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function analyzeAssociationFamily(context,request) {
     return core.run(context,async()=>{
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       const evidenceOnly=request?.lifecycleMode==='EVIDENCE_ONLY';
       if(!exactKeys(request,['asOfUtc','multipleTestingFamily','hypotheses',...(evidenceOnly?['lifecycleMode']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.multipleTestingFamily!=='string'
@@ -1135,7 +1136,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function expireInsight(context,request) {
     return core.run(context,async()=>{
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       if(!exactKeys(request,['insightId','asOfUtc'])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime())fail('PHASE4_INSIGHT_EXPIRY_REQUEST_INVALID');
       const {insightId}=request,asOfUtc=requireSemanticTime(request.asOfUtc);
@@ -1151,7 +1152,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function expireEpisode(context,request) {
     return core.run(context,async()=>{
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       if(!exactKeys(request,['episodeId','asOfUtc'])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime())fail('PHASE4_EPISODE_EXPIRY_REQUEST_INVALID');
       const {episodeId}=request,asOfUtc=requireSemanticTime(request.asOfUtc);

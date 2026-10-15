@@ -181,7 +181,59 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
  const drain=await phase('STAGE6_DRAIN',{requestId:sync.requestId,token:sync.payload.handoff});
  return {ok:true,status:drain.status,attempt:drain.attempt,phase:'STAGE6_DRAIN',outcome:drain.payload.result?.outcome};
 }
+export const READINESS_CRON='10 4-23 * * *';
+export const MORNING_CRON='*/10 0-3 * * *';
+export const READINESS_PATH='/internal/briefing/readiness';
+export const READINESS_TIMEOUT_MS=100_000;
+// One bounded signed readiness request. No continuation discovery, full SYNC,
+// optional DRAIN, or immediate retry; durable daily claims govern the next tick.
+export async function invokeReadiness(env,{fetchImpl=fetch,now=Date.now,signImpl=signRequest,
+ setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=READINESS_TIMEOUT_MS}={}) {
+ const endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
+ if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||/replace|placeholder/i.test(endpoint.hostname)
+  ||!env.BRIEFING_TRIGGER_SECRET||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32
+  ||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)||!/^[a-f0-9]{40}$/.test(env.BRIEFING_RELEASE_SHA??'')
+  ||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF??'')||!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>READINESS_TIMEOUT_MS)throw error('configuration',true);
+ const requestId=crypto.randomUUID(),timestamp=String(now());
+ const body=canonical({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,kind:'MORNING_READINESS_V1',
+  executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
+ const controller=new AbortController(),deadlineAt=now()+timeoutMs,timer=setTimer(()=>controller.abort(),timeoutMs);let response;
+ try {
+  const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path:READINESS_PATH,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+  response=await raceAbort(Promise.resolve(fetchImpl(new URL(READINESS_PATH,endpoint).toString(),{
+   method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
+   headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
+  const text=await readResponseBody(response,{controller,deadlineAt,now});let payload;
+  try{payload=JSON.parse(text);}catch{throw error('invalid_readiness',true);}
+  if(response.status!==200||payload?.ok!==true||payload.kind!=='MORNING_READINESS_V1'||payload.source!=='cloudflare'
+    ||payload.releaseSha!==env.BRIEFING_RELEASE_SHA||payload.readinessChecked!==true||payload.syncComplete!==false
+    ||payload.drainAuthorized!==false||payload.handoff!==undefined)throw error('readiness_failed',true);
+  console.log(JSON.stringify({event:'morning_readiness_ok',status:200}));
+  return {ok:true,kind:payload.kind,status:200};
+ } finally {controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
+}
+export async function invokeCompanion(env,{fetchImpl=fetch,now=Date.now,signImpl=signRequest,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=55000}={}){
+ if(env.BRIEFING_COMPANION_ENABLED!=='on')return {enabled:false};
+ const path='/internal/briefing/companion',endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
+ if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||!env.BRIEFING_TRIGGER_SECRET
+  ||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)
+  ||!/^[a-f0-9]{40}$/.test(env.BRIEFING_RELEASE_SHA??'')||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF??'')
+  ||!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>55000)throw error('configuration',true);
+ const requestId=crypto.randomUUID(),timestamp=String(now()),body=canonical({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,kind:'COMPANION_V1',executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
+ const controller=new AbortController(),deadlineAt=now()+timeoutMs,timer=setTimer(()=>controller.abort(),timeoutMs);let response;
+ try{const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+  response=await raceAbort(Promise.resolve(fetchImpl(new URL(path,endpoint).toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
+   headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
+  const raw=await readResponseBody(response,{controller,deadlineAt,now});let payload;try{payload=JSON.parse(raw);}catch{throw error('invalid_companion',true);}
+  if(response.status!==200||payload?.ok!==true||payload.kind!=='COMPANION_V1'||payload.source!=='cloudflare'||payload.releaseSha!==env.BRIEFING_RELEASE_SHA||payload.drainAuthorized!==false||payload.handoff!==undefined)throw error('companion_failed',true);
+  console.log(JSON.stringify({event:'companion_tick_ok',enabled:payload.enabled===true}));return {ok:true,kind:payload.kind};
+ }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
+}
 export default {
- scheduled(_event,env,ctx){ctx.waitUntil(invoke(env).catch(e=>{console.error(JSON.stringify({event:'briefing_trigger_failed',category:e.category??'unknown',retryable:!e.nonRetryable}));throw e;}));},
+ scheduled(event,env,ctx){ctx.waitUntil((async()=>{
+  if(![READINESS_CRON,MORNING_CRON].includes(event.cron))throw error('unsupported_cron',true);
+  try{return await (event.cron===READINESS_CRON?invokeReadiness(env):invoke(env));}
+  finally{if(env.BRIEFING_COMPANION_ENABLED==='on')try{await invokeCompanion(env);}catch(e){console.error(JSON.stringify({event:'companion_tick_failed',category:e.category??'unknown'}));}}
+ })().catch(e=>{console.error(JSON.stringify({event:'briefing_trigger_failed',category:e.category??'unknown',retryable:!e.nonRetryable}));throw e;}));},
  async fetch(){return new Response(JSON.stringify({ok:true,service:'briefing-scheduler'}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store'}});},
 };

@@ -1,0 +1,8 @@
+{
+  "baselineHead": "e941fdac95aaeaa4028900e214f428051f7b0073",
+  "file": "src/stage8LivePublication.js",
+  "sha256": "ff9a9d2359796bf27d462f07245d7261653c657f59b525eb4ec5e198a4164fa0",
+  "exactSingleReplacement": true,
+  "beforeSha256": "1da28162f08b8625c19056ede56cf12cc698ac4e4a9eaedb13c3042dade05845",
+  "diff": "diff --git a/src/stage8LivePublication.js b/src/stage8LivePublication.js\nindex ad45285..109dbb5 100644\n--- a/src/stage8LivePublication.js\n+++ b/src/stage8LivePublication.js\n@@ -31,7 +31,7 @@ export async function recordLiveJobCompletion(core,context,b,cursor){\n async function manifests(core,ctx){\n  const client=core.client,keys=core.keys;\n  const bounds=(await client.execute({sql:`SELECT count(*) n,COALESCE(sum(bytes),0) bytes FROM\n-  (SELECT length(e.result_json)+length(e.canonical_request_json)+4096 bytes FROM stage8_live_execution_producers p\n+  (SELECT COALESCE(length(e.result_json),0)+COALESCE(length(e.canonical_request_json),0)+4096 bytes FROM stage8_live_execution_producers p\n    JOIN stage8_live_executions e ON e.execution_id=p.producing_execution_id WHERE p.user_id=? AND p.execution_mode='LIVE' AND p.input_generation=? LIMIT 4097)`,args:[ctx.userId,ctx.inputGeneration]})).rows[0];\n  if(!bounds.n||bounds.n>4096||bounds.bytes>16*1024*1024)fail();\n  const producers=[];\n"
+}

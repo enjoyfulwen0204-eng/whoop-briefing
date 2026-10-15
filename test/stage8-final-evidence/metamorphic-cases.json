@@ -1,0 +1,747 @@
+[
+  {
+    "family": "unrelated en",
+    "text": "I have chest pain. The headache has resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question en",
+    "text": "I have chest pain. The headache has resolved. What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated en",
+    "text": "I have chest pain. A rash has gone away.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question en",
+    "text": "I have chest pain. A rash has gone away. What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated en",
+    "text": "I have chest pain. My headache has resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question en",
+    "text": "I have chest pain. My headache has resolved. What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching en",
+    "text": "I have chest pain. The chest pain has resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current en",
+    "text": "I have chest pain. The chest pain has resolved. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier en",
+    "text": "I have chest pain. My friend Ana has chest pain. The chest pain has resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching en",
+    "text": "I have chest pain. This chest pain is gone.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current en",
+    "text": "I have chest pain. This chest pain is gone. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier en",
+    "text": "I have chest pain. My friend Ana has chest pain. This chest pain is gone.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching en",
+    "text": "I have chest pain. chest pain has completely resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current en",
+    "text": "I have chest pain. chest pain has completely resolved. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier en",
+    "text": "I have chest pain. My friend Ana has chest pain. chest pain has completely resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "negative en",
+    "text": "I am not having my chest pain, my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative independent en",
+    "text": "I am not having my chest pain, my trouble breathing. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "reported negative en",
+    "text": "My friend Ana says \"I am not having my chest pain, my trouble breathing.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "standalone negative quote en",
+    "text": "\"I am not having my chest pain, my trouble breathing.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative en",
+    "text": "I am not experiencing my chest pain or my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative independent en",
+    "text": "I am not experiencing my chest pain or my trouble breathing. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "reported negative en",
+    "text": "My friend Ana says \"I am not experiencing my chest pain or my trouble breathing.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "standalone negative quote en",
+    "text": "\"I am not experiencing my chest pain or my trouble breathing.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "distinct actor en",
+    "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "generic en",
+    "text": "What causes chest pain in general?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "unrelated zh-TW",
+    "text": "我現在胸痛。 頭痛已經好了。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question zh-TW",
+    "text": "我現在胸痛。 頭痛已經好了。 What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated zh-TW",
+    "text": "我現在胸痛。 皮疹消失了。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question zh-TW",
+    "text": "我現在胸痛。 皮疹消失了。 What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated zh-TW",
+    "text": "我現在胸痛。 我的頭痛已經好了。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question zh-TW",
+    "text": "我現在胸痛。 我的頭痛已經好了。 What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching zh-TW",
+    "text": "我現在胸痛。 胸痛已經好了。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current zh-TW",
+    "text": "我現在胸痛。 胸痛已經好了。 我現在無法呼吸。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier zh-TW",
+    "text": "我現在胸痛。 我朋友小明現在胸痛。 胸痛已經好了。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching zh-TW",
+    "text": "我現在胸痛。 這個胸痛完全消失了。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current zh-TW",
+    "text": "我現在胸痛。 這個胸痛完全消失了。 我現在無法呼吸。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier zh-TW",
+    "text": "我現在胸痛。 我朋友小明現在胸痛。 這個胸痛完全消失了。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching zh-TW",
+    "text": "我現在胸痛。 胸痛消失了。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current zh-TW",
+    "text": "我現在胸痛。 胸痛消失了。 我現在無法呼吸。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier zh-TW",
+    "text": "我現在胸痛。 我朋友小明現在胸痛。 胸痛消失了。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "negative zh-TW",
+    "text": "我沒有胸痛、我的呼吸困難或心悸。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative independent zh-TW",
+    "text": "我沒有胸痛、我的呼吸困難或心悸。 我現在無法呼吸。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "reported negative zh-TW",
+    "text": "我朋友小明說\"我沒有胸痛、我的呼吸困難或心悸。\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "standalone negative quote zh-TW",
+    "text": "\"我沒有胸痛、我的呼吸困難或心悸。\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative zh-TW",
+    "text": "我沒有胸痛和我的呼吸困難。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative independent zh-TW",
+    "text": "我沒有胸痛和我的呼吸困難。 我現在無法呼吸。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "reported negative zh-TW",
+    "text": "我朋友小明說\"我沒有胸痛和我的呼吸困難。\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "standalone negative quote zh-TW",
+    "text": "\"我沒有胸痛和我的呼吸困難。\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "distinct actor zh-TW",
+    "text": "我朋友小明現在胸痛。 我朋友小華沒有胸痛。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "generic zh-TW",
+    "text": "胸痛的定義是什麼？",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "unrelated vi",
+    "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question vi",
+    "text": "Tôi đang đau ngực. Đau đầu đã hết. What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated vi",
+    "text": "Tôi đang đau ngực. Phát ban đã hết.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question vi",
+    "text": "Tôi đang đau ngực. Phát ban đã hết. What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated vi",
+    "text": "Tôi đang đau ngực. Tôi đã hết đau đầu.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "unrelated question vi",
+    "text": "Tôi đang đau ngực. Tôi đã hết đau đầu. What is my HRV today?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching vi",
+    "text": "Tôi đang đau ngực. Đau ngực đã hết.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current vi",
+    "text": "Tôi đang đau ngực. Đau ngực đã hết. Tôi không thở được.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier vi",
+    "text": "Tôi đang đau ngực. Bạn tôi An đang đau ngực. Đau ngực đã hết.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching vi",
+    "text": "Tôi đang đau ngực. Cơn đau ngực đã hết.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current vi",
+    "text": "Tôi đang đau ngực. Cơn đau ngực đã hết. Tôi không thở được.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier vi",
+    "text": "Tôi đang đau ngực. Bạn tôi An đang đau ngực. Cơn đau ngực đã hết.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching vi",
+    "text": "Tôi đang đau ngực. Đau ngực đã khỏi.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "matching independent current vi",
+    "text": "Tôi đang đau ngực. Đau ngực đã khỏi. Tôi không thở được.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "matching after actor barrier vi",
+    "text": "Tôi đang đau ngực. Bạn tôi An đang đau ngực. Đau ngực đã khỏi.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "negative vi",
+    "text": "Tôi không có đau ngực của tôi, khó thở của tôi.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative independent vi",
+    "text": "Tôi không có đau ngực của tôi, khó thở của tôi. Tôi không thở được.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "reported negative vi",
+    "text": "Bạn tôi An nói \"Tôi không có đau ngực của tôi, khó thở của tôi.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "standalone negative quote vi",
+    "text": "\"Tôi không có đau ngực của tôi, khó thở của tôi.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative vi",
+    "text": "Tôi không đau ngực và không khó thở.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "negative independent vi",
+    "text": "Tôi không đau ngực và không khó thở. Tôi không thở được.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "reported negative vi",
+    "text": "Bạn tôi An nói \"Tôi không đau ngực và không khó thở.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "standalone negative quote vi",
+    "text": "\"Tôi không đau ngực và không khó thở.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "distinct actor vi",
+    "text": "Bạn tôi An đang đau ngực. Bạn tôi Bình không đau ngực.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "generic vi",
+    "text": "Đau ngực là gì?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had chest pain since this morning.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had chest pain since this morning. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had chest pain since this morning. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had chest pain since yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had chest pain since yesterday. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had chest pain since yesterday. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had chest pain for the last ten minutes.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had chest pain for the last ten minutes. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had chest pain for the last ten minutes. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "completed or causal",
+    "text": "I had chest pain last year for the last week of my holiday.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "recurrence",
+    "text": "I had chest pain last year for the last week of my holiday. It has returned now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "separate current",
+    "text": "I had chest pain last year for the last week of my holiday. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "completed or causal",
+    "text": "I had chest pain yesterday since I exercised too hard.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "recurrence",
+    "text": "I had chest pain yesterday since I exercised too hard. It has returned now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "separate current",
+    "text": "I had chest pain yesterday since I exercised too hard. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pain, my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pain and my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pain or my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pain、my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had difficulty breathing since this morning.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had difficulty breathing since this morning. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had difficulty breathing since this morning. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had difficulty breathing since yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had difficulty breathing since yesterday. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had difficulty breathing since yesterday. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had difficulty breathing for the last ten minutes.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had difficulty breathing for the last ten minutes. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had difficulty breathing for the last ten minutes. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "completed or causal",
+    "text": "I had difficulty breathing last year for the last week of my holiday.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "recurrence",
+    "text": "I had difficulty breathing last year for the last week of my holiday. It has returned now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "separate current",
+    "text": "I had difficulty breathing last year for the last week of my holiday. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "completed or causal",
+    "text": "I had difficulty breathing yesterday since I exercised too hard.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "recurrence",
+    "text": "I had difficulty breathing yesterday since I exercised too hard. It has returned now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "separate current",
+    "text": "I had difficulty breathing yesterday since I exercised too hard. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my difficulty breathing, my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my difficulty breathing and my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my difficulty breathing or my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my difficulty breathing、my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had chest pressure since this morning.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had chest pressure since this morning. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had chest pressure since this morning. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had chest pressure since yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had chest pressure since yesterday. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had chest pressure since yesterday. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing",
+    "text": "I have had chest pressure for the last ten minutes.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "ongoing resolved",
+    "text": "I have had chest pressure for the last ten minutes. It has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "ongoing historical outcome",
+    "text": "I have had chest pressure for the last ten minutes. It had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "completed or causal",
+    "text": "I had chest pressure last year for the last week of my holiday.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "recurrence",
+    "text": "I had chest pressure last year for the last week of my holiday. It has returned now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "separate current",
+    "text": "I had chest pressure last year for the last week of my holiday. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "completed or causal",
+    "text": "I had chest pressure yesterday since I exercised too hard.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "recurrence",
+    "text": "I had chest pressure yesterday since I exercised too hard. It has returned now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "separate current",
+    "text": "I had chest pressure yesterday since I exercised too hard. I cannot breathe now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pressure, my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pressure and my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pressure or my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "possessor list",
+    "text": "I am not having my chest pressure、my trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "我從早上一直胸痛到現在。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "我昨天胸痛，昨晚已經好了。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "Tôi đau ngực từ sáng đến giờ.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "Tôi đau ngực hôm qua từ sáng đến tối.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I have chest pain and difficulty breathing has resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I am not having my chest pain, my difficulty breathing is severe.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I am not having my chest pain; my difficulty breathing is severe.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "My chest pain and my difficulty breathing have resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I have chest pain. My chest pain caused a headache. It has resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I have severe chest pain. It has completely resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I have chest pain. The headache in this article has resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "My friend Ana says \"I have chest pain. The chest pain has resolved.\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "My friend Ana says \"I have chest pain. The headache has resolved.\"",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I have chest pain. If the chest pain has resolved, what should I do?",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I have chest pain. I cannot confirm that the chest pain has resolved.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "I have chest pain. The chest pain had resolved yesterday.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "family": "boundary",
+    "text": "My friend Ana has chest pain. My friend Bo has chest pain. The chest pain has resolved.",
+    "expected": "CURRENT_URGENT"
+  }
+]

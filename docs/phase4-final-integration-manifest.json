@@ -1,0 +1,110 @@
+{
+  "status": "INTEGRATED_SOURCE_CANDIDATE_NOT_RELEASE_APPROVAL",
+  "observedAtUTC": "2026-10-15T15:42:58.867200+00:00",
+  "heads": {
+    "stage6": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+    "stage7": "828b3bad0f75d3b81d374e431872878af56f6c9a",
+    "stage8Triage": "0acd29f9c010e7f924736ec2c8054f5e44435f5d",
+    "stage8Live": "b0dd71cc305f829589272504e3bc89c96d5508d9"
+  },
+  "mergeBase": "2340e8bc305c6acde29bbfa540753e79dbd34408",
+  "overlap": [
+    "src/bot/updateProcessor.js",
+    "src/db.js",
+    "src/phase4Core.js",
+    "src/phase4Execution.js",
+    "src/phase4IntelligenceStore.js",
+    "src/phase4LegacyDiscovery.js",
+    "src/phase4MetricUnitReceipt.js",
+    "src/phase4OperationReceipts.js",
+    "src/phase4QueueStore.js",
+    "src/phase4Reanalysis.js",
+    "src/phase4ReanalysisQueue.js",
+    "src/phase4Repositories.js",
+    "src/phase4ResultAuthority.js",
+    "src/publicBeta.js",
+    "src/stage6CurrentCaptureTime.js"
+  ],
+  "requiredLifetimeDependency": "src/receiverScopeLifetime.js",
+  "reconciliation": "Latest Stage6 raw RUN/ITEM/AUTHORITY/DOMAIN and empty-family continuation retained; Stage8 static LIVE allocation and producing checks composed explicitly; producer seek pages retained instead of old 128-row prefix; fresh lifetime/context/owner boundaries retained.",
+  "protectedDefinitions": {
+    "src/bot/triage.js": {
+      "sha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+      "matchesStage8AcceptedCandidate": true
+    },
+    "src/bot/safetyGate.js": {
+      "sha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d",
+      "matchesStage8AcceptedCandidate": true
+    },
+    "src/phase4V33Schema.js": {
+      "sha256": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c",
+      "matchesStage8AcceptedCandidate": true
+    },
+    "src/phase4V34Schema.js": {
+      "sha256": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd",
+      "matchesStage8AcceptedCandidate": true
+    },
+    "src/phase4V35Schema.js": {
+      "sha256": "3e7144ae5e76b75d4dedce2f86264618a9ed6abd422bcb309d0624a25a8b7156",
+      "matchesStage8AcceptedCandidate": true
+    }
+  },
+  "production": {
+    "observedAtUTC": "2026-10-15T15:35:38.074214+00:00",
+    "renderService": "srv-dahs71qd0e5s738n94c0",
+    "liveSha": "2340e8bc305c6acde29bbfa540753e79dbd34408",
+    "schema": 32,
+    "resources": "0.5 CPU / 512 MiB",
+    "autoDeploy": "no",
+    "maintenance": false,
+    "activeWriterCountsAllZeroAtRead": true,
+    "telegramPendingUpdates": 0,
+    "telegramMaxConnections": 1,
+    "telegramAllowedUpdates": [
+      "message",
+      "callback_query"
+    ],
+    "workerReadback": "BLOCKED_HTTP401",
+    "githubWorkflow": "disabled_manually",
+    "githubInProgressRuns": 0,
+    "stage8PostSyncFlag": "ABSENT",
+    "stage8SubjectAlertsFlag": "ABSENT",
+    "productionMutations": 0
+  },
+  "retainedStage6": {
+    "rid": "b6b5b100-5741-4ed5-a92d-22a08ae1cf83",
+    "executionSeq": 434,
+    "rowState": "ESTABLISHED",
+    "classification": "WORK_COMMITTED_UNFINALIZED",
+    "generation": 1,
+    "abortOutcome": "TIMEOUT",
+    "namedReceipts": 1,
+    "receiptKind": "phase.observation.batch-v1_control_diagnostics",
+    "resultJson": null,
+    "producerRows": 0,
+    "attempts": 362,
+    "maximumAttempts": 4096,
+    "endAtUTC": "2026-10-16T07:29:00.357Z",
+    "pendingPreserved": true,
+    "ledgerReset": false
+  },
+  "verification": {
+    "emptyFamilyAndPositiveFamilyV34": "5 PASS, 0 FAIL",
+    "receiverLifetime": "5 PASS",
+    "initialV32Fixture": "5 failed closed because default integrated schema is34; original failures retained; moved only synthetic fixture migration target to34, no admission relaxation",
+    "liveAllocationFirst": "1 completed PASS; file timed out at150s; no overall PASS",
+    "weekly": "IN_PROGRESS_BOUNDED",
+    "independent": "separate fresh detached review requested; pending final candidate"
+  },
+  "releaseGates": {
+    "stage6SixJobs": "INCOMPLETE",
+    "weeklyPositive": "PENDING",
+    "unattendedContinuation": "MISSING",
+    "nativeStability": "NO_GO_PRODUCTION_SUPERVISOR_NOT_WIRED",
+    "integratedRegression": "INCOMPLETE",
+    "migrationOrder": "v33 -> v34 -> v35; no Production migration",
+    "resourcePurchaseAuthorization": "NOT_ESTABLISHED",
+    "F02": "OWNER_ACCEPTED_KNOWN_RISK_UNCHANGED",
+    "finalIntegration": "NO_GO"
+  }
+}

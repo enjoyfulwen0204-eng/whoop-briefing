@@ -1,3 +1,4 @@
+import {SCHEMA_VERSION} from '../src/schema.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -7,7 +8,7 @@ import {withDurableExecution,workStepKey} from '../src/phase4ExecutionContext.js
 import {workStepOptions} from '../src/phase4WorkStep.js';
 
 async function setup(t){
- const {db,transport}=await fixture(t);await db.admitRuntime();
+ const {db,transport}=await fixture(t,SCHEMA_VERSION);await db.admitRuntime();
  const parent=request();await claim(db,parent);
  const r=request({phase:'STAGE6_DRAIN',syncRequestId:parent.requestId,handoff:'a'.repeat(64)}),owner=await claim(db,r);
  const context={claim:owner,keys:fixtureKeys,pending:new Set(),authority};

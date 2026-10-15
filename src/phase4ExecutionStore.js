@@ -1,3 +1,4 @@
+import {stage8ConfigurationValues} from './stage8Policy.js';
 /** Sanitized v32 execution authority and derived heartbeat projections.
  * Generic heartbeat writers still discard free text. Accept only fixed enums,
  * nonnegative counts, timestamps and authenticated opaque transport hashes;
@@ -53,6 +54,11 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
  if(pilot.some(Boolean))profile.push(['beta-pilot-v1',...pilot]);
  const allowance=['ALLOWANCE_ID','STOP'].map(name=>environment[`PHASE4_BETA_PILOT_${name}`]??'');
  if(allowance.some(Boolean))profile.push(['beta-pilot-allowance-v1',...allowance]);
+ if(environment.PHASE4_EXECUTION_PROFILE==='COMPANION_V33_RECOVERY')profile.push(['companion-recovery-profile-v1','COMPANION_V33_RECOVERY']);
+ const companion=['STAGE7_COMPANION','STAGE7_COMPANION_USER_IDS','STAGE7_COACH_MIN_HOURS','STAGE7_COACH_MAX_HOURS','STAGE7_JOURNAL_GAP_HOURS'].map(name=>environment[name]??'');
+ if(companion.some(Boolean))profile.push(['stage7-companion-configuration-v1',...companion]);
+ const stage8=stage8ConfigurationValues(environment);
+ if(stage8.slice(0,6).some(Boolean))profile.push(['stage8-configuration-v1',...stage8]);
  const scope=continuationScope(environment,config.runtime==='on'?'SHADOW':'OFF');
  if(scope)profile.push(['phase4-continuation-scope-v1',scope]);
  return keys.lookup(profile);
@@ -116,7 +122,7 @@ export async function recordDrainProgress(db,events) {
 export async function readPhaseProgress(db,phase,source) {
  const version=Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
  if(version<32)return {state:'LEGACY_UNKNOWN',complete:null,starts:null};
- if(version!==32)fail('phase4_schema_version_mismatch');
+ if(![32,33,34].includes(version))fail('phase4_schema_version_mismatch');
  const rows=await db.raw.execute({sql:'SELECT * FROM phase4_executions WHERE phase=? AND trigger_source=? ORDER BY execution_seq DESC LIMIT 1',args:[phase,source]});
  const execution=rows.rows[0];
  if(execution){

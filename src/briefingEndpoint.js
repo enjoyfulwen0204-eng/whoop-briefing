@@ -1,3 +1,4 @@
+import {COMPANION_PATH,validateCompanionRequest} from './companionService.js';
 import { BRIEFING_TRIGGER, verifyTriggerRequest, bodySha256 } from './briefingTriggerAuth.js';
 import { log } from './logger.js';
 import { validatePhaseRequest,configurationProof } from './phase4ExecutionStore.js';
@@ -5,9 +6,10 @@ import {executionProfile} from './phase4Rollback.js';
 import {runningReleaseSha} from './phase4Release.js';
 import {publicBetaConfiguration,publicBetaKeys} from './publicBetaConfig.js';
 import {CONTINUATION_PATH,validateContinuationQuery} from './phase4Continuation.js';
+import {MORNING_READINESS_PATH,validateMorningReadinessRequest} from './morningReadiness.js';
 
 export function createBriefingEndpoint({
-  secret, runPhase, discoverContinuation, now = () => Date.now(), maxBodyBytes = BRIEFING_TRIGGER.MAX_BODY_BYTES,environment=process.env,
+  secret, runPhase, discoverContinuation, runReadiness, runCompanion, now = () => Date.now(), maxBodyBytes = BRIEFING_TRIGGER.MAX_BODY_BYTES,environment=process.env,
 }) {
   if (typeof secret !== 'string' || Buffer.byteLength(secret) < 32) {
     throw new Error('BRIEFING_TRIGGER_SECRET must be at least 32 bytes');
@@ -21,7 +23,7 @@ export function createBriefingEndpoint({
   return async function briefingEndpoint(req, body) {
     const rawUrl = String(req.url ?? '');
     const path = rawUrl.split('?')[0];
-    if (![BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path)) return null;
+    if (![BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,MORNING_READINESS_PATH,COMPANION_PATH].includes(path)) return null;
     if (rawUrl !== path) return { status: 400, body: { ok: false, error: 'query_not_allowed' } };
     if (req.method !== 'POST') return { status: 405, body: { ok: false, error: 'method_not_allowed' } };
     if (!String(req.headers?.['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
@@ -58,13 +60,16 @@ export function createBriefingEndpoint({
     }
 
     const originalBody=body;
-    if(executionProfile(environment)==='RC2_V32_ROLLBACK'&&parsed.phase===undefined){
+    const readiness=path===MORNING_READINESS_PATH,companion=path===COMPANION_PATH;
+    if(companion&&typeof runCompanion!=='function')return {status:503,body:{ok:false,error:'companion_unavailable'}};
+    if(readiness&&typeof runReadiness!=='function')return {status:503,body:{ok:false,error:'readiness_unavailable'}};
+    if(!readiness&&!companion&&executionProfile(environment)==='RC2_V32_ROLLBACK'&&parsed.phase===undefined){
       const releaseSha=runningReleaseSha(environment);
       parsed={requestId,releaseSha,phase:'SYNC',triggerSource:'cloudflare',executionMode:'OFF',
         configProof:configurationProof(publicBetaKeys(environment),publicBetaConfiguration(environment),environment,releaseSha),legacyBodyDigest:bodySha256(originalBody)};
       body=JSON.stringify(parsed);
     }
-    try { validatePhaseRequest(parsed); }
+    try { companion?validateCompanionRequest(parsed):readiness?validateMorningReadinessRequest(parsed):validatePhaseRequest(parsed); }
     catch { return {status:400,body:{ok:false,error:'EXECUTION_REQUEST_INVALID'}}; }
     if(parsed.requestId!==requestId||parsed.triggerSource!=='cloudflare')return {status:400,body:{ok:false,error:'EXECUTION_IDENTITY_INVALID'}};
     prune(at);
@@ -77,7 +82,7 @@ export function createBriefingEndpoint({
     log.info('briefing_trigger_received',{source:'cloudflare',phase:parsed.phase});
     const promise=(async()=>{
       try {
-        const response=await runPhase({request:parsed,body});
+        const response=await (companion?runCompanion:readiness?runReadiness:runPhase)({request:parsed,body});
         log.info('briefing_trigger_finished',{source:'cloudflare',phase:parsed.phase,duration_ms:Date.now()-started});
         if(response.body?.result?.resumable===true||response.status===503||response.body?.result?.outcome==='COMMIT_INDETERMINATE')recent.delete(requestId);
         return response;

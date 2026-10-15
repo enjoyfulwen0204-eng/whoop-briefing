@@ -1,0 +1,16 @@
+{
+  "baseline": "10b68fa5f4f9501c424ad4c16b4bab0eae500595",
+  "changedExistingRuntimePaths": [
+    "src/bot/safetyGate.js"
+  ],
+  "unchangedTriageParser": true,
+  "existingTestChangesOnlyOutputPaths": true,
+  "existingExpectedClassificationsChanged": 0,
+  "newCaseExpectationsUnchanged": true,
+  "localFrameExpectationsUnchanged": true,
+  "reviewedStage7Ancestor": true,
+  "runtimeSha256": {
+    "src/bot/triage.js": "a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c",
+    "src/bot/safetyGate.js": "d9ce578b9fb8fcbb15c42ecd308bcb32b7fb7c695908358293ff5e107f32bf87"
+  }
+}

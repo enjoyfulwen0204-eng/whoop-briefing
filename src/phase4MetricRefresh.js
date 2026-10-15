@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import { fail, readableRow } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { episodeSemanticProjection, EPISODE_OPERATIONAL_FIELDS } from './phase4EpisodeHistory.js';
@@ -27,7 +28,7 @@ export function createMetricRefreshAuthority(core,{authenticate,authorities,vali
     const routeFamily=identity?keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,
       identity.algorithmMajor,identity.subject,identity.windowFamily]):null;
     const receipts=(await closure.inventory(context,{kind:'EPISODE',episodeId,metricKey:identity?.metric,
-      episodeFamilyKey:routeFamily})).phase4_operation_receipts;
+      episodeFamilyKey:routeFamily}))[analysisTable(core,'phase4_operation_receipts')];
     if(receipts.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
     let bytes=0;
     const signed=[];
@@ -93,7 +94,7 @@ export function createMetricRefreshAuthority(core,{authenticate,authorities,vali
   }
   async function retained(context,binding,depth=0) {
     if(depth>=1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
-    const row=(await client.execute({sql:`SELECT * FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
+    const row=(await client.execute({sql:`SELECT * FROM ${analysisTable(core,'phase4_operation_receipts')} WHERE user_id=? AND execution_mode=?
       AND operation_kind=? AND operation_key=?`,args:[context.userId,context.executionMode,binding.operationKind,binding.receiptKey]})).rows[0];
     if(!row||row.receipt_hmac!==binding.receiptHmac)invalid();
     const decoded=authenticate(context,row);

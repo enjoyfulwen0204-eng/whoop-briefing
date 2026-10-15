@@ -1,3 +1,4 @@
+import {verifyMorningPlanAuthority} from './stage8MorningPlan.js';
 import { fail, requireInteger } from './phase4Core.js';
 import { MESSAGE_FAMILIES, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
 
@@ -17,7 +18,7 @@ export async function phase4Destination(core,context) {
 
 /** Durable transport state only. There is deliberately no provider dependency,
  * HTTP request, timer, retry loop, scheduler or default LIVE authority. */
-export function createPhase4TransportStore(core,entities,slotHooks) {
+export function createPhase4TransportStore(core,entities,slotHooks,{morningAuthority=null}={}) {
   const {client,timestamp,keys}=core,leases=new WeakMap();
   const scope=(c,id)=>[c.userId,c.executionMode,id];
   async function mode(context,family) {
@@ -39,7 +40,8 @@ export function createPhase4TransportStore(core,entities,slotHooks) {
       AND c.last_completed_generation=c.input_generation AND c.input_generation=?
       AND NOT EXISTS (SELECT 1 FROM phase4_invalidations i WHERE i.user_id=c.user_id AND i.execution_mode=c.execution_mode AND i.scope_kind<>'NONE')`,
       args:[context.userId,context.inputGeneration]})).rows.length;
-    if(!current)fail('PHASE4_COMPUTATION_NOT_CURRENT');
+    if(row.message_class==='MORNING_BRIEF_V1'&&core.schemaVersion===34&&morningAuthority)await verifyMorningPlanAuthority(morningAuthority,core,context,row);
+    else if(!current)fail('PHASE4_COMPUTATION_NOT_CURRENT');
     if(row.expires_at<=timestamp())fail('PHASE4_MESSAGE_EXPIRED');
     if(row.destination_binding_id!==await destination(context))fail('PHASE4_DESTINATION_CHANGED');
     const ready=(await client.execute({sql:"SELECT state FROM user_onboarding WHERE user_id=?",args:[context.userId]})).rows[0];
@@ -184,6 +186,31 @@ export function createPhase4TransportStore(core,entities,slotHooks) {
       return {state:'FAILED_TERMINAL'};
     });
   }
+  // Frozen v24 permits ELIGIBLE -> SUPPRESSED. Only a Morning retry whose
+  // original latest attempt proved definite nonacceptance can use this cleanup.
+  async function closeMorningRetry(control,{messageId,expectedRevision}) {
+    requireInteger(expectedRevision);
+    return core.runMaintenance(control,'LIVE',async()=>{
+      const row=(await client.execute({sql:`SELECT reservation_id,attempt_count FROM outbound_messages
+        WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND message_class='MORNING_BRIEF_V1'
+        AND state='ELIGIBLE' AND revision=? AND attempt_count>0 AND lease_owner IS NULL AND lease_expires_at IS NULL`,
+        args:[control.userId,messageId,expectedRevision]})).rows[0];
+      if(!row)fail('PHASE4_OUTBOX_CAS_LOST');
+      const changed=await client.execute({sql:`UPDATE outbound_messages SET state='SUPPRESSED',terminal_reason='FAILED_TERMINAL',revision=revision+1,updated_at=?
+        WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND message_class='MORNING_BRIEF_V1'
+        AND state='ELIGIBLE' AND revision=? AND attempt_count=? AND lease_owner IS NULL AND lease_expires_at IS NULL
+        AND EXISTS(SELECT 1 FROM outbound_delivery_attempts a WHERE a.user_id=outbound_messages.user_id
+          AND a.execution_mode='LIVE' AND a.message_id=outbound_messages.message_id
+          AND a.attempt_number=outbound_messages.attempt_count AND a.state='FAILED_DEFINITE')`,
+        args:[timestamp(),control.userId,messageId,expectedRevision,row.attempt_count]});
+      if(changed.rowsAffected!==1)fail('PHASE4_OUTBOX_CAS_LOST');
+      const reservation=await client.execute({sql:`UPDATE outbound_semantic_reservations SET state='CLOSED',closed_reason='FAILED_TERMINAL',closed_at=?
+        WHERE user_id=? AND execution_mode='LIVE' AND reservation_id=? AND message_id=? AND state='RESERVED'`,
+        args:[timestamp(),control.userId,row.reservation_id,messageId]});
+      if(reservation.rowsAffected!==1)fail('PHASE4_SEMANTIC_RESERVATION_CONSUMED');
+      return {state:'SUPPRESSED'};
+    });
+  }
   async function retryDefinite(context,{messageId,expectedRevision}) {
     return core.run(context,async()=>{
       const {row}=await core.artifact(context,'outbound_messages',{message_id:messageId});
@@ -199,5 +226,5 @@ export function createPhase4TransportStore(core,entities,slotHooks) {
       return {nextAttemptAt:next,retryVersion:TRANSPORT_RETRY_VERSION};
     });
   }
-  return {mode,destination,makeEligible,claim,start,settle,recover,retryDefinite,closeFailed};
+  return {mode,destination,makeEligible,claim,start,settle,recover,retryDefinite,closeFailed,closeMorningRetry};
 }

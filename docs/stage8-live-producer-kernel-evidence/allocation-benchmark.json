@@ -1,0 +1,24 @@
+{
+  "kind": "ISOLATED_ALLOCATION_ADMISSION_ONLY_NOT_ANALYSIS_THROUGHPUT",
+  "samplesPerProfile": 20,
+  "profiles": [
+    {
+      "schema": 34,
+      "meanMs": 23.798197949999985,
+      "p50Ms": 24.12279099999978,
+      "p95Ms": 27.46329199999991,
+      "heapUsedBefore": 19005520,
+      "heapUsedAfter": 18986872,
+      "rssAfter": 200163328
+    },
+    {
+      "schema": 35,
+      "meanMs": 31.967506349999987,
+      "p50Ms": 30.228791000000456,
+      "p95Ms": 41.667083000000275,
+      "heapUsedBefore": 15602360,
+      "heapUsedAfter": 15556160,
+      "rssAfter": 204472320
+    }
+  ]
+}

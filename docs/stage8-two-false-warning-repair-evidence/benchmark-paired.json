@@ -1,0 +1,106 @@
+{
+  "node": "v22.23.2",
+  "pairedSamples": 1000,
+  "warmupsPerVersion": 200,
+  "ordering": "AB/BA alternating per pair, same input per pair; concurrent local test load",
+  "measurements": {
+    "focused": {
+      "baseline": {
+        "p50ms": 0.1964580000000069,
+        "p95ms": 1.1336670000000026,
+        "maxMs": 39.23195800000008
+      },
+      "candidate": {
+        "p50ms": 0.21029199999998127,
+        "p95ms": 0.9512919999999667,
+        "maxMs": 37.01566700000001
+      }
+    },
+    "originalNegation": {
+      "baseline": {
+        "p50ms": 0.08474999999998545,
+        "p95ms": 0.46308300000009694,
+        "maxMs": 41.55600000000004
+      },
+      "candidate": {
+        "p50ms": 0.0855420000000322,
+        "p95ms": 0.4206250000002001,
+        "maxMs": 39.773291999999856
+      }
+    },
+    "originalEducation": {
+      "baseline": {
+        "p50ms": 0.03854200000023411,
+        "p95ms": 0.17412500000000364,
+        "maxMs": 12.063416999999845
+      },
+      "candidate": {
+        "p50ms": 0.03937499999983629,
+        "p95ms": 0.19475000000011278,
+        "maxMs": 32.224334
+      }
+    },
+    "nearLimit": {
+      "baseline": {
+        "p50ms": 5.482459000000745,
+        "p95ms": 21.825665999997,
+        "maxMs": 59.520832999998674
+      },
+      "candidate": {
+        "p50ms": 5.441957999999431,
+        "p95ms": 20.33350000000064,
+        "maxMs": 80.49920799999927
+      }
+    }
+  },
+  "candidateRetainedHeapBatches": [
+    {
+      "batch": 1,
+      "parses": 1000,
+      "heapUsed": 8243288,
+      "deltaFromStart": 18752
+    },
+    {
+      "batch": 2,
+      "parses": 2000,
+      "heapUsed": 8231832,
+      "deltaFromStart": 7296
+    },
+    {
+      "batch": 3,
+      "parses": 3000,
+      "heapUsed": 8246536,
+      "deltaFromStart": 22000
+    },
+    {
+      "batch": 4,
+      "parses": 4000,
+      "heapUsed": 8250920,
+      "deltaFromStart": 26384
+    },
+    {
+      "batch": 5,
+      "parses": 5000,
+      "heapUsed": 8243144,
+      "deltaFromStart": 18608
+    },
+    {
+      "batch": 6,
+      "parses": 6000,
+      "heapUsed": 8296536,
+      "deltaFromStart": 72000
+    },
+    {
+      "batch": 7,
+      "parses": 7000,
+      "heapUsed": 8301944,
+      "deltaFromStart": 77408
+    },
+    {
+      "batch": 8,
+      "parses": 8000,
+      "heapUsed": 8295832,
+      "deltaFromStart": 71296
+    }
+  ]
+}

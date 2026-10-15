@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import {recordStage8SyncSubject} from './stage8PostSync.js';
+import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
 import {createBodyEnergyRuntime,bodyEnergyConfiguration} from './bodyEnergyRuntime.js';
 import {traceExecutionOperation} from './executionTelemetry.js';
 import {prepareReadOnly,settledReadPreparation} from './readOnlyPreparation.js';
@@ -157,7 +159,7 @@ export async function runForUser(options) {
 }
 
 async function runForUserOwned({
-  db, env, user, now, deps = {}, productionMaintenance = false,
+  db, env, user, now, deps = {}, productionMaintenance = false, readinessOnly = false,
 }) {
   const {
     makeTelegram = createTelegram,
@@ -262,7 +264,7 @@ async function runForUserOwned({
   // 收斂本來就該在 WHOOP 中斷期間繼續進行。所以它現在是流程的**第一步**，
   // 而且不在任何 early return 之後。
   // ---------------------------------------------------------------------
-  await traceExecutionOperation('USER_MAINTENANCE',()=>runMaintenance());
+  if (!readinessOnly) await traceExecutionOperation('USER_MAINTENANCE',()=>runMaintenance());
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
   const chatId = await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration });
@@ -276,6 +278,7 @@ async function runForUserOwned({
   // A legacy account stays UNSET until its owner chooses a language.
   if (typeof db.getLocale !== 'function' && db.raw) throw new Error('LOCALIZATION_STORE_UNAVAILABLE');
   const locale = typeof db.getLocale === 'function' ? await db.getLocale(uid) : 'zh-TW';
+  if (readinessOnly && !locale) { out.skipped = 'locale_unset'; return out; }
   if (!locale) {
     if (await db.claimLocalePrompt(uid, { now })) {
       const selectorTelegram = withDeliveryAuthorization(makeTelegram({
@@ -327,6 +330,15 @@ async function runForUserOwned({
   //
   // 「報告不用發」不等於「健康資料不需要更新」。
   const prepareDue=async overlap=>{
+    if (readinessOnly) {
+      const today=localDate(now,tz);
+      const sent=await db.isSent(uid,'daily',today);
+      const claim=sent?null:await db.getClaim(uid,'daily',today);
+      // A terminal or possibly accepted current occasion needs no WHOOP or AI.
+      // Yesterday remains governed by runDaily's canonical wake health date.
+      const dailySettled=sent||Boolean(claim?.telegramSentAt)||['DELIVERY_STARTED','AMBIGUOUS','SENT'].includes(claim?.deliveryState);
+      return [{today,dailySettled,weeklyDue:false,anythingDue:!dailySettled},false,null];
+    }
     const reads=[()=>dueForUser({db,userId:uid,timezone:tz,now}),()=>isSyncDue({db,userId:uid,now}).catch(()=>true),
       ()=>productionMaintenance&&typeof db.getAllReconciliationState==='function'
         ?automaticFastReconciliationDue({db,userId:uid,now}).then(value=>({value}),error=>({error})):null];
@@ -334,6 +346,7 @@ async function runForUserOwned({
     const results=[];for(const read of reads)results.push(await read());return results;
   };
   const [due,syncDue,fastDue]=await prepareReadOnly(db,()=>prepareDue(true),()=>prepareDue(false));
+  if(deps.morning&&await deps.morning.settled(uid,due.today)){due.dailySettled=true;due.anythingDue=due.weeklyDue;}
   out.syncDue = syncDue;
   let reconciliationPlan = { due: false, dueResources: [] };
   if (productionMaintenance && typeof db.getAllReconciliationState === 'function') {
@@ -407,13 +420,13 @@ async function runForUserOwned({
     return out;
   }
 
-  const source = makeSource({ whoop, now });
+  const source = makeSource({ whoop, now, ...(readinessOnly||deps.morning?.eligible(uid)?{pollMaxPages:2}:{}) });
   // 傳 db + userId 進去才會把 ai_usage 記在這個人身上
   const coach = makeCoach({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
   });
   const ctx = {
-    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,bodyEnergy:deps.bodyEnergy,
+    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,bodyEnergy:deps.bodyEnergy,presentationClock:deps.presentationClock,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
   };
@@ -425,7 +438,7 @@ async function runForUserOwned({
   // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。
   if (locale && !due.dailySettled) {
     try {
-      out.daily = await traceExecutionOperation('DAILY_REPORT',()=>daily(ctx));
+      out.daily = await traceExecutionOperation('DAILY_REPORT',async()=>await deps.morning?.daily(ctx)??daily(ctx));
     } catch (err) {
       if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'daily', error: describeError(err) });
@@ -437,6 +450,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.daily)) return out;
+  if (readinessOnly) return out;
   if(yieldUser())return out;
 
   // ---- weekly（不因為 daily 的結果而跳過）----
@@ -627,6 +641,7 @@ async function runForUserOwned({
   // 「問了但使用者從此沒再傳任何訊息」以前會永遠停在 OPEN、事件的 outcome
   // 永遠是 NULL。這一步把它收成 EXPIRED + NO_RESPONSE，讓「被無視」變成
   // 資料上真的存在的事實——那是之後要調 TTL 唯一能依據的東西。
+  if(deps.stage8SyncUserIds?.includes(uid)&&out.sync&&summarizeSync(out.sync.resources??out.sync).complete)try{await recordStage8SyncSubject({db,userId:uid,sync:out.sync});}catch(error){log.warn('stage8_sync_subject_fenced',{code:error.code??'STAGE8_SYNC_SUBJECT_FAILED'});}
   return out;
 }
 
@@ -681,6 +696,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         admission:deps.runtimeAdmission,environment:process.env,env});
       deps={...deps,bodyEnergy:bodyRuntime.bodyEnergy};
     }
+    if(!deps.morning&&db.raw&&process.env.STAGE8_MORNING_BRIEF==='on')deps={...deps,morning:await createStage8MorningRuntime({db,keys:authorityKeys,environment:process.env,env,admission:deps.runtimeAdmission,now:deps.presentationClock})};
     // In-memory injected runners have no database schema or migration path.
 
     // ---- V1.2 production activation：scheduler-owned webhook drain -------

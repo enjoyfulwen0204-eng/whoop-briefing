@@ -1,0 +1,20 @@
+{
+  "safety": "node --test --test-concurrency=2 test/stage8-three-blocker/*.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/*.test.mjs test/stage8-predicate-ownership/*.test.mjs",
+  "integration": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+  "polling": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+  "regression": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+  "scoped": "node --test --test-concurrency=2 test/stage8-scoped-repair/independent-coach.test.mjs test/stage8-scoped-repair/independent-processor.test.mjs test/stage8-scoped-repair/independent-targeted-processor.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-scoped-repair/processor.test.mjs test/stage8-scoped-repair/semantic.test.mjs",
+  "name": "node --test test/stage8-scoped-repair/contract-limit.test.mjs",
+  "new-semantic": "node --test test/stage8-final-evidence/semantic.test.mjs",
+  "processor": "node --test test/stage8-final-evidence/processor.test.mjs",
+  "stop-processor": "node --test test/stage8-final-evidence/stop-regressions.test.mjs",
+  "gate-semantic": "node --test test/stage8-safety-gate/semantic.test.mjs",
+  "legacy-ingress0": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-safety-gate/processor.test.mjs",
+  "adjudicated-ingress0": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+  "legacy-ingress1": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-safety-gate/processor.test.mjs",
+  "adjudicated-ingress1": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+  "legacy-ingress2": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-safety-gate/processor.test.mjs",
+  "adjudicated-ingress2": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+  "adjudicated-semantic": "node --test test/stage8-adjudicated-repair/semantic.test.mjs",
+  "final-adversarial": "node --test --test-concurrency=2 test/stage8-adjudicated-repair/final-adversarial.test.mjs test/stage8-adjudicated-repair/residual-processor.test.mjs"
+}

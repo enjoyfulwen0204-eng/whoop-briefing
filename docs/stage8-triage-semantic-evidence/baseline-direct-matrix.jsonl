@@ -1,0 +1,12 @@
+{"expected":true,"text":"What causes my current chest pain and difficulty breathing?","urgent":false,"matched":null,"excluded":"educational"}
+{"expected":true,"text":"Tôi muốn tìm hiểu HRV vì tôi không thở được.","urgent":false,"matched":null,"excluded":"educational"}
+{"expected":true,"text":"我想知道我目前胸痛且呼吸困難的原因","urgent":false,"matched":null,"excluded":"educational"}
+{"expected":true,"text":"I have chest pain and cannot breathe. What is my HRV today?","urgent":true,"matched":"chest pain","excluded":null}
+{"expected":false,"text":"I am not having chest pain or difficulty breathing","urgent":true,"matched":"chest pain","excluded":null}
+{"expected":false,"text":"Tôi đã hết đau ngực","urgent":true,"matched":"đau ngực","excluded":null}
+{"expected":false,"text":"No longer having chest pain","urgent":true,"matched":"chest pain","excluded":null}
+{"expected":false,"text":"What causes chest pain in general?","urgent":false,"matched":null,"excluded":"educational"}
+{"expected":false,"text":"I had chest pain yesterday but it has completely resolved.","urgent":false,"matched":null,"excluded":"resolved_past"}
+{"expected":true,"text":"My chest pain is gone, but I cannot breathe now.","urgent":true,"matched":"cannot breathe","excluded":null}
+{"expected":true,"text":"I am not having chest pain, but I am currently struggling to breathe.","urgent":true,"matched":"chest pain","excluded":null}
+{"expected":true,"text":"I want to learn about chest pain, but I am experiencing it right now.","urgent":false,"matched":null,"excluded":"educational"}

@@ -151,7 +151,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   let foundationStore;
   async function privacyFoundation() {
     if(!foundationStore)foundationStore=(async()=>createPhase4Foundation({db:{raw:transactionClient,transaction:processing.transaction,withProcessingReadSnapshot:processing.withReadSnapshot,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys,
-      admission:Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)===32?await runtimeContext():undefined}))();
+      admission:[32,33,34,35].includes(Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v))?await runtimeContext():undefined}))();
     try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
   }
   const health = compatibility.wrap(createHealthStore(compatibility.client, { transaction: processing.transaction }));
@@ -296,6 +296,28 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
         if(ownerUserId)await addPrivacyLink(client,{userId:ownerUserId,table:'telegram_operations',artifactId:artifact,
           sourceType:'TENANT_LEGACY',sourceId:ownerUserId,at:new Date(now()).toISOString(),
           relationship:`RECEIPT_FENCE:${fence.lifecycleGeneration}:${fence.authGeneration}:${fence.purgeGeneration}`});
+      }
+      if(enabled&&ownerUserId&&result?.reply&&(result.reply.stage7InteractionId||result.reply.stage7DeliveryId)){
+        const interaction=Boolean(result.reply.stage7InteractionId),table=interaction?'quick_action_interactions':'journal_prompt_deliveries',field=interaction?'interaction_id':'delivery_id';
+        const source=(await transactionClient.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND ${field}=?`,args:[ownerUserId,result.reply.stage7InteractionId??result.reply.stage7DeliveryId]})).rows[0];
+        if(!readableRow(source)||source.lifecycle_generation!==fence.lifecycleGeneration||source.auth_generation!==fence.authGeneration
+          ||interaction&&source.revision!==result.reply.stage7Revision)fail('STAGE7_REPLY_SOURCE_FENCED');
+        const receipt=(await transactionClient.execute({sql:'SELECT privacy_artifact_id FROM telegram_operations WHERE update_id=? AND owner_user_id=?',args:[id,ownerUserId]})).rows[0];
+        await addPrivacyLink(transactionClient,{userId:ownerUserId,table:'telegram_operations',artifactId:receipt.privacy_artifact_id,
+          sourceType:table,sourceId:source.privacy_artifact_id,sourceMode:'SHADOW',at:new Date(now()).toISOString()});
+      }
+      if(enabled&&ownerUserId&&result?.reply){
+        const specs=[['stage7SourceFacts','journal_events','JOURNAL_FACT','SHARED'],['stage7SourceInteractions','quick_action_interactions','quick_action_interactions','SHADOW'],['stage7SourceEvidence','evidence_items','evidence_items','SHADOW']];
+        for(const [field,table,type,mode] of specs){
+          const ids=result.reply[field];if(ids===undefined)continue;
+          if(!Array.isArray(ids)||ids.length>500||ids.some(value=>typeof value!=='string'))fail('STAGE7_REPLY_SOURCE_REQUIRED');
+          for(const sourceId of new Set(ids)){
+            const source=(await transactionClient.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND privacy_artifact_id=? ${table==='evidence_items'?"AND execution_mode='SHADOW'":''}`,args:[ownerUserId,sourceId]})).rows[0];
+            if(!readableRow(source))fail('STAGE7_REPLY_SOURCE_FENCED');
+            const receipt=(await transactionClient.execute({sql:'SELECT privacy_artifact_id FROM telegram_operations WHERE update_id=? AND owner_user_id=?',args:[id,ownerUserId]})).rows[0];
+            await addPrivacyLink(transactionClient,{userId:ownerUserId,table:'telegram_operations',artifactId:receipt.privacy_artifact_id,sourceType:type,sourceId,sourceMode:mode,at:new Date(now()).toISOString()});
+          }
+        }
       }
       if(enabled&&ownerUserId&&result?.reply){
         const source=(await client.execute({sql:'SELECT source_generation FROM phase4_user_state WHERE user_id=?',args:[ownerUserId]})).rows[0];

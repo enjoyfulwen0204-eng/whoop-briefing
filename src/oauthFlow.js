@@ -174,6 +174,7 @@ async function bindAuthorizedTokens({
 
   let written;
   // ---- M-01 身分閘門：先確定這是誰，才可能把 token 存到誰身上 ----
+  let verifiedProfile=null;
   let whoopUserId = tokens.whoopUserId ?? null;
   if (whoopUserId === null || whoopUserId === undefined || String(whoopUserId).trim() === '') {
     if (typeof verifyIdentity !== 'function') {
@@ -184,7 +185,8 @@ async function bindAuthorizedTokens({
       );
     }
     try {
-      whoopUserId = await verifyIdentity({ accessToken: tokens.accessToken });
+      const identity=await verifyIdentity({accessToken:tokens.accessToken});
+      if(identity&&typeof identity==='object'){verifiedProfile=identity;whoopUserId=identity.whoopUserId;}else whoopUserId=identity;
     } catch (err) {
       throw new OAuthFlowError(
         'IDENTITY_UNVERIFIED',
@@ -321,6 +323,7 @@ async function bindAuthorizedTokens({
   });
   return {
     userId, whoopUserId, scope: tokens.scope ?? null,
+    ...(verifiedProfile?{verifiedProfile,authGeneration:(await db.getTokens(userId))?.authGeneration}:{}),
     // ★ R3 / R2-FG-02：把這條 state 的啟用世代交給呼叫端 —— token 寫入成功
     // **不代表**後續的上線副作用也被授權（見 whoopOAuthCallback 的說明）。
     lifecycleGeneration: expectedLifecycleGeneration ?? null,

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import {createStage8Runtime} from '../stage8Runtime.js';
+import {createStage7Runtime} from '../stage7Runtime.js';
+import {COMPANION_PATH,runCompanionService} from '../companionService.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 /**
@@ -55,6 +58,7 @@ import { createUpdateProcessor, UPDATE_OUTCOME, isAcknowledgeable } from './upda
 import { log, describeError } from '../logger.js';
 import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
+import {MORNING_READINESS_PATH,runMorningReadiness} from '../morningReadiness.js';
 import {CONTINUATION_PATH} from '../phase4Continuation.js';
 import {discoverExecutionContinuation} from '../phase4Execution.js';
 import {executionProfile} from '../phase4Rollback.js';
@@ -66,7 +70,7 @@ import { handleUnlinkedMessage, handleOnboardingMessage, handleLocaleOnlyMessage
   MESSAGES as ONBOARDING_MESSAGES } from '../onboarding.js';
 import { LANGUAGE_SELECTOR } from '../localization.js';
 import { runOnboardingBootstrap } from '../onboardingBootstrap.js';
-import { exchangeCode, fetchWhoopUserId } from '../whoop.js';
+import { exchangeCode, fetchWhoopProfile } from '../whoop.js';
 
 /**
  * 定長時間比較。長度不同直接回 false（長度本身不是祕密）。
@@ -247,10 +251,10 @@ export function createWebhookHandler({
       });
     }
 
-    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path) && !briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,MORNING_READINESS_PATH,COMPANION_PATH].includes(path) && !briefingEndpoint) {
       return send(res, 503, { ok: false, error: 'scheduler_unavailable' });
     }
-    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path) && briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,MORNING_READINESS_PATH,COMPANION_PATH].includes(path) && briefingEndpoint) {
       if (url !== path) return send(res, 400, { ok: false, error: 'query_not_allowed' });
       if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
       const schedulerBody = await readBody(req, { limit: BRIEFING_TRIGGER.MAX_BODY_BYTES });
@@ -440,8 +444,10 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
-  const settings = createSettings({db});
+  const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
+  const stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8 });
+  const settings = createSettings({db,stage8});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
   //
@@ -457,10 +463,12 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
 
   const processor = createUpdateProcessor({
     db,
+    ...(stage7?{stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply}:{}),
+    authenticatedIdentity:stage8?.captureIdentity,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const settingReply=await settings({text,chatId,user,callback});
-      if(settingReply!==null)return settingReply;
+      if(settingReply!==null)return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
       // 上線還沒走完的人：只給狀態與下一步，**不執行任何健康處理**
       // （他的資料還沒進來，任何答案都會是假的）。
       if (onboardingConfigured) {
@@ -470,7 +478,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
         const localeReply = await handleLocaleOnlyMessage({ db, user, text });
         if (localeReply !== null) return localeReply;
       }
-      return router.handle({ text, chatId, user });
+      const reply=await router.handle({ text, chatId, user });return stage7?stage7.decorate({user,chatId,text,reply}):reply;
     },
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {
       // 舊的 /link <碼> 仍然保留給管理者的復原路徑。
@@ -479,7 +487,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: createSendReply({ db, api }),
+    sendReply: input=>{const send=createSendReply({db,api}),with7=stage7?value=>stage7.sendReply(send,value):send;return stage8?stage8.sendReply(with7,input):with7(input);},
     answerCallback: id=>api.answerCallbackQuery(id),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.
@@ -508,7 +516,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret,
-      runPhase: runExecutionPhase,discoverContinuation:discoverExecutionContinuation }) : null;
+      runPhase: runExecutionPhase,discoverContinuation:discoverExecutionContinuation,runReadiness:runMorningReadiness,runCompanion:runCompanionService }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //
@@ -528,9 +536,10 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       code, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
       redirectUri: env.whoopRedirectUri,
     }),
-    verifyIdentity: ({ accessToken }) => fetchWhoopUserId({ accessToken }),
-    onAuthorized: async (userId, { expectedLifecycleGeneration }) => {
+    verifyIdentity: ({ accessToken }) => fetchWhoopProfile({ accessToken }),
+    onAuthorized: async (userId, { expectedLifecycleGeneration,verifiedProfile,authGeneration }) => {
       await db.assertAccountActive(userId, expectedLifecycleGeneration);
+      if(stage8&&verifiedProfile)await stage8.identity.recordWhoop({user:await db.getUser(userId),profile:verifiedProfile,expectedAuthGeneration:authGeneration});
       const locale = await db.getLocale(userId);
       await notifyUser(userId, locale ? ONBOARDING_MESSAGES.authorizedSyncing(locale) : LANGUAGE_SELECTOR,
         { expectedLifecycleGeneration })

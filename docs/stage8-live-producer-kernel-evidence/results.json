@@ -1,0 +1,166 @@
+{
+  "type": "INCOMPLETE_LIVE_PRODUCER_KERNEL_CHECKPOINT",
+  "acceptedBase": "0acd29f9c010e7f924736ec2c8054f5e44435f5d",
+  "parentPreflight": "cd7633f64d3076ddc09df62de8f799ac769100d5",
+  "branch": "codex/stage8-authenticated-live-producers-20261015",
+  "worktree": "/Users/kelvin/.codex/worktrees/stage8-authenticated-live-producers/whoop-briefing",
+  "sourceSha256": {
+    "src/migrations.js": "25fac6310c36dc7f86e4fe06e5ceadc9f20a6bec70ac399d890e64367a238065",
+    "src/phase4Core.js": "3ae6cad0ede3edfa0bf3535e675352435fec5a7113c6ab82fac8d2b4401adbd3",
+    "src/phase4ExecutionContext.js": "d2edf7e8f696134399bca1297ce42575a290e833118d09d672de7882c7467d57",
+    "src/phase4FamilyDirectory.js": "e1e0d5bd66313dc454c68b788b6b2b12eb4e5f697d15ee7dae635669a6d640d4",
+    "src/phase4OperationReceipts.js": "442871fb9aeeb647eaff783f79d21bc840282a74b321c1d8341188460c1dd0ea",
+    "src/phase4ReceiptRouting.js": "d78b83d350ce616e2e4209de32c6dc82f4f9d23bc97bdf66c1abba4ad01f695c",
+    "src/phase4ResultAuthority.js": "0181712aed11a8177fa97038802244fd3505445eb6a1749ab65d6c237d6bb2bf",
+    "src/phase4Schema.js": "a0705907c163ba2242099470f20ed7b11546013b14a05cadb8d9c45a22f16464",
+    "src/phase4V35Schema.js": "bf5e31185518b1be06c8936517f16e9edb8a2e9b5a05976783c954cfe47ced40",
+    "src/runtimeAdmission.js": "6b26fa38980606c8642779a2f4f6cdeb069ef0f0418fb3021575191a67aad13e",
+    "src/schema.js": "bdda9a3325a1626f6ed552f0a5874231ed7c267d1704a5f06eab03d2813530ac",
+    "src/stage8LiveAllocation.js": "83085a97fcf4c322d99330f919ab2333cd64d6f899051b9910465003b2976f5a",
+    "src/stage8LiveAuthority.js": "2ee868aec2927e499289df792b78676611ef29030c7e0a36d9bf9be7d2444017",
+    "src/stage8LiveExecution.js": "b03065ebba8965eba6d4f6ae4d5dd467068ef1cf8a393444d3a756ed26b3cfb6",
+    "src/stage8LiveProducerAuthority.js": "7eda0fb4f4e0f97740a902183ae4bdd8e0472c0427d0a4d8095a5d6820327bc3",
+    "test/phase4Fixture.js": "7c1285632b30bebdff0a909c2dfd18fc557f689c3ce9863c23f82ca1598faea9",
+    "test/stage8-live-allocation.test.js": "9b893489274519c91690288295907e30466883982e2343894c25fb420a2a77c9",
+    "test/stage8-live-execution.test.js": "30573303b9364173b61c4dc2f2fa58b7013037fd7f73d36a582a5fc5cb37d642"
+  },
+  "tests": [
+    {
+      "name": "Affected Stage 8 / Stage 7 / companion regression",
+      "command": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+      "log": "checkpoint-integration.tap.gz",
+      "exitCode": 0,
+      "tests": 210,
+      "pass": 210,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 619382.501667
+    },
+    {
+      "name": "Typed authority / closure / durable execution",
+      "command": "node --test --test-concurrency=2 test/phase4-stage5-final-fixture.test.js test/phase4-stage6-authority-closure.test.js test/phase4-split-execution.test.js",
+      "log": "checkpoint-authority-regression.tap.gz",
+      "exitCode": 0,
+      "tests": 27,
+      "pass": 27,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 241841.098958
+    },
+    {
+      "name": "Routing / directory regression; prior component run",
+      "command": "node --test test/phase4-stage6-v29-routing.test.js test/phase4-stage6-v30-cross-generation.test.js",
+      "log": "routing.tap.gz",
+      "exitCode": 0,
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 498668.124875
+    }
+  ],
+  "newDefinitions": {
+    "count": 7,
+    "pass": 7,
+    "fail": 0,
+    "includedInAffected210": true
+  },
+  "preflightBoundaryDefinitions": {
+    "count": 3,
+    "includedInAffected210": true
+  },
+  "historicalFailures": [
+    {
+      "log": "tenant-gap-reproduction.tap.gz",
+      "pass": 0,
+      "fail": 1,
+      "disposition": "Reproduced peer-tenant acceptance with permissive memory fixture callback; closed by per-user producer guard; final tests pass."
+    },
+    {
+      "log": "tenant-pre-repair.tap.gz",
+      "pass": 4,
+      "fail": 1,
+      "disposition": "Same pre-repair tenant gap, plus passing allocation/kernel cases; not an additional unique current failure."
+    },
+    {
+      "log": "allocation-hardened.tap.gz",
+      "pass": 0,
+      "fail": 1,
+      "disposition": "New ESM import cycle; fixed by async issuer loading admission after module initialization. Full final regression passes."
+    },
+    {
+      "log": "allocation-hardened-rerun.tap.gz",
+      "pass": 2,
+      "fail": 1,
+      "disposition": "Tampering test attempted fixture schema restoration after admission correctly failed closed. Restoration moved inside one isolated test transaction; rejection expectations unchanged; final3 allocation definitions pass."
+    }
+  ],
+  "functionalAcceptance": {
+    "liveAnalysisProducerImplemented": false,
+    "genuineAuthorizedSyntheticLiveAnalysisOutput": "FAIL_NOT_IMPLEMENTED",
+    "typedLiveCurrentAcceptance": "FAIL_NOT_IMPLEMENTED",
+    "legacyShadowAndFakeCompletionRejection": "PASS",
+    "kernelNamedTransactionAndSignedProducer": "PASS",
+    "kernelPositiveIsNotCompletedSourceAnalysis": true,
+    "deliveryClaim": "NONE"
+  },
+  "readiness": {
+    "fullLiveProducerIndependentAcceptance": "NO_GO_INCOMPLETE",
+    "stage8CodeAcceptance": "NO_GO",
+    "production": "NO_GO",
+    "checkpointIndependentReview": "REQUEST_AFTER_FREEZE"
+  },
+  "automaticApproval": {
+    "ownerApprovalPending": true,
+    "rejectedEditsExecuted": false,
+    "blockedPatch": "docs/stage8-live-producer-namespace-integration.patch",
+    "patchLines": 297,
+    "reason": "Security-critical authority/privacy/closure changes span multiple paths; automatic review rejected the broad and narrower integration edits despite local worktree isolation. Corrected namespace subset independently reviewed; no new systematic security issue found within that subset. Technical review is not approval to execute a rejected action."
+  },
+  "performance": {
+    "kind": "ISOLATED_ALLOCATION_ADMISSION_ONLY_NOT_ANALYSIS_THROUGHPUT",
+    "samplesPerProfile": 20,
+    "profiles": [
+      {
+        "schema": 34,
+        "meanMs": 23.798197949999985,
+        "p50Ms": 24.12279099999978,
+        "p95Ms": 27.46329199999991,
+        "heapUsedBefore": 19005520,
+        "heapUsedAfter": 18986872,
+        "rssAfter": 200163328
+      },
+      {
+        "schema": 35,
+        "meanMs": 31.967506349999987,
+        "p50Ms": 30.228791000000456,
+        "p95Ms": 41.667083000000275,
+        "heapUsedBefore": 15602360,
+        "heapUsedAfter": 15556160,
+        "rssAfter": 204472320
+      }
+    ]
+  },
+  "stability": {
+    "nativeSigsegv": "OPEN_PREEXISTING_NOT_MODIFIED",
+    "nativeSignalObservedInFinalRuns": false,
+    "analysisThroughputAndMemory": "NOT_MEASURED_UNFINISHED_PRODUCER",
+    "regressionResourceLogsAreNotProductionCapacityQualification": true
+  },
+  "preservation": {
+    "triageSha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+    "gateSha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d",
+    "triageIdenticalToAcceptedBase": true,
+    "v33v34DefinitionsUnchanged": true,
+    "stage6WorktreeModified": false,
+    "productionModified": false,
+    "credentialsModified": false,
+    "realTelegramDelivery": false,
+    "f02": "OWNER_ACCEPTED_RISK_UNCHANGED",
+    "stage6LastReadOnlyObservedHead": "e97074d545c7c86658593ad6be33566f94f5a1e1",
+    "stage6IntegrationAccepted": false
+  }
+}

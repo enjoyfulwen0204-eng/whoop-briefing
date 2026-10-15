@@ -1,3 +1,4 @@
+import {selfQueryPerspective} from '../scopedHealthContext.js';
 /**
  * 訊息路由：一則 Telegram 訊息 → 一則回覆。
  *
@@ -403,7 +404,7 @@ export function unavailableReply(result, locale = 'zh-TW') {
 }
 
 export function createRouter({
-  db, coachFor,bodyEnergy, now = () => new Date(), lookbackDays = 120,
+  db, coachFor,bodyEnergy,stage8, now = () => new Date(), lookbackDays = 120,
 }) {
   /**
    * 處理一則訊息，回傳要送出去的文字。
@@ -414,12 +415,15 @@ export function createRouter({
     const userId = requireUserId(user?.id, 'router.handle');
     if (typeof db.getLocale !== 'function' && db.raw) throw new Error('LOCALIZATION_STORE_UNAVAILABLE');
     const locale = typeof db.getLocale === 'function' ? await db.getLocale(userId) : 'zh-TW';
+    if (assessUrgency(text).urgent) return urgentReply(locale??'en');
+    if (isSymptomEducationQuestion(text)) return symptomEducationReply(locale??'en');
     if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
+    if(stage8){const scoped=await stage8.handle({text,chatId,user});if(scoped!==null)return scoped;}
     if(bodyEnergy){
       const control=await bodyEnergy.notificationControl.handle({text,user,chatId});
       if(control!==null)return {reply:control.message,bodyEnergyReplyGuard:control.replyGuard};
-      const body=await bodyEnergy.query({text,userId,requestedAt:t});
+      const body=selfQueryPerspective({text}).usePersonalData?await bodyEnergy.query({text,userId,requestedAt:t}):null;
       if(body)return {reply:body.message,bodyEnergyReplyGuard:body.replyGuard};
     }
     const provider = coachFor(userId);
@@ -845,12 +849,9 @@ export function createRouter({
   async function handleQuestion({
     text, chatId, t, userId, timezone, coach, locale = 'zh-TW', justLogged = null, signals = null,
   }) {
-    if (typeof coach?.bindSnapshot === 'function') coach = await coach.bindSnapshot();
-    // 「證據呢？」「你憑什麼？」「樣本多少？」→ 直接回 evidence 摘要。
-    // ★ 必須在 intent 判定之前 —— 這類問句不會被任何 intent 認出來，
-    // 放在後面會先被 unknown 分支攔截而永遠走不到。
-    if (/(證據|憑什麼|可信嗎|樣本(數|多少)|怎麼知道|evidence)/i.test(text)) {
-      return handleEvidence({ db, userId, now: t, locale });
+    if(stage8?.eligible(userId)){
+      const preliminary=selfQueryPerspective({text,signals,intent:(await resolveIntent(text,{coach:null})).intent});
+      if(!preliminary.usePersonalData){const edu=educationAnswer({text,perspective:preliminary.perspective,locale});return edu?.text??translate(locale,'router.noData');}
     }
 
     // 「我是不是喝酒了？」—— 問的是我們這邊有沒有紀錄。這題有確定性的答案，
@@ -859,6 +860,8 @@ export function createRouter({
       return journalRecall({ text, t, userId, timezone, locale });
     }
 
+    if (/(證據|憑什麼|可信嗎|樣本(數|多少)|怎麼知道|evidence)/i.test(text))return handleEvidence({db,userId,now:t,locale});
+    if (typeof coach?.bindSnapshot === 'function') coach = await coach.bindSnapshot();
     const intent = await resolveIntent(text, { coach });
     log.info('intent_resolved', { intent: intent.intent, source: intent.source, metric: intent.metric });
 

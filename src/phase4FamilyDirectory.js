@@ -1,9 +1,10 @@
+import {liveTable} from './stage8LiveAllocation.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import {readPilotPrefixRows,pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { phase4Metric,INTELLIGENCE_VERSIONS,PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
-import { FAMILY_DIRECTORY_VERSION as VERSION,FAMILY_DIRECTORY_ENTRIES as ENTRIES,
-  FAMILY_DIRECTORY_MANIFESTS as MANIFESTS,FAMILY_WORK_TIPS as TIPS } from './phase4V30Schema.js';
+import { FAMILY_DIRECTORY_VERSION as VERSION,FAMILY_DIRECTORY_ENTRIES as SHADOW_ENTRIES,
+  FAMILY_DIRECTORY_MANIFESTS as SHADOW_MANIFESTS,FAMILY_WORK_TIPS as SHADOW_TIPS } from './phase4V30Schema.js';
 
 const ZERO='0'.repeat(64);
 const fail=code=>{const error=new Error(code);error.code=code;throw error;};
@@ -15,8 +16,9 @@ const parse=value=>{try{const decoded=JSON.parse(value);if(canonicalJson(decoded
 /** V30's non-lifecycle directory. Identity fields are the frozen Stage 5
  * metric/episode dimensions; arbitrary source IDs are deliberately excluded
  * because a later current source must find existing custom window families. */
-export function createFamilyDirectory(client,keys) {
-  const routing=createReceiptRouting(client,keys);
+export function createFamilyDirectory(client,keys,{live=false}={}) {
+  const ENTRIES=live?liveTable(SHADOW_ENTRIES):SHADOW_ENTRIES,MANIFESTS=live?liveTable(SHADOW_MANIFESTS):SHADOW_MANIFESTS,TIPS=live?liveTable(SHADOW_TIPS):SHADOW_TIPS;
+  const routing=createReceiptRouting(client,keys,{live});
   const mac=value=>keys.digest(ZERO,canonicalJson([VERSION,value]));
   const source=(context,metricKey)=>{
     const contract=phase4Metric(metricKey);

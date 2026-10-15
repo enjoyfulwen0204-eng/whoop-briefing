@@ -1,0 +1,99 @@
+{
+  "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+  "status": "OPEN",
+  "classification": "B_EXISTING_BASELINE_DEFECT",
+  "rootCause": "UNASSIGNED",
+  "reportSha256": "2a573099578fb3c8eb79fbdf76181b14b152c741c230afb8279f12b3cf3ae5e2",
+  "captureTime": "2026-10-15 15:34:18.2002 +0700",
+  "signal": "SIGSEGV",
+  "nativeFrames": [
+    {
+      "image": "index.node",
+      "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "offset": 4618472,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "offset": 2513860,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "offset": 2740588,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "offset": 506516,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "offset": 380320,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "offset": 470324,
+      "symbol": null
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 863876,
+      "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)"
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 843712,
+      "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)"
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 720876,
+      "symbol": "v8impl::Reference::Finalize()"
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 864492,
+      "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)"
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 645076,
+      "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const"
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 641908,
+      "symbol": "node::Environment::RunAndClearNativeImmediates(bool)"
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 661444,
+      "symbol": "node::Environment::InitializeLibuv()::$_0::__invoke(uv_async_s*)"
+    },
+    {
+      "image": "node",
+      "uuid": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "offset": 13598104,
+      "symbol": "uv__async_io"
+    }
+  ],
+  "baselineUuidAndSixOffsetsMatch": true,
+  "baselineReportSha256": "829f72dda8ad52673bbe193ff03d368b417a8d3b025a9474b437ba8c59e0a5b6",
+  "passingRerunDoesNotResolve": true,
+  "scope": "Fingerprint only; raw host diagnostic is not copied into repository evidence."
+}

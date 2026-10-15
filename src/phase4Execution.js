@@ -1,3 +1,4 @@
+import {createStage8Runtime,stage8Configuration} from './stage8Runtime.js';
 import {authorizeBodyEnergyFinalizedDrain} from './bodyEnergyDrainAuthority.js';
 import {createBodyEnergyRuntime,bodyEnergyConfiguration} from './bodyEnergyRuntime.js';
 import {withPhaseTelemetry,traceExecutionOperation,setExecutionTelemetrySequence} from './executionTelemetry.js';
@@ -27,6 +28,7 @@ export const ADMISSION_BUDGET_MS=30_000;
 export const SYNC_SOURCE_BUDGETS=Object.freeze({cloudflare:120_000,github:SYNC_BUDGET_MS,manual:SYNC_BUDGET_MS,event:120_000});
 export const DRAIN_SOURCE_BUDGETS=Object.freeze({cloudflare:45_000,github:90_000,manual:45_000,event:25_000});
 export const PHASE_SETTLEMENT_MS=15_000;
+function postSyncSubjects(environment){try{return environment.STAGE8_POST_SYNC==='on'&&environment.STAGE8_LIVE_ANALYSIS==='on'?stage8Configuration(environment).userIds:[];}catch{return [];}}
 async function optionalPilotAvailable({db,keys,config,reservation}){
  try{return Boolean((await createBetaPilotPermit({db,keys,config,reservation}).availability()).possible);}
  catch(error){if(error?.code!=='BETA_PILOT_DENIED')throw error;return false;}
@@ -42,7 +44,16 @@ export function phaseResponse(record) {
 }
 /** Both CLI jobs and signed HTTP phases share one admitted/fenced composition. */
 export async function runExecutionPhase(args={}) {
- return withPhaseTelemetry({phase:args.request?.phase,source:args.request?.triggerSource,releaseSha:args.request?.releaseSha},()=>runExecutionPhaseImpl(args));
+ const result=await withPhaseTelemetry({phase:args.request?.phase,source:args.request?.triggerSource,releaseSha:args.request?.releaseSha},()=>runExecutionPhaseImpl(args));
+ const environment=args.environment??process.env;
+ // Original SYNC settlement, budgets and ALS have ended. Optional LIVE work
+ // has its own durable authority and never changes the frozen SYNC response.
+ if(args.request?.phase==='SYNC'&&result.body?.syncComplete===true&&environment.STAGE8_POST_SYNC==='on'){
+  let owned;try{const keys=args.keys??publicBetaKeys(environment),env=args.env??loadEnv(),db=args.db??(owned=createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys}));
+   const app=await createStage8Runtime({db,keys,environment,env});for(const userId of app?.config.userIds??[])try{await app.analysis?.afterSync({executionId:args.request.requestId,userId});}catch(error){log.warn('stage8_post_sync_fenced',{code:error.code??'STAGE8_POST_SYNC_FAILED'});}
+  }catch(error){log.warn('stage8_post_sync_fenced',{code:error.code??'STAGE8_POST_SYNC_FAILED'});}finally{owned?.close();}
+ }
+ return result;
 }
 async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,environment=process.env,
  db:providedDb,keys:providedKeys,env:providedEnv,deps={},budgetMs,overallBudgetMs,signal,processAuthority}={}) {
@@ -164,7 +175,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
        if(request.phase==='SYNC') {
          log.info('sync_start',{source:request.triggerSource,release_sha:releaseSha,phase:'SYNC'});
          const summary=await traceExecutionOperation('PHASE_WORK',()=>(deps.runBriefing??runBriefing)({now,triggerSource:request.triggerSource,deps:{...deps,db,env,
-           runtimeAdmission:admission,phase4AuthorityKeys:keys,executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}}));
+           runtimeAdmission:admission,phase4AuthorityKeys:keys,stage8SyncUserIds:postSyncSubjects(environment),executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}}));
          budget.assert();
          if(summary.coordinationPending)executionContext.coordinationPending=true;
          if(executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});

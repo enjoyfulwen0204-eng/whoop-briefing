@@ -1,0 +1,6 @@
+{
+  "base": "d538b07e097fedb42481c305de0738761c512a4d",
+  "baselineTriageSha256": "a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c",
+  "safetyGateSha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d",
+  "candidateTriageSha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d"
+}

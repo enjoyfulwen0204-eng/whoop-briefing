@@ -1,0 +1,697 @@
+[
+  {
+    "id": "present-perfect",
+    "text": "I have had chest pain since this morning.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "present-perfect-breathing",
+    "text": "I have had difficulty breathing for the last ten minutes.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "continuing-past",
+    "text": "I had chest pain yesterday and still have it today.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "past-fine-before",
+    "text": "I was fine last week whereas I have difficulty breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "past-fine-after",
+    "text": "I have chest pain whereas I was fine last week.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "past-nonserious",
+    "text": "I had a headache yesterday whereas I have chest pain.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "past-onset-now",
+    "text": "My chest pain started yesterday and is happening now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "past-now",
+    "text": "I had chest pain yesterday. I have chest pain now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "past-only",
+    "text": "I had chest pain yesterday.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "past-resolved",
+    "text": "I experienced chest pain last week and it has completely resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "history-quote-current",
+    "text": "Yesterday I read an article. Now I have \"chest pain\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "neg-multiple",
+    "text": "I am not experiencing chest pain, difficulty breathing or palpitations.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "neg-nor",
+    "text": "I have neither chest pain nor difficulty breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "neg-independent",
+    "text": "I do not have chest pain but I have trouble breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "neg-separate-owner",
+    "text": "My friend has no chest pain whereas I have difficulty breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "neg-possession",
+    "text": "I am not experiencing my chest pain or my difficulty breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "neg-other-object",
+    "text": "She is not experiencing her chest pain or her difficulty breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "neg-past-current",
+    "text": "I never had chest pain before. I have chest pain now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "neg-epistemic",
+    "text": "I cannot say that I do not have chest pain.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "resolved-current",
+    "text": "My chest pain has disappeared but I have difficulty breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "not-resolved",
+    "text": "My chest pain has not resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "neg-resolution-remaining",
+    "text": "I have chest pain and it has not gone away.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "both-resolved",
+    "text": "I had chest pain and difficulty breathing. Both symptoms have gone away.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "list-resolved",
+    "text": "My chest pain and difficulty breathing have completely resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "resolved-recurrent",
+    "text": "My chest pain went away, but it has returned now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "other-symptom-outcome",
+    "text": "I have chest pain. My headache is gone.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "other-actor-outcome",
+    "text": "I have chest pain. My father no longer has chest pain.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "different-friends",
+    "text": "My friend Alice has chest pain. My friend Bob's chest pain has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "different-friends-negation",
+    "text": "My friend Alice has chest pain, but my friend Bob does not have chest pain.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "different-mothers",
+    "text": "My mother has chest pain. His mother no longer has chest pain.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "different-weak-actors",
+    "text": "My friend Alice has palpitations. My friend Bob is dizzy.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "same-self-outcome",
+    "text": "I have chest pain. My chest pain has completely resolved now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "same-self-not-outcome",
+    "text": "I have chest pain. I do not have difficulty breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quoted-self-wrapper",
+    "text": "I am experiencing \"difficulty breathing\" right now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quoted-speech-personal",
+    "text": "I say \"I have chest pain\" because it is happening right now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quoted-education-actual",
+    "text": "I am reading about \"chest pain\", and I am experiencing it now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "quoted-instruction",
+    "text": "The phrase \"I have chest pain\" is an example in my textbook.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quoted-question",
+    "text": "What does \"I have difficulty breathing\" mean?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "quoted-alone",
+    "text": "\"I have chest pain right now\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "reported-current",
+    "text": "My father says \"I have chest pain now\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reported-other",
+    "text": "My friend says \"I cannot breathe\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reported-unquoted",
+    "text": "My friend says he has difficulty breathing right now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reported-historical",
+    "text": "My friend said \"I had chest pain yesterday\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "reported-past-status",
+    "text": "Yesterday my friend said \"I have chest pain\", but that pain is gone now.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "reported-educational",
+    "text": "In this fictional example my father says \"I have chest pain\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "conditional",
+    "text": "If I have chest pain and difficulty breathing, what should I do?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "conditional-past-present",
+    "text": "If I had chest pain last week, that would be concerning. I have difficulty breathing now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "conditional-actual-tail",
+    "text": "If chest pain is dangerous, please help: I have chest pain now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "hypothetical-other",
+    "text": "Suppose my friend has chest pain. What should I do?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "educational",
+    "text": "What causes chest pain in general?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "educational-actual",
+    "text": "What causes my chest pain that I am experiencing now?",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "educational-negated",
+    "text": "I want to learn about chest pain; I do not have chest pain.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "uncertain-personal",
+    "text": "I am unsure whether I have chest pain.",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "unknown-currentness",
+    "text": "chest pain, difficulty breathing",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "unknown-actor",
+    "text": "Alex has chest pain.",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "unknown-actor-history",
+    "text": "Alex had chest pain last week and it has resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "ambiguous-reference",
+    "text": "I have chest pain. My friend is well. It has gone away.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "list-first-neg",
+    "text": "I have no chest pain or trouble breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "list-separate-positive",
+    "text": "I have no chest pain and have trouble breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "list-separate-neg",
+    "text": "I have chest pain but no difficulty breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "uncertain-reference",
+    "text": "I had chest pain yesterday. It might still be happening.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "time-adjacent-unpunctuated",
+    "text": "I had chest pain yesterday I have difficulty breathing now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "time-adjacent-no-now",
+    "text": "I had chest pain yesterday I have difficulty breathing.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "contradictory-neg-current",
+    "text": "I have chest pain now even though I do not usually have chest pain.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "resolved-recurring-other",
+    "text": "I have difficulty breathing now; my earlier chest pain has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "relative-other-current",
+    "text": "My friend, who was fine yesterday, has difficulty breathing now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-current",
+    "text": "我現在呼吸困難",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-negated",
+    "text": "我沒有胸痛或呼吸困難",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "zh-resolved",
+    "text": "我胸痛和呼吸困難都已經好了",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "zh-education",
+    "text": "我想知道胸痛的定義",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "zh-past-current",
+    "text": "我昨天胸痛然而我現在呼吸困難",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-current-past",
+    "text": "我現在呼吸困難然而我昨天胸痛",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-neg-current",
+    "text": "我沒有胸痛或呼吸困難然而我現在呼吸困難",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-resolved-current",
+    "text": "我胸痛和呼吸困難都已經好了然而我現在呼吸困難",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-education-current",
+    "text": "我想知道胸痛的定義然而我現在呼吸困難",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-current-education",
+    "text": "我現在呼吸困難然而我想知道胸痛的定義",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current",
+    "text": "tôi đang khó thở",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-negated",
+    "text": "Tôi không đau ngực hoặc khó thở",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-resolved",
+    "text": "Tôi đã hết đau ngực và khó thở",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-education",
+    "text": "Tôi muốn tìm hiểu đau ngực là gì",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-past-current",
+    "text": "Tôi đau ngực hôm qua trong khi tôi đang khó thở",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-past",
+    "text": "tôi đang khó thở trong khi Tôi đau ngực hôm qua",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-neg-current",
+    "text": "Tôi không đau ngực hoặc khó thở trong khi tôi đang khó thở",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-resolved-current",
+    "text": "Tôi đã hết đau ngực và khó thở trong khi tôi đang khó thở",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-education-current",
+    "text": "Tôi muốn tìm hiểu đau ngực là gì trong khi tôi đang khó thở",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-current-education",
+    "text": "tôi đang khó thở trong khi Tôi muốn tìm hiểu đau ngực là gì",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "en-current",
+    "text": "I have difficulty breathing now",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "en-negated",
+    "text": "I do not have chest pain or difficulty breathing",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "en-resolved",
+    "text": "My chest pain and difficulty breathing have resolved",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "en-education",
+    "text": "What causes chest pain in general",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "en-past-current",
+    "text": "I had chest pain yesterday whereas I have difficulty breathing now",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "en-current-past",
+    "text": "I have difficulty breathing now whereas I had chest pain yesterday",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "en-neg-current",
+    "text": "I do not have chest pain or difficulty breathing whereas I have difficulty breathing now",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "en-resolved-current",
+    "text": "My chest pain and difficulty breathing have resolved whereas I have difficulty breathing now",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "en-education-current",
+    "text": "What causes chest pain in general whereas I have difficulty breathing now",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "en-current-education",
+    "text": "I have difficulty breathing now whereas What causes chest pain in general",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-zero-self",
+    "text": "我昨天沒事然而我胸痛。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-zero-third",
+    "text": "我昨天胸痛然而我朋友呼吸困難。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-other-distinct",
+    "text": "我朋友小明胸痛。我朋友小華胸痛已經好了。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-neg-list",
+    "text": "我沒有胸痛、呼吸困難或心悸。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "zh-neg-current",
+    "text": "我沒有胸痛，但是我現在喘不過氣。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-quote-current",
+    "text": "我想知道「胸痛」的原因，因為我目前有這個症狀。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zh-quote-educational",
+    "text": "教科書中的「我胸痛」是什麼意思？",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-zero-self",
+    "text": "Tôi ổn hôm qua trong khi tôi đau ngực.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-zero-other",
+    "text": "Tôi đau ngực hôm qua trong khi bạn tôi khó thở.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-distinct-other",
+    "text": "Bạn tôi An đau ngực. Bạn tôi Bình đã hết đau ngực.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-neg-list",
+    "text": "Tôi không có đau ngực và khó thở.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "vi-neg-current",
+    "text": "Tôi không đau ngực nhưng tôi không thở được.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-reported",
+    "text": "Bạn tôi nói \"Tôi khó thở bây giờ\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "vi-hypothetical",
+    "text": "Nếu tôi khó thở thì tôi nên làm gì?",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "mix-neg-current",
+    "text": "I do not have chest pain nhưng tôi khó thở.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "mix-history-current",
+    "text": "我昨天胸痛 whereas tôi khó thở.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "mix-resolved-current",
+    "text": "Tôi đã hết đau ngực but I cannot breathe now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "mix-negated",
+    "text": "I do not have chest pain 或呼吸困難。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "mix-educational-current",
+    "text": "What causes chest pain? 我現在胸痛。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "mix-report",
+    "text": "My friend says \"我現在呼吸困難\".",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reference-other-headache",
+    "text": "I have chest pain. My friend has a headache. It has gone away.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reference-self-headache",
+    "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reference-other-rash",
+    "text": "I have chest pain. My mother has a rash. It has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reference-zh",
+    "text": "我現在胸痛。我朋友頭痛。它已經好了。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reference-vi",
+    "text": "Tôi đang đau ngực. Bạn tôi đau đầu. Nó đã hết.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reference-explicit-self",
+    "text": "I have chest pain. My friend has a headache. My chest pain has resolved.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "reference-explicit-other",
+    "text": "I have chest pain. My friend has a headache. His headache has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "reference-generic-education",
+    "text": "I have chest pain. The article describes a headache. It has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "current-specific-past-other",
+    "text": "My friend Alice has chest pain now. My friend Bob had chest pain yesterday.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "same-other-resolution",
+    "text": "My friend Alice has chest pain. My friend Alice no longer has chest pain.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "specific-other-ambiguous-pronoun",
+    "text": "My friend Alice has chest pain. My friend Bob has chest pain. His chest pain has resolved.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "modal-actual",
+    "text": "If chest pain can be serious, I have chest pain right now.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "actual-comma-before-hypo",
+    "text": "I have chest pain now, but if I had it yesterday I would have called someone.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "current-vi-after-if",
+    "text": "Nếu đau ngực nguy hiểm, tôi đang đau ngực.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "current-zh-after-if",
+    "text": "如果胸痛很危險，我現在胸痛。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "present-perfect-now",
+    "text": "I have had chest pain since this morning and I still have it.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "negated-object-en",
+    "text": "I am not having my chest pain and my difficulty breathing.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "negated-object-zh",
+    "text": "我沒有胸痛和我的呼吸困難。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "negated-object-vi",
+    "text": "Tôi không có đau ngực và tôi không khó thở.",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "past-adjacent-zh",
+    "text": "我昨天胸痛昨天我呼吸困難。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "current-with-unrelated-time",
+    "text": "I have chest pain. Yesterday my friend was fine.",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "zero-copula-other-outcome",
+    "text": "我朋友小明胸痛。我朋友小華沒有胸痛。",
+    "expected": "SAFETY"
+  },
+  {
+    "id": "distinct-friends-mixed",
+    "text": "My friend Alice has chest pain. 我朋友小華胸痛已經好了。",
+    "expected": "SAFETY"
+  }
+]

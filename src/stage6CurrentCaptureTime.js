@@ -10,8 +10,8 @@ const fail=code=>{throw Object.assign(Error(code),{code});};
  * future ingestion, rewritten source snapshot or historical alias is admitted.
  * A committed operation's exact source versions reuse its original instant. */
 export async function stage6CurrentCaptureTime(core,context,metricKey,artifact,{preparePending=null,verifyPending=null}={}){
-  await core.assertContext(context);const owner=await assertExecutionWorkOwner(core.client);
-  if(context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN')fail('STAGE6_CURRENT_CAPTURE_OWNER_REQUIRED');
+  core.assertAnalysisWrite(context);await core.assertContext(context);const owner=await assertExecutionWorkOwner(core.client);
+  if(!core.analysisModeAllowed(context)||owner?.phase!=='STAGE6_DRAIN')fail('STAGE6_CURRENT_CAPTURE_OWNER_REQUIRED');
   const supportedClock=core.now().getTime(),actualClock=Date.now();
   if(supportedClock>actualClock)fail('STAGE6_CURRENT_CAPTURE_CLOCK_FENCED');
   const clock=Math.min(supportedClock,actualClock);
@@ -19,7 +19,7 @@ export async function stage6CurrentCaptureTime(core,context,metricKey,artifact,{
   const [source]=await core.revalidateSources(context,[artifact.ref]);
   if(source.type!==phase4Metric(metricKey).sourceType||canonicalJson(source.row)!==canonicalJson(artifact.row))fail('STAGE6_CURRENT_CAPTURE_SOURCE_REQUIRED');
   canonicalMetricSourceValue(metricKey,{type:source.type,id:source.id,row:source.row},context,new Date(clock).toISOString());
-  const routing=createReceiptRouting(core.client,core.keys),contract=phase4Metric(metricKey),
+  const routing=createReceiptRouting(core.client,core.keys,{live:core.liveAllocation}),contract=phase4Metric(metricKey),
     token=routing.token(context.userId,context.executionMode,'EPISODE',[metricKey,contract.domain]);
   const inventory=await routing.inventory(context,'EPISODE',token,true);
   if(inventory.unknown)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');

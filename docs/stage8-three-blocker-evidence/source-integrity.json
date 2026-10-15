@@ -1,0 +1,46 @@
+{
+  "baseline": "7c6af29b7d19857444001694a6aae86a59ddf4d9",
+  "runtimeSourceCommit": "25e3f14bbb7c3cc30cd57ea4a00c8440c2fc608d",
+  "sourceHashes": {
+    "src/bot/triage.js": "87970e35448c2dd3e2fdeb4d12baf70349740a398f817ce583f199b944a9a0f7",
+    "src/bot/updateProcessor.js": "c3ce056f739638eb792e36689a381604946076f7c0d056f05fd1c635eb748032",
+    "src/phase4TransportStore.js": "c6a92b645fb658eb107744b56655f366123fa4bcd42465ddb67aaa5582f59113",
+    "src/stage8MorningStore.js": "c38d9757918b9efe49af8c030cfe1bc3ff718a2f53246bab82e0c79aaf040e61",
+    "test/stage8-three-blocker-closure.test.mjs": "8085279a64a5f12e27d7f713e55cf0a1398454e00f42afce68ea2f7277bf7bcc",
+    "test/stage8-three-blocker/controls.test.mjs": "745be00aa6f62d90c150d99dc2a89644bf7e171d5b141a586b6664cb9f5abaf6",
+    "test/stage8-three-blocker/fairness.test.mjs": "a9f8de6e29e729b26a7e950fe4d4820d462586d66e5d692417033bd3bad133b1",
+    "test/stage8-three-blocker/ingress.test.mjs": "2be1b97aa4df5d11a22765e0e93340db1bd8b7e9efb4fb710093804b02630a15",
+    "test/stage8-three-blocker/ordinary.test.mjs": "ee77469d5899e5d1d2fe840cbcd38e30926c68e403f21b761fe239ad68cb834a",
+    "test/stage8-three-blocker/retry.test.mjs": "600358c01dfd99981a171d5dd41818d57ec134e99be1d2574f9e1ebf06f03e0b",
+    "test/stage8-three-blocker/urgency.test.mjs": "1f29f9b3da1ae22a93a17d6f01ef4a0a1707d64b0ca962e5676c452e1b878e0d"
+  },
+  "protectedHashes": {
+    "src/phase4V24Schema.js": "b5d0b6f8f43c56e4039f7c56a2bcea324af5011ef4e7cec712c4ae118fa1a297",
+    "src/phase4V32Schema.js": "54bda87f006f5563884602dc0d681d6aba50a65bf41de191261fe0f00819f0af",
+    "src/phase4V33Schema.js": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c",
+    "src/phase4V34Schema.js": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd",
+    "src/stage8LiveAuthority.js": "eb3e052be31e774862218311551a371739f0ce5307b1092b8c6265c8c7551940",
+    "src/stage8DerivedReader.js": "b57299cc02597105a11694b8b06c09dcbb423d00e7ba3cc0200f1da0813a4ecb",
+    "src/phase4Reanalysis.js": "ea0a6667726ce30189ce5beaf99b696cf1fb6d76a5383921927690bddde8fb8c",
+    "src/phase4IntelligenceStore.js": "7356f369ca39499b45a415830c7a074f9af5bf518656f9706a4dcaf9c6cac323",
+    "src/phase4MetricUnitReceipt.js": "0b8e8f27fe0fc595730442bc81698319fb38519b9088d4c998214618446b8676",
+    "src/phase4OperationReceipts.js": "38339347603814091f58f4bb7d60ba31cc890ac1b0e10217b55de618d31c2968",
+    "src/phase4Repositories.js": "bc72bcac2ca82bf29dc0c3179a15636e3690963670c456730bdbdffef959e558",
+    "src/phase4ResultAuthority.js": "c4b0f7cc4a6d55ec3de18d6290ceeda66d87519bdc9410a93ba3b40a9d100df9",
+    "src/bot/router.js": "ffde84fca15c907258534e10cc5b183683cc39b8cf018a90b8fef37e4797995c",
+    "src/bot/webhook.js": "4524fefe61b582425aa06870cc6b45354f539b661cdff351db984364f1d98441",
+    "package.json": "4918bf6af481cf3bfb95be513cfecca4ad553c2290feaf6fe4156e18c286ca43",
+    "package-lock.json": "79b263e14c52cb67a1adae0a3ff5102d44b9ffa801990b2f7ad3d30125d9ee2e"
+  },
+  "protectedBytesMatchBaseline": true,
+  "originalStage8Paths": 50,
+  "missingOriginalPaths": [],
+  "syntaxChecks": 11,
+  "syntaxFailures": [],
+  "sourceDiff": " src/bot/triage.js                           |  96 +++++++++++++++----------\n src/bot/updateProcessor.js                  |  11 +--\n src/phase4TransportStore.js                 |  27 +++++++-\n src/stage8MorningStore.js                   |  32 +++++++++\n test/stage8-three-blocker-closure.test.mjs  | 104 ++++++++++++++++++++++++++++\n test/stage8-three-blocker/controls.test.mjs |  18 +++++\n test/stage8-three-blocker/fairness.test.mjs |  12 ++++\n test/stage8-three-blocker/ingress.test.mjs  |  21 ++++++\n test/stage8-three-blocker/ordinary.test.mjs |   6 ++\n test/stage8-three-blocker/retry.test.mjs    |  20 ++++++\n test/stage8-three-blocker/urgency.test.mjs  |  28 ++++++++\n 11 files changed, 335 insertions(+), 40 deletions(-)\n",
+  "exactSourceDiff": {
+    "file": "repair.diff.gz",
+    "compressedSha256": "1efb79151c0c5a00aff123d5a2da73c0272881202950ba4b062a41da2f319db9",
+    "uncompressedSha256": "3b60ba2b8321ea34353c0d6713a87ceefe2d424fc591bb47a9678101f5b83bab"
+  }
+}

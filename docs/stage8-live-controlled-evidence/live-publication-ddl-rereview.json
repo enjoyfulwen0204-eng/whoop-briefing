@@ -1,0 +1,43 @@
+{
+  "type": "INDEPENDENT_READ_ONLY_APPENDED_DDL_REREVIEW",
+  "sourceSha256": "3e7144ae5e76b75d4dedce2f86264618a9ed6abd422bcb309d0624a25a8b7156",
+  "previousReview": "live-publication-ddl-review.json",
+  "schemaForIsolatedSyntheticMigrationExecution": "GO",
+  "fullLivePipelineAcceptance": "NO_GO_PENDING_IMPLEMENTATION_AND_FINAL_REVIEW",
+  "sourceEditedByReviewer": false,
+  "migrationOrSqlExecutedByReviewer": false,
+  "v33V34Unchanged": true,
+  "closedFindings": [
+    {
+      "id": "REPLACE_BYPASSES_CLAIMED_IMMUTABILITY",
+      "status": "CLOSED_BY_SOURCE_INSPECTION",
+      "evidence": "Both table PKs have explicit BEFORE INSERT WHEN EXISTS RAISE(ABORT) guards in addition to unconditional update/delete immutability guards; OR REPLACE cannot bypass the duplicate-key before-insert check."
+    },
+    {
+      "id": "PROOF_JSON_IS_NOT_METADATA_ONLY_OR_TWO_REQUIRED_JOBS",
+      "status": "CLOSED_BY_SOURCE_INSPECTION",
+      "evidence": "Exactly2 array entries are required. Proof-shape trigger requires object0 RECOMPUTE_DERIVED and object1 REPAIR_CURRENTNESS, exactly3 keys restricted to jobKind/receiptKey/completionHmac, and two canonical64-lowerhex string fields. Required field/type checks plus exact count reject missing/duplicate/unknown key substitutions; no free-form health text is admitted by this proof shape."
+    },
+    {
+      "id": "SAFE_NUMERIC_AND_HASH_BOUNDS",
+      "status": "CLOSED_BY_SOURCE_INSPECTION",
+      "evidence": "New generation/revision/time columns require typeof integer and values within safe integer bounds; new hash/HMAC fields enforce64-lowerhex."
+    }
+  ],
+  "schemaExecutionConditions": [
+    "Use only isolated synthetic local/memory fixtures. This GO is code review of schema definitions, not authorization for Production migration or real delivery.",
+    "Run no-replace tests under default recursive_triggers as well as UPDATE/DELETE attempts for both tables.",
+    "Test deferred receipt FK success only when original named receipt is committed in same transaction, failure when missing at COMMIT, and wrong execution/generation/scope relationships rejected by runtime publisher.",
+    "Test malformed JSON/nonobjects/wrong or repeated job kinds/extra or duplicate keys/missing/null/wrong-type hashes/nonhex/out-of-bounds integers and15min TTL boundary.",
+    "Test interrupted additive migration/resume, exact admission, unchanged v33/v34 objects and default34 behavior. Do not repair an already-applied older v35 fixture silently; recreate disposable fixtures or use explicit controlled successor."
+  ],
+  "runtimeConditionsRetained": [
+    "Authenticate original complete named ACKs for both required job kinds, exact tenant/input/source/auth/lifecycle/purge/algorithm/timezone scope and scope revisions. Existence/FKs are not proof of ownership.",
+    "Match completion execution_id, producing_generation, receipt_key to original receipt scope/request digests and named completion step; authenticate completion_hmac and reject peer/stale/duplicate physical proof references.",
+    "Verify original producing execution finalization before immutable original deadline created_at+45000; renewed takeover deadline is not substitute. Late recovery can remain PARTIAL; full acceptance requires actual new-generation recomputation and new original ACKs.",
+    "Canonicalize and sign complete publication metadata/proofs/source and artifact manifest/producer seals; strict canonical serialization checks and full HMAC/result verification remain runtime duties.",
+    "Recheck provider authorization, resource currentness, lifecycle/purge/revocation and generation before publication and typed reads. Fifteen-minute expiry cannot be extended by re-signing old work.",
+    "Complete LIVE health receipt/result redaction, inventory/root closure and no-rehydration separately before enabling computation.",
+    "No Stage6 integration or Production acceptance is inferred. Final whole-pipeline review remains mandatory."
+  ]
+}

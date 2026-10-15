@@ -1,0 +1,258 @@
+{
+  "baseline": "7c6af29b7d19857444001694a6aae86a59ddf4d9",
+  "runtimeSourceCommit": "25e3f14bbb7c3cc30cd57ea4a00c8440c2fc608d",
+  "runtimeSourceTree": "82821e4ed2ef80399ce092bcaa0cf6cdfdbbe1b2",
+  "nodeVersion": "v22.23.2",
+  "originalAdversarialTests": 21,
+  "additionalClosureTests": 11,
+  "findings": {
+    "multilingualUrgency": "CLOSED_IMPLEMENTER_VERIFICATION",
+    "globalIngressPrecedence": "CLOSED_IMPLEMENTER_VERIFICATION",
+    "staleEligibleClosure": "CLOSED_IMPLEMENTER_VERIFICATION"
+  },
+  "codeAcceptanceRecommendation": "GO_FOR_INDEPENDENT_REVIEW",
+  "independentAcceptance": "PENDING",
+  "wholeStage8": "NOT_COMPLETE",
+  "liveProducer": "BLOCKED",
+  "stage6Integration": "BLOCKED",
+  "production": "NO_GO",
+  "actualProviderEvidence": false,
+  "productionOperations": 0,
+  "credentialChanges": 0,
+  "realTelegramMessages": 0,
+  "runs": [
+    {
+      "log": "baseline.tap.gz",
+      "classification": "BASELINE_FAILURE_REPRODUCED",
+      "counts": {
+        "tests": 21,
+        "pass": 9,
+        "fail": 12,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "bb24bce4359dac506b008c4160c0b6fa6fc21391f27dec16b828a836fcbb3f4d",
+      "uncompressedSha256": "9abed3289b27666d6ba9acf53cffd35d9d2c7e238b28a5c46de07ae08152a54a",
+      "processExitCode": 1,
+      "failures": [
+        "Recognized urgent input precedes active Settings name edit through real processor",
+        "Recognized urgent input precedes active Journal optional note through real processor",
+        "Morning stale auth after retry becomes ELIGIBLE must close original reservation",
+        "Morning stale profile after retry becomes ELIGIBLE must close original reservation",
+        "Morning stale pause after retry becomes ELIGIBLE must close original reservation",
+        "Urgent native input en I have chest pain and cannot breathe. What is my HRV today?",
+        "Urgent native input en I feel faint and my heart is racing. How is my recovery today?",
+        "Urgent native input vi T\u00f4i \u0111ang \u0111au ng\u1ef1c v\u00e0 kh\u00f3 th\u1edf. HRV c\u1ee7a t\u00f4i h\u00f4m nay l\u00e0 bao nhi\u00eau?",
+        "Urgent native input vi T\u00f4i kh\u00f3 th\u1edf v\u00e0 s\u1eafp ng\u1ea5t. Ph\u1ee5c h\u1ed3i c\u1ee7a t\u00f4i h\u00f4m nay th\u1ebf n\u00e0o?",
+        "Urgent native input zh-TW \u6211\u73fe\u5728\u80f8\u75db\u800c\u4e14\u547c\u5438\u56f0\u96e3\uff0c\u60f3\u77e5\u9053\u4eca\u5929\u6211\u7684\u6062\u5fa9\u5982\u4f55\uff1f",
+        "Urgent native input zh-TW \u6211\u6709\u9ede\u7d2f\u800c\u4e14\u73fe\u5728\u80f8\u75db\uff0c\u4eca\u5929\u6211\u7684 HRV \u591a\u5c11\uff1f",
+        "Urgent native input zh-TW \u6628\u5929\u982d\u75db\u5df2\u7d93\u597d\u4e86\uff0c\u4f46\u73fe\u5728\u80f8\u75db\u4e14\u5598\u4e0d\u904e\u6c23\uff0c\u4eca\u5929\u6211\u7684 HRV \u591a\u5c11\uff1f"
+      ]
+    },
+    {
+      "log": "first-repair.tap.gz",
+      "classification": "SUPERSEDED_DEVELOPMENT_PASS",
+      "counts": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "2a904a033b00c7813332e83b3512b5cfd1b69fb55db34cd16e72ad9b9731468d",
+      "uncompressedSha256": "a4293d7ac7b9cf4ec3e1fec335668cbe55f4ab613ea63e84bb941e5279a16789",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "extended.tap.gz",
+      "classification": "SUPERSEDED_FIXTURE_FAILURE_EXCLUDED",
+      "counts": {
+        "tests": 11,
+        "pass": 6,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "5f43dd0f19a7ce66f1dd94c2876f25deb0d7a2cbca7f78034a449b5517c021d4",
+      "uncompressedSha256": "e8e5f856fcc47c21b51c2f657370c87f870f676ed8078071787c467a75155fe0",
+      "processExitCode": 1,
+      "failures": [
+        "shared urgent ingress preserves an active name edit and nonurgent continuation in zh-TW",
+        "shared urgent ingress preserves an active name edit and nonurgent continuation in vi",
+        "shared urgent ingress preserves an active name edit and nonurgent continuation in en",
+        "urgent ingress still denies forged private senders and revoked lifecycle authority",
+        "frozen ELIGIBLE retry closes source-content authority with its original reservation"
+      ]
+    },
+    {
+      "log": "extended-recheck.tap.gz",
+      "classification": "SUPERSEDED_FIXTURE_FAILURE_EXCLUDED",
+      "counts": {
+        "tests": 11,
+        "pass": 10,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "1b2edf736a11ae04829b486125cc688f92e2bd5381a3ed33e620c9bb11ef5fcf",
+      "uncompressedSha256": "72d7cb65f3ce7cba47304e2ed26487736d6db6addc66df3df1eb1435d9e9139e",
+      "processExitCode": 1,
+      "failures": [
+        "urgent ingress still denies forged private senders and revoked lifecycle authority"
+      ]
+    },
+    {
+      "log": "extended-final.tap.gz",
+      "classification": "SUPERSEDED_DEVELOPMENT_PASS",
+      "counts": {
+        "tests": 11,
+        "pass": 11,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "a3f9e6db4e23979a3651f9c9ffa204d512cbcef1dd4e99290bc1a142c2991772",
+      "uncompressedSha256": "5a3a86923b2ca37bbc72fc448a225e5306696df7a66b173fdfe79764955b7708",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "triage-final.tap.gz",
+      "classification": "OPTIONAL_COMBINED_NATIVE_PROCESS_CRASH_RECHECK_PASSED",
+      "counts": {
+        "tests": 4,
+        "pass": 3,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "0bc34bb8f380bf74f65d3ac932be8c470fcc5a67b295b0ac681d7b13cfbe48d5",
+      "uncompressedSha256": "fc5690e880447f6ceae2feec5367bf23aacd15fa8c234ce6625672fb65cf2c88",
+      "processExitCode": 1,
+      "failures": [
+        "test/conversational-health-hardening.test.js"
+      ]
+    },
+    {
+      "log": "fatigue-isolated.tap.gz",
+      "classification": "ISOLATED_ASSERTION_PASS",
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "95724dc4342c786c671ae850e82b857765771b312f7af5116c50d59d870ea39b",
+      "uncompressedSha256": "32b8abcb45ec593ee3089b3c50d110ad2ce160aba667e873cc22d8536a9f89c6",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "context-final.tap.gz",
+      "classification": "FINAL_CONTEXT_MATRIX_PASS",
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "ce968803d79f37b6214d0054647ef56debe5426655a022f27ff69d10217308cf",
+      "uncompressedSha256": "b1b0782e05c93dd983f0f0947ca10abac04a0fb8f07a7d146125b4c1591683c4",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "integration-final.tap.gz",
+      "classification": "SUPERSEDED_SOURCE_FREEZE_PASS",
+      "counts": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "262eaa20bc650b6b86f2346791eeeecc62ddc799fac1f9742f549baf7ee31ca4",
+      "uncompressedSha256": "09fe20b6d92adb89b133effadba40197d0fd89c619e069774c886b6221e29e73",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "regression-final.tap.gz",
+      "classification": "SUPERSEDED_SOURCE_FREEZE_PASS",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "c7cbdd1720426a324e5b60bf378041bc189f996c78c51c4eb9b21063327d7861",
+      "uncompressedSha256": "64ee4aad482f1066cd1349b5887e197b1327fb66521a977ee0012941a40db53f",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "frozen-integration.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 200,
+        "pass": 200,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "83795c79029b651855e4b530a132f70a80e13597908d4fa5ccb61c7ccb3c3231",
+      "uncompressedSha256": "5c559e3f83459592decd7eada4852e674ab9e7c5fb5002c915eac5e8267bb48a",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "frozen-regression.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 164,
+        "pass": 164,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "2310831cfd940e2599c55df52292ed9352e7c8ab94ce26194da78f4b3b94587e",
+      "uncompressedSha256": "8593646f6b28834d999447148f22c72ad10ad957919bea98f457bde52f97d0f5",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "frozen-adversarial.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "478b1315e3db42f7fc17ebd07af53d2cacaea10d642968e796e94caeb13b6ca9",
+      "uncompressedSha256": "991abded5c9d82f0f354d90ccfaa14bb9383e75d3ea15fa082c57d8c1d7aa060",
+      "processExitCode": 0,
+      "failures": []
+    },
+    {
+      "log": "frozen-affected.tap.gz",
+      "classification": "FINAL_FROZEN_PASS",
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "compressedSha256": "b14906f0fea6a7df0babbcbf53bc8b639b95f6facf902d1b26dd3c338d164782",
+      "uncompressedSha256": "28b80a2eac8df86e381dcc553451ca0b0ed645f9a4fa57ef67681477b6389508",
+      "processExitCode": 0,
+      "failures": []
+    }
+  ]
+}

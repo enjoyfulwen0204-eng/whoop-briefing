@@ -1,3 +1,5 @@
+import {hasLiveProducingAuthority} from './stage8LiveProducerAuthority.js';
+import {analysisTable} from './stage8LiveAllocation.js';
 import {stage6CurrentCaptureTime} from './stage6CurrentCaptureTime.js';
 import {bodyEnergyMetricAnalysisTime} from './bodyEnergyDerivedTime.js';
 import { buildPhase4Core,fail } from './phase4Core.js';
@@ -49,18 +51,19 @@ const errorCodes=new Map([
 ]);
 export const stage6ErrorCode=error=>errorCodes.get(error?.code)??'CALCULATION_FAILED';
 
-export async function createPhase4Stage6({db,keys,admission,executionMode,workerCapability,pilotGrant,now=()=>new Date(),
+export async function createPhase4Stage6({db,keys,admission,executionMode,workerCapability,pilotGrant,liveProducingAuthority,now=()=>new Date(),
   monotonicNow=()=>performance.now(),configuration={}}={}) {
-  if(executionMode!=='SHADOW')fail('PHASE4_STAGE6_SHADOW_REQUIRED');
-  if(!capabilities.has(workerCapability))fail('PHASE4_STAGE6_CAPABILITY_REQUIRED');
-  if(db?.raw?.protocol!=='file')requireBetaPilotGrant(pilotGrant,pilotGrant?.userId,db?.raw);
+  const live=executionMode==='LIVE'&&hasLiveProducingAuthority(liveProducingAuthority,db?.raw,keys);
+  if(executionMode!=='SHADOW'&&!live)fail('PHASE4_STAGE6_SHADOW_REQUIRED');
+  if(!live&&!capabilities.has(workerCapability))fail('PHASE4_STAGE6_CAPABILITY_REQUIRED');
+  if(!live&&db?.raw?.protocol!=='file')requireBetaPilotGrant(pilotGrant,pilotGrant?.userId,db?.raw);
   foundationFlags(configuration);
   const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,
-    afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
-    authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
-  if(![28,29,30,31,32].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+    afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,liveProducingAuthority,
+    authorizeMode(mode,client,uid){if(mode!==executionMode||live&&!hasLiveProducingAuthority(liveProducingAuthority,client,keys,uid))fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
+  if(![28,29,30,31,32,33,34,35].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const stores=composePhase4Stores(core),queue=createReanalysisQueue(core),inputs=createReanalysisInputs(core,stores),client=core.client;
-  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys):null;
+  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys,{live}):null;
 
   async function metricFamilies(context,req,history) {
     const contract=phase4Metric(req.metricKey);
@@ -148,7 +151,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false,defaultReplay=null}={}) {
     const directory=defaultReplay?.inventory??await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),
       {assertBudget,workKind:'stage6.family-inventory',workFacts:[req.metricKey,req.asOfUtc]});
-    if(core.schemaVersion===32&&req.metricKey==='body_energy'&&directory.created)
+    if([32,33,34,35].includes(core.schemaVersion)&&req.metricKey==='body_energy'&&directory.created)
       return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
         units:[{kind:'FAMILY_DIRECTORY',status:'COMPLETE'}],committedUnits:1};
     const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric(req.metricKey).domain,
@@ -165,14 +168,14 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       if(defaultReplay&&candidate.familyKey===defaultKey){
         units.push({kind:'EPISODE_FAMILY',familyKey:defaultKey,status:'COMPLETE',outcome:defaultReplay.outcome});continue;
       }
-      if(core.schemaVersion===32&&req.metricKey==='body_energy'&&candidate.windowFamily&&!preparedDefault){
+      if([32,33,34,35].includes(core.schemaVersion)&&req.metricKey==='body_energy'&&candidate.windowFamily&&!preparedDefault){
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnit(context,
           {...req,windowFamily:candidate.windowFamily,refresh:true},'NEXT'),{assertBudget});
         if(unit?.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:firstFailure,
           units:[...units,{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
 
       }
-      const reportCompletion=core.schemaVersion===32&&req.metricKey!=='body_energy';
+      const reportCompletion=[32,33,34,35].includes(core.schemaVersion)&&req.metricKey!=='body_energy';
       const performFamily=req=>performMetricFamily(context,req,candidate,defaultKey,{reportCompletion});
       const performed=await queue.owned(context,lease,()=>preparedDefault&&req.metricKey==='body_energy'
         ?stores.intelligence.withCurrentBodyMetricObservation(context,req,lease.asOfUtc,performFamily):performFamily(req),
@@ -194,7 +197,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   }
 
   async function metric(context,req,history,{replayOnly=false,replayPrepared=null}={}) {
-    const prepared=replayPrepared??await (replayOnly?stores.intelligence.replayExistingMetricPreparation(context,{...req,refresh:true}):core.schemaVersion===32
+    const prepared=replayPrepared??await (replayOnly?stores.intelligence.replayExistingMetricPreparation(context,{...req,refresh:true}):[32,33,34,35].includes(core.schemaVersion)
       ?stores.intelligence.resumeMetricPreparation(context,{...req,refresh:true})
       :stores.intelligence.analyzeMetric(context,{...req,refresh:true}));
     if(!['LIMITED','AVAILABLE'].includes(prepared.quality.status)||prepared.quality.confidence<=0)
@@ -204,7 +207,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const family=keys.lookup(['episode-family-v1',context.userId,baseIdentity.domain,baseIdentity.metric,
       baseIdentity.algorithmMajor,baseIdentity.subject,baseIdentity.windowFamily]);
     const rows=(await client.execute({sql:`SELECT episode_id,revision,direction,input_generation FROM observation_episodes
-      WHERE user_id=? AND execution_mode='SHADOW' AND episode_family_key=?
+      WHERE user_id=? AND execution_mode='${executionMode}' AND episode_family_key=?
         AND state IN ('OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING') LIMIT 2`,args:[context.userId,family]})).rows;
     if(rows.length>1)fail('PHASE4_EPISODE_PREDECESSOR_AMBIGUOUS');
     let prior=rows[0],reversesEpisodeId=null;
@@ -242,7 +245,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     exposureCategory:factor,algorithmFamily:'journal-association',evidenceContractMajor:'1'});
   async function activeInsight(context,identity) {
     const rows=(await client.execute({sql:`SELECT id,current_revision,status,input_generation,expires_at FROM health_insights
-      WHERE user_id=? AND execution_mode='SHADOW' AND insight_key=? AND status<>'RETIRED' LIMIT 2`,
+      WHERE user_id=? AND execution_mode='${executionMode}' AND insight_key=? AND status<>'RETIRED' LIMIT 2`,
       args:[context.userId,insightIdentityKey(keys,context,identity)]})).rows;
     if(rows.length>1)fail('PHASE4_INSIGHT_PREDECESSOR_AMBIGUOUS');return rows[0]??null;
   }
@@ -353,10 +356,10 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     return 'PROCESSED';
   }
   async function processSourceV30(context,source,asOfUtc,lease,assertBudget,admittedRoot=null,bodyCandidate=false,bodyReplayHint=false) {
-    const rawOwned=core.schemaVersion===32&&['sleep','recovery','cycle','workout'].includes(source.source_type);
+    const rawOwned=[32,33,34,35].includes(core.schemaVersion)&&['sleep','recovery','cycle','workout'].includes(source.source_type);
     const root=rawOwned?null:admittedRoot??await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
-      if(core.schemaVersion===32&&bodyReplayHint){
+      if([32,33,34,35].includes(core.schemaVersion)&&bodyReplayHint){
         const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric('body_energy').domain,
           'body_energy',INTELLIGENCE_VERSIONS.algorithm,'body_energy','STAGE6_CURRENT_BODY_ENERGY']);
         const replay=await queue.withOwnership(context,lease,()=>stores.intelligence.replayCurrentBodyMetricFamily(context,asOfUtc,
@@ -365,7 +368,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           (req,{replaying=false}={})=>performMetricFamily(context,req,{familyKey:defaultKey,windowFamily:req.windowFamily},defaultKey,{replayOnly:true,readOnlyReplay:replaying})),{assertBudget});
         if(replay)return metricsV30(context,replay.request,lease,assertBudget,{preparedDefault:true,defaultReplay:replay});
       }
-      if(core.schemaVersion===32&&bodyCandidate){
+      if([32,33,34,35].includes(core.schemaVersion)&&bodyCandidate){
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentBody(context,asOfUtc),{assertBudget});
         if(unit.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
           units:[{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
@@ -382,13 +385,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         const analysisTime=await bodyEnergyMetricAnalysisTime(core,context,current,body.row.as_of_utc);assertBudget();
         return inputs.metric(context,'body_energy',current,analysisTime);
       };
-      const prior=core.schemaVersion===32&&bodyCandidate?await queue.owned(context,lease,async()=>{
+      const prior=[32,33,34,35].includes(core.schemaVersion)&&bodyCandidate?await queue.owned(context,lease,async()=>{
         const retained=await stores.bodyEnergy.readForCurrentDrain(context,asOfUtc);if(!retained)return null;
         assertBudget();return {body:retained.body,...(['AVAILABLE','LIMITED'].includes(retained.body.row.quality_state)
           ?{request:await inputs.metric(context,'body_energy',retained.current,retained.analysisTime)}:{})};
       },{assertBudget}):null;
       const recorded=prior??await queue.owned(context,lease,async()=>{
-        const body=await (core.schemaVersion===32?stores.bodyEnergy.computeForCurrentDrain(context)
+        const body=await ([32,33,34,35].includes(core.schemaVersion)?stores.bodyEnergy.computeForCurrentDrain(context)
           :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}));
         // Replayed Body and its required metric inputs use the same current
         // owned transaction. Every original typed artifact/domain/root check
@@ -421,7 +424,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       let analysisAsOf=asOfUtc;
       try {
         let request;
-        if(core.schemaVersion===32){
+        if([32,33,34,35].includes(core.schemaVersion)){
           const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentRaw(context,metricKey,source),{assertBudget});
           if(unit.sourceSkipped)return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
           if(unit.created)return {kind:'SOURCE',status:'INCOMPLETE',failure:null,
@@ -435,7 +438,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           request=await queue.owned(context,lease,()=>inputs.metric(context,metricKey,root,analysisAsOf),{assertBudget});
         }
         units.push({kind:'METRIC_SOURCE',metricKey,status:'COMPLETE'});
-        const episodeWork=await metricsV30(context,request,lease,assertBudget,{preparedDefault:core.schemaVersion===32});
+        const episodeWork=await metricsV30(context,request,lease,assertBudget,{preparedDefault:[32,33,34,35].includes(core.schemaVersion)});
         units.push(episodeWork);
         if(episodeWork.status==='INCOMPLETE')return {...episodeWork,units};
         firstFailure??=episodeWork.failure;
@@ -463,7 +466,8 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     return {kind:'SOURCE',status:firstFailure?'UNRESOLVED':'COMPLETE',failure:firstFailure,units};
   }
   async function drain({triggerSource='manual',userId=null,budget:overrides={},onProgress=async()=>{}}={}) {
-    if(db.raw.protocol!=='file'){requireBetaPilotGrant(pilotGrant,userId,db.raw);if(requireCurrentBetaPilotAttempt(userId,db.raw)!==pilotGrant)fail('BETA_PILOT_DENIED');}
+    if(!live&&db.raw.protocol!=='file'){requireBetaPilotGrant(pilotGrant,userId,db.raw);if(requireCurrentBetaPilotAttempt(userId,db.raw)!==pilotGrant)fail('BETA_PILOT_DENIED');}
+    if(live&&(!userId||!hasLiveProducingAuthority(liveProducingAuthority,db.raw,keys,userId)))fail('PHASE4_LIVE_NOT_AUTHORIZED');
     requireTriggerSource(triggerSource);const budget=stage6Budget(triggerSource,overrides),started=monotonicNow();
     const deadline=started+budget.maxWallMs-budget.safetyMarginMs;
     const assertBudget=()=>{if(monotonicNow()>=deadline)fail('PHASE4_DRAIN_DEADLINE_REACHED');};
@@ -480,7 +484,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       if(monotonicNow()>=deadline||out.processedItems>=budget.maxItems){out.stoppedForBudget=true;break;}
       out.attemptedJobs++;
       try {
-        await stores.withContext(candidate.userId,{executionMode:'SHADOW'},async context=>{
+        await stores.withContext(candidate.userId,{executionMode,providerRequired:live},async context=>{
           const lease=await queue.claim(context,candidate.jobKind,budget);if(!lease)return;
           out.claimedJobs++;let cursor=lease.cursor,handled=0;
           try {
@@ -492,10 +496,10 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
               // their source references and current context before any write.
               const lookedUp=await core.run(context,async()=>{
                 const page=await inputs.enumerate(context,cursor,1);
-                const root=familyDirectory&&page.length&&!(core.schemaVersion===32&&['sleep','recovery','cycle','workout'].includes(page[0].source_type))?await stores.root(context,page[0].source_type,page[0].source_id):null;
-                const receiptHintFrom=core.schemaVersion===32&&page[0]?.source_type==='USER'
-                  ?await pilotPrefixFrom(client,context,'phase4_operation_receipts',[context.userId,context.executionMode],'p',true):null;
-                const bodyHints=core.schemaVersion===32&&page[0]?.source_type==='USER'
+                const root=familyDirectory&&page.length&&!([32,33,34,35].includes(core.schemaVersion)&&['sleep','recovery','cycle','workout'].includes(page[0].source_type))?await stores.root(context,page[0].source_type,page[0].source_id):null;
+                const receiptHintFrom=[32,33,34,35].includes(core.schemaVersion)&&page[0]?.source_type==='USER'
+                  ?await pilotPrefixFrom(client,context,analysisTable(core,'phase4_operation_receipts'),[context.userId,context.executionMode],'p',true):null;
+                const bodyHints=[32,33,34,35].includes(core.schemaVersion)&&page[0]?.source_type==='USER'
                   ?(await client.execute({sql:`SELECT result_id,EXISTS(SELECT 1 FROM ${receiptHintFrom}
                     WHERE p.user_id=b.user_id AND p.execution_mode=b.execution_mode AND p.input_generation=b.input_generation
                       AND p.operation_kind='analyzeMetric' LIMIT 1) replay_hint
@@ -553,7 +557,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       }
     }
     const remaining=(await client.execute({sql:`SELECT COUNT(*) n FROM phase4_jobs j JOIN users u ON u.id=j.user_id
-      JOIN phase4_user_state p ON p.user_id=j.user_id WHERE j.execution_mode='SHADOW' AND u.status='ACTIVE'
+      JOIN phase4_user_state p ON p.user_id=j.user_id WHERE j.execution_mode='${executionMode}' AND u.status='ACTIVE'
       AND p.pending_purge_count=0 AND (j.scope_kind<>'NONE' OR j.completed_generation<j.requested_generation)
       ${userId?'AND j.user_id=?':''}`,args:userId?[userId]:[]})).rows[0].n;
     out.remainingJobs=Number(remaining);
@@ -572,13 +576,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     if(algorithmSetVersion!==STAGE6_ALGORITHM_SET)fail('PHASE4_ALGORITHM_UNSUPPORTED');
     return core.transaction(async()=>{
       const control=await core.captureControl(userId),state=await core.assertControl(control);
-      const row=(await client.execute({sql:"SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode='SHADOW'",args:[userId]})).rows[0];
+      const row=(await client.execute({sql:`SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode='${executionMode}'`,args:[userId]})).rows[0];
       if(!row)fail('PHASE4_COMPUTATION_REQUIRED');
       if(row.algorithm_set_version===algorithmSetVersion)return {changed:false,inputGeneration:row.input_generation};
       if(state.pending_purge_count)fail('PHASE4_PURGE_FENCED');
       await client.execute({sql:`UPDATE phase4_computation_state SET algorithm_set_version=?,input_generation=input_generation+1,
-        revision=revision+1,updated_at=? WHERE user_id=? AND execution_mode='SHADOW'`,args:[algorithmSetVersion,core.timestamp(),userId]});
-      await createPhase4QueueStore(core).markFull(userId,'SHADOW',row.input_generation+1,state.purge_generation,'ALGORITHM_CHANGED');
+        revision=revision+1,updated_at=? WHERE user_id=? AND execution_mode='${executionMode}'`,args:[algorithmSetVersion,core.timestamp(),userId]});
+      await createPhase4QueueStore(core).markFull(userId,executionMode,row.input_generation+1,state.purge_generation,'ALGORITHM_CHANGED');
       return {changed:true,inputGeneration:row.input_generation+1};
     });
   }

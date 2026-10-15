@@ -1,0 +1,1025 @@
+{
+  "frozenBeforeRuntimeEdits": true,
+  "scope": "Two independently confirmed inherited false warnings only; expectations fixed before code changes.",
+  "cases": [
+    {
+      "id": "negation-original",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negation-chest",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negation-horizontal-space",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還 沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negation-horizontal-unicode",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還　沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negation-exclamation",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀！",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negation-followed-current",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀，但我現在胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "negation-followed-current-newline",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀\n但我現在胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "negation-followed-other",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀。我朋友安娜現在胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "negation-first-current",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。「呼吸困難」是我現在還沒有感到的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "negation-unrelated-argument",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的頭痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "negation-en",
+      "locale": "en",
+      "text": "\"difficulty breathing\" is what I am not experiencing now.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "negation-vi",
+      "locale": "vi",
+      "text": "\"khó thở\" là triệu chứng tôi không cảm thấy bây giờ.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "current-zh",
+      "locale": "zh-TW",
+      "text": "我現在呼吸困難。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "current-quote-zh",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」正是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "current-en",
+      "locale": "en",
+      "text": "I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "current-vi",
+      "locale": "vi",
+      "text": "Tôi đang khó thở.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-original",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "education-breathing",
+      "locale": "zh-TW",
+      "text": "我想了解呼吸困難的一般原因。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "education-quoted-topic",
+      "locale": "zh-TW",
+      "text": "我想了解「胸痛」的一般原因。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "education-current-counterexample",
+      "locale": "zh-TW",
+      "text": "我想了解為什麼我現在胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-current-reference",
+      "locale": "zh-TW",
+      "text": "我想了解我現在胸痛的原因。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-current-time",
+      "locale": "zh-TW",
+      "text": "我想了解現在胸痛的一般原因。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-current-head",
+      "locale": "zh-TW",
+      "text": "我想了解有胸痛的一般原因。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-followed-current",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因，但我目前呼吸困難。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-first-current",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。我想了解胸痛的一般原因。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-followed-other",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因。我朋友安娜現在胸痛。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-no-current-proof",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的原因。",
+      "expected": "SAFETY"
+    },
+    {
+      "id": "education-en",
+      "locale": "en",
+      "text": "I want to learn about chest pain in general.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "education-current-en",
+      "locale": "en",
+      "text": "I want to learn why I have chest pain now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-followed-current-en",
+      "locale": "en",
+      "text": "I want to learn about chest pain in general. I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-vi",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu về đau ngực nói chung.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "education-current-vi",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu vì tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "education-followed-current-vi",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu về đau ngực nói chung. Tôi đang khó thở.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "mixed-education-current",
+      "locale": "mixed",
+      "text": "我想了解胸痛的一般原因。I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "mixed-negation-current",
+      "locale": "mixed",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀。Tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "quoted-conditional-current",
+      "locale": "en",
+      "text": "\"if I have chest pain\" is what I am feeling right now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "ambiguous-other",
+      "locale": "en",
+      "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    }
+  ],
+  "metamorphic": [
+    {
+      "id": "negation-original-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-original-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還沒有感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-original-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-chest-nfd",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-chest-padding",
+      "locale": "zh-TW",
+      "text": "  「胸痛」是我現在還沒有感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-chest-quotes",
+      "locale": "zh-TW",
+      "text": "『胸痛』是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-horizontal-space-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還 沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-horizontal-space-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還 沒有感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-horizontal-space-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還 沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-horizontal-unicode-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還　沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-horizontal-unicode-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還　沒有感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-horizontal-unicode-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還　沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-exclamation-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀！",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-exclamation-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還沒有感到的症狀！  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-exclamation-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還沒有感到的症狀！",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-followed-current-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀，但我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-followed-current-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還沒有感到的症狀，但我現在胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-followed-current-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還沒有感到的症狀，但我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-followed-current-newline-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀\n但我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-followed-current-newline-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還沒有感到的症狀\n但我現在胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-followed-current-newline-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還沒有感到的症狀\n但我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-followed-other-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀。我朋友安娜現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-followed-other-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還沒有感到的症狀。我朋友安娜現在胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-followed-other-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還沒有感到的症狀。我朋友安娜現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-first-current-nfd",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。「呼吸困難」是我現在還沒有感到的症狀。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-first-current-padding",
+      "locale": "zh-TW",
+      "text": "  我現在胸痛。「呼吸困難」是我現在還沒有感到的症狀。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-first-current-quotes",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。『呼吸困難』是我現在還沒有感到的症狀。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-unrelated-argument-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的頭痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-unrelated-argument-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」是我現在還沒有感到的頭痛。  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-unrelated-argument-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』是我現在還沒有感到的頭痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-en-nfd",
+      "locale": "en",
+      "text": "\"difficulty breathing\" is what I am not experiencing now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-en-padding",
+      "locale": "en",
+      "text": "  \"difficulty breathing\" is what I am not experiencing now.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-en-quotes",
+      "locale": "en",
+      "text": "“difficulty breathing” is what I am not experiencing now.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "negation-vi-nfd",
+      "locale": "vi",
+      "text": "\"khó thở\" là triệu chứng tôi không cảm thấy bây giờ.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "negation-vi-padding",
+      "locale": "vi",
+      "text": "  \"khó thở\" là triệu chứng tôi không cảm thấy bây giờ.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "negation-vi-quotes",
+      "locale": "vi",
+      "text": "“khó thở” là triệu chứng tôi không cảm thấy bây giờ.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "current-zh-nfd",
+      "locale": "zh-TW",
+      "text": "我現在呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-zh-padding",
+      "locale": "zh-TW",
+      "text": "  我現在呼吸困難。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "current-zh-quotes",
+      "locale": "zh-TW",
+      "text": "我現在呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "current-quote-zh-nfd",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」正是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-quote-zh-padding",
+      "locale": "zh-TW",
+      "text": "  「呼吸困難」正是我現在感到的症狀。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "current-quote-zh-quotes",
+      "locale": "zh-TW",
+      "text": "『呼吸困難』正是我現在感到的症狀。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "current-en-nfd",
+      "locale": "en",
+      "text": "I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-en-padding",
+      "locale": "en",
+      "text": "  I have difficulty breathing now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "current-en-quotes",
+      "locale": "en",
+      "text": "I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "current-vi-nfd",
+      "locale": "vi",
+      "text": "Tôi đang khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "current-vi-padding",
+      "locale": "vi",
+      "text": "  Tôi đang khó thở.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "current-vi-quotes",
+      "locale": "vi",
+      "text": "Tôi đang khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-original-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-original-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解胸痛的一般原因。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-original-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-breathing-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解呼吸困難的一般原因。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-breathing-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解呼吸困難的一般原因。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-breathing-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解呼吸困難的一般原因。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-quoted-topic-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解「胸痛」的一般原因。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-quoted-topic-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解「胸痛」的一般原因。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-quoted-topic-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解『胸痛』的一般原因。",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-current-counterexample-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解為什麼我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-current-counterexample-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解為什麼我現在胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-current-counterexample-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解為什麼我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-current-reference-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解我現在胸痛的原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-current-reference-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解我現在胸痛的原因。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-current-reference-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解我現在胸痛的原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-current-time-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解現在胸痛的一般原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-current-time-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解現在胸痛的一般原因。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-current-time-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解現在胸痛的一般原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-current-head-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解有胸痛的一般原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-current-head-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解有胸痛的一般原因。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-current-head-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解有胸痛的一般原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-followed-current-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因，但我目前呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-followed-current-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解胸痛的一般原因，但我目前呼吸困難。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-followed-current-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因，但我目前呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-first-current-nfd",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。我想了解胸痛的一般原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-first-current-padding",
+      "locale": "zh-TW",
+      "text": "  我現在胸痛。我想了解胸痛的一般原因。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-first-current-quotes",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。我想了解胸痛的一般原因。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-followed-other-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因。我朋友安娜現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-followed-other-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解胸痛的一般原因。我朋友安娜現在胸痛。  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-followed-other-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因。我朋友安娜現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-no-current-proof-nfd",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的原因。",
+      "expected": "SAFETY",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-no-current-proof-padding",
+      "locale": "zh-TW",
+      "text": "  我想了解胸痛的原因。  ",
+      "expected": "SAFETY",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-no-current-proof-quotes",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的原因。",
+      "expected": "SAFETY",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-en-nfd",
+      "locale": "en",
+      "text": "I want to learn about chest pain in general.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-en-padding",
+      "locale": "en",
+      "text": "  I want to learn about chest pain in general.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-en-quotes",
+      "locale": "en",
+      "text": "I want to learn about chest pain in general.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-current-en-nfd",
+      "locale": "en",
+      "text": "I want to learn why I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-current-en-padding",
+      "locale": "en",
+      "text": "  I want to learn why I have chest pain now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-current-en-quotes",
+      "locale": "en",
+      "text": "I want to learn why I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-followed-current-en-nfd",
+      "locale": "en",
+      "text": "I want to learn about chest pain in general. I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-followed-current-en-padding",
+      "locale": "en",
+      "text": "  I want to learn about chest pain in general. I have difficulty breathing now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-followed-current-en-quotes",
+      "locale": "en",
+      "text": "I want to learn about chest pain in general. I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-vi-nfd",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu về đau ngực nói chung.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-vi-padding",
+      "locale": "vi",
+      "text": "  Tôi muốn tìm hiểu về đau ngực nói chung.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-vi-quotes",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu về đau ngực nói chung.",
+      "expected": "CLEARLY_NONURGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-current-vi-nfd",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu vì tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-current-vi-padding",
+      "locale": "vi",
+      "text": "  Tôi muốn tìm hiểu vì tôi đang đau ngực.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-current-vi-quotes",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu vì tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "education-followed-current-vi-nfd",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu về đau ngực nói chung. Tôi đang khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "education-followed-current-vi-padding",
+      "locale": "vi",
+      "text": "  Tôi muốn tìm hiểu về đau ngực nói chung. Tôi đang khó thở.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "education-followed-current-vi-quotes",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu về đau ngực nói chung. Tôi đang khó thở.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "mixed-education-current-nfd",
+      "locale": "mixed",
+      "text": "我想了解胸痛的一般原因。I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "mixed-education-current-padding",
+      "locale": "mixed",
+      "text": "  我想了解胸痛的一般原因。I have difficulty breathing now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "mixed-education-current-quotes",
+      "locale": "mixed",
+      "text": "我想了解胸痛的一般原因。I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "mixed-negation-current-nfd",
+      "locale": "mixed",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀。Tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "mixed-negation-current-padding",
+      "locale": "mixed",
+      "text": "  「呼吸困難」是我現在還沒有感到的症狀。Tôi đang đau ngực.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "mixed-negation-current-quotes",
+      "locale": "mixed",
+      "text": "『呼吸困難』是我現在還沒有感到的症狀。Tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "quoted-conditional-current-nfd",
+      "locale": "en",
+      "text": "\"if I have chest pain\" is what I am feeling right now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "quoted-conditional-current-padding",
+      "locale": "en",
+      "text": "  \"if I have chest pain\" is what I am feeling right now.  ",
+      "expected": "CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "quoted-conditional-current-quotes",
+      "locale": "en",
+      "text": "“if I have chest pain” is what I am feeling right now.",
+      "expected": "CURRENT_URGENT",
+      "transformation": "quotes"
+    },
+    {
+      "id": "ambiguous-other-nfd",
+      "locale": "en",
+      "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "nfd"
+    },
+    {
+      "id": "ambiguous-other-padding",
+      "locale": "en",
+      "text": "  My friend Ana said \"chest pain\". I am feeling relaxed now.  ",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "padding"
+    },
+    {
+      "id": "ambiguous-other-quotes",
+      "locale": "en",
+      "text": "My friend Ana said “chest pain”. I am feeling relaxed now.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "transformation": "quotes"
+    }
+  ],
+  "processorCaseIds": [
+    "negation-original",
+    "education-original",
+    "negation-followed-current",
+    "negation-followed-other",
+    "negation-unrelated-argument",
+    "education-current-counterexample",
+    "education-current-time",
+    "education-en",
+    "education-vi",
+    "education-current-en",
+    "education-current-vi",
+    "mixed-negation-current",
+    "ambiguous-other",
+    "negation-en",
+    "negation-vi",
+    "education-quoted-topic"
+  ]
+}

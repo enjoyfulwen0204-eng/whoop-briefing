@@ -1,0 +1,100 @@
+[
+  {
+    "source": "test/stage8-quotation-fallback/processor.test.mjs",
+    "sourceSha256": "96ec55ea48c08b36211bb835de05def17e4b58d073c06fdfacc3035043cd320e",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-quotation-fallback-processor.test.mjs",
+    "portableSha256": "4b57318469f51c69df8617ffc5a9937bf06b6f261cc8f11c5721bf8d0682ce91",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-quotation-fallback/scope-processor.test.mjs",
+    "sourceSha256": "e310047cf5ba8e0749b300b064aa49a8c0c8e35d6461f1e7be1fd329cba275d0",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-quotation-fallback-scope-processor.test.mjs",
+    "portableSha256": "040ee6c20e58faa39fb48c4f1d8ea90efb2357029c71f5456823e6c6abc846df",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-adjudicated-repair/residual-processor.test.mjs",
+    "sourceSha256": "ba9cfe5bc41a2930dc9a8300f94095c64a45274e81315156cc170f3f940a9913",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-adjudicated-repair-residual-processor.test.mjs",
+    "portableSha256": "ca3622620dc1e0b8630448c1d23e816b86c8dbc34b6bcd52d3f3240fb79398d4",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-adjudicated-repair/processor.test.mjs",
+    "sourceSha256": "b8ad304c8b96466d8aea9f854b5a756cdd095d07d6899167730d19e21594b453",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-adjudicated-repair-processor.test.mjs",
+    "portableSha256": "1cf9e7572c826f4a447b20f95ff94f396bb19a3fcf6a42c18aa95cef3475aead",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-safety-gate/processor.test.mjs",
+    "sourceSha256": "c9a6e829569e3909779267cca5b394f10c267b990ddacc367f55e0694686903f",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-safety-gate-processor.test.mjs",
+    "portableSha256": "9237313e411fec3650068ac69439db6de4b4a8a3d8b36ae903e5e53064ce8580",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-final-evidence/processor.test.mjs",
+    "sourceSha256": "b443b34100b7fa82ffdfd4ea38cccb439c7eae44d834968057fbc9016e821ccf",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-evidence-processor.test.mjs",
+    "portableSha256": "370de028b75e76b1ebcc489fb8f4dec1da06daf11cd5d3c7fbd1856ae0930f6c",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-final-evidence/stop-regressions.test.mjs",
+    "sourceSha256": "547cf277be4af2be6b1426194f939d0a5487513b8e1b957b71f3ec799463f23b",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-evidence-stop-regressions.test.mjs",
+    "portableSha256": "19974d2389a8d88c2bdca79e7b83ef516bc9360fec60ba60ae36aa8577e6b4bf",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-final-quotation-repair/processor.test.mjs",
+    "sourceSha256": "c78254bf3d92870eab860e7659f54f38e62ed63c630abd89d3443e0a18aea2d6",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-final-quotation-repair-processor.test.mjs",
+    "portableSha256": "0dd935e7c8eafaf0e7f4b2b7d39dd60c8c5fbb231e225bea23250b14daf81ff9",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-triage-architecture/processor.test.mjs",
+    "sourceSha256": "b8fe6bf2604439003191382f6f9f7c59421c02f51b7b4644f8b87c6610ae671f",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-triage-architecture-processor.test.mjs",
+    "portableSha256": "4188a192e6f9685c3dac61d443727ff7352eec42b10d01abc71cd7d577fdfc63",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-scoped-repair/independent-coach.test.mjs",
+    "sourceSha256": "738c7cd23b9baa59b27df11afe48152621edae766847e42b2a6aacd24b94caf1",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-independent-coach.test.mjs",
+    "portableSha256": "c2f0816578f0b87f6ffcb0a4bdd229a60f12ea9fd24d43a67824d2ecca2eea8e",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-scoped-repair/independent-processor.test.mjs",
+    "sourceSha256": "97cdabc66d5e727c10d3381ef84dcbef99786d303f5404e7e465603d10777551",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-independent-processor.test.mjs",
+    "portableSha256": "9bdc82c926726a2513f28fb57b8b717742a1ee9f8b81a3d2d914b314fdac9419",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-scoped-repair/independent-targeted-processor.test.mjs",
+    "sourceSha256": "df6a133979793554c1a33794719d1119a1c47abc169dba529db00fad38106a58",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-independent-targeted-processor.test.mjs",
+    "portableSha256": "280d6d4de860e3ab693eae728d5ce48e59d717b600f68545238d73db3c5745d3",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-scoped-repair/processor.test.mjs",
+    "sourceSha256": "9c1aecaf9eb7d60c32b7c90ec4665ad4f5e2c69a58a569856eba91b0d19982c2",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-processor.test.mjs",
+    "portableSha256": "f7e8d76dba5ff7f08154c5963595915c4754e4c3e03ef4366cb23c7516422409",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  },
+  {
+    "source": "test/stage8-scoped-repair/contract-limit.test.mjs",
+    "sourceSha256": "9bf0fccaf6cd247fc12a4ffd002a50aaa58056a0e1715d3779df245fc353fe51",
+    "portable": "/private/tmp/stage8-two-false-warning-repair/final/test-stage8-scoped-repair-contract-limit.test.mjs",
+    "portableSha256": "48b5b4aac132431f2192d694962c32d9b6f1804226959d81b48a7f26bdc44bbf",
+    "changes": "Only runtime root, import-meta resources and synthetic output paths; inputs, expectations and assertions unchanged."
+  }
+]

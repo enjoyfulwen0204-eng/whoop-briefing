@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {canonicalJson} from './phase4EntityStore.js';
 import {currentDurableExecution,assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
@@ -13,10 +14,10 @@ export async function verifyBodyEnergyProducer(core,context,row,{allowActive=fal
   if(!Number.isSafeInteger(row.as_of_epoch_ms)||row.as_of_utc!==new Date(row.as_of_epoch_ms).toISOString()
     ||!Number.isFinite(created)||created<row.as_of_epoch_ms||created>clock)fail('BODY_ENERGY_DERIVED_TIME_INVALID');
   const schema=Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
-  if(schema!==32)fail('BODY_ENERGY_DERIVED_V32_AUTHORITY_REQUIRED');
+  if(![32,33,34,35].includes(schema))fail('BODY_ENERGY_DERIVED_V32_AUTHORITY_REQUIRED');
   const producers=(await client.execute({sql:`SELECT p.*,e.state,e.phase,e.generation final_generation,e.execution_seq final_seq,
-    e.created_at execution_created_at,e.finalized_at,e.deadline_at FROM phase4_execution_producers p
-    JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
+    e.created_at execution_created_at,e.finalized_at,e.deadline_at FROM ${analysisTable(core,'phase4_execution_producers')} p
+    JOIN ${analysisTable(core,'phase4_executions')} e ON e.execution_id=p.producing_execution_id
     WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=? ORDER BY p.execution_seq LIMIT 129`,
     args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
   if(!producers.length||producers.length>128)fail('BODY_ENERGY_DERIVED_PRODUCER_REQUIRED');
@@ -44,7 +45,7 @@ export async function bodyEnergyMetricAnalysisTime(core,context,artifact,sourceC
     fail('BODY_ENERGY_DERIVED_SOURCE_REFERENCE_REQUIRED');
   const created=Date.parse(artifact.row.created_at);
   // Earlier-stage isolated fixtures keep their existing exact temporal path.
-  if(core.schemaVersion!==32&&created<=Date.parse(sourceCaptureCutoff))return sourceCaptureCutoff;
+  if(![32,33,34,35].includes(core.schemaVersion)&&created<=Date.parse(sourceCaptureCutoff))return sourceCaptureCutoff;
   const verified=await verifyBodyEnergyProducer(core,context,artifact.row,{allowActive:true});
   // Stable original persistence instant keeps retries/unit identities equal.
   // Original input as_of_utc and actual ingestedAt remain untouched.

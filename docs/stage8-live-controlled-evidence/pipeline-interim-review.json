@@ -1,0 +1,77 @@
+{
+  "type": "READ_ONLY_INTERIM_UNFROZEN_PIPELINE_SOURCE_INSPECTION",
+  "worktree": "/Users/kelvin/.codex/worktrees/stage8-live-controlled-integration/whoop-briefing",
+  "sourceSnapshotSha256": {
+    "src/stage8LiveProducer.js": "28c36cad07d766b2b260b71d882c293a679d0758bfea9d13efc8b955fd2e1679",
+    "src/stage8LivePublication.js": "62a1bee6bfde809af6c9a5c8ab9b707fee836a121b4a83f5a86927be1a459590",
+    "src/stage8LiveExecution.js": "172d02b9241d7e73fb23dc2c84ccdc83dd065850244bc881e1f364adfb1263dd",
+    "src/phase4Reanalysis.js": "91b5d883c685481a046b7ea6905ba03b77029fd2075ff3b398239027edc79d63",
+    "src/phase4ReanalysisQueue.js": "f7eb78b6fb7e9a81402f8b45cfe156c8995b6a3d72c24c9d714a1afaa5000602",
+    "src/phase4MetricUnitReceipt.js": "4ddbe9d805ad3530e223fecfc6974c36869ef902dfb2a3394cd70c491793f524",
+    "src/bodyEnergyDerivedTime.js": "d22c7b68651a155811ffdaa6c3913d8716d076353a951b261b03c74892aea553",
+    "src/phase4Stage5Privacy.js": "25fe4c9338a759ff462e0e73ca673d3c261ff19075cfd3e61cff12d53a8f7034",
+    "src/phase4Redaction.js": "7fd26a796911d0f5fb43b81428751d6781b0cd883f48d7e6acf058f85bf906d1",
+    "src/stage8DerivedReader.js": "711b32eace4c4de4a4c589dfa1b2f1e09ec62701af6b30de3a0f7aa347f48fb2",
+    "src/stage8OwnerMonitoring.js": "b706057609a3b9f646806ea43a7cdb7ed44cd17aa2e72241e7ec23fcd8613e29",
+    "src/stage8Runtime.js": "2467dc2e46ad4dba917e9081752f051da17104910f979793cafbca9e93742d4d"
+  },
+  "sourceEditedByReviewer": false,
+  "testsExecutedOnPipelineByReviewer": 0,
+  "migrationExecutedByReviewer": false,
+  "acceptance": "NO_GO_PENDING_POSITIVE_AND_ADVERSARIAL_TESTS_AND_FINAL_FROZEN_REVIEW",
+  "findings": [
+    {
+      "id": "ORIGINAL_NAMED_ACK_KEY",
+      "initial": "completionProofs did not reconstruct named stage6.complete key because only raw cursor-derived key was stored",
+      "latest": "CORRECTED_ON_INSPECTION: LIVE completion uses cursor hash in its actual named work identity and verifier recomputes the same original logical key + original execution identity/scope."
+    },
+    {
+      "id": "COMPLETION_PARENT_PRODUCER_MEMBERSHIP",
+      "initial": "Verifier checked global producer inventory without linking each completion parent execution to own same-tenant/input producer",
+      "latest": "CORRECTED_ON_INSPECTION: explicit same-user/mode/input/execution producer lookup and HMAC/sequence/generation comparison added."
+    },
+    {
+      "id": "MANIFEST_BYTES_BEFORE_DRIVER_TRANSFER",
+      "initial": "SELECT* LIMIT10001 could load multi-MiB receipt rows far beyond64MiB before JS byte check",
+      "latest": "CORRECTED_ON_INSPECTION: SQL count/worst-case encoded-byte preflight before bounded64-row ordered pages. Exact manifest and original tenant/generation filters retained. Actual resource cost still unmeasured."
+    },
+    {
+      "id": "EXPIRED_PUBLICATION_RECOMPUTATION",
+      "initial": "Immutable per-generation expired certificate could permanently fence all future runs without new source change",
+      "latest": "CORRECTED_ON_INSPECTION: prepareFreshGeneration performs actual input generation advance and canonical FULL invalidation using REPAIR_REQUIRED, source_generation unchanged, before new execution. Must test actual fresh computation rather than certificate re-signing."
+    },
+    {
+      "id": "FAILED_PRODUCER_RETRY_TRAP",
+      "status": "OPEN_AT_INSPECTED_SNAPSHOT",
+      "evidence": "safeResult now accepts FAILED but runner finalizes as FINALIZED_SUCCESS. manifests rejects sealed outcome FAILED; prepareFreshGeneration damaged predicate does not inspect result outcome and publication may not exist yet. A timely generation1 failed producer can therefore block publication forever even after later jobs complete. Use true failure state + bounded actual-generation recomputation or otherwise preserve original required evidence safely; add recoverable failed-drain regression."
+    },
+    {
+      "id": "SERVER_INVOCATION_SEAM",
+      "initial": "createStage8LiveProducer appeared only in module and test",
+      "latest": "CORRECTED_ON_INSPECTION: Stage8 runtime now conditionally composes and exposes server-owned .analysis.run with frozen configuration fence and separate-execution guard. Automatic post-sync/scheduler entry point must still be specified before Production."
+    },
+    {
+      "id": "OWNER_SUBJECT_COHORT_COVERAGE",
+      "status": "OPEN_VERIFICATION_REQUIREMENT",
+      "evidence": "Runtime producer userIds=config.userIds remains current owner-only self cohort. Owner Monitoring follows distinct enrolled subject b independently. Prove separately authorized real producer composition for b plus current weekly/approved-alert paths, without widening Coach/self-Q&A or fabricating subscriptions; otherwise current runtime self positive does not demonstrate Owner pathway functionality."
+    }
+  ],
+  "positiveInspectionObservations": [
+    "Private grant and registered execution gates preserve exact tenant/scope and original physical allocation.",
+    "LIVE driver reuses canonical algorithms/input selectors and queue EOF/family proof; no SHADOW row-copy promotion found.",
+    "Producer rejects inactive/not-ready/no-auth/pending-purge principals, reader requires signed complete publication and current context.",
+    "LIVE health receipt/result namespaces are added to redaction and privacy index/root completion checks; corrupt or unrooted retained data fails closed.",
+    "DAILY source-plan, supported noncausal WEEKLY and already-approved subject-alert IMPORTANT policies remain conceptually separate."
+  ],
+  "notYetProven": [
+    "positive genuine finalized source pipeline",
+    "typed CURRENT and current-empty source-scope acceptance",
+    "multi-user health privacy and purge/orphan/corrupt graph tests",
+    "resource/auth/onboarding/lifecycle revocation during actual work/COMMIT/read",
+    "expired publication and failed/drained/original-deadline recovery",
+    "actual process restart and unknown COMMIT",
+    "authorized Owner subject synthesis and delivery dedup with fake transport only",
+    "full affected regression and exact frozen code hashes/release identity"
+  ],
+  "stage6AndProduction": "Final Stage6 accepted integration, capacity/shared runtime and native SIGSEGV remain separate; no Stage6 worktree writes, Production operations, actual network or paid execution performed by reviewer."
+}

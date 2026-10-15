@@ -22,7 +22,7 @@
  */
 
 import {
-  ADDITIVE_COLUMNS, DATA_MIGRATIONS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION,
+  ADDITIVE_COLUMNS, DATA_MIGRATIONS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION, LATEST_SCHEMA_VERSION,
   LEGACY_SCHEMA_VERSION,
 } from './schema.js';
 import { log } from './logger.js';
@@ -89,11 +89,12 @@ export async function inspectReshape(client) {
  * @param {object} client libsql client
  * @param {{ allowRebuild?: boolean }} opts allowRebuild=false 時只建新表、不重建舊形狀表
  */
-export async function runMigrations(client, { allowRebuild = true, targetVersion = SCHEMA_VERSION,
+export async function runMigrations(client, { allowRebuild = true, targetVersion,
   privacyKeys, experimentAttestations = [],
 } = {}) {
   const from = await currentVersion(client);
-  if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > SCHEMA_VERSION
+  targetVersion??=(from===LATEST_SCHEMA_VERSION?from:SCHEMA_VERSION);
+  if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > LATEST_SCHEMA_VERSION
       || from > targetVersion) throw new Phase4SchemaError('schema_version_incompatible');
   // Only a pre-v21 database with no key authority may bootstrap through v21
   // without secrets. Check this before any schema or data write, including a
@@ -102,9 +103,9 @@ export async function runMigrations(client, { allowRebuild = true, targetVersion
     requirePhase4Keys(privacyKeys);
   const summary = { from, to: targetVersion, rebuilt: [], created: 0, skipped: from === targetVersion };
 
-  // v32 is additive authority. Never replay legacy DDL/backfills on v31→v32
-  // or a current-v32 operator no-op; full frozen postconditions still run.
-  if (from >= 31 && targetVersion === 32) {
+  // Post-v31 upgrades never replay legacy DDL/backfills. Install each ordered
+  // version and verify its frozen postconditions, including current-version no-ops.
+  if (from >= 31 && targetVersion >= 32) {
     summary.columnsAdded=[];summary.dataMigrations=[];
     summary.versionsApplied=await applyPhase4Migrations(client,from,targetVersion,{privacyKeys,experimentAttestations});
     return summary;

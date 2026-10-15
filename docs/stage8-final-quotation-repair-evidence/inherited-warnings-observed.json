@@ -1,0 +1,34 @@
+[
+  {
+    "id": "benign-warning-en",
+    "text": "I had chest pain yesterday and am still working.",
+    "before": "POSSIBLE_CURRENT_URGENT",
+    "after": "POSSIBLE_CURRENT_URGENT",
+    "clinicalBenignWarning": true,
+    "current": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "benign-warning-zh-TW",
+    "text": "我昨天胸痛而且目前忙碌。",
+    "before": "POSSIBLE_CURRENT_URGENT",
+    "after": "POSSIBLE_CURRENT_URGENT",
+    "clinicalBenignWarning": true,
+    "current": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "benign-warning-vi",
+    "text": "Tôi đau ngực hôm qua và hiện tại làm việc.",
+    "before": "POSSIBLE_CURRENT_URGENT",
+    "after": "POSSIBLE_CURRENT_URGENT",
+    "clinicalBenignWarning": true,
+    "current": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "benign-warning-mixed",
+    "text": "I had chest pain yesterday and 目前忙碌。",
+    "before": "POSSIBLE_CURRENT_URGENT",
+    "after": "POSSIBLE_CURRENT_URGENT",
+    "clinicalBenignWarning": true,
+    "current": "POSSIBLE_CURRENT_URGENT"
+  }
+]

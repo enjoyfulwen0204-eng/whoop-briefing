@@ -1,0 +1,38 @@
+Independent final LIVE functional delta review
+
+Reviewed code: 0a1dd0e4844522aa438a09902da2eada70d57739
+Tree: 3749ce817bb3b574e5f6b6459c78e2bf815e37a2
+Base: 98a6f80d2304479b61e1b2ffe83d2fa4a889ad72
+
+Inspected P0/P2 source authority/security/privacy delta: GO.
+Independent delta review readiness: GO.
+Complete final functional acceptance: NO-GO.
+Whole Stage 8: NO-GO. Production: NO-GO.
+
+57 distinct completed checks PASS /0 FAIL:53 repository definitions at immutable a6fcfa1 plus4 reviewer-authored definitions at exact0a1dd0e. Only runtime difference is the freshly verified proactive permission guard. No reruns, prior accepted53 baseline, interrupted assertions or author overlapping suites inflate57.
+
+The new source guard closes an independently reproduced permission defect: a6fc sent1 subject alert after public proactive disable;0a1dd0e produces CURRENT metric analysis with0 provider calls and no outbound row. Actual server adapter uses stub fetch only, renewed admission, exact destination and no open processing transaction during IO. Its original source ACK tampering and canonical Journal purge/Owner copy/peer isolation checks all completed3/0/exit0. A separate guard check completed1/0/exit0. Source registers before all side effects; exact signed original source receipt and artifact snapshot are mandatory before publication and Owner IMPORTANT copying.
+
+All previously raised in-flight source findings are CLOSED: early source bind; known pre-send definite outcome; durable START recovery; optional composition preserving finalized SYNC response; provider renewal; context-bound progress HMAC; bounded source manifest transfer; approved lazy preferences; existing proactive permission. No additional open security defect found in this bounded review.
+
+Original failure evidence remains. Initial reviewer run0/2 contains1 actual permission defect and1 reviewer fixture mistake (renewal without explicit lifetime replacement); original source and failure retained. Corrected fixture setup keeps its expectations. Earlier no-GC probe runs were bounded/interrupted after2/3 assertions without final footer, never credited as clean success. Full GC rerun then completed all3 server/receipt/privacy definitions after472015.2ms, including slow completion. This does not repair or explain nativeSIGSEGV. A redundant isolation diagnostic was stopped only after full original checks passed and is uncredited. Initial wrong-cwd CLI executed no definitions.
+
+New source recovery is injected post-send settlement failure plus in-process producer restart after real original expiry, not an OS process kill. It preserves one provider call and canonical AMBIGUOUS settlement. Prior accepted baseline actual child/lostACK evidence is reused only for unchanged kernel.
+
+Remaining acceptance blockers:
+- Qualifying WEEKLY: real60day source fixture had3zero-progress unchanged-budget legs(30.9/38.4/40.0s), interrupted; no genuine SUPPORTED positive qualified. Expectations preserved.
+- Stage6: latest read-only a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9/treeef2a9d7a8bd653c3924eca94c805b8d2f31975e6, separate clean worktree, not accepted/imported. Reconcile six shared files plus receiverScopeLifetime only after exact runtime acceptance, preserving LIVE namespace/private authority/original ACKs.
+- Stability/capacity: nativeSIGSEGV remainsOPEN; current local RSS highwater>2GiB under concurrency is capacity evidence, not a matched before/after regression proof. Memory/timing samples retained.
+- Direct Production integration/ordered migration/activation/delivery remains unverified and unauthorized in this run. No new pilot/beta rollout stage.
+
+Canonical first postSYNC leg is automatically invoked after original settlement; durable callable resume needs no new fullSYNC. No automatic continuation scheduler/queue is provided. Canonical cohort remains exactly the existing configured owner; private multi-user factory tests do not establish automatic multi-user activation. Per-execution45s fences are not a45s total postSYNC caller budget.
+
+Accepted Triage and v33/v34/v35 hashes are unchanged. Stage7 reviewed foundation and accepted Triage are ancestors. Stage6 physical inode/path differs. No runtime edit, credential/Production mutation, real Telegram, paid execution, push, merge or deployment by reviewer. F02 remains Owner Accepted Risk.
+
+Exact handoff: bind later docs-only HEAD/tree to0a1dd0e runtime hashes; reuse this57/0 bounded review. Keep fullfunctional/Stage8/ProductionNO-GO. Complete independently accepted Stage6 reconciliation and genuine qualifying WEEKLY/capacity/stability verification before direct owner-approved ordered migration/deployment/LIVE activation.
+
+Raw detailed report: independent-final-review.json
+Counts/commands: independent-final-test-counts.json
+Probe source: independent-boundary-probes.final-test.txt
+Integrity: independent-final-integrity.json
+Performance: independent-final-performance.json

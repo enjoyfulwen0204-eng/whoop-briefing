@@ -1,0 +1,95 @@
+{
+  "type": "INDEPENDENT_UNFROZEN_INTEGRATION_SOURCE_INSPECTION",
+  "timeUtc": "2026-10-15T14:45:31.178083+00:00",
+  "baseline": "98a6f80d2304479b61e1b2ffe83d2fa4a889ad72",
+  "status": "NO_GO_PENDING_REPAIR_AND_FROZEN_REVIEW",
+  "snapshotSha256": {
+    "src/stage8PostSync.js": "f548a6cec6aedcf14955304cda9ec498669cf3ab95af04fac0655e87755d948f",
+    "src/stage8SubjectAlerts.js": "1bfb181503b899b1f58258923a46d9e8e61cea49953dc9bca2374da5b98062b9",
+    "src/stage8SubjectAlertManifest.js": "241b5dd6fb55b10c7f3fb530a4597a106c5eb5121b98b66466f45ba39e07f749",
+    "src/phase4Execution.js": "00e7ee43d632c61b5be64380383c9b2efb028ac119e6db46baf48ae1984a5574",
+    "src/index.js": "70a6538236428adbe6734a36eb1d05dee923ce7bb3325522b8b2b8a7b4774c50",
+    "src/stage7DecisionStore.js": "27cc5966ce5e8316d14a15ca4f269db2477f85235ab40fda957115945376061c",
+    "src/stage8LiveProducer.js": "43cd2c3f95b7b310722448b8317af59cef5cf4b3af3bf69e9f0afa6487136435",
+    "src/stage8LiveExecution.js": "1661d8ff59c85765c89778f8c518e4c7d327342762a5270677b02ab24300ab1c",
+    "src/stage8LivePublication.js": "4fb0cafdc939b6407aa9d5b36301f3351b1ba9e67575d7e659801e3242926bf5",
+    "src/stage8OwnerMonitoring.js": "7d33fe1ace475b1c6831791b46dde9724ab4eaa0b6f725dffba4f8b11272e373"
+  },
+  "runtimeEditedByReviewer": false,
+  "testsExecutedByReviewer": false,
+  "findings": [
+    {
+      "id": "ALERT_EXECUTION_NOT_ORIGINALLY_BOUND",
+      "priority": "HIGH",
+      "status": "PARTIAL_REPAIR_IN_PROGRESS_NOT_REVERIFIED",
+      "evidence": "Initial inspected source lacked bindProducingExecution entirely. Generic test latest producer selector could return last canonical job, not the alert source. During review a final source-manifest binding and exact source digest helper were added, but current inspected source binds only after decision/start/send/settle.",
+      "required": "Bind source execution inside first named transaction before source side effects; final aggregate must authenticate exact signed source execution, original manifest ACK and source artifact digest. Crash before final manifest must not disappear from producer inventory."
+    },
+    {
+      "id": "KNOWN_PRE_SEND_FAILURE_IS_AMBIGUOUS",
+      "priority": "HIGH",
+      "status": "OPEN_AS_INSPECTED",
+      "evidence": "stage8SubjectAlerts produce catches every failure without explicit sendOutcome as AMBIGUOUS, including eligible/context/destination/old-admission checks that happened before provider IO. Owner IMPORTANT accepts AMBIGUOUS, so a known unsent source could be described as an uncertain delivery.",
+      "required": "Track actual provider-call boundary or tag all known pre-send failures definite; retain ambiguous only after possible acceptance. Assert zero provider calls means no fabricated ambiguous IMPORTANT source."
+    },
+    {
+      "id": "SOURCE_STARTED_ATTEMPT_RECOVERY_MISSING",
+      "priority": "HIGH",
+      "status": "OPEN_AS_INSPECTED",
+      "evidence": "DELIVERY_STARTED is skipped and no transport.recover is called. Source crash after durable start/before settlement leaves attempt nonterminal. New source execution recovery cannot count old PARTIAL/generation2 as finalized source authority.",
+      "required": "Actual crash/restart and late/unknown ACK probes; recover original started attempt through existing transport maintenance into AMBIGUOUS without provider resend, preserving source execution/generation/deadline fences and actual recompute requirements."
+    },
+    {
+      "id": "OPTIONAL_POST_SYNC_COMPOSITION_MASKS_FINAL_SUCCESS",
+      "priority": "HIGH",
+      "status": "OPEN_AS_INSPECTED",
+      "evidence": "phase4Execution outer wrapper catches per-user afterSync errors but not createStage8Runtime or key/env/db initialization failure; defaultv34 with POST_SYNC/LIVE flags can reject the call after canonical SYNC finalized.",
+      "required": "Optional composition and per-user errors must remain fenced/logged while original finalized SYNC response is returned unchanged. Scope metadata recording to approved tenant policy so optional feature cannot fail unrelated ordinary SYNC."
+    },
+    {
+      "id": "PROVIDER_ADMISSION_RENEWAL",
+      "priority": "MEDIUM",
+      "status": "OPEN_AS_INSPECTED",
+      "evidence": "createStage8SubjectAlertProvider captures initial admission and has no followRuntimeRenewal; producer/core capabilities follow approved reconnect.",
+      "required": "Follow exact db/key/transaction renewal or obtain fresh approved admission consistently before provider IO; test renewed lifetime and revoked old handle separately."
+    },
+    {
+      "id": "PROGRESS_SIGNATURE_CONTEXT_BINDING",
+      "priority": "MEDIUM",
+      "status": "OPEN_AS_INSPECTED",
+      "evidence": "Post-sync progress HMAC covers only ordinal/done, not its parent/user/scope key. Valid progress can be transplanted across contexts; no demonstrated health disclosure, but metadata ownership/replay proof is weaker than intended.",
+      "required": "Bind parent/user/scope/progress identity in signed payload, retain ordinal bounds and exact request replay."
+    },
+    {
+      "id": "SOURCE_MANIFEST_PRETRANSFER_BOUNDS",
+      "priority": "MEDIUM",
+      "status": "OPEN_AS_INSPECTED",
+      "evidence": "New subjectAlertDigest SELECT* LIMIT11/31 happens before byte preflight for large decision JSON/payload fields. Count cap alone does not prove transferred byte bound under admitted schema.",
+      "required": "Preflight worst-case byte bound before health transfer, use bounded pages and retain exact signed snapshot hash without new schema."
+    }
+  ],
+  "fixtureFindings": [
+    {
+      "id": "LAZY_DEFAULT_PREFERENCES",
+      "status": "SOURCE_FIX_OBSERVED_TEST_PENDING",
+      "evidence": "P0 logs show preference_version:null from legitimate missing lazy default preference row. Snapshot originally INNER JOINed n; currently LEFT JOIN+COALESCE0 observed. Preserve READY/auth and use real preference controller/default contract."
+    },
+    {
+      "id": "PREFERENCE_NEGATIVE_NOOP",
+      "status": "FIXTURE_METHOD_NEEDS_CORRECTION",
+      "evidence": "post-sync-seventh has12PASS/2FAIL including parent wrapper; failed leaf expects rejection after UPDATE preference_version but missing prefs row means0 rows changed. Preserve original failure, establish/change real preference before asserting scope rejection."
+    },
+    {
+      "id": "APPEND_ONLY_TAMPER_PROBE",
+      "status": "FIXTURE_METHOD_NEEDS_CORRECTION",
+      "evidence": "important-first reported10PASS/4FAIL over14 including2 parent wrappers; both failing leaf mutations are rejected by phase4_content_append_only before reader runs. Do not count this as successful payload mutation or a semantic application failure; test either rejected mutation or explicit isolated corruption with DDL restored/re-admitted."
+    },
+    {
+      "id": "WEEKLY_CAPACITY",
+      "status": "OPEN_REAL_BLOCKER",
+      "evidence": "Three unchanged-budget zero-progress LIVE association legs30.9/38.4/40.0s, explicitly stopped. No qualifying SUPPORTED weekly positive has passed. Do not weaken canonical math/window/quality/budget or claim old Stage6 capacity closed."
+    }
+  ],
+  "positiveInspection": "Both delivered and ambiguous genuine alert cases reached actual new source data/provider path, but initial latest-producer assertion did not establish exact source finalization and negative fixture failures remain; this is not acceptance.",
+  "next": "Implementer should close bounded findings, retain all original failures, freeze exact source+tree and run affected regressions plus independent restart/revocation/real source identity probes. Separate new component verdict from whole Stage8/Production; no authority is granted for real delivery or migration."
+}

@@ -1,0 +1,51 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {importantFixture} from './stage8LiveFunctionalFixture.js';
+import {createStage8LiveProducer} from '../src/stage8LiveProducer.js';
+import {createStage8SubjectAlertProvider} from '../src/stage8SubjectAlerts.js';
+import {createStage8DerivedReader} from '../src/stage8DerivedReader.js';
+import {createScopedHealthContext} from '../src/scopedHealthContext.js';
+import {createOwnerMonitoring} from '../src/stage8OwnerMonitoring.js';
+import {renewRuntimeAfterContention,requireRuntimeAdmission,replaceObservedRuntimeLifetime} from '../src/runtimeAdmission.js';
+import {V24_HEALTH_FIELDS} from '../src/phase4V24Schema.js';
+import {V34_HEALTH_FIELDS} from '../src/phase4V34Schema.js';
+async function complete(producer,prefix){let result;for(let i=0;i<40;i++){result=await producer.run({userId:'a',requestId:`${prefix}-${i}`});if(result.publication.status==='CURRENT')return result;}assert.fail(JSON.stringify(result));}
+test('independent: explicit existing proactive disable prevents unsolicited LIVE subject delivery',async t=>{
+ const f=await importantFixture(t,'DELIVERED');await f.db.setProactiveEnabled('a',false);assert.equal(await f.db.isProactiveEnabled('a'),false);
+ const result=await complete(f.producer,'review-disabled');assert.equal(result.publication.status,'CURRENT');
+ console.log('INDEPENDENT_DISABLED_PROACTIVE',JSON.stringify({providerCalls:f.provider.calls.length,outbound:(await f.db.raw.execute('SELECT state FROM outbound_messages')).rows}));
+ assert.equal(f.provider.calls.length,0,'the existing per-user unsolicited-message switch is authoritative');
+});
+test('independent: genuine server adapter renews admission and signed alert/Owner copies follow canonical erasure',async t=>{
+ const f=await importantFixture(t,'DELIVERED'),control=await f.stores.captureControl('a'),eventAt=new Date(Date.now()-86400000).toISOString(),sourceText=`caffeine at ${eventAt}`;
+ const fact=await f.stores.journal.create(control,{sourceEventKey:'review-alert-privacy-root',sourceText,candidate:{category:'caffeine',eventAt,valueKind:'PRESENCE',exposureState:'EXPOSED',extractionConfidence:1,excerptStart:0,excerptEnd:sourceText.length}});assert.equal(fact.status,'ACCEPT');
+ let calls=0;const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{calls++;assert.match(String(url),/api.telegram.org\/botSYNTHETIC_NOT_A_TOKEN\/sendMessage$/);assert.equal(f.db.processingTransactionActive(),false);assert.equal(JSON.parse(options.body).chat_id,'10001');return new Response(JSON.stringify({ok:true,result:{message_id:1901}}),{status:200,headers:{'content-type':'application/json'}});};
+ let provider;try{provider=createStage8SubjectAlertProvider({...f,admission:f.admission,environment:{STAGE8_SUBJECT_ALERTS:'on',STAGE8_LIVE_ANALYSIS:'on'},env:{telegramBotToken:'SYNTHETIC_NOT_A_TOKEN'},eligible:id=>id==='a'});}finally{globalThis.fetch=original;}
+ replaceObservedRuntimeLifetime(f.db.raw);await renewRuntimeAfterContention(f.db.raw,f.keys,f.db.transaction);assert.throws(()=>requireRuntimeAdmission(f.db.raw,f.admission,f.keys,f.db.transaction),/ADMISSION_REQUIRED/);
+ const producer=await createStage8LiveProducer({...f,admission:await f.db.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a',subjectAlertProvider:provider});
+ const result=await complete(producer,'review-real-adapter');assert.equal(result.publication.status,'CURRENT');assert.equal(calls,1);
+ const admission=await f.db.admitRuntime(),reader=createStage8DerivedReader({...f,admission,eligible:id=>id==='a'}),scopes=await createScopedHealthContext({...f,admission,derivedReader:reader});
+ const read=async()=>scopes.derived(await scopes.open({user:await f.db.getUser('a'),chatId:'10001',text:'How is my recovery?'}),'EPISODES');assert.equal((await read()).status,'CURRENT');
+ await t.test('tampered original source snapshot ACK invalidates aggregate reader acceptance',async()=>{
+  const table='stage8_live_execution_work_receipts',stop=Error('REVIEW_ROLLBACK');try{await f.db.transaction(async()=>{
+   const triggers=(await f.db.raw.execute({sql:"SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name=?",args:[table]})).rows;
+   for(const r of triggers){assert.match(r.name,/^\w+$/);await f.db.raw.execute(`DROP TRIGGER ${r.name}`);}
+   const source=(await f.db.raw.execute("SELECT execution_id,result_json FROM stage8_live_executions WHERE json_extract(result_json,'$.alertSourceDigest') IS NOT NULL")).rows;assert.equal(source.length,1);
+   const hash=JSON.parse(source[0].result_json).alertSourceDigest;
+   const changed=await f.db.raw.execute({sql:'UPDATE stage8_live_execution_work_receipts SET result_json=? WHERE execution_id=? AND result_json=?',args:[JSON.stringify('0'.repeat(64)),source[0].execution_id,JSON.stringify(hash)]});assert.equal(changed.rowsAffected,1);
+   for(const r of triggers)await f.db.raw.execute(r.sql);await f.db.freshRuntimeAdmission();assert.equal((await read()).status,'ANALYSIS_UPDATING');throw stop;
+  });}catch(error){if(error!==stop)throw error;}assert.equal((await read()).status,'CURRENT');
+ });
+ await f.db.raw.execute("INSERT INTO user_whoop_tokens(user_id,access_token,refresh_token,access_token_expires_at,updated_at,auth_generation) VALUES('b','SYNTHETIC','SYNTHETIC','2099-01-01','2026-10-01',1)");await f.db.linkTelegram({userId:'b',chatId:'10002'});
+ const owner=await createOwnerMonitoring({...f,ownerId:'b',enabled:()=>true}),actor=await owner.authenticate({user:await f.db.getUser('b'),chatId:'10002'}),request={subjectId:'a',notificationClass:'IMPORTANT_ALERT'};
+ await owner.configure(actor,{...request,enabled:true,expectedRevision:0,operationKey:'review-private-follow'});const approved=await owner.authorize(actor,request);assert.equal(approved.status,'APPROVED');const proposal=await owner.propose(actor,approved.ticket);assert.equal(proposal.status,'PROPOSED');
+ await t.test('canonical Journal purge erases dependent source decisions/messages and Owner copy without peer purge',async()=>{
+  const privacy=await f.stores.capturePrivacyControl('a'),purge=await f.stores.privacy.admit(privacy,{targetType:'JOURNAL_FACT',targetId:fact.logicalFactId,idempotencyKey:'review-source-alert-purge'});
+  await assert.rejects(read(),/FENCED/);await assert.rejects(owner.authorize(actor,request),/FENCED/);
+  await f.stores.privacy.redact(privacy,purge.purge_id);assert.equal((await f.stores.privacy.complete(privacy,purge.purge_id)).state,'COMPLETE');
+  for(const table of ['phase4_proactive_decisions','outbound_messages','owner_monitoring_outbox']){
+   const rows=(await f.db.raw.execute({sql:`SELECT * FROM ${table} WHERE user_id='a' AND content_state='REDACTED'`,args:[]})).rows;assert.ok(rows.length>0,table);
+   const fields=V24_HEALTH_FIELDS[table]??V34_HEALTH_FIELDS[table];assert.ok(fields,table);for(const row of rows)for(const field of fields)assert.equal(row[field],null,table+'.'+field);
+  }
+  assert.equal((await read()).status,'ANALYSIS_UPDATING');assert.equal((await f.db.raw.execute("SELECT pending_purge_count n FROM phase4_user_state WHERE user_id='b'")).rows[0].n,0);assert.equal(calls,1);
+ });
+});

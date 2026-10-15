@@ -1,0 +1,114 @@
+{
+  "samples": [
+    {
+      "kind": "IMPORTANT_SYNTHETIC_COST",
+      "outcome": "DELIVERED",
+      "durationMs": 120552.181333,
+      "cpu": {
+        "user": 95385184,
+        "system": 11083835
+      },
+      "memory": {
+        "rss": 917995520,
+        "heapTotal": 182534144,
+        "heapUsed": 73668128,
+        "external": 3880096,
+        "arrayBuffers": 84538
+      },
+      "resource": {
+        "userCPUTime": 95686504,
+        "systemCPUTime": 11127255,
+        "maxRSS": 996240,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 1290705,
+        "majorPageFault": 11,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 5110,
+        "ipcReceived": 148,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 8082,
+        "involuntaryContextSwitches": 537173
+      },
+      "sourceTap": "independent-final-tests-candidate.tap"
+    },
+    {
+      "kind": "IMPORTANT_SYNTHETIC_COST",
+      "outcome": "AMBIGUOUS",
+      "durationMs": 172662.32933299997,
+      "cpu": {
+        "user": 116669548,
+        "system": 21218748
+      },
+      "memory": {
+        "rss": 506806272,
+        "heapTotal": 187760640,
+        "heapUsed": 105667624,
+        "external": 4011585,
+        "arrayBuffers": 84542
+      },
+      "resource": {
+        "userCPUTime": 220901493,
+        "systemCPUTime": 76334907,
+        "maxRSS": 2178400,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 10914537,
+        "majorPageFault": 11,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 10254,
+        "ipcReceived": 296,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 70566,
+        "involuntaryContextSwitches": 3023535
+      },
+      "sourceTap": "independent-final-tests-candidate.tap"
+    },
+    {
+      "kind": "EMPTY_SYNTHETIC_COST",
+      "durationMs": 20290.641792,
+      "cpu": {
+        "user": 16315578,
+        "system": 850232
+      },
+      "memory": {
+        "rss": 227540992,
+        "heapTotal": 102301696,
+        "heapUsed": 38499112,
+        "external": 3884573,
+        "arrayBuffers": 84538
+      },
+      "resource": {
+        "userCPUTime": 16618602,
+        "systemCPUTime": 894682,
+        "maxRSS": 287472,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 73937,
+        "majorPageFault": 3,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 946,
+        "ipcReceived": 15,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 342,
+        "involuntaryContextSwitches": 82451
+      },
+      "sourceTap": "independent-final-tests-candidate.tap"
+    }
+  ],
+  "limitations": [
+    "Synthetic30day canonical computation plus assertions, not source-only benchmark",
+    "Concurrent local review affects timing, CPU and memory",
+    "No matched before/after benchmark proving new performance regression",
+    "Runtime memory/capacity/stability qualification remains OPEN"
+  ]
+}

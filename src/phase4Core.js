@@ -214,7 +214,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       &&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
       &&['allowPurge','allowInactive','ignoreInput'].every(key=>options[key]===undefined||options[key]===false);
     const prior=coalescible?terminalControlChecks.get(context)?.get(job.check):null,execution=currentDurableExecution(),budget=currentExecutionBudget();
-    const cached=prior?.execution===execution&&prior?.budget===budget?prior.check:null;
+    const cached=prior&&prior.execution===execution&&prior.budget===budget?prior.check:null;
     const controlOptions=coalescible?Object.freeze({allowPurge:false,allowInactive:false,ignoreInput:false}):options;
     const check=cached??controlOnlyProcessingCheck(async()=>{
       // Explicitly bracket coalesced metadata checks with their enclosing

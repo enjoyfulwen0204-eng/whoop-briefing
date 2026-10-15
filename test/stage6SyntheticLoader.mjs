@@ -19,6 +19,7 @@ export async function load(url,context,next){
   replace('id===allowance.id?allowance:', 'id===syntheticAllowance.id?syntheticAllowance:id===allowance.id?allowance:');
   replace('value===allowance||value===secondAllowance','value===syntheticAllowance||value===allowance||value===secondAllowance');
  }
+ if(file==='src/phase4ExecutionStore.js'){s=`import{syntheticConfigurationIdentity}from'${helper}';\n`+s;replace('return keys.lookup(profile);','profile.push(syntheticConfigurationIdentity(environment));return keys.lookup(profile);');}
  if(file==='src/betaPilotPermit.js'){
   s=`import{syntheticConfiguration,syntheticAdmission,syntheticPermit,syntheticComponent,syntheticAssertTime,syntheticObservationSql,syntheticAssertObservation,syntheticPublication,syntheticSettle,syntheticClosing}from'${helper}';\n`+s;
   replace('export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&closureScope.getStore()===db.raw;', 'export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&(closureScope.getStore()===db.raw||syntheticClosing(db));');

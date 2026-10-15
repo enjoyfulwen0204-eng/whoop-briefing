@@ -1,6 +1,7 @@
 import assert from'node:assert/strict';import{writeFile}from'node:fs/promises';import{syntheticKeys as keys,syntheticManifest as manifest,openSyntheticDb,databaseMarker}from'./stage6SyntheticAdmission.mjs';
 import{createPhase4Foundation}from'../src/phase4Foundation.js';import{createWhoopOAuthCallback}from'../src/whoopOAuthCallback.js';import{bodyInput}from'./bodyEnergyFixture.js';import{bodyHealthDate}from'../src/bodyEnergyInputs.js';import{WHOOP_SYNC}from'../src/config.js';import{createUpdateProcessor}from'../src/bot/updateProcessor.js';import{handleLinkAttempt}from'../src/bot/link.js';
 import{createWebhookServer}from'../src/bot/webhook.js';
+import{syntheticEnvironment}from'./stage6SyntheticAdmission.mjs';import{configurationProof}from'../src/phase4ExecutionStore.js';import{publicBetaConfiguration}from'../src/publicBetaConfig.js';
 const db=await openSyntheticDb({seed:true});try{
  assert.equal((await db.raw.execute("SELECT count(*) n FROM sqlite_master WHERE type='table'")).rows[0].n,0,'new fixture only; never reset an existing DB');await db.migrate({targetVersion:32});await db.raw.execute('PRAGMA journal_mode=WAL');const admission=await db.admitRuntime(),stores=await createPhase4Foundation({db,keys,admission}),summary=[];
  for(const[i,tenant]of manifest.tenants.entries()){
@@ -23,6 +24,7 @@ const db=await openSyntheticDb({seed:true});try{
   }
   summary.push({userId:id,scope:tenant.scope,telegramBinding:true,authGeneration:(await db.getTokens(id)).authGeneration,ready:true});
  }
- const mark=databaseMarker();await db.raw.execute({sql:"INSERT INTO system_heartbeats(scope,component,last_detail,updated_at) VALUES('global',?,?,?)",args:[mark.component,mark.value,new Date().toISOString()]});const jobs=(await db.raw.execute('SELECT user_id,job_kind,requested_generation,scope_revision,completed_generation,full_scan_cursor FROM phase4_jobs ORDER BY user_id,job_kind')).rows;
+ const proofs=manifest.tenants.map(t=>{const env=syntheticEnvironment(t.id);return configurationProof(keys,publicBetaConfiguration(env),env);});assert.equal(new Set(proofs).size,4,'manifest/tenant must be bound into original configuration HMAC');
+ const productionKeys=await import('../src/phase4Keys.js?productionControl=1');assert.throws(()=>productionKeys.requirePhase4Keys(keys));const mark=databaseMarker();await db.raw.execute({sql:"INSERT INTO system_heartbeats(scope,component,last_detail,updated_at) VALUES('global',?,?,?)",args:[mark.component,mark.value,new Date().toISOString()]});const jobs=(await db.raw.execute('SELECT user_id,job_kind,requested_generation,scope_revision,completed_generation,full_scan_cursor FROM phase4_jobs ORDER BY user_id,job_kind')).rows;
  assert.equal(jobs.length,6);assert.ok(jobs.every(j=>j.completed_generation===0&&j.full_scan_cursor===null));await writeFile('/qualification/enrollment.json',JSON.stringify({synthetic:true,identities:summary,jobs,attempts:0}));console.log('SYNTHETIC_SEED '+JSON.stringify({tenants:summary.length,jobs:jobs.length,attempts:0}));
 }finally{await db.close();}

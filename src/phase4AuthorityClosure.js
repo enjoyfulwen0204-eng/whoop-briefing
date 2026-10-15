@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import { fail, readableRow } from './phase4Core.js';
 import { physicallyScrubbed } from './phase4Redaction.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
@@ -9,7 +10,8 @@ import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
  * discovery, but never satisfies a requested root or predecessor dependency.
  * Callers still validate every selected v25/v26/v27 projection and its roots. */
 export function createTargetAuthorityClosure(core,authenticate) {
-  const {client}=core,routing=core.schemaVersion>=29?createReceiptRouting(client,core.keys):null;
+  const OPERATION_RECEIPT_TABLE=analysisTable(core,'phase4_operation_receipts'),RESULT_AUTHORITY_TABLE=analysisTable(core,'phase4_evidence_result_authorities');
+  const {client}=core,routing=core.schemaVersion>=29?createReceiptRouting(client,core.keys,{live:core.liveAllocation}):null;
   async function retained(context,table,rows) {
     const result=[];
     for(const row of rows) {
@@ -28,9 +30,9 @@ export function createTargetAuthorityClosure(core,authenticate) {
     if(routing)return scopedInventory(context,{kind,insightKey,insightId,metricKey,episodeId,episodeFamilyKey});
     const episode=kind==='EPISODE',tables={},scope=[context.userId,context.executionMode];
     const names=episode?['observation_episodes','phase4_episode_revisions']
-      :['health_insights','insight_revisions','phase4_evidence_result_authorities'];
-    for(const table of [...names,'phase4_operation_receipts']) {
-      const predicate=table==='phase4_operation_receipts'
+      :['health_insights','insight_revisions',RESULT_AUTHORITY_TABLE];
+    for(const table of [...names,OPERATION_RECEIPT_TABLE]) {
+      const predicate=table===OPERATION_RECEIPT_TABLE
         ?episode?" AND (operation_kind LIKE 'EPISODE_%' OR operation_kind IN ('analyzeMetric','expireEpisode'))"
           :" AND (operation_kind LIKE 'INSIGHT_%' OR operation_kind IN ('analyzeAssociationFamily','expireInsight'))":'';
       const rows=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=?${predicate} LIMIT 1001`,args:scope})).rows;
@@ -38,7 +40,7 @@ export function createTargetAuthorityClosure(core,authenticate) {
       tables[table]=await retained(context,table,rows);
     }
     let bytes=0;
-    const records=tables.phase4_operation_receipts.map(receipt=>{
+    const records=tables[OPERATION_RECEIPT_TABLE].map(receipt=>{
       bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
         .reduce((n,key)=>n+Buffer.byteLength(receipt[key]??''),0);
       if(bytes>64*1024*1024)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
@@ -58,12 +60,12 @@ export function createTargetAuthorityClosure(core,authenticate) {
     tables[type]=tables[type].filter(row=>selected.has(row[idField]));
     const revisions=episode?'phase4_episode_revisions':'insight_revisions';
     tables[revisions]=tables[revisions].filter(row=>selected.has(row[episode?'episode_id':'insight_id']));
-    tables.phase4_operation_receipts=records.filter(({decoded})=>decoded.related_results_json.some(target=>
+    tables[OPERATION_RECEIPT_TABLE]=records.filter(({decoded})=>decoded.related_results_json.some(target=>
       target.type===type&&selected.has(target.row[idField]))).map(({receipt})=>receipt);
     if(!episode) {
-      const evidence=new Set(records.filter(({receipt})=>tables.phase4_operation_receipts.includes(receipt))
+      const evidence=new Set(records.filter(({receipt})=>tables[OPERATION_RECEIPT_TABLE].includes(receipt))
         .flatMap(({decoded})=>decoded.related_results_json.filter(target=>target.type==='evidence_items').map(target=>target.row.evidence_item_id)));
-      tables.phase4_evidence_result_authorities=tables.phase4_evidence_result_authorities.filter(row=>{
+      tables[RESULT_AUTHORITY_TABLE]=tables[RESULT_AUTHORITY_TABLE].filter(row=>{
         let origin;try{origin=JSON.parse(row.original_result_json);}catch{fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');}
         return evidence.has(row.evidence_item_id)||selected.has(origin?.insight_id);
       });
@@ -96,7 +98,7 @@ export function createTargetAuthorityClosure(core,authenticate) {
     const selected=await routing.inventory(context,episode&&episodeFamilyKey?'EPISODE_FAMILY':kind,identity);
     if(selected.unknown)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');
     const records=[];let bytes=0;
-    for(const receipt of await retained(context,'phase4_operation_receipts',selected.receipts)) {
+    for(const receipt of await retained(context,OPERATION_RECEIPT_TABLE,selected.receipts)) {
       bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
         .reduce((n,key)=>n+Buffer.byteLength(receipt[key]??''),0);
       if(bytes>64*1024*1024)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
@@ -123,8 +125,8 @@ export function createTargetAuthorityClosure(core,authenticate) {
         scopedReceiptKeys.has(`${receipt.operation_kind}:${receipt.operation_key}`)))
         fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
     }
-    const tables={[type]:[],[revisionTable]:[],phase4_operation_receipts:records.map(value=>value.receipt)};
-    if(!episode)tables.phase4_evidence_result_authorities=[];
+    const tables={[type]:[],[revisionTable]:[],[OPERATION_RECEIPT_TABLE]:records.map(value=>value.receipt)};
+    if(!episode)tables[RESULT_AUTHORITY_TABLE]=[];
     for(const id of ids) {
       const row=(await client.execute({sql:`SELECT * FROM ${typeFrom} WHERE user_id=? AND execution_mode=? AND ${idField}=?`,
         args:[...scope,id]})).rows[0];
@@ -141,7 +143,7 @@ export function createTargetAuthorityClosure(core,authenticate) {
         .filter(target=>target.type==='evidence_items').map(target=>target.row.evidence_item_id)));
       // An orphan v26 origin can outlive its parent. The origin's ID remains a
       // search hint; every selected authority is authenticated by the caller.
-      const authorityFrom=await pilotPrefixFrom(client,context,'phase4_evidence_result_authorities',scope);
+      const authorityFrom=await pilotPrefixFrom(client,context,RESULT_AUTHORITY_TABLE,scope);
       const all=(await client.execute({sql:`SELECT * FROM ${authorityFrom}
         WHERE user_id=? AND execution_mode=? ORDER BY evidence_item_id,result_scope`,args:scope})).rows;
       for(const row of all) {
@@ -150,8 +152,8 @@ export function createTargetAuthorityClosure(core,authenticate) {
           fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         }
         if(evidence.has(row.evidence_item_id)||ids.has(origin?.insight_id))
-          tables.phase4_evidence_result_authorities.push(...await retained(context,'phase4_evidence_result_authorities',[row]));
-        if(tables.phase4_evidence_result_authorities.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+          tables[RESULT_AUTHORITY_TABLE].push(...await retained(context,RESULT_AUTHORITY_TABLE,[row]));
+        if(tables[RESULT_AUTHORITY_TABLE].length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
       }
     }
     return tables;

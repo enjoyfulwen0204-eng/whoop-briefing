@@ -243,7 +243,7 @@ export function createOperationReceipts(core) {
       }
     }
     for(const [id,revision] of insights)await attach('insight_revisions','insight_id=? AND revision=?',[id,revision]);
-    for(const target of [...related].filter(target=>target.type==='evidence_items'))await attach('phase4_evidence_result_authorities',
+    for(const target of [...related].filter(target=>target.type==='evidence_items'))await attach(RESULT_AUTHORITY_TABLE,
       'evidence_item_id=?',[target.row.evidence_item_id]);
     const encoded={result:tree,contracts,related:ordered(related),refs,includeDependencies:async dependencies=>{
       projectionRole='DEPENDENCY';

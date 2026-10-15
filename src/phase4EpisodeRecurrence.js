@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import { fail,readableRow } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { episodeSemanticProjection } from './phase4EpisodeHistory.js';
@@ -19,7 +20,7 @@ export function createEpisodeRecurrenceAuthority(core,{authenticate,metricRefres
   async function inventory(context,target={}) {
     const tables=await closure.inventory(context,{kind:'EPISODE',...target});
     const histories=new Map();let bytes=0;
-    for(const receipt of tables.phase4_operation_receipts) {
+    for(const receipt of tables[analysisTable(core,'phase4_operation_receipts')]) {
       bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
         .reduce((sum,name)=>sum+Buffer.byteLength(receipt[name]??''),0);
       if(bytes>64*1024*1024)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');

@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import { compareExact } from './phase4CanonicalOrder.js';
@@ -451,7 +452,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return (await client.execute({sql:`SELECT r.run_id,r.state,i.evidence_item_id,a.evidence_item_id authority_id
       FROM evidence_runs r LEFT JOIN evidence_items i ON i.user_id=r.user_id AND i.execution_mode=r.execution_mode
         AND i.run_id=r.run_id AND i.item_key=?
-      LEFT JOIN phase4_evidence_result_authorities a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode
+      LEFT JOIN ${analysisTable(core,'phase4_evidence_result_authorities')} a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode
         AND a.evidence_item_id=i.evidence_item_id AND a.result_scope='METRIC'
       WHERE r.user_id=? AND r.execution_mode=? AND r.deterministic_run_key=?`,
       args:[plan.itemKey,context.userId,context.executionMode,plan.runKey]})).rows[0];
@@ -498,7 +499,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       const workStepFrom=async()=>{
         const body=await prepareCurrentBodyMetricRequest(context,sourceAsOfUtc);request=body.request;
         if(!request||request.baselineSources.length||!hasOwnedCurrentBodyData(core,context,request.currentSource))return null;
-        inventory=await createFamilyDirectory(client,keys).inventory(context,'body_energy',{create:false});
+        inventory=await createFamilyDirectory(client,keys,{live:core.liveAllocation}).inventory(context,'body_energy',{create:false});
         if(!inventory)return null;
         if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
         const prepared=await metricPreparation(context,request,body.current),hint=await currentBodyMetricHints(context,prepared.plan);
@@ -507,7 +508,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         purpose=issued.purpose;
         // This is an existence hint only. Acceptance remains the original
         // complete typed DOMAIN replay inside the family business callback.
-        const domain=(await client.execute({sql:`SELECT 1 FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
+        const domain=(await client.execute({sql:`SELECT 1 FROM ${analysisTable(core,'phase4_operation_receipts')} WHERE user_id=? AND execution_mode=?
           AND operation_kind='analyzeMetric' AND operation_key=?`,args:[context.userId,context.executionMode,issued.domain.operationKey]})).rows[0];
         if(!domain)return null;
         return workStepFor(request);
@@ -524,7 +525,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null,domainWorkStep=null;
-    const directory=createFamilyDirectory(client,keys);
+    const directory=createFamilyDirectory(client,keys,{live:core.liveAllocation});
     const sourceWork=(name,facts)=>{const job=core.jobAuthority();return workStepOptions(name,[context.userId,context.executionMode,
       job.jobKind,job.requestedGeneration,job.scopeRevision,facts],{discardResult:true}).workStep;};
     const workStepFrom=async()=>{
@@ -555,7 +556,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
           kind=item?'AUTHORITY':'ITEM';
           if(item&&requestFrom&&request.metricKey==='body_energy'&&request.baselineSources.length===0
             &&prepared.plan.input.baseline.samples.length===0&&hasOwnedCurrentBodyData(core,context,request.currentSource)){
-            const authority=closed?run.authority_id:(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+            const authority=closed?run.authority_id:(await client.execute({sql:`SELECT evidence_item_id FROM ${analysisTable(core,'phase4_evidence_result_authorities')}
               WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
               args:[context.userId,context.executionMode,item.evidence_item_id]})).rows[0];
             {
@@ -668,7 +669,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       const itemProof=!item.created?await metricUnitReceipt(core,context,plan,'ITEM'):null;
       if(!item.created&&!itemProof)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
       if(kind==='ITEM')return {unit:'ITEM',status:'COMPLETE',created:item.created};
-      const prior=(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+      const prior=(await client.execute({sql:`SELECT evidence_item_id FROM ${analysisTable(core,'phase4_evidence_result_authorities')}
         WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
         args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows[0];
       if(prior){

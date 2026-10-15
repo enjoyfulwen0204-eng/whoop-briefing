@@ -1,8 +1,9 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import { fail, readableRow } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { normalizeInsightIdentity } from './phase4InsightStore.js';
-import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+import { OPERATION_RECEIPT_TABLE as SHADOW_OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
+import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 
@@ -18,6 +19,8 @@ const semantic = row => Object.fromEntries(Object.entries(row).filter(([key]) =>
  * makes an old projection readable as current. Its only caller is the explicit
  * INSIGHT_TRANSITION refresh branch inside the existing receipt transaction. */
 export function createInsightRefreshAuthority(core, { authenticate, authorities, validateEvidence }) {
+  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
+  const OPERATION_RECEIPT_TABLE=analysisTable(core,SHADOW_OPERATION_RECEIPT_TABLE);
   const { client, keys } = core;
   const closure=createTargetAuthorityClosure(core,authenticate);
   async function inventory(context,target={}) {

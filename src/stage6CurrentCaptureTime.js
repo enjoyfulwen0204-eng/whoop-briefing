@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 import {createReceiptRouting} from './phase4ReceiptRouting.js';
 import {createOperationReceipts} from './phase4OperationReceipts.js';
@@ -19,7 +20,7 @@ export async function stage6CurrentCaptureTime(core,context,metricKey,artifact){
   const [source]=await core.revalidateSources(context,[artifact.ref]);
   if(source.type!==phase4Metric(metricKey).sourceType||canonicalJson(source.row)!==canonicalJson(artifact.row))fail('STAGE6_CURRENT_CAPTURE_SOURCE_REQUIRED');
   canonicalMetricSourceValue(metricKey,{type:source.type,id:source.id,row:source.row},context,new Date(clock).toISOString());
-  const routing=createReceiptRouting(core.client,core.keys),contract=phase4Metric(metricKey),
+  const routing=createReceiptRouting(core.client,core.keys,{live:core.liveAllocation}),contract=phase4Metric(metricKey),
     token=routing.token(context.userId,context.executionMode,'EPISODE',[metricKey,contract.domain]);
   const inventory=await routing.inventory(context,'EPISODE',token,true);
   if(inventory.unknown)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');

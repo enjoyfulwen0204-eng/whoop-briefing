@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import { createLegacyDiscovery } from './phase4LegacyDiscovery.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
@@ -18,8 +19,8 @@ import { createPhase4CoverageStore } from './phase4CoverageStore.js';
 import { createPhase4JournalAnswers } from './phase4JournalAnswers.js';
 import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
-import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+import { OPERATION_RECEIPT_TABLE as SHADOW_OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
+import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 import { createBodyEnergyPublicationReader } from './bodyEnergyPublicationReader.js';
 import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
@@ -30,6 +31,8 @@ import {createReanalysisInputs} from './phase4ReanalysisInputs.js';
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
 export function composePhase4Stores(core) {
+  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
+  const OPERATION_RECEIPT_TABLE=analysisTable(core,SHADOW_OPERATION_RECEIPT_TABLE);
   const {client,transaction,timestamp}=core;
   const receipts=createOperationReceipts(core),discover=createLegacyDiscovery(core);
   const contextScopes=new WeakSet();

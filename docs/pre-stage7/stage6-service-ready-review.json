@@ -1,0 +1,454 @@
+{
+  "review": "Stage6 bounded reconciliation absence-diagnostic batch",
+  "reviewer": {
+    "role": "sole independent reviewer",
+    "mode": "read-only",
+    "delegation": false
+  },
+  "recordedAt": "2026-10-15T02:39:39.517Z",
+  "candidate": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+  "sourceState": "FROZEN_2382_RUNTIME_WITH_TEST_ONLY_WORKING_OVERLAY",
+  "sourceFiles": {
+    "src/reconcile.js": "fea6a1d6fc312e5df200b7aac62c51dc6a0aa94a5cad652ccc73607954505041",
+    "src/reconciliationStore.js": "d591cb4a92d88011d9ad04946828f0a606f688e4d71be7ef07f0e6f8110e934e"
+  },
+  "scope": {
+    "productionChangedPaths": [],
+    "changes": "At most32 original conditional discrepancy INSERTs share the existing owned durable transaction. Original per-row path retained without durable execution. Original input authority check plus fresh reconciliation lease check at before/after/beforeCommit. Original receipt, cancellation, COMMIT and unknown-ACK machinery retained."
+  },
+  "verdict": {
+    "deltaSafety": "SCOPED_SOURCE_SAFETY_GO",
+    "retainedP0": [],
+    "retainedP1": [],
+    "fullServiceCapacity": "NO_GO_EXACT_REAL_ROUND_TRIP_COMPATIBILITY_BLOCKER_ON_PINNED_ROUTE",
+    "terminalSync": "PASS_LIMITED_RETAINED_SYNTHETIC_FOUR_USER_2382",
+    "drainAndSixJobs": "BOTH_PUBLICATIONS_ROLLED_BACK_BOTH_RECEIPT_ONLY_RECOVERIES_PASSED_NO_PRODUCTIVE_DRAIN_SIX_NOT_RUN",
+    "production": "NO_GO",
+    "testMetadataDelta": "SCOPED_DIAGNOSTIC_GO_KNOWN_HTTP_LITERAL_FAILURE_RETAINED"
+  },
+  "resolvedFindings": [
+    {
+      "severity": "P1",
+      "location": "src/reconcile.js recordMissingRemote / guardedInput",
+      "description": "Up-front timestamps could allow all batched diagnostic rows and a named receipt to commit after source lease expiry.",
+      "independentReproduction": {
+        "before": "FENCED,0rows,0absenceReceipts",
+        "unfixedBatch": "FENCED,3rows,1absenceReceipt",
+        "fixedBatch": "FENCED,0rows,0absenceReceipts",
+        "leaseMs": 1200,
+        "diagnosticDelayMs": 1350
+      },
+      "fix": "Fresh holdsReconciliation using original clock contract at before/after/beforeCommit, limited to absence-diagnostic; non-durable callers retain original per-row timestamps."
+    },
+    {
+      "severity": "P1",
+      "location": "test/stage6-linux-service-ready.mjs former line73",
+      "description": "Post-DRAIN SYNC continuations could have been counted as overlapping canonical writers.",
+      "fix": "DRAIN start captured immediately before isolatedDrain; DRAIN end captured immediately after its awaited result, before webhook/replay/continuations. Only COMMITTED transactions whose original authority-statement observation overlaps the exact DRAIN interval are counted. Transactions wholly after DRAIN are excluded.",
+      "commit": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76"
+    }
+  ],
+  "checks": [
+    {
+      "path": "/private/tmp/stage6-independent-diagnostic-batch.mjs",
+      "sha256": "95357c1235a2cee062b45dee5904b131a14e24b1ce63e42f34457aaabc3d5a34",
+      "kind": "independent fixture"
+    },
+    {
+      "path": "/private/tmp/stage6-independent-diagnostic-batch.tap",
+      "sha256": "a9a40b4035b813ef0b035a81828f51a669d3b4e0ec2103e1250df51b50fe0f12",
+      "outcome": "4PASS_1FAIL_CONFIRMED_P1"
+    },
+    {
+      "path": "/private/tmp/stage6-independent-diagnostic-batch-fixed.tap",
+      "sha256": "41be25b6d853ec8a787634b8f5587480ab83b6dbd4b65d2bf1b68bb69c8dff23",
+      "outcome": "5PASS_0FAIL_INCLUDING_ORIGINAL_BASELINE_COMPARISON"
+    },
+    {
+      "path": "/private/tmp/stage6-independent-diagnostic-ordinary.tap",
+      "sha256": "5b65f20800543ab7bb72032942f33c6315e268b22b1dce30b6cb58befd3b29b2",
+      "outcome": "1PASS_0FAIL_ORDINARY_COMPATIBILITY"
+    },
+    {
+      "command": "node --check test/stage6-linux-service-ready.mjs",
+      "outcome": "PASS",
+      "sourceSha256": "724d5e96ca005bbd5b748b5b2281d762a06001f2c570c0938f086f3648db98d9"
+    },
+    {
+      "command": "git merge-base --is-ancestor 2e5d8ea531b40b8744663033bc59d0e865b20ac2 2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+      "outcome": "PASS"
+    },
+    {
+      "command": "node --check test/stage6-linux-service-ready.mjs",
+      "outcome": "PASS",
+      "sourceSha256": "af737b3ae5075e551f059e390bcad524b59b8741e02e474a7f11ff5eb0b32250"
+    },
+    {
+      "command": "node --check test/stage6-sqld-proxy.mjs && node --check test/stage6-sqld-assertion-control.mjs",
+      "outcome": "PASS"
+    },
+    {
+      "command": "node --check test/stage6-sqld-floating-repro.mjs",
+      "outcome": "PASS"
+    }
+  ],
+  "coverage": [
+    "33rows dispatch32+1 with one original named receipt",
+    "zero-row in second chunk rolls back first acknowledged chunk",
+    "cancellation after batch ACK rolls back rows and receipt",
+    "short lease expiry original/current differential and fixed rejection",
+    "ordinary non-durable path invokes original per-row API"
+  ],
+  "limitations": [
+    "No source/test/repository edits by reviewer; no Production/network/credential/paid operations; no long workloads rerun.",
+    "Fixed5-control run preceded only the non-durable compatibility restriction; the unchanged durable code was reviewed and the new ordinary path independently tested afterwards.",
+    "Native5s transaction ceiling is a synthetic test model. Official isolated sqld v0.24.33 stayed active after5.1s idle; actual Production ceiling remains UNKNOWN.",
+    "Source files match reviewed2e5; successor2382 changes only overlap-accounting metadata. No new capacity acceptance follows from this correction.",
+    "Four cumulative DELIVERED claims are not four new Morning deliveries in the frozen focused run; only one new delivery occurred. Matched-parent recovery delivered zero new Morning messages.",
+    "The observed focused profile is Linux1CPU/2GiB, Node22.23.2arm64, synthetic providers and retained physical database. It does not qualify Production0.5CPU/512MiB or full monitored six-job convergence.",
+    "No long workload or service test was rerun by reviewer. Both new service TAPs were read only after completion.",
+    "Exact scalar blocker identified by later sanitized guard trace plus read-only echo and public literal control; no runtime correction implemented or reviewed. Task containers reported stopped; reviewer did not run remote probes or additional workloads."
+  ],
+  "baselineEvidence": {
+    "path": "/private/tmp/stage6-service-ready-20261015/first-pass-provider-summary.json",
+    "sha256": "1e5c1620ef629529251abe8ce2f8ab3d46d33f356c726e16af8ee7acc4cc0e91",
+    "http": 2500,
+    "sqlSubmitted": 3849,
+    "sqlObserved": 3849,
+    "totalTransactions": 257,
+    "committed": 233,
+    "rolledBack": 24,
+    "absenceTransactionsMs": [
+      5236,
+      5022,
+      4530
+    ],
+    "syncWindowCount": 15,
+    "syncWindowP50Ms": 3839,
+    "syncWindowMaxMs": 4114,
+    "note": "360s cut during fourth SYNC leg; preceding three202 continuations are durable progress, not terminal SYNC or DRAIN/six-job acceptance."
+  },
+  "baselineCommit": "40ee6252aeb8905885b49dfff975ab9db059d80e",
+  "candidateCommit": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+  "candidateTree": "60f9a9d3c4804f56e63122ac824dd4c49986ff0d",
+  "testFixtureFinding": {
+    "severity": "P1",
+    "status": "RESOLVED_IN_2382FF92",
+    "location": "test/stage6-linux-service-ready.mjs:73",
+    "description": "actualDrainEndAt is sampled after later SYNC continuations and webhook/replay reads, so CANONICAL_WRITERS_OBSERVED may count transactions after DRAIN ended.",
+    "requiredCorrection": "Capture DRAIN completion timestamp immediately at resolution; intersect actual DRAIN interval. No rerun of historical long workload required just to correct test accounting.",
+    "resolution": "DRAIN start captured immediately before isolatedDrain; DRAIN end captured immediately after its awaited result, before webhook/replay/continuations. Only COMMITTED transactions whose original authority-statement observation overlaps the exact DRAIN interval are counted. Transactions wholly after DRAIN are excluded.",
+    "sourceSha256": "724d5e96ca005bbd5b748b5b2281d762a06001f2c570c0938f086f3648db98d9"
+  },
+  "sourceCommit": "2e5d8ea531b40b8744663033bc59d0e865b20ac2",
+  "sourceTree": "0bbc7eefd7ae00a97bdeaf1c7cf5a6ea294a8695",
+  "primaryLogsReadOnlyConfirmed": [
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/diagnostic-accepted.tap",
+      "sha256": "b13458b5c9e6eb181693bfeb836654d0bfdb4e9f94f16b95edc44846c7cf7b16",
+      "outcome": "11PASS_0FAIL",
+      "reviewerRerun": false
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/final-opening-proof.tap",
+      "sha256": "0d4b0004cd7f3cdf0b86fda935ef7e9ee74e0a04b9bcf426642a2ad6010ad335",
+      "outcome": "38PASS_0FAIL",
+      "reviewerRerun": false
+    }
+  ],
+  "fixtureOverlay": {
+    "path": "test/stage6-linux-service-ready.mjs",
+    "sha256": "af737b3ae5075e551f059e390bcad524b59b8741e02e474a7f11ff5eb0b32250",
+    "frozenRuntimeCommit": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+    "status": "READ_ONLY_REVIEW_GO_TEST_ONLY_WORKING_HASH",
+    "changes": [
+      "DRAIN triggerSource equals the authenticated finalized SYNC parent triggerSource.",
+      "Optional synthetic finalized-parent selector reads only original canonical_request_json; original signed HTTP immutable replay supplies handoff through all original runtime gates.",
+      "Fresh synthetic Telegram update ID prevents ordinary retained replay from being mislabeled a new request."
+    ],
+    "authority": "Original release/config/source/TTL/currentness/HMAC gates remain in requireSyncHandoff; no grant counter, source cursor, lease, receipt or persisted parent rewrite."
+  },
+  "focusedServiceEvidence": {
+    "frozen2382": {
+      "path": "/private/tmp/stage6-service-ready-20261015/final-service-focused.tap",
+      "sha256": "480fa52f83edc5f7a78e09cbbc909a8673ede004a4bb79d3f655951bf982b327",
+      "tap": "0PASS_1FAIL",
+      "terminalSync": {
+        "legs": 3,
+        "workerDurationMs": [
+          103122.361338,
+          101422.29342100001,
+          86886.398915
+        ],
+        "state": "FINALIZED_SUCCESS",
+        "fourUsers": true,
+        "additionalNewRequestDurationMs": 82020.534912
+      },
+      "drain": {
+        "status": 202,
+        "body": {
+          "ok": false,
+          "error": "SYNC_HANDOFF_REJECTED",
+          "resumable": true
+        }
+      },
+      "triggerMismatch": "manual DRAIN referenced cloudflare SYNC; original runtime correctly rejected handoff before worker admission.",
+      "counts": {
+        "httpRequests": 2863,
+        "submittedSqlStatements": 4236,
+        "observedExecutedSqlStatements": 4235
+      },
+      "transactionOutcomes": {
+        "COMMITTED": 287,
+        "ROLLED_BACK": 36
+      },
+      "syncWindows": {
+        "count": 5,
+        "maxMs": 3925
+      },
+      "allCommittedTransactionMaxMs": 4275,
+      "morning": {
+        "cumulativeDelivered": 4,
+        "deliveryAttemptsEach": 1,
+        "alreadyDeliveredAtRunStart": 3,
+        "newDeliveries": 1
+      },
+      "canonicalWritersDuringDrain": 0,
+      "overlapQualification": "CONTROL_AND_THROTTLED_TRAFFIC_ONLY",
+      "cgroupPeakBytes": 178044928,
+      "oomKills": 0,
+      "health": {
+        "success": 1535,
+        "total": 1535,
+        "maxMs": 136.68416699999943
+      },
+      "afterCleanupScopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 14,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      }
+    },
+    "matchedParentOverlay": {
+      "path": "/private/tmp/stage6-service-ready-20261015/matched-parent-focused.tap",
+      "sha256": "1ce216a686dc8340e1bdff3e7f8f1abb0734b0242fc63200d7d7b7d5467881e0",
+      "runtimeCommit": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+      "testOverlaySha256": "af737b3ae5075e551f059e390bcad524b59b8741e02e474a7f11ff5eb0b32250",
+      "tap": "0PASS_1FAIL",
+      "drain": {
+        "status": 503,
+        "body": {
+          "ok": false,
+          "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+          "resumable": true
+        }
+      },
+      "drainMs": 23266.267135,
+      "childLastFailure": {
+        "code": "COMMIT_INDETERMINATE",
+        "stage": "PUBLICATION"
+      },
+      "childAfterCleanupScopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 18,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "canonicalWritersDuringDrain": 0,
+      "overlapQualification": "CONTROL_AND_THROTTLED_TRAFFIC_ONLY",
+      "morning": {
+        "alreadyDeliveredAtRunStart": 4,
+        "newDeliveries": 0
+      },
+      "note": "Publication indeterminate failure withheld positive completion; no DRAIN/full-service PASS and no inference of durable item progress without reconciliation."
+    }
+  },
+  "diagnosticTraceDelta": {
+    "path": "test/stage6-sqld-proxy.mjs",
+    "sha256": "fcb397dedd5e6f7274ee3dfa377c587c7db7974eaa264d58d798275969412527",
+    "status": "READ_ONLY_STATIC_REVIEW_GO",
+    "changes": "Retains unchanged SQL/body/result forwarding and115ms transport; only sanitizes diagnostics into original step index, verb/table/template hash, constant assertion label, reason category and error-message digest. No error message contents or SQL arguments retained.",
+    "exactFailedPublicationGuard": {
+      "batchStep": 34,
+      "table": "evidence_items",
+      "template": "9b33bf89b4604da9fd0b4abbc5815d51148c175a723b8e5ed497bf214d7ce667",
+      "assertionLabel": "SHORT_TRANSACTION_CONDITION_REJECTED",
+      "reason": "JSON_ASSERTION_REJECTED",
+      "code": "SQLITE_UNKNOWN",
+      "kind": "ROW_EXISTS_NOT_COUNT",
+      "columns": 35,
+      "rows": 17
+    },
+    "quiescentComparator": "COMPLETED_REJECTED_772MS_NO_CONCURRENT_HOLDERS_REPORTED"
+  },
+  "upstreamAssertionControl": {
+    "source": "test/stage6-sqld-assertion-control.mjs",
+    "sourceSha256": "812016a5e5e9d87dd4d31f92993bf3541e935371c7d7598a379cbc3463600922",
+    "tap": "/private/tmp/stage6-service-ready-20261015/assertion-control.tap",
+    "tapSha256": "2ab01befdbae4a498b2ce3f764f3d11ec875aa6dd0928d2c2f76b5aabf6cd751",
+    "outcome": "1PASS_0FAIL",
+    "proved": [
+      "SELECT-only json() malformedJSON guard reports SQLITE_UNKNOWN on pinned upstream.",
+      "A subsequent client.execute SELECT43 succeeds.",
+      "No application writes or test permits used."
+    ],
+    "notProved": [
+      "Original batch rollback from this SELECT-only control alone.",
+      "Reuse of the original physical transaction.",
+      "That the3801-statement publication failed the same guard/cause; exact statement requires new sanitized trace."
+    ],
+    "wordingClarificationReportedToPrimary": "RESOLVED: title now classifies assertion and keeps client usable; telemetry clientUsableAfterError:true,rollbackIndependentlyProven:false.",
+    "finalSourceSha256": "812016a5e5e9d87dd4d31f92993bf3541e935371c7d7598a379cbc3463600922",
+    "finalTap": "/private/tmp/stage6-service-ready-20261015/assertion-control-final.tap",
+    "finalTapSha256": "9f817f13cf940ed9aa086b74842fac8cc2abce37d94393d2f9b9f9c95cb166e7",
+    "finalOutcome": "1PASS_0FAIL"
+  },
+  "publicationFailureReadOnlyConfirmed": {
+    "path": "/private/tmp/stage6-service-ready-20261015/matched-parent-focused.tap",
+    "sha256": "1ce216a686dc8340e1bdff3e7f8f1abb0734b0242fc63200d7d7b7d5467881e0",
+    "outcome": "ROLLED_BACK",
+    "durationMs": 1142,
+    "httpOperations": 1,
+    "submittedStatements": 3801,
+    "code": "SQLITE_UNKNOWN",
+    "specificCause": "UNRESOLVED",
+    "scope": "No productive DRAIN acceptance from the failed batch; transaction trace is evidence of rollback, independently of SELECT-only control."
+  },
+  "originalRequestReconciliation": {
+    "path": "/private/tmp/stage6-service-ready-20261015/original-reconciliation-exact.log",
+    "sha256": "ea21ebf842efdb781ff29dc4c8ca903319d62dbec920c3f0775fcea9fa136d70",
+    "requestId": "cbf4c45a-2770-4dc6-b8f6-fbfa78103e76",
+    "releaseSha": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+    "originalBodyIdentityMatching": "PRIMARY_REPORTED_EXACT_ORIGINAL_BODY_DIGEST; original request result identity retained by normal runtime gates",
+    "resultIdentity": "ee391289c94eb7494414ae38e8f741a037a6c83e3e9153f7e12eac92c67116c5",
+    "before": {
+      "state": "ESTABLISHED",
+      "observedOutcome": "COMMIT_INDETERMINATE",
+      "receiptCount": 1
+    },
+    "afterState": "FINALIZED_SUCCESS",
+    "status": 200,
+    "outcome": "PARTIAL",
+    "stopReason": "RECONCILIATION_ONLY",
+    "workReceipts": 1,
+    "itemsProcessed": 0,
+    "jobsCompleted": 0,
+    "permitUnchanged": true,
+    "permitAttemptsPrimaryReported": 7,
+    "jobsUnchanged": true,
+    "receiptsUnchanged": true,
+    "cleanupScopes": {
+      "created": 1,
+      "retired": 1,
+      "disabled": 7,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "qualification": "RECEIPT_ONLY_RECOVERY_PASS_NOT_ITEM_PROGRESS_OR_CAPACITY_PASS"
+  },
+  "quiescentPublication": {
+    "path": "/private/tmp/stage6-service-ready-20261015/quiescent-provider-summary.json",
+    "sha256": "933127cbf63dd635bb6146534732496ba61848f668fd0c60ef13464b66d6936d",
+    "configuration": {
+      "backend": "upstream-sqld-v0.24.33",
+      "latencyMs": 115,
+      "qualificationTransactionThresholdMs": 5000,
+      "actualSelfHostedTransactionLimitMs": null,
+      "productionTransactionLimit": "UNKNOWN",
+      "retries": 0
+    },
+    "counts": {
+      "httpRequests": 145,
+      "submittedSqlStatements": 4364,
+      "observedExecutedSqlStatements": 589
+    },
+    "outcome": "ROLLED_BACK",
+    "durationMs": 772,
+    "httpOperations": 1,
+    "submittedStatements": 3802,
+    "error": {
+      "event": "sql_error",
+      "code": "SQLITE_UNKNOWN",
+      "connectionId": "b8b64596-75e8-4acb-b5cf-49150964e61f",
+      "role": "drain-child",
+      "at": 1792031618369,
+      "batchStep": 34,
+      "statement": {
+        "verb": "SELECT",
+        "table": "evidence_items",
+        "template": "9b33bf89b4604da9fd0b4abbc5815d51148c175a723b8e5ed497bf214d7ce667",
+        "assertionLabel": "SHORT_TRANSACTION_CONDITION_REJECTED"
+      },
+      "reason": "JSON_ASSERTION_REJECTED",
+      "messageDigest": "3737c16f305f2e687abe8fd1ce1fdce23c87e47ef3cb28e9f1c76365964fce0e",
+      "holders": []
+    },
+    "note": "No inference that3802 submitted statements all executed; observed SQL count remains589 across this complete trace."
+  },
+  "exactScalarBlocker": {
+    "status": "CONFIRMED_ON_ISOLATED_PINNED_SQLD_0_24_33_HTTP_ROUTE",
+    "guardEcho": {
+      "path": "/private/tmp/stage6-service-ready-20261015/guard-echo-corrected.log",
+      "sha256": "f34bb0b3a9a8c787bb56dd42f3a0112124a4c5e8d05df144db6ca971887bec6a",
+      "helper": "/private/tmp/stage6-service-ready-20261015/guard-echo.mjs",
+      "helperSha256": "b3bfe6bcf040f9529d363c0e3aec82b0c6a93713bdadf27a2338dd49c6b6cdeb",
+      "readOnly": true,
+      "rows": 17,
+      "rejectedRows": 4,
+      "onlyRejectedColumn": "recency_weight"
+    },
+    "literalReproduction": {
+      "source": "test/stage6-sqld-floating-repro.mjs",
+      "sourceSha256": "318402bf2411b38055d25dde64f901bd11b2ea4125faacae97ea23c642b01c63",
+      "tap": "/private/tmp/stage6-service-ready-20261015/floating-repro.tap",
+      "tapSha256": "b9ee829477eb593110b79a7081ef4a6ccec26f19d1af9fbd1402f50984b1802f",
+      "publicLiteral": "0.9048374180359595",
+      "test": "Read SELECT constant then bind returned value into same constant IS ?",
+      "native": "PASS_EQUALITY1",
+      "pinnedHttp": "FAIL_EQUALITY0",
+      "aggregate": "1PASS_1FAIL_KNOWN_BLOCKER_RETAINED",
+      "applicationWrites": 0,
+      "grants": 0,
+      "healthValues": 0,
+      "reviewerRerun": false
+    },
+    "meaning": "Exact remote snapshot row equality can reject an unchanged REAL after the pinned read/bind transport round trip. The independent public literal establishes a transport/representation compatibility blocker apart from calculation or concurrent writers.",
+    "notEstablished": [
+      "Which codec/direction changes scalar representation.",
+      "Equivalent behavior on managed ProductionTurso or other versions.",
+      "Any need for schema migration or a larger budget."
+    ],
+    "nextWorkBoundary": "A separately authorized exact scalar representation/round-trip compatibility correction must preserve original typed tenant/rowset/authority comparisons, HMACs and atomic publication. No epsilon, rounding authority, omitted column, guard skip or schema relaxation accepted."
+  },
+  "quiescentRequestReconciliation": {
+    "path": "/private/tmp/stage6-service-ready-20261015/quiescent-reconciliation.log",
+    "sha256": "0b1f0e47b45e04b0b10fb74118e8f91aaf3b40c0c43cbf19128d13ee8b403490",
+    "requestId": "67b2b383-cfe9-4e87-b373-80bccd54643c",
+    "releaseSha": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+    "status": 200,
+    "finalState": "FINALIZED_SUCCESS",
+    "outcome": "PARTIAL",
+    "stopReason": "RECONCILIATION_ONLY",
+    "workReceipts": 1,
+    "itemsProcessed": 0,
+    "jobsCompleted": 0,
+    "permitUnchanged": true,
+    "permitAttemptsPrimaryReported": 8,
+    "jobsUnchanged": true,
+    "receiptsUnchanged": true,
+    "cleanupScopes": {
+      "created": 1,
+      "retired": 1,
+      "disabled": 7,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "qualification": "RECEIPT_ONLY_RECOVERY_PASS_NOT_PROGRESS"
+  }
+}

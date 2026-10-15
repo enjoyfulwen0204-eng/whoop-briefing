@@ -6,7 +6,7 @@ import {writeFile} from 'node:fs/promises';
 const streams=new Map(),transactions=[],evidence=[],probes=[];
 const counts={httpRequests:0,submittedSqlStatements:0,observedExecutedSqlStatements:0},configuration={backend:'upstream-sqld-v0.24.33',latencyMs:115,qualificationTransactionThresholdMs:5000,actualSelfHostedTransactionLimitMs:null,productionTransactionLimit:'UNKNOWN',retries:0};
 let probeActive=false,probePromise;
-const label=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex'),...(sql.includes("ELSE 'SYNC_IMMUTABLE_AUTHORITY_CHANGED'")?{operation:'SYNC_COMMIT_WINDOW_AUTHORITY_ASSERTION'}:{})});
+const label=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex'),assertionLabel:/ELSE '([A-Z0-9_]+)'/.exec(sql)?.[1],...(sql.includes("ELSE 'SYNC_IMMUTABLE_AUTHORITY_CHANGED'")?{operation:'SYNC_COMMIT_WINDOW_AUTHORITY_ASSERTION'}:{})});
 const safe=()=>({providerConfiguration:configuration,transactionTraceEnabled:true,counts,evidence,probes,transactions,morningTransactions:transactions});
 const server=createServer(async(req,res)=>{try{
  if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify(safe()));return;}
@@ -22,7 +22,7 @@ const server=createServer(async(req,res)=>{try{
  for(let i=0;i<body.requests.length;i++){
   const request=body.requests[i],r=result.results?.[i],statements=labels[i]??[];
   const errors=r?.type==='error'?[r.error]:r?.response?.result?.step_errors??[];
-  for(const error of errors.filter(Boolean))evidence.push({event:'sql_error',code:error.code,connectionId:stream.id,role:stream.role,at:finishedAt,statements,holders:[...new Set(streams.values())].filter(s=>s!==stream&&s.tx).map(s=>({connectionId:s.id,role:s.role,transactionId:s.tx.id,ageMs:submittedAt-s.tx.startedAt,last:s.tx.statements.at(-1)}))});
+  for(const [step,error] of errors.entries()){if(!error)continue;const reason=/malformed json/i.test(error.message??'')?'JSON_ASSERTION_REJECTED':/locked|busy/i.test(error.message??'')?'LOCK':/too many|limit/i.test(error.message??'')?'ENGINE_LIMIT':/syntax|no such/i.test(error.message??'')?'SQL_CONTRACT':'OTHER';evidence.push({event:'sql_error',code:error.code,connectionId:stream.id,role:stream.role,at:finishedAt,batchStep:step,statement:statements[step],reason,messageDigest:createHash('sha256').update(error.message??'').digest('hex'),holders:[...new Set(streams.values())].filter(s=>s!==stream&&s.tx).map(s=>({connectionId:s.id,role:s.role,transactionId:s.tx.id,ageMs:submittedAt-s.tx.startedAt,last:s.tx.statements.at(-1)}))});}
   for(let j=0;j<statements.length;j++){
    const s=statements[j],successful=r?.type==='ok'&&(request.type==='execute'||r.response?.result?.step_results?.[j]!=null);
    if(s.verb==='BEGIN'&&successful)stream.tx={id:randomUUID(),connectionId:stream.id,role:stream.role,startedAt:submittedAt,beginAcknowledgedAt:finishedAt,sqlOperations:0,http:new Set(),statements:[]};

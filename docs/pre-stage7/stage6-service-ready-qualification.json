@@ -1,0 +1,616 @@
+{
+  "status": "STAGE6_SERVICE_READY_SHARED_DB_QUALIFICATION_PARTIAL",
+  "recordedAtUTC": "2026-10-15T02:41:00Z",
+  "baseline": {
+    "head": "2055244a352c826df5216bf5b80b3684770b96f6",
+    "tree": "c1816911be3821834c612915fdeb34a9999ff418",
+    "baselineAnd9770553AreAncestors": true
+  },
+  "qualificationIdentity": {
+    "runtimeCommit": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+    "runtimeTree": "60f9a9d3c4804f56e63122ac824dd4c49986ff0d",
+    "productionSourceChangeCommit": "2e5d8ea531b40b8744663033bc59d0e865b20ac2",
+    "sourceHashes": {
+      "src/reconcile.js": "fea6a1d6fc312e5df200b7aac62c51dc6a0aa94a5cad652ccc73607954505041",
+      "src/reconciliationStore.js": "d591cb4a92d88011d9ad04946828f0a606f688e4d71be7ef07f0e6f8110e934e"
+    },
+    "matchedFixtureSha256": "af737b3ae5075e551f059e390bcad524b59b8741e02e474a7f11ff5eb0b32250",
+    "freezeNote": "Successor commit contains only final test fixtures, sanitized tracing and qualification evidence. Frozen runtime was not replaced with a new release identity during replay."
+  },
+  "serviceReadiness": {
+    "verdict": "PASS_LOCAL_SYNTHETIC",
+    "construction": "Authenticated private Telegram link enrollment + one-use code + WHOOP OAuth state/identity + capability access + original setReadyIfEligible + notification preference CAS. Synthetic network stubs only; no actual Telegram delivery. No direct forced READY.",
+    "evidence": {
+      "synthetic": true,
+      "production": false,
+      "identities": [
+        {
+          "id": "a",
+          "chatId": "1000",
+          "whoopId": "1",
+          "lifecycleGeneration": 1,
+          "authGeneration": 2,
+          "ready": true,
+          "notificationDestinationVerified": true
+        },
+        {
+          "id": "alice",
+          "chatId": "1001",
+          "whoopId": "2001",
+          "lifecycleGeneration": 1,
+          "authGeneration": 1,
+          "ready": true,
+          "notificationDestinationVerified": true
+        },
+        {
+          "id": "bob",
+          "chatId": "1002",
+          "whoopId": "2002",
+          "lifecycleGeneration": 1,
+          "authGeneration": 1,
+          "ready": true,
+          "notificationDestinationVerified": true
+        },
+        {
+          "id": "lan",
+          "chatId": "1003",
+          "whoopId": "2003",
+          "lifecycleGeneration": 1,
+          "authGeneration": 1,
+          "ready": true,
+          "notificationDestinationVerified": true
+        }
+      ],
+      "authExchangeCalls": 4,
+      "journalBefore": "wal",
+      "journalAfter": "wal",
+      "busyTimeoutMs": 0,
+      "beforeJobs": [
+        {
+          "job_kind": "RECOMPUTE_DERIVED",
+          "requested_generation": 8,
+          "completed_generation": 0,
+          "scope_revision": 7,
+          "full_scan_cursor": "[\"sleep\",\"sleep-01\"]"
+        },
+        {
+          "job_kind": "REPAIR_CURRENTNESS",
+          "requested_generation": 8,
+          "completed_generation": 0,
+          "scope_revision": 7,
+          "full_scan_cursor": "[\"sleep\",\"sleep-00\"]"
+        }
+      ],
+      "afterJobs": [
+        {
+          "job_kind": "RECOMPUTE_DERIVED",
+          "requested_generation": 11,
+          "completed_generation": 0,
+          "scope_revision": 10,
+          "full_scan_cursor": null
+        },
+        {
+          "job_kind": "REPAIR_CURRENTNESS",
+          "requested_generation": 11,
+          "completed_generation": 0,
+          "scope_revision": 10,
+          "full_scan_cursor": null
+        }
+      ],
+      "preservedReceiptCount": 19,
+      "preservedReceiptDigest": "14947fa8c18e7cdb2d0ef3af5becf5e168e30089ec5ac29e0e0f9978240bab36",
+      "historicalHmacVerified": 19,
+      "staleCurrentReadRejected": true,
+      "crossTenantReceiptRejected": true,
+      "tamperedReceiptRejected": true
+    }
+  },
+  "checkpointAuthority": {
+    "verdict": "PASS_INVALIDATION_NOT_CURSOR_COPY",
+    "before": [
+      {
+        "job_kind": "RECOMPUTE_DERIVED",
+        "requested_generation": 8,
+        "completed_generation": 0,
+        "scope_revision": 7,
+        "full_scan_cursor": "[\"sleep\",\"sleep-01\"]"
+      },
+      {
+        "job_kind": "REPAIR_CURRENTNESS",
+        "requested_generation": 8,
+        "completed_generation": 0,
+        "scope_revision": 7,
+        "full_scan_cursor": "[\"sleep\",\"sleep-00\"]"
+      }
+    ],
+    "afterEnrollment": [
+      {
+        "job_kind": "RECOMPUTE_DERIVED",
+        "requested_generation": 11,
+        "completed_generation": 0,
+        "scope_revision": 10,
+        "full_scan_cursor": null
+      },
+      {
+        "job_kind": "REPAIR_CURRENTNESS",
+        "requested_generation": 11,
+        "completed_generation": 0,
+        "scope_revision": 10,
+        "full_scan_cursor": null
+      }
+    ],
+    "historicalReceipts": 19,
+    "hmacVerified": 19,
+    "immutableReceiptDigest": "14947fa8c18e7cdb2d0ef3af5becf5e168e30089ec5ac29e0e0f9978240bab36",
+    "oldCurrentnessRead": "PHASE4_PARENT_STALE",
+    "explanation": "Legitimate new auth generation invalidates old currentness and clears prior cursor via original reconciliation. Old HMAC-valid receipts retained as history, never promoted to the successor generation. After real SYNC a jobs generation17/scope16/completed0/cursorNULL."
+  },
+  "sqliteBusy": {
+    "before": 24,
+    "beforeBreakdown": {
+      "BEGIN_IMMEDIATE": 20,
+      "telegram_processed_updates conditional dispatch UPDATE": 1,
+      "phase4 coordination lease release DELETE": 1,
+      "phase4_executions COMMIT_INDETERMINATE observation UPDATE": 1,
+      "parent/preparation exact-owner lease release DELETE": 1
+    },
+    "rootCause": "Native isolated Hrana shim uses independent SQLite connections with busy_timeout=0; overlapping writers immediately fail. Existing physical DB was already WAL. WAL does not allow concurrent writers. No application-wide serialization or unlimited retries added. Unmodified pinned upstream libSQL server handles writer wait asynchronously.",
+    "lockEvidence": "20 rejected BEGIN observations overlap eight recorded active transaction IDs. Historic trace lacks connection role/exact holder for four autocommit errors; do not infer those identities. New native control records connection/role/BEGIN and current writer.",
+    "afterOfficialServer": 0,
+    "afterIncludesFailedPublication": true,
+    "productionRelevance": "SQLite single-writer contention is relevant, but zero-wait native-fixture behavior is not proof of Production Turso SQLITE_BUSY behavior. Production server version/transaction limit unknown."
+  },
+  "runtimeCorrection": {
+    "scope": "Only bounded owned absence-diagnostic inserts in existing reconciliation transaction, at most32 per HTTP batch. Fresh original reconciliation lease check before/after/beforeCommit; same canonical/provenance/generation/receipt/cursor and original rollback/lost-ACK semantics. Non-durable path retains per-row behavior.",
+    "oldNative": {
+      "http": 39,
+      "sql": 44,
+      "transactionMs": 4499,
+      "totalMs": 7928.7
+    },
+    "oldOfficial": {
+      "http": 39,
+      "sql": 44,
+      "transactionMs": 5236,
+      "ackToCommitMs": 5213
+    },
+    "newFinalNative": {
+      "http": 11,
+      "sql": 47,
+      "transactionMs": 1237,
+      "totalMs": 4801.59,
+      "durableDiagnosticRows": 32,
+      "namedReceipts": 1
+    },
+    "securityReview": "Independent lease-expiry finding fixed before final evidence; no retained P0/P1.",
+    "newOfficialObservedTransactions": []
+  },
+  "physicalDB": {
+    "verdict": "FAIL_PRODUCTIVE_DRAIN_GATE",
+    "backend": "Official unmodified libSQL sqld v0.24.33, sha256:f8ca0134cdded747793888e48591aece07647d9d598d3ac229aabfa93159ca88",
+    "transport": "115ms delay, no SQL rewrite/retries; one DB for service parent + child + webhook + dispatch",
+    "actualProductionTransactionLimit": "UNKNOWN",
+    "retainedModeledDeadlineMs": 5000,
+    "modelCaveat": "Native adversarial fixture enforces5s. Unmodified upstream control remains active after5.1s idle, so service traces are measured against5s acceptance threshold, not represented as an enforced upstream/Production limit.",
+    "finalSyncWindowTiming": {
+      "count": 5,
+      "p50Ms": 3870,
+      "p95Ms": 3925,
+      "maxMs": 3925
+    },
+    "allCommittedTransactionMaxMs": 4275,
+    "finalSyncCounts": {
+      "httpRequests": 2863,
+      "submittedSqlStatements": 4236,
+      "observedExecutedSqlStatements": 4235
+    },
+    "matchedCounts": {
+      "httpRequests": 859,
+      "submittedSqlStatements": 5345,
+      "observedExecutedSqlStatements": 1572
+    },
+    "countSemantics": "Submitted SQL includes conditional batch steps skipped after failed guard; observedExecutedSqlStatements counts acknowledged successful results only, not all attempted execution."
+  },
+  "actualSync": {
+    "verdict": "PASS_FOCUSED_RETAINED_FOUR_TENANT",
+    "resultIdentity": "1678c93281e25e47e34caca17fb621e38b57eba8136f1362965b2247b2c9304e",
+    "state": "FINALIZED_SUCCESS",
+    "http": 200,
+    "fourUsersFailed": 0,
+    "legDurationMs": [
+      103122.361338,
+      101422.293421,
+      86886.398915
+    ],
+    "totalElapsedMs": 295008.42,
+    "continuation": "Same original request, original bounded application budgets, authenticated immutable terminal replay. HTTP202 was not counted as finalization.",
+    "subsequentFreshSync": {
+      "requestId": "p4s1_887c2061-a41d-4b57-bd00-03b38e31db12",
+      "state": "FINALIZED_SUCCESS",
+      "status": 200,
+      "workMs": 87513.724,
+      "elapsedMs": 89494.769
+    }
+  },
+  "morningWebhook": {
+    "focusedVerdict": "PASS_LIMITED_RETAINED_WORKLOAD",
+    "webhook": 200,
+    "replay": 200,
+    "freshWebhook": 200,
+    "freshReplay": 200,
+    "morningCumulativeDelivered": 4,
+    "attemptsEach": 1,
+    "newMorningDeliveriesFrozenRun": 1,
+    "newMorningDeliveriesMatchedRun": 0,
+    "realTelegramDeliveries": 0,
+    "concurrentCanonicalWritersDuringDrain": 0,
+    "overlapVerdict": "CONTROL_AND_THROTTLED_TRAFFIC_ONLY_NOT_SUSTAINED_CANONICAL_CONCURRENCY_PASS",
+    "maxUserConcurrency": 1,
+    "productionDefaultConcurrencyQualified": false
+  },
+  "publicationBlocker": {
+    "verdict": "REPRODUCED_STOP_CONDITION",
+    "matched": {
+      "durationMs": 23266.267135,
+      "publicationMs": 1142,
+      "submittedStatements": 3801,
+      "http": 1,
+      "outcome": "ROLLED_BACK",
+      "response": 503
+    },
+    "quiescent": {
+      "durationMs": 23937.887302,
+      "publicationMs": 772,
+      "submittedStatements": 3802,
+      "http": 1,
+      "outcome": "ROLLED_BACK",
+      "concurrentWriters": false,
+      "response": 503
+    },
+    "exactGuard": {
+      "event": "sql_error",
+      "code": "SQLITE_UNKNOWN",
+      "connectionId": "b8b64596-75e8-4acb-b5cf-49150964e61f",
+      "role": "drain-child",
+      "at": 1792031618369,
+      "batchStep": 34,
+      "statement": {
+        "verb": "SELECT",
+        "table": "evidence_items",
+        "template": "9b33bf89b4604da9fd0b4abbc5815d51148c175a723b8e5ed497bf214d7ce667",
+        "assertionLabel": "SHORT_TRANSACTION_CONDITION_REJECTED"
+      },
+      "reason": "JSON_ASSERTION_REJECTED",
+      "messageDigest": "3737c16f305f2e687abe8fd1ce1fdce23c87e47ef3cb28e9f1c76365964fce0e",
+      "holders": []
+    },
+    "guardType": "ROW_EXISTS_EQUALITY_NOT_COUNT;35columns/17rows",
+    "readOnlyEcho": {
+      "rows": 17,
+      "rejected": 4,
+      "onlyColumn": "recency_weight",
+      "applicationWrites": 0
+    },
+    "minimalPublicRepro": {
+      "literal": "0.9048374180359595",
+      "nativeExactReadBindIS": "PASS",
+      "httpExactReadBindIS": "FAIL_0_NOT_1",
+      "nineLiteralControlRejected": 1,
+      "applicationWrites": 0
+    },
+    "cause": "Pinned HTTP/Hrana REAL value round trip fails exact snapshot equality for unchanged floating-point values. This is independent of calculation, transaction timeout and concurrent writers. Precise decoder/encoder component and Production equivalence are not yet established.",
+    "errorClassification": "Guard json(false-label) reports SQLITE_UNKNOWN; runtime conservatively returns COMMIT_INDETERMINATE and supervisor503. No false completion.",
+    "durableCalculationProgress": 0,
+    "currentCursorAdvance": 0,
+    "newSchemaRequired": "NOT_DEMONSTRATED",
+    "smallestNextCorrection": "Isolate incoming/outgoing REAL representation against the supported driver/server contract. Preserve original exact IEEE value or authenticated exact server representation BOTH when importing RAM calculation data AND when freshly validating publication; accepting a guard over already rounded calculation data is insufficient. No epsilon comparisons, rounding health/HMAC data, skipped guards or blanket SQLITE_UNKNOWN classification. First pass public scalar native/HTTP equality and algorithm equivalence, then one bounded publication retry. No new ledger or schema requirement is demonstrated."
+  },
+  "receiptOnlyRecovery": {
+    "verdict": "PASS_NOT_COMPUTATION_COMPLETION",
+    "requests": [
+      {
+        "id": "cbf4c45a-2770-4dc6-b8f6-fbfa78103e76",
+        "elapsedMs": 6357.792670000001,
+        "before": {
+          "state": "ESTABLISHED",
+          "observedOutcome": "COMMIT_INDETERMINATE",
+          "receiptCount": 1
+        },
+        "result": {
+          "status": 200,
+          "body": {
+            "ok": true,
+            "phase": "STAGE6_DRAIN",
+            "source": "cloudflare",
+            "result": {
+              "version": 2,
+              "releaseSha": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+              "phase": "STAGE6_DRAIN",
+              "source": "cloudflare",
+              "outcome": "PARTIAL",
+              "workReceipts": 1,
+              "jobsConsidered": 0,
+              "itemsAttempted": 0,
+              "itemsProcessed": 0,
+              "jobsCompleted": 0,
+              "identity": "ee391289c94eb7494414ae38e8f741a037a6c83e3e9153f7e12eac92c67116c5",
+              "configProof": "4536edfa626dab1f3f795b56a348f8561b057fd6a32f4faf2992b66b1b1f67b5",
+              "completion": "PARTIAL",
+              "stopReason": "RECONCILIATION_ONLY",
+              "executionMode": "SHADOW",
+              "finishedAt": 1792031492251,
+              "executionSeq": 95,
+              "settlementState": "FINALIZED_SUCCESS",
+              "finalizedAt": 1792031493008
+            },
+            "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+          }
+        },
+        "permitUnchanged": true,
+        "jobsUnchanged": true,
+        "receiptsUnchanged": true
+      },
+      {
+        "id": "67b2b383-cfe9-4e87-b373-80bccd54643c",
+        "elapsedMs": 6723.157502,
+        "before": {
+          "state": "ESTABLISHED",
+          "observedOutcome": "COMMIT_INDETERMINATE",
+          "receiptCount": 1
+        },
+        "result": {
+          "status": 200,
+          "body": {
+            "ok": true,
+            "phase": "STAGE6_DRAIN",
+            "source": "cloudflare",
+            "result": {
+              "version": 2,
+              "releaseSha": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76",
+              "phase": "STAGE6_DRAIN",
+              "source": "cloudflare",
+              "outcome": "PARTIAL",
+              "workReceipts": 1,
+              "jobsConsidered": 0,
+              "itemsAttempted": 0,
+              "itemsProcessed": 0,
+              "jobsCompleted": 0,
+              "identity": "903bb802d1a87e0b4f3e85e97ee1e5dd9c57a236fd7af4424cc838b6ffda9e9a",
+              "configProof": "4536edfa626dab1f3f795b56a348f8561b057fd6a32f4faf2992b66b1b1f67b5",
+              "completion": "PARTIAL",
+              "stopReason": "RECONCILIATION_ONLY",
+              "executionMode": "SHADOW",
+              "finishedAt": 1792031738932,
+              "executionSeq": 96,
+              "settlementState": "FINALIZED_SUCCESS",
+              "finalizedAt": 1792031739634
+            },
+            "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+          }
+        },
+        "permitUnchanged": true,
+        "jobsUnchanged": true,
+        "receiptsUnchanged": true
+      }
+    ],
+    "localPermitAttempts": {
+      "before": 6,
+      "afterMatched": 7,
+      "afterQuiescent": 8,
+      "cap": 12,
+      "reset": false,
+      "additionalAttemptsDuringReconciliation": 0
+    },
+    "note": "Each failure left one admission/reservation receipt, not a calculation receipt. Original body digest/release/authority required; both existing requests finalized PARTIAL/RECONCILIATION_ONLY, zero items/jobs, no new receipt/cursor/permit."
+  },
+  "monitoredSixJobs": {
+    "verdict": "NOT_RUN_FOCUSED_GATE_FAILED",
+    "newMonitoredJobsCompleted": 0,
+    "priorAlgorithmOnlySixOfSix": "REUSED_UNCHANGED_NOT_COUNTED_AS_MONITORED",
+    "manualCompletionOrCursorCopy": false
+  },
+  "linux": {
+    "node": "22.23.2",
+    "os": "Debian bookworm-slim arm64 Docker Linux",
+    "resourceLimits": {
+      "memoryMax": 2147483648,
+      "swapMax": "0",
+      "cpuMax": "100000 100000",
+      "heapLimit": 106954752
+    },
+    "cgroupPeakBytes": 264617984,
+    "cgroupPeakMiB": 252.359375,
+    "headroomPercent": 87.67776489257812,
+    "oomKills": 0,
+    "matchedParentEventLoop": {
+      "maxMs": 89.522175,
+      "p99Ms": 30.081023
+    },
+    "matchedChildEventLoop": {
+      "maxMs": 868.220927,
+      "p99Ms": 61.669375
+    },
+    "cgroupCpuUseMs": 11290.212,
+    "cgroupThrottleMs": 1061.122,
+    "health": {
+      "matched": 415,
+      "matchedMaxMs": 16.90166600000157,
+      "earlierSync": 1535,
+      "earlierSyncMaxMs": 136.68416699999943
+    },
+    "childProcessPeaks": {
+      "rss": 209436672,
+      "heapUsed": 80442424,
+      "external": 19423905,
+      "arrayBuffers": 15577370
+    },
+    "childGC": {
+      "count": 147,
+      "totalMs": 193.65871300548315,
+      "maxMs": 23.358249999582767
+    },
+    "parentAfterCleanup": {
+      "created": 2,
+      "retired": 2,
+      "disabled": 14,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "childAfterCleanup": {
+      "created": 2,
+      "retired": 2,
+      "disabled": 18,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "scope": "Whole app cgroup includes npm/sh/parent/child; DB/proxy external analogous to remote DB. Limited failed-publication workload, not sustained six-job or default concurrency acceptance. No manualGC. Production resource metadata not accessed or reverified this turn."
+  },
+  "childLifecycle": {
+    "unchangedBaselineEvidence": "PREP/CALC/PUBLISH/ACK disconnect controls and SIGTERM/SIGKILL process-group tests reused; no production lifecycle source changes.",
+    "newRun": "Supervisor reaped child, both parent and child live ALS scopes/receivers/callbacks0 aftercleanup; both failed requests reconciled safely.",
+    "fullServiceSIGKILLRequalification": "NOT_RUN_P3_GATE_NOT_MET",
+    "taskContainers": "STOPPED_ONLY_TASK_OWNED"
+  },
+  "tests": {
+    "focusedRuntimeUnique": {
+      "pass": 61,
+      "fail": 0,
+      "breakdown": "11diagnostic+38opening/authority+12settlement; overlapping prior19-case run not double-counted"
+    },
+    "serviceReady": {
+      "pass": 1,
+      "fail": 0
+    },
+    "nativeContention": {
+      "pass": 3,
+      "fail": 0
+    },
+    "upstreamLockCharacterization": {
+      "pass": 1,
+      "fail": 0
+    },
+    "upstreamAssertionClassification": {
+      "pass": 1,
+      "fail": 0
+    },
+    "floatingExactnessDiagnostic": {
+      "pass": 1,
+      "fail": 1,
+      "expected": "nativePASS/HTTPFAIL, intentional retained concrete blocker, not runtimePASS"
+    },
+    "fullServiceGates": {
+      "pass": 0,
+      "fail": 2,
+      "note": "First source-mismatched fixture rejected; corrected fixture failed publication. Short quiescent comparison also failed. No expensive six-job rerun."
+    }
+  },
+  "independentReview": {
+    "reviewer": "/root/independent_delta_review",
+    "scope": "One independent read-only delta reviewer; original reviews reused",
+    "deltaSafety": "GO_SCOPED_ONLY",
+    "fullRuntime": "NO_GO",
+    "artifact": "stage6-service-ready-review.json",
+    "sha256": "616826ee1d429b4e75b34343d9667171f748de27dbe028df48dd6a4270bc55ab"
+  },
+  "release": {
+    "stage6Runtime": "NO_GO",
+    "production": "NO_GO",
+    "schemaMigration": "NONE",
+    "stage7v33": "UNCHANGED",
+    "stage8v34": "UNCHANGED_MAIN_WORKTREE_CLEAN_899dff0",
+    "shadowLive": "SEPARATE_NO_PROMOTION",
+    "journalTenantLimit": "SEPARATE_UNRESOLVED_NOT_CAPACITY_COMPLETION",
+    "productionPermits": "EXHAUSTED12_OF12_UNTOUCHED",
+    "F02": "OWNER_ACCEPTED_RISK_UNCHANGED",
+    "productionOperations": 0,
+    "pushDeployPurchaseCredentialChanges": 0,
+    "prerequisites": [
+      "Resolve exact REAL transport equality with minimal fixture and focused independent acceptance.",
+      "Productive DRAIN + genuine signed calculation receipt/cursor; legitimate bounded monitored six-job convergence.",
+      "Actual service-composition termination/restart/replay and sustained sharedDB/default-concurrency Linux1CPU2GiB qualification.",
+      "Verify actual Render/Turso versions, resource and transaction limit read-only before release.",
+      "After local gates, explicit exact-SHA publication/deployment and any1c2g resource-purchase approval; independently authenticated LIVE producer authority. No reuse of exhausted pilot grants."
+    ],
+    "releasePolicy": "Direct Production + LIVE after full acceptance and release safety; no Owner pilot/PublicBeta gate added."
+  },
+  "evidenceReferences": [
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/readiness-final.json",
+      "sha256": "221b74bf1b652c6a1b61cbbc15fd59e05a4761eca4b125393238107f611f3067"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/historical-lock-classification.json",
+      "sha256": "4c32f0c2858e7cefd92ab198ddbc767dfe23d70180e198e2f0b1e8144c519754"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/focused-native-final.tap",
+      "sha256": "3c4a58987a48c58358b2063b8968b2161711e6d2b546ae7ea6ddf4d4f3f847a9"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/contention-final.tap",
+      "sha256": "ef67c8688de7351de1b40a7580acac3468224aa47ce2d2811fd0de412f94bd68"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/diagnostic-accepted.tap",
+      "sha256": "b13458b5c9e6eb181693bfeb836654d0bfdb4e9f94f16b95edc44846c7cf7b16"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/final-opening-proof.tap",
+      "sha256": "0d4b0004cd7f3cdf0b86fda935ef7e9ee74e0a04b9bcf426642a2ad6010ad335"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/diagnostic-lease-corrected.tap",
+      "sha256": "e051024d57102f8828c7ad36b2a9c5962df424e905ae0e5a4834759a6fb00daa"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/first-pass-provider-summary.json",
+      "sha256": "1e5c1620ef629529251abe8ce2f8ab3d46d33f356c726e16af8ee7acc4cc0e91"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/final-service-focused.tap",
+      "sha256": "480fa52f83edc5f7a78e09cbbc909a8673ede004a4bb79d3f655951bf982b327"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/matched-parent-focused.tap",
+      "sha256": "1ce216a686dc8340e1bdff3e7f8f1abb0734b0242fc63200d7d7b7d5467881e0"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/matched-durable-observation.json",
+      "sha256": "88a5179f34abc5d1bee70bf8e7f9402ffe0a47a3446e3f50ddb1e1e388a2fc78"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/original-reconciliation-exact.log",
+      "sha256": "ea21ebf842efdb781ff29dc4c8ca903319d62dbec920c3f0775fcea9fa136d70"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/quiescent-provider-summary.json",
+      "sha256": "933127cbf63dd635bb6146534732496ba61848f668fd0c60ef13464b66d6936d"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/quiescent-publication-controlled.log",
+      "sha256": "d9b41138e56bea4a602631c83c77f5a143756f04406d4380c1b8128a447d3294"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/quiescent-reconciliation.log",
+      "sha256": "0b1f0e47b45e04b0b10fb74118e8f91aaf3b40c0c43cbf19128d13ee8b403490"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/guard-echo-corrected.log",
+      "sha256": "f34bb0b3a9a8c787bb56dd42f3a0112124a4c5e8d05df144db6ca971887bec6a"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/assertion-control-final.tap",
+      "sha256": "9f817f13cf940ed9aa086b74842fac8cc2abce37d94393d2f9b9f9c95cb166e7"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/floating-repro.tap",
+      "sha256": "b9ee829477eb593110b79a7081ef4a6ccec26f19d1af9fbd1402f50984b1802f"
+    },
+    {
+      "path": "/private/tmp/stage6-service-ready-20261015/upstream-lock-control-final.tap",
+      "sha256": "5ae8a22a54e1fb5cad1dc22589c11bc62ee85121337843329d124f3cfc603801"
+    }
+  ]
+}

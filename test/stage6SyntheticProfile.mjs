@@ -1,7 +1,7 @@
 import{register}from'node:module';import{readFileSync,realpathSync}from'node:fs';import{fileURLToPath}from'node:url';import{execFileSync}from'node:child_process';import{verifyManifest,digest}from'./stage6SyntheticManifest.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url)),allowed=['stage6-synthetic-seed.mjs','stage6-synthetic-admission-http.mjs','stage6-synthetic-runner.mjs','stage6-synthetic-child.mjs'];
 let name;try{name=allowed.find(n=>realpathSync(process.argv[1])===realpathSync(new URL(n,import.meta.url)));}catch{}
-if(process.env.STAGE6_LOCAL_SYNTHETIC!=='explicit-local-test-v1'||!name||process.execArgv.some(x=>['--eval','-e','--print','-p','--input-type=module'].includes(x)))throw Error('LOCAL_SYNTHETIC_TEST_ENTRY_REQUIRED');
+if(process.env.STAGE6_LOCAL_SYNTHETIC!=='explicit-local-test-v1'||!name||process.execArgv.some(x=>/^--(?:eval|print|input-type)(?:=|$)/.test(x)||/^-[ep]/.test(x)))throw Error('LOCAL_SYNTHETIC_TEST_ENTRY_REQUIRED');
 const env={...process.env};for(const k of Object.keys(env))if(k.startsWith('GIT_'))delete env[k];const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,env,encoding:'utf8'}).trim();
 const envelope=JSON.parse(readFileSync('/qualification/manifest.json','utf8')),binding=verifyManifest(envelope,{root,commit,reservation:name!=='stage6-synthetic-seed.mjs'});
 // The process has no external network namespace. This additionally refuses

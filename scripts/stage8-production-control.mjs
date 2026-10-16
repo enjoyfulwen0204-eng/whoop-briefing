@@ -3,7 +3,7 @@ import {fileURLToPath} from 'node:url';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {phase4AuthorityKeys,publicBetaConfiguration} from '../src/publicBetaConfig.js';
-import {configurationProof} from '../src/phase4ExecutionStore.js';
+import {pausedSourceConfigurationProof,CA4_SOURCE_PROOF} from './stage8-source-configuration-proof.mjs';
 import {currentVersion} from '../src/migrations.js';
 import {assertCleanStage8Release,stage8PreservationSnapshot,verifyStage8RecoveryClient,STAGE8_PRODUCTION_HOST} from './stage8-migration-safety.mjs';
 
@@ -113,7 +113,7 @@ export function validateWriterInventory(value){
   ||['directSql','localPolling','manualCli','privateNetwork','renderBackground'].some(key=>value[key]!=='STOPPED_EXCLUSIVE_MIGRATION_OPERATOR'))fail('STAGE8_WRITER_INVENTORY_REQUIRED');
  return structuredClone(value);
 }
-export function validatePausedProviders({service,deploys,variables,settings,schedules,workflow,activeRuns,orphanBarrier},sourceSha,keys){
+export function validatePausedProviders({service,deploys,variables,settings,schedules,workflow,activeRuns,orphanBarrier},sourceSha,keys,schema){
  if(service?.id!==PRODUCTION_CONTROL.render||service.repo!==`https://github.com/${PRODUCTION_CONTROL.repo}`||service.autoDeploy!=='no'
   ||service.serviceDetails?.maintenanceMode?.enabled!==true||(service.serviceDetails?.envSpecificDetails?.startCommand??service.serviceDetails?.startCommand)!=='npm run bot:webhook')fail('STAGE8_RENDER_NOT_QUIESCED');
  if(!Array.isArray(deploys)||!deploys.length)fail('STAGE8_DEPLOYMENT_UNPROVEN');
@@ -128,14 +128,14 @@ export function validatePausedProviders({service,deploys,variables,settings,sche
  if(remoteKeys.lookup(['stage8-operator-key-continuity-v1'])!==keys.lookup(['stage8-operator-key-continuity-v1'])||audit(remoteKeys,['stage8-operator-key-continuity-v1'])!==audit(keys,['stage8-operator-key-continuity-v1']))fail('STAGE8_KEY_CONTINUITY_REQUIRED');
  if(settings?.success!==true||!Array.isArray(settings.result?.bindings)||schedules?.success!==true||!Array.isArray(schedules.result?.schedules)||schedules.result.schedules.length)fail('STAGE8_CLOUDFLARE_NOT_QUIESCED');
  const bindings=Object.fromEntries(settings.result.bindings.filter(row=>row.type==='plain_text').map(row=>[row.name,row.text]));
- const proof=configurationProof(keys,publicBetaConfiguration(env),env,sourceSha);
+ const proof=pausedSourceConfigurationProof(keys,publicBetaConfiguration(env),env,sourceSha,schema);
  if(bindings.BRIEFING_RELEASE_SHA!==sourceSha||bindings.BRIEFING_CONFIG_PROOF!==proof||bindings.BRIEFING_ENDPOINT_URL!==PRODUCTION_CONTROL.origin+'/internal/briefing/run'
   ||bindings.BRIEFING_EXECUTION_MODE!=='OFF'||bindings.BRIEFING_CONTINUATION_SCOPE!=='sync'||bindings.BRIEFING_CONTINUATION_DISCOVERY!=='on'
   ||!['off','on'].includes(bindings.BRIEFING_COMPANION_ENABLED))fail('STAGE8_CLOUDFLARE_BINDINGS_UNPROVEN');
  if(workflow?.id!==PRODUCTION_CONTROL.workflow||workflow.path!=='.github/workflows/briefing.yml'||workflow.state!=='disabled_manually')fail('STAGE8_GITHUB_NOT_QUIESCED');
  const orphan=githubInventory(activeRuns),barrier=frozenRunGrants.get(orphanBarrier);
  if(orphan&&(!barrier||serial(orphan)!==serial(barrier.run))||!orphan&&orphanBarrier)fail('STAGE8_GITHUB_NOT_QUIESCED');
- return {renderId:service.id,sourceSha,deployId:live[0].id,deploymentHistory:keys.lookup(['stage8-render-deployments-v1',entries.map(row=>[row.id,row.status,row.commit?.id,row.createdAt,row.finishedAt])]),maintenance:true,autoDeploy:'no',proof,
+ return {renderId:service.id,sourceSha,sourceProofContract:sourceSha===CA4_SOURCE_PROOF.sourceSha?CA4_SOURCE_PROOF.canonicalFunctionSha256:'CURRENT_CANDIDATE_FORMULA',deployId:live[0].id,deploymentHistory:keys.lookup(['stage8-render-deployments-v1',entries.map(row=>[row.id,row.status,row.commit?.id,row.createdAt,row.finishedAt])]),maintenance:true,autoDeploy:'no',proof,
   plan:service.serviceDetails.plan,worker:PRODUCTION_CONTROL.worker,workflow:workflow.id,
   bindings:keys.lookup(['stage8-provider-bindings-v1',bindings]),postSync:'off',github:orphan?barrier:{nonterminalRunCount:0,queuedRunCount:0}};
 }
@@ -151,7 +151,7 @@ async function pausedProviders(environment,sourceSha,keys,schema){
  ]);
  const [service,deploys,variables,settings,schedules,workflow,...activeRuns]=results;
  const orphanBarrier=githubInventory(activeRuns)?await frozenGithubBarrier(environment,schema):null;
- const state=validatePausedProviders({service,deploys,variables,settings,schedules,workflow,activeRuns,orphanBarrier},sourceSha,keys);
+ const state=validatePausedProviders({service,deploys,variables,settings,schedules,workflow,activeRuns,orphanBarrier},sourceSha,keys,schema);
  for(const path of ['/health','/internal/briefing/run','/internal/briefing/companion','/telegram/webhook','/whoop/webhook','/whoop/oauth/callback']){
   const result=await fetch(PRODUCTION_CONTROL.origin+path,{method:'GET',redirect:'error',signal:AbortSignal.timeout(15_000)});
   try{if(result.status!==503)fail('STAGE8_PUBLIC_INGRESS_NOT_BLOCKED');}finally{await result.body?.cancel();}

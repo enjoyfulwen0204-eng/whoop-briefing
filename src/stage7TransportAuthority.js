@@ -13,7 +13,9 @@ export function createStage7ProductionProvider({db,core,keys,admission,env,userI
  const api=createTelegramApi({botToken:env.telegramBotToken});
  const provider=Object.freeze({async send({chatId,...card},authority){
   if(!authority||!userIds.includes(authority.userId)||String(authority.chatId)!==String(chatId))throw Object.assign(Error('STAGE7_ROLLOUT_FENCED'),{definite:true});
-  await beforeSend(authority);
+  // A rejected final fence happened before any provider request. Preserve that
+  // definite non-send instead of manufacturing an ambiguous Telegram attempt.
+  try{await beforeSend(authority);}catch(error){error.definite=true;throw error;}
   try{const sent=await api.sendMessage(chatId,card);return {messageId:String(sent.message_id)};}
   catch(error){if(error?.sendOutcome===SEND_OUTCOME.DEFINITE_FAILURE)error.definite=true;throw error;}
  }});providers.add(provider);return provider;

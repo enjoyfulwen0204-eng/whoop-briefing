@@ -1,3 +1,5 @@
+import {captureStage7Enrollment} from './stage7Enrollment.js';
+import {confirmedLegacyMorningReceipt} from './confirmedLegacyMorningReceipt.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {COACH_TOPICS} from './companionCoach.js';
 import {inCompanionQuietHours} from './companionTimingPolicy.js';
@@ -176,19 +178,19 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId}),prefs=await preferences(actor);
    if(!prefs.daily_enabled)return {status:'DISABLED'};
+   if(inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end))return {status:'QUIET_HOURS'};
    if(actor.state.auth_generation<1)return {status:'AUTHORIZATION_FENCED'};
    if(healthDay!==localDate(core.now(),actor.state.timezone))return {status:'NOT_CURRENT_DAY'};
-   const proof=(await client.execute({sql:"SELECT * FROM report_claims WHERE user_id=? AND report_type='daily' AND local_date=? AND delivery_state='DELIVERED' AND telegram_message_id IS NOT NULL AND lifecycle_generation=?",args:[user.id,healthDay,actor.state.lifecycle_generation]})).rows[0];
-   if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};
-   const report=(await client.execute({sql:"SELECT sleep_id FROM report_runs WHERE user_id=? AND report_type='daily' AND local_date=? AND status='SENT' AND telegram_message_id=? AND content_state='PRESENT' LIMIT 1",args:[user.id,healthDay,proof.telegram_message_id]})).rows[0];
-   const occasion=report?.sleep_id?core.keys.lookup(['journal-wake-occasion-v1',user.id,report.sleep_id]):null;
-   if(occasion){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND occasion_key=?',args:[user.id,occasion]})).rows[0];if(existing)return {status:'EXISTING',deliveryId:existing.delivery_id};}
    const semantic=core.keys.lookup(['daily-journal-v1',user.id,healthDay,DAILY_POLICY_VERSION]);
    const dayKey=core.keys.lookup(['journal-day-v1',user.id,healthDay]);
    const priorDay=(await client.execute({sql:'SELECT interaction_id FROM quick_action_interactions WHERE user_id=? AND day_key=?',args:[user.id,dayKey]})).rows[0];
    if(priorDay){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND interaction_id=?',args:[user.id,priorDay.interaction_id]})).rows[0];return {status:'EXISTING',deliveryId:existing?.delivery_id??null};}
    const previous=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND semantic_key=?',args:[user.id,semantic]})).rows[0];
    if(previous)return {status:'EXISTING',deliveryId:previous.delivery_id};
+   const proof=await confirmedLegacyMorningReceipt({core,actor,day:healthDay});
+   if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};
+   const occasion=proof.sleep_id?core.keys.lookup(['journal-wake-occasion-v1',user.id,proof.sleep_id]):null;
+   if(occasion){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND occasion_key=?',args:[user.id,occasion]})).rows[0];if(existing)return {status:'EXISTING',deliveryId:existing.delivery_id};}
    const pending=await companionEngagementBusy({core,db,actor});
    if(pending)return {status:'INTERACTION_BUSY'};
    const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor,{fromDate:addDays(targetDate,-179),toDate:targetDate}),history=(await client.execute({sql:"SELECT privacy_artifact_id,category,target_date FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
@@ -218,8 +220,10 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    for(const previous of history)await interactions.link('quick_action_interactions',issued.row,'quick_action_interactions',previous.privacy_artifact_id);
    for(const id of contextSources)await interactions.link('quick_action_interactions',issued.row,'evidence_items',id);
    const delivery={user_id:user.id,delivery_id:core.newId(),interaction_id:issued.row.interaction_id,semantic_key:semantic,occasion_key:occasion,kind:'DAILY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify(reply),
+    schedule_json:JSON.stringify({enrollment:await captureStage7Enrollment({core,db,actor})}),
     lifecycle_generation:actor.state.lifecycle_generation,auth_generation:actor.state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:issued.row.expires_at,...interactions.privacyFields(actor.state)};
    await interactions.insert('journal_prompt_deliveries',delivery);await interactions.link('journal_prompt_deliveries',delivery);
+   await interactions.link('journal_prompt_deliveries',delivery,'report_runs',proof.report_source);
    await interactions.link('journal_prompt_deliveries',delivery,'quick_action_interactions',issued.row.privacy_artifact_id);
    return {status:'PROPOSED',deliveryId:delivery.delivery_id,interactionId:issued.row.interaction_id,selection:selected};
   });

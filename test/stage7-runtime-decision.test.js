@@ -1,3 +1,4 @@
+import {confirmedLegacyBrief} from './confirmedLegacyBriefFixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
@@ -96,6 +97,7 @@ test('fully composed post-brief journal derives context from existing typed evid
  const app=await createStage7TelegramDevelopment(f),user=await f.db.getUser('a'),actor=await app.companion.interactions.authenticate({user,chatId:'123'});
  await f.db.transaction(async()=>{const p=await app.companion.preferences(actor);await app.companion.changePreferences(actor,p,{daily_enabled:1});});
  await f.db.raw.execute({sql:"INSERT INTO report_claims(user_id,report_type,local_date,owner,claimed_at,expires_at,lifecycle_generation,delivery_state,telegram_message_id) VALUES('a','daily','2026-09-25','synthetic',?,?,?,'DELIVERED',11)",args:[f.core.timestamp(),f.core.timestamp(),user.lifecycleGeneration]});
+ await confirmedLegacyBrief({...f,companion:app.companion,user},{day:'2026-09-25'});
  const result=await app.reconcileDaily({user,chatId:'123',healthDay:'2026-09-25'});assert.equal(result.status,'DELIVERED');
  const row=(await f.db.raw.execute("SELECT * FROM quick_action_interactions WHERE kind='DAILY'")).rows[0];assert.equal(row.selection_reason,'MISSING_CONTEXT');
  assert.ok((await f.db.raw.execute({sql:"SELECT 1 FROM phase4_source_links WHERE user_id='a' AND artifact_id=? AND source_type='evidence_items'",args:[row.privacy_artifact_id]})).rows.length);

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import {createStage7Runtime} from '../stage7Runtime.js';
+import {createStage5PresentationRuntime,createStage5PresentationSender} from '../stage5PresentationReader.js';
+import {COMPANION_PATH,runCompanionService} from '../companionService.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 /**
@@ -248,10 +250,10 @@ export function createWebhookHandler({
       });
     }
 
-    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path) && !briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,COMPANION_PATH].includes(path) && !briefingEndpoint) {
       return send(res, 503, { ok: false, error: 'scheduler_unavailable' });
     }
-    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path) && briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,COMPANION_PATH].includes(path) && briefingEndpoint) {
       if (url !== path) return send(res, 400, { ok: false, error: 'query_not_allowed' });
       if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
       const schedulerBody = await readBody(req, { limit: BRIEFING_TRIGGER.MAX_BODY_BYTES });
@@ -441,7 +443,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
+  const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,phase4Reader });
+  const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
   const settings = createSettings({db});
 
@@ -482,7 +486,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: stage7?input=>stage7.sendReply(createSendReply({db,api}),input):createSendReply({ db, api }),
+    sendReply: stage7?input=>stage7.sendReply(sendAnalysis,input):sendAnalysis,
     answerCallback: id=>api.answerCallbackQuery(id),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.
@@ -511,7 +515,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret,
-      runPhase: runExecutionPhase,discoverContinuation:discoverExecutionContinuation }) : null;
+      runPhase: runExecutionPhase,discoverContinuation:discoverExecutionContinuation,runCompanion:runCompanionService }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //

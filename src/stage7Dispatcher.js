@@ -1,3 +1,4 @@
+import {inCompanionQuietHours} from './companionTimingPolicy.js';
 import {isStage7ProductionProvider} from './stage7TransportAuthority.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {log} from './logger.js';
@@ -24,7 +25,9 @@ export function createStage7Dispatcher({core,db,companion,provider,invitations=n
    if(!row)return {status:'NOT_FOUND'};
    if(['DELIVERED','AMBIGUOUS','DELIVERY_STARTED','SUPPRESSED'].includes(row.state))return {status:row.state};
    if(row.attempt_count>=3)return {status:'RETRY_EXHAUSTED'};
-   const prefs=await companion.preferences(actor);let interaction=row.interaction_id?await companion.interactions.read(user.id,row.interaction_id):null;
+   const prefs=await companion.preferences(actor);
+   if(row.kind==='DAILY'&&inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end))return {status:'QUIET_HOURS'};
+   let interaction=row.interaction_id?await companion.interactions.read(user.id,row.interaction_id):null;
    const paused=(await client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[user.id]})).rows[0];
    let invitation=null;
    if(row.kind==='COACH'&&invitations){invitation=await invitations.due(actor,row);if(invitation.status==='NOT_DUE')return invitation;if(invitation.interaction)interaction=invitation.interaction;}

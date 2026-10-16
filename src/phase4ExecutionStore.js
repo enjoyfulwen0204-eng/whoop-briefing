@@ -56,6 +56,7 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
  if(environment.PHASE4_EXECUTION_PROFILE==='COMPANION_V33_RECOVERY')profile.push(['companion-recovery-profile-v1','COMPANION_V33_RECOVERY']);
  const companion=['STAGE7_COMPANION','STAGE7_COMPANION_USER_IDS','STAGE7_COACH_MIN_HOURS','STAGE7_COACH_MAX_HOURS','STAGE7_JOURNAL_GAP_HOURS'].map(name=>environment[name]??'');
  if(companion.some(Boolean))profile.push(['stage7-companion-configuration-v1',...companion]);
+ if(environment.STAGE7_AUTOMATIC!==undefined)profile.push(['stage7-automatic-configuration-v1',environment.STAGE7_AUTOMATIC]);
  const scope=continuationScope(environment,config.runtime==='on'?'SHADOW':'OFF');
  if(scope)profile.push(['phase4-continuation-scope-v1',scope]);
  return keys.lookup(profile);

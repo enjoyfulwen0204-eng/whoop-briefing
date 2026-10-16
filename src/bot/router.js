@@ -41,6 +41,7 @@ import {
 } from './commands.js';
 import * as experimentFlow from './experimentFlow.js';
 import { LANGUAGE_SELECTOR, t as translate } from '../localization.js';
+import {isStage5PresentationCommand,stage5PresentationUnavailable,stage5PresentationHelp} from '../stage5PresentationReader.js';
 import {
   shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion,
   mentionsLoggableEvent, isExplicitLogCommand, isSelfRecallQuestion, followUpQuestion,
@@ -403,7 +404,7 @@ export function unavailableReply(result, locale = 'zh-TW') {
 }
 
 export function createRouter({
-  db, coachFor,bodyEnergy, now = () => new Date(), lookbackDays = 120,
+  db, coachFor,bodyEnergy,phase4Reader, now = () => new Date(), lookbackDays = 120,
 }) {
   /**
    * 處理一則訊息，回傳要送出去的文字。
@@ -437,7 +438,7 @@ export function createRouter({
     const coach=wrapProvider(provider);
     try {
       return await route({
-        text: String(text ?? '').trim(), chatId, t, userId, timezone, coach, locale,
+        text: String(text ?? '').trim(), chatId, t, userId, user, timezone, coach, locale,
       });
     } catch (err) {
       if (db.processingTransactionActive?.()) throw err;
@@ -518,7 +519,7 @@ export function createRouter({
     }
   }
 
-  async function route({ text, chatId, t, userId, timezone, coach, locale = 'zh-TW' }) {
+  async function route({ text, chatId, t, userId, user, timezone, coach, locale = 'zh-TW' }) {
     // ---- 0. 緊急症狀（確定性，排在所有東西之前）----
     //
     // 這一關在追問消化、journal 寫入、Q&A、LLM fallback **全部之前**。
@@ -531,6 +532,8 @@ export function createRouter({
       log.warn('urgent_symptom_intercepted', { user_id: userId });
       return urgentReply(locale);
     }
+
+    if(isStage5PresentationCommand(text))return phase4Reader?phase4Reader.handle({text,chatId,user}):stage5PresentationUnavailable(locale);
 
     // ---- 0b. 在問症狀是什麼（不是在描述自己現在的狀況）----
     // 不觸發急診指引，也不掉到指令清單。
@@ -737,7 +740,8 @@ export function createRouter({
           const { assessPrediction, READINESS_STATUS } = await import('../readiness.js');
           predictionReady = assessPrediction({ rows }).status === READINESS_STATUS.READY;
         } catch { /* 忽略 */ }
-        return buildHelp({ report, insightCount, predictionReady, locale });
+        const help=buildHelp({ report, insightCount, predictionReady, locale });
+        return phase4Reader?.eligible?.(userId)?`${help}\n\n${stage5PresentationHelp(locale)}`:help;
       }
 
       case 'healthdata':

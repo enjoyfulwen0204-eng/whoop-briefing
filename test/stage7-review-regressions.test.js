@@ -1,3 +1,4 @@
+import {confirmedLegacyBrief} from './confirmedLegacyBriefFixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {stage7Fixture} from './stage7Fixture.js';
@@ -8,6 +9,7 @@ import {createStage7DecisionStore} from '../src/stage7DecisionStore.js';
 
 async function confirmedBrief(f, day) {
   await f.db.raw.execute({sql:"INSERT INTO report_claims(user_id,report_type,local_date,owner,claimed_at,expires_at,lifecycle_generation,delivery_state,telegram_message_id) VALUES('a','daily',?,'synthetic-reviewer',?,?,?,'DELIVERED',11)",args:[day,f.core.timestamp(),f.core.timestamp(),f.user.lifecycleGeneration]});
+  await confirmedLegacyBrief(f,{day});
 }
 async function enableDaily(f) {
   const actor=await f.companion.interactions.authenticate({user:f.user,chatId:'123'});

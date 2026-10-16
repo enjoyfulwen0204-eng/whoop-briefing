@@ -1,3 +1,4 @@
+import {confirmedLegacyBrief} from './confirmedLegacyBriefFixture.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
 import {createStage7Companion} from '../src/stage7Companion.js';
@@ -25,6 +26,8 @@ test('confirmed Morning Brief is prerequisite; post-brief state is independent, 
  await f.db.raw.execute({sql:"INSERT INTO report_claims(user_id,report_type,local_date,owner,claimed_at,expires_at,lifecycle_generation,delivery_state) VALUES('a','daily','2026-09-19','synthetic',?,?,?,'AMBIGUOUS')",args:[f.core.timestamp(),f.core.timestamp(),user.lifecycleGeneration]});
  assert.equal((await c.prepareAfterBrief(request)).status,'BRIEF_NOT_CONFIRMED');
  await f.db.raw.execute("UPDATE report_claims SET delivery_state='DELIVERED',telegram_message_id=7 WHERE user_id='a'");
+ assert.equal((await c.prepareAfterBrief(request)).status,'BRIEF_NOT_CONFIRMED','a delivered claim without its matching report is not sufficient');
+ await confirmedLegacyBrief({...f,companion:c,user},{messageId:7});
  const claim=(await f.db.raw.execute('SELECT * FROM report_claims')).rows[0];
  const result=await c.prepareAfterBrief(request);assert.equal(result.status,'PROPOSED');
  const row=await c.interactions.read('a',result.interactionId);assert.equal(row.target_date,'2026-09-18');assert.equal(Date.parse(row.expires_at)-Date.parse(row.created_at),48*3600000);

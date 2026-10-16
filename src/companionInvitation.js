@@ -1,3 +1,5 @@
+import {captureStage7Enrollment} from './stage7Enrollment.js';
+import {confirmedLegacyMorningReceipt} from './confirmedLegacyMorningReceipt.js';
 import {fail,readableRow} from './phase4Core.js';
 import {localDate} from './time.js';
 import {selectCompanionInvitation,inCompanionQuietHours} from './companionTimingPolicy.js';
@@ -19,11 +21,7 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
  }
  async function wakeAuthority(actor,day){
   const uid=actor.control.userId;
-  const row=(await client.execute({sql:`SELECT r.sleep_id,r.sent_at,r.privacy_artifact_id report_source,c.telegram_message_id FROM report_claims c
-   JOIN report_runs r ON r.user_id=c.user_id AND r.report_type=c.report_type AND r.local_date=c.local_date AND r.status='SENT'
-   AND r.telegram_message_id=c.telegram_message_id WHERE c.user_id=? AND c.report_type='daily' AND c.local_date=?
-   AND c.delivery_state='DELIVERED' AND c.lifecycle_generation=? AND c.telegram_message_id IS NOT NULL
-   AND r.content_state='PRESENT' AND r.source_linkage_state='COMPLETE' LIMIT 1`,args:[uid,day,actor.state.lifecycle_generation]})).rows[0];
+  const row=await confirmedLegacyMorningReceipt({core,actor,day});
   if(!row||!row.sleep_id||!row.report_source)return null;
   return stores.withContext(uid,{executionMode:'SHADOW'},async context=>{
    const sleep=(await stores.root(context,'sleep',String(row.sleep_id))).row,recovery=(await stores.root(context,'recovery',String(row.sleep_id))).row;
@@ -63,7 +61,7 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
    const selection=selectCompanionInvitation({now:core.now().getTime(),...wake,journalAt,healthDay:day,timezone:actor.state.timezone,
     seed:keys.lookup(['coach-slot-seed-v1',uid,day]),quietStart:prefs.quiet_start,quietEnd:prefs.quiet_end,config:configuration});
    const state=topics.length&&selection.state==='SCHEDULED'?'PROPOSED':'SUPPRESSED',at=timestamp();
-   const schedule={...selection,healthDay:day,timezone:actor.state.timezone,profileRevision:actor.profileRevision,...wake,journalAt,
+   const schedule={...selection,enrollment:await captureStage7Enrollment({core,db,actor}),healthDay:day,timezone:actor.state.timezone,profileRevision:actor.profileRevision,...wake,journalAt,
     journalDeliveryId:journal?.delivery_id??null,topic:topics.length?topics[Number.parseInt(semantic.slice(0,8),16)%topics.length]:null};
    if(schedule.topic==='exercise')schedule.exercise=exercise;
    const row={user_id:uid,delivery_id:core.newId(),interaction_id:null,semantic_key:semantic,occasion_key:wake.occasionKey,kind:'COACH',execution_mode:'SHADOW',state,

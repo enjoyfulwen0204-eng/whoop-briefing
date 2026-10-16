@@ -1,3 +1,5 @@
+import {captureStage7Enrollment,assertStage7Enrollment} from './stage7Enrollment.js';
+import {confirmedLegacyMorningReceipt} from './confirmedLegacyMorningReceipt.js';
 import {isApprovedStage7Three} from './stage7Cohort.js';
 import {buildPhase4Core,fail,readableRow} from './phase4Core.js';
 import {composePhase4Stores} from './phase4Repositories.js';
@@ -7,21 +9,22 @@ import {createStage7ProductionProvider} from './stage7TransportAuthority.js';
 import {createCompanionCoach,COACH_COPY} from './companionCoach.js';
 import {createCompanionInvitation} from './companionInvitation.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
-import {COMPANION_DEFAULTS} from './companionTimingPolicy.js';
+import {COMPANION_DEFAULTS,inCompanionQuietHours} from './companionTimingPolicy.js';
 import {presentationLocale,JOURNAL_COPY} from './stage7Registry.js';
 import {labelForCategory} from './journal.js';
 import {requireUserId} from './userContext.js';
 import {localDate} from './time.js';
 import {createStage7ReplyAuthority} from './stage7ReplyAuthority.js';
 export function stage7Configuration(environment={}){
- const mode=environment.STAGE7_COMPANION??'off',raw=environment.STAGE7_COMPANION_USER_IDS??'';
- if(!['off','on'].includes(mode)||typeof raw!=='string')fail('STAGE7_CONFIG_INVALID');
+ const mode=environment.STAGE7_COMPANION??'off',raw=environment.STAGE7_COMPANION_USER_IDS??'',automatic=environment.STAGE7_AUTOMATIC??'off';
+ if(!['off','on'].includes(mode)||!['off','on'].includes(automatic)||automatic==='on'&&mode!=='on'||typeof raw!=='string')fail('STAGE7_CONFIG_INVALID');
  const userIds=raw?raw.split(',').map(v=>requireUserId(v.trim(),'stage7')):[];
  if(mode==='on'&&!isApprovedStage7Three(userIds)&&!(userIds.length===1&&userIds[0]===environment.PHASE4_BETA_PILOT_USER_ID))fail('STAGE7_OWNER_ROLLOUT_REQUIRED');
+ if(automatic==='on'&&!isApprovedStage7Three(userIds))fail('STAGE7_APPROVED_THREE_REQUIRED');
  const number=(name,fallback)=>environment[name]===undefined?fallback:Number(environment[name]);
  const timing=Object.freeze({...COMPANION_DEFAULTS,coachAfterWakeMinimumHours:number('STAGE7_COACH_MIN_HOURS',4),coachAfterWakeMaximumHours:number('STAGE7_COACH_MAX_HOURS',6),journalGapHours:number('STAGE7_JOURNAL_GAP_HOURS',2)});
  if(![timing.coachAfterWakeMinimumHours,timing.coachAfterWakeMaximumHours,timing.journalGapHours].every(Number.isFinite)||timing.coachAfterWakeMinimumHours<4||timing.coachAfterWakeMaximumHours>6||timing.coachAfterWakeMinimumHours>timing.coachAfterWakeMaximumHours||timing.journalGapHours<2||timing.journalGapHours>6)fail('STAGE7_TIMING_CONFIG_INVALID');
- return Object.freeze({mode,userIds:Object.freeze(userIds),timing});
+ return Object.freeze({mode,automatic:automatic==='on',userIds:Object.freeze(userIds),timing});
 }
 /** Production composition is separate from the closed synthetic entry point.
  * It owns no SYNC, DRAIN, pilot renewal or Foundation LIVE capability. */
@@ -35,14 +38,22 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
  const replies=createStage7ReplyAuthority({core,db,companion});
  const beforeSend=async authority=>core.transaction(async()=>{
-  const user=await db.getUser(authority.userId);if(!eligible(user))fail('STAGE7_ROLLOUT_FENCED');
+  const user=await db.getUser(authority.userId),currentConfig=stage7Configuration(environment);
+  if(!eligible(user)||!currentConfig.automatic||!currentConfig.userIds.includes(user.id))fail('STAGE7_ROLLOUT_FENCED');
   const actor=await companion.interactions.authenticate({user,chatId:authority.chatId});
   if(actor.state.lifecycle_generation!==authority.actor.state.lifecycle_generation||actor.state.auth_generation!==authority.actor.state.auth_generation||actor.profileRevision!==authority.actor.profileRevision)fail('STAGE7_ACTOR_FENCED');
   const row=(await core.client.execute({sql:'SELECT * FROM journal_prompt_deliveries WHERE user_id=? AND delivery_id=?',args:[user.id,authority.deliveryId]})).rows[0],prefs=await companion.preferences(actor);
   const paused=(await core.client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[user.id]})).rows[0];
+  await assertStage7Enrollment({core,db,actor,row});
   if(!readableRow(row)||row.state!=='DELIVERY_STARTED'||row.preference_revision!==prefs.revision||row.expires_at<=core.timestamp()||paused?.notifications_paused
+   ||inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end)
    ||row.kind==='DAILY'&&!prefs.daily_enabled||row.kind==='COACH'&&!prefs.coach_enabled
    ||await companionEngagementBusy({core,db,actor,excludeInteractionId:authority.interactionId}))fail('STAGE7_DELIVERY_FENCED');
+  if(row.kind==='DAILY'){
+   const proof=await confirmedLegacyMorningReceipt({core,actor,day:localDate(core.now(),actor.state.timezone)});
+   const linked=proof&&(await core.client.execute({sql:"SELECT 1 FROM phase4_source_links WHERE user_id=? AND artifact_type='journal_prompt_deliveries' AND artifact_id=? AND source_type='report_runs' AND source_id=? AND unlinked_at IS NULL LIMIT 1",args:[user.id,row.privacy_artifact_id,proof.report_source]})).rows.length;
+   if(!linked)fail('STAGE7_DELIVERY_FENCED');
+  }
   if(row.kind==='COACH'&&(await invitations.due(actor,row)).status!=='READY')fail('STAGE7_DELIVERY_FENCED');
  });
  const provider=createStage7ProductionProvider({db,core,keys,admission,env,userIds:config.userIds,beforeSend}),dispatcher=createStage7Dispatcher({core,db,companion,provider,invitations});
@@ -103,8 +114,9 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  }
  async function tick({user,chatId}){
   if(!eligible(user))return {status:'NOT_AUTHORIZED'};
+  if(!stage7Configuration(environment).automatic)return {status:'AUTOMATIC_DISABLED'};
   const day=localDate(now(),user.timezone),actor=await companion.interactions.authenticate({user,chatId});
-  if(!await invitations.wakeAuthority(actor,day))return {status:'BRIEF_WAKE_NOT_CONFIRMED'};
+  if(!await captureStage7Enrollment({core,db,actor}))return {status:'ENROLLMENT_NOT_READY'};
   const daily=await companion.prepareAfterBrief({user,chatId,healthDay:day});
   const dailyResult=daily.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:daily.deliveryId}):daily;
   const invitation=await invitations.prepare({user,chatId}),coachResult=invitation.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;

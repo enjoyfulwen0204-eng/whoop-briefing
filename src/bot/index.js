@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {createStage7Runtime} from '../stage7Runtime.js';
+import {createStage5PresentationRuntime,createStage5PresentationSender} from '../stage5PresentationReader.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
@@ -127,7 +128,9 @@ export async function main({ maxIterations = Infinity } = {}) {
   });
 
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
+  const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,phase4Reader });
+  const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const settings = createSettings({db});
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
 
@@ -160,7 +163,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: stage7?input=>stage7.sendReply(createSendReply({db,api}),input):createSendReply({ db, api }),
+    sendReply: stage7?input=>stage7.sendReply(sendAnalysis,input):sendAnalysis,
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

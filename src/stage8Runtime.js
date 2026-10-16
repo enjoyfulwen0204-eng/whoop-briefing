@@ -14,6 +14,7 @@ import {createOwnerMonitoring} from './stage8OwnerMonitoring.js';
 import {createStage8SourceConsent} from './stage8SourceConsent.js';
 import {createStage8OwnerDispatcher} from './stage8OwnerDispatcher.js';
 import {isApprovedStage7Three} from './stage7Cohort.js';
+import {createBodyEnergyLivePresentation} from './bodyEnergyLivePresentation.js';
 export function stage8Configuration(environment={}){
  assertStage8Recovery(environment);
  for(const name of ['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS','STAGE8_POST_SYNC','STAGE8_SUBJECT_ALERTS'])if(!['off','on'].includes(environment[name]??'off'))throw Error('STAGE8_CONFIG_INVALID');
@@ -36,7 +37,11 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
  const postSync=analysis?createStage8PostSync({db,keys,producer:analysis,userIds:config.userIds,eligible,enabled:()=>environment.STAGE8_POST_SYNC==='on'&&config.userIds.some(eligible),environment}):null;
  const liveAnalysis=analysis?Object.freeze({afterSync:request=>postSync.run(request),resume:()=>postSync.resume(),run:async request=>{fence();if(currentDurableExecution())throw Error('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');return analysis.run(request);}}):null;
  const derivedReader=createStage8DerivedReader({db,keys,admission,eligible,now});
- const scopes=await createScopedHealthContext({db,keys,admission,now,derivedReader}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
+ const scopes=await createScopedHealthContext({db,keys,admission,now,derivedReader});
+ const bodyScopes=await createScopedHealthContext({db,keys,admission,now,
+  derivedReader:createStage8DerivedReader({db,keys,admission,eligible,now,bodyEnergyPresentation:true})});
+ const bodyEnergyLive=createBodyEnergyLivePresentation({db,scopes:bodyScopes,bodyEnergy,now}),
+  qa=createStage8SelfQa({scopes,db,bodyEnergy,bodyEnergyLive,decorate:stage7?.decorate,now});
  const core=await buildPhase4Core({keys,admission,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
   authorizeMode(mode){if(mode!=='SHADOW')throw Error('PHASE4_LIVE_NOT_AUTHORIZED');}});
  const stores=composePhase4Stores(core);
@@ -73,8 +78,9 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
  }):null;
  async function handle(input){fence();return eligible(input.user?.id)?qa.handle(input):null;}
  async function sendReply(send,input){
-  const guarded=Boolean(input.reply?.stage8ReplyGuard),previous=input.beforeSend;
-  const beforeSend=async()=> (!previous||await previous())&&(!guarded||eligible(input.userId)&&await scopes.verifyReply(input));
+  const bodyGuarded=Boolean(input.reply?.stage8BodyEnergyGuard),guarded=Boolean(input.reply?.stage8ReplyGuard)||bodyGuarded,previous=input.beforeSend;
+  const beforeSend=async()=> (!previous||await previous())&&(!guarded||eligible(input.userId)
+   &&await (bodyGuarded?bodyEnergyLive.verifyReply(input):scopes.verifyReply(input)));
   if(!await beforeSend())return {sent:false,messageId:null,reason:'stage8_reply_changed'};
   return send({...input,beforeSend});
  }

@@ -3,7 +3,7 @@
 export function createStage8PresentationSender(runtime,send){
  if(typeof send!=='function')throw Error('STAGE8_PRESENTATION_SENDER_REQUIRED');
  return input=>{
-  if(input.reply?.stage8ReplyGuard&&!runtime)return {sent:false,messageId:null,reason:'stage8_presentation_disabled'};
+  if((input.reply?.stage8ReplyGuard||input.reply?.stage8BodyEnergyGuard)&&!runtime)return {sent:false,messageId:null,reason:'stage8_presentation_disabled'};
   return runtime?runtime.sendReply(send,input):send(input);
  };
 }

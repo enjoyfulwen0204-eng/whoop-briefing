@@ -12,6 +12,15 @@ export const BODY_ENERGY_QUALIFICATION_REGISTRATION=Object.freeze({
 });
 const capabilities=new WeakMap();
 const fail=code=>{throw Object.assign(new Error(code),{code});};
+async function assertMemoryFixture(db){
+  if(!db?.raw||db.raw.protocol!=='file')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+  const databases=(await db.raw.execute('PRAGMA database_list')).rows;
+  // SQLite runtime admission can materialize its internal temp schema. It is
+  // still the same memory-only fixture, never another attached database.
+  if(databases.length<1||databases.length>2||databases.filter(row=>row.name==='main').length!==1
+    ||new Set(databases.map(row=>row.name)).size!==databases.length
+    ||databases.some(row=>!['main','temp'].includes(row.name)||row.file!==''))fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+}
 function cohort(users){
   if(!Array.isArray(users)||users.length<1||users.length>2)fail('BODY_ENERGY_CONTROLLED_COHORT_REQUIRED');
   return new Set(users.map(id=>requireUserId(id,'bodyEnergyCohort')));
@@ -44,9 +53,7 @@ export function authorizeBodyEnergyOwnerProvisional({db,userIds,ownerUserId,noti
 /** Positive integration tests own an empty-filename in-memory DB; neither a
  * file-backed fixture nor a real provider destination can receive this grant. */
 export async function authorizeBodyEnergyFixturePublication({db,userIds,notificationUserIds=[],presentationPolicy=null}={}){
-  if(!db?.raw||db.raw.protocol!=='file')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
-  const databases=(await db.raw.execute('PRAGMA database_list')).rows;
-  if(databases.length!==1||databases[0].name!=='main'||databases[0].file!=='')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+  await assertMemoryFixture(db);
   if(presentationPolicy!==null&&presentationPolicy!==BODY_ENERGY_PROVISIONAL_POLICY.version)fail('BODY_ENERGY_PRESENTATION_POLICY_INVALID');
   if(presentationPolicy&&(userIds.length!==1||notificationUserIds.length))fail('BODY_ENERGY_PROVISIONAL_OWNER_ONLY');
   const users=cohort(userIds),notifications=new Set(notificationUserIds);
@@ -58,8 +65,7 @@ export async function assertBodyEnergyPublication(capability,db,userId,{purpose=
   if(!['read','alerts'].includes(purpose)||!grant||grant.db!==db||grant.connection!==db.raw||!grant.users.has(id)
     ||purpose==='alerts'&&!grant.notifications.has(id))fail('BODY_ENERGY_PUBLICATION_NOT_QUALIFIED');
   if(grant.fixture){
-    const databases=(await db.raw.execute('PRAGMA database_list')).rows;
-    if(db.raw.protocol!=='file'||databases.length!==1||databases[0].file!=='')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+    await assertMemoryFixture(db);
   }else if(!grant.presentationPolicy&&(BODY_ENERGY_QUALIFICATION_REGISTRATION.state!=='APPROVED'
     ||!validateBodyEnergyQualificationPacket(BODY_ENERGY_QUALIFICATION_REGISTRATION.approvedPacket).complete))
     fail('BODY_ENERGY_PUBLICATION_NOT_QUALIFIED');

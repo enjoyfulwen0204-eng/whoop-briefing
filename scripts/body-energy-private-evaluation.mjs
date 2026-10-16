@@ -46,8 +46,13 @@ function normalizedCapture(manifest){
   timestamp(manifest.wake_at_utc);
   const snap=(row,kind)=>{
     if(row===null)return;
-    shape(row,snapshotFields[kind]);
+    // Current canonical selection retains the recovery's Cycle link and the
+    // selected Cycle's score state. Original retained captures may predate
+    // either field; preserve their exact contents without accepting other keys.
+    const optional=kind==='recovery'?['cycle_id']:kind==='load'&&manifest.load.kind==='CYCLE'?['score_state']:[];
+    shape(row,snapshotFields[kind].concat(optional),snapshotFields[kind]);
     if(!scalarId(row[kind==='recovery'?'sleep_id':'id']))invalid();
+    if(kind==='recovery'&&Object.hasOwn(row,'cycle_id')&&!scalarId(row.cycle_id))invalid();
     for(const field of ['start_at','end_at','updated_at','synced_at'].filter(x=>Object.hasOwn(row,x)))timestamp(row[field]);
     if(kind!=='load'){
       if(!nullable(row.health_date,validHealthDate)||!nullable(row.score_state,text))invalid();
@@ -55,7 +60,8 @@ function normalizedCapture(manifest){
         if(!nullable(row.nap,x=>x===0||x===1)||!nullable(row.sleep_performance_percentage,finite))invalid();
       }else if(!nullable(row.user_calibrating,x=>x===0||x===1)
         ||!nullable(row.hrv_rmssd_milli,finite)||!nullable(row.resting_heart_rate,finite))invalid();
-    }else if(!nullable(row.strain,finite))invalid();
+    }else if(!nullable(row.strain,finite)
+      ||Object.hasOwn(row,'score_state')&&!nullable(row.score_state,value=>value==='SCORED'))invalid();
   };
   snap(manifest.main_sleep,'sleep');snap(manifest.recovery,'recovery');
   shape(manifest.baseline,['hrv','rhr']);

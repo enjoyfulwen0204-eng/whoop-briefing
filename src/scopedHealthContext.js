@@ -4,6 +4,7 @@ import {requireRuntimeAdmission,followRuntimeRenewal} from './runtimeAdmission.j
 import {resolvePerspective,PERSPECTIVE,intentIsInherentlyPersonal} from './bot/perspective.js';
 import {localDate,addDays,localMidnightUtc} from './time.js';
 import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
+import {bodyEnergyQueryPage} from './bodyEnergyPresentation.js';
 const SOURCE_SPECS=Object.freeze({sleep:['whoop_sleeps','id','health_date'],recovery:['whoop_recoveries','sleep_id','health_date'],cycle:['whoop_cycles','id','start_at'],workout:['whoop_workouts','id','start_at']});
 const fail=code=>{throw Object.assign(Error(code),{code});};
 export function selfQueryPerspective({text,intent=null,signals=null}){
@@ -13,7 +14,10 @@ export function selfQueryPerspective({text,intent=null,signals=null}){
  const bare=/^(?:(?:今天|今日|昨天|昨晚|本週|最近(?:\s*\d+\s*天)?)的?)?(?:HRV|RHR|恢復(?:分數|狀況)?|睡眠(?:品質|時長)?)(?:是多少|多少|如何|怎麼樣|趨勢)?[?？。]?$/iu.test(String(text).trim())
   ||/^(?:(?:what is|how is|how was|show)(?: the)? )?(?:(?:today|yesterday)'?s? )?(?:HRV|RHR|recovery(?: score)?|sleep(?: quality)?)(?: (?:today|yesterday|over the (?:last|past) \d+ days))?[?.]?$/iu.test(String(text).trim());
  const registeredLive=/^\/(?:(?:insights|evidence)(?:@[A-Za-z0-9_]+)?\s+live(?:\s+history)?|episodes(?:@[A-Za-z0-9_]+)?(?:\s+live)?(?:\s+history)?)$/i.test(String(text).trim());
- if(resolved.usePersonalData||intentIsInherentlyPersonal(intent)&&bare||registeredLive||/^\/(?:now|energy|evidence|insights|journal|healthdata|status|predictions|healthspan)(?:@[A-Za-z0-9_]+)?$/i.test(String(text).trim()))return {...resolved,perspective:PERSPECTIVE.SELF,usePersonalData:true};
+ // Reuse the registered bounded page grammar, including its mention policy.
+ // A source page names no subject; third/general/hypothetical fences ran above.
+ const registeredBodySources=bodyEnergyQueryPage(text)!==null;
+ if(resolved.usePersonalData||intentIsInherentlyPersonal(intent)&&bare||registeredLive||registeredBodySources||/^\/(?:now|energy|evidence|insights|journal|healthdata|status|predictions|healthspan)(?:@[A-Za-z0-9_]+)?$/i.test(String(text).trim()))return {...resolved,perspective:PERSPECTIVE.SELF,usePersonalData:true};
  return resolved;
 }
 /** The only public constructor accepts an authenticated private actor. No

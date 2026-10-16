@@ -10,12 +10,18 @@ import {profileRevision as readProfileRevision} from './profileRevision.js';
 
 /** Root composition supplies the existing admitted stores and reviewed grant.
  * Keep context/health objects scoped through rendering and pre-send recheck. */
-export function createBodyEnergyIntegration({db,stores,keys,publicationCapability,environment={},now=()=>new Date()}={}){
+export function createBodyEnergyIntegration({db,stores,keys,publicationCapability,environment={},publicationEnabled=()=>true,now=()=>new Date()}={}){
   if(typeof db?.getUser!=='function'||typeof db?.getLocale!=='function'
     ||typeof db?.getOnboarding!=='function'
     ||typeof stores?.withContext!=='function'||typeof stores?.bodyEnergy?.readForPublication!=='function')
     throw Error('BODY_ENERGY_INTEGRATION_DEPENDENCIES_REQUIRED');
   const at=()=>new Date(now());
+  // Server composition keeps the grant private. LIVE presentation may ask for
+  // its existing read policy, but cannot receive or manufacture the capability.
+  const assertReadPolicy=async userId=>{
+    if(!publicationEnabled())throw Error('BODY_ENERGY_PUBLICATION_NOT_QUALIFIED');
+    return assertBodyEnergyPublication(publicationCapability,db,userId);
+  };
   // Body consumes existing Settings authority inside owned report execution;
   // optional rendering must not initialize a profile or mint a work identity.
   // Ordinary Telegram/Settings call contracts remain unchanged.
@@ -90,6 +96,6 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
   async function query(request){return isBodyEnergyQuery(request?.text)?currentSection({...request,details:true,sourcePage:bodyEnergyQueryPage(request.text)??1}):null;}
   registerBodyEnergyTelegramReplyBoundary(db,verifyReplyGuard);
 
-  return Object.freeze({withCurrentSection,currentSection,verifyReplyGuard,isQuery:isBodyEnergyQuery,query,notificationControl,
+  return Object.freeze({withCurrentSection,currentSection,verifyReplyGuard,assertReadPolicy,isQuery:isBodyEnergyQuery,query,notificationControl,
     beforeMorning:morningReadiness.inspect});
 }

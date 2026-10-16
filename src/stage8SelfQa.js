@@ -7,6 +7,7 @@ import {selfQueryPerspective} from './scopedHealthContext.js';
 import {computeDailyMetrics} from './dailyMetrics.js';
 import {resolveMetric} from './healthQuery.js';
 import {t,formatNumber} from './localization.js';
+import {isBodyEnergyQuery} from './bodyEnergyPresentation.js';
 export const SCOPED_COPY=Object.freeze({
  'zh-TW':{clarify:'你想問自己的哪個指標、哪段期間？例如「我最近 7 天的 HRV」。',third:'我不能透過一般問答查詢他人的健康資料。你可以改問一般性的健康問題。',updating:'分析仍在更新，尚無可驗證的當期分析結果。',missing:'目前沒有符合這段期間的可用來源紀錄。',source:'WHOOP 來源紀錄',asof:'資料截至',average:'平均',samples:'筆可用紀錄',observational:'僅為觀察性關聯，不代表因果。',journal:'你明確記錄的日誌',bodyUnavailable:'Body Energy 尚無可用的當期計算。'},
  en:{clarify:'Which of your metrics and which time range? For example, “my HRV over the last 7 days.”',third:'Ordinary Q&A cannot look up someone else’s health data. You can ask a general health question.',updating:'Analysis is updating; no verified current analysis is available yet.',missing:'No usable source records are available for this period.',source:'WHOOP source records',asof:'Data as of',average:'Average',samples:'usable records',observational:'Observational association only; not causation.',journal:'Your explicitly recorded journal',bodyUnavailable:'No current Body Energy calculation is available.'},
@@ -60,7 +61,7 @@ function renderDerived(results,{locale,history=false,evidence=false,recoveryOnly
 const fields={hrv:['HRV','ms',1],rhr:['RHR','bpm',1],recovery:['Recovery','%',1],sleep_total:['Sleep','min',60000],deep_sleep:['Deep sleep','min',60000],rem_sleep:['REM sleep','min',60000],previous_day_strain:['Strain','',1],respiratory_rate:['Respiratory rate','/min',1],sleep_performance:['Sleep performance','%',1]};
 /** Wording consumes only the authorized bounded plan. No model, write,
  * notification, queue or scheduler capability is part of this module. */
-export function createStage8SelfQa({scopes,db,bodyEnergy,decorate=null,now=()=>new Date()}){
+export function createStage8SelfQa({scopes,db,bodyEnergy,bodyEnergyLive,decorate=null,now=()=>new Date()}){
  async function handle({user,chatId,text}){
   const raw=String(text??'').trim(),command=parseCommand(raw),liveCommand=stage8LiveCommand(raw);
   if(assessUrgency(raw).urgent)return {text:urgentReply(await db.getLocale(user.id)??'en')};
@@ -77,10 +78,11 @@ export function createStage8SelfQa({scopes,db,bodyEnergy,decorate=null,now=()=>n
   const explicitDays=raw.match(/(?:last|past|最近|過去)\s*(\d+)\s*(?:days?|天)|(?:trong\s*)?(\d+)\s*ngày(?:\s*qua)?/iu);
   const days=/\btoday\b|今天|今日|hôm nay/iu.test(raw)?1:explicitDays?Number(explicitDays[1]??explicitDays[2]):1;
   if(days>120||days<1||/\d{4}-\d{2}-\d{2}|上週|昨天|昨晚|yesterday|last night|last week|hôm qua|tuần trước/iu.test(raw))return {text:c.clarify};
+  if(bodyEnergyLive?.isQuery(raw))return bodyEnergyLive.query({user,chatId,text:raw});
   const scope=await scopes.open({user,chatId,text:raw,intent:intent.intent,asOf:now(),maxHealthDays:days});
   if(!scope.permitted)return {text:c.clarify};
   let reply;
-  if(bodyEnergy&&(/^(?:\/energy)(?:\s|$)/i.test(raw)||/body energy|體能電量|能量分數/iu.test(raw))){
+  if(bodyEnergy&&(isBodyEnergyQuery(raw)||/^(?:\/energy)(?:\s|$)/i.test(raw)||/body energy|體能電量|能量分數/iu.test(raw))){
    // Section 7's explicitly versioned owner presentation remains its separate
    // registered authority. It is never relabelled as a LIVE derived result.
    const body=await bodyEnergy.query({text:raw,userId:scope.userId,requestedAt:new Date(scope.asOfEpochMs)});

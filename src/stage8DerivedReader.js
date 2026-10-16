@@ -1,4 +1,4 @@
-import {stage8BodyEnergyProjection} from './stage8BodyEnergyProjection.js';
+import {stage8BodyEnergyProjection,stage8BodyEnergyPresentationView} from './stage8BodyEnergyProjection.js';
 import {verifyStage8LivePublication} from './stage8LivePublication.js';
 import {requireRuntimeAdmission,followRuntimeRenewal} from './runtimeAdmission.js';
 import {buildPhase4Core} from './phase4Core.js';
@@ -57,7 +57,7 @@ export function stage8EvidenceItemSelection(scope,inputGeneration,runId){
  * v34's frozen producer table is SHADOW-only and remains UPDATING. v35 reads
  * require the genuine LIVE publication and canonical artifact authorities.
  * No caller/model can provide results, SQL, a producer receipt or a transport. */
-export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>new Date()}){
+export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>new Date(),bodyEnergyPresentation=false}){
  if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction))||typeof eligible!=='function')throw Error('STAGE8_DERIVED_SERVER_REQUIRED');
  followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
  const updating=(scope,kind)=>({status:'ANALYSIS_UPDATING',kind,asOfUtc:scope.asOfUtc,items:[]});
@@ -100,7 +100,10 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
     const spec=STAGE8_DERIVED_SELECTIONS[kind],ids=(await db.raw.execute(stage8DerivedSelection(kind,scope,inputGeneration))).rows;
     for(const {id} of ids){const value=await stores.readArtifact(ctx,spec.table,{[spec.id]:id});
      let projection;
-     if(kind==='BODY_ENERGY')projection=stage8BodyEnergyProjection(value.row,Date.parse(scope.asOfUtc));
+     if(kind==='BODY_ENERGY'){
+      projection=stage8BodyEnergyProjection(value.row,Date.parse(scope.asOfUtc));
+      if(projection&&bodyEnergyPresentation){const presentation=stage8BodyEnergyPresentationView(value.row,Date.parse(scope.asOfUtc));projection=presentation?{...projection,presentation}:null;}
+     }
      else if(kind==='EPISODES'){
       const row=value.row;if(!metric(row.subject_key)||!['HIGHER','LOWER'].includes(row.direction))continue;
       const source=await evidence(row.latest_evidence_item_id);if(!source||source.metricKey!==row.subject_key||source.outcome!=='PERSONAL_BASELINE_COMPARISON')continue;

@@ -31,7 +31,8 @@ export async function createBodyEnergyRuntime({db,keys,admission,environment={},
     }else publicationCapability=authorizeBodyEnergyPublication({db,userIds:config.userIds,
       notificationUserIds:config.alerts==='on'?config.notificationUserIds:[],qualificationId:config.qualificationId});
   }
-  const bodyEnergy=createBodyEnergyIntegration({db,stores,keys,publicationCapability,environment,now});
+  const bodyEnergy=createBodyEnergyIntegration({db,stores,keys,publicationCapability,environment,now,
+    publicationEnabled:()=>config.publication==='on'&&JSON.stringify(bodyEnergyConfiguration(environment))===JSON.stringify(config)});
   const bodyEnergyAlerts=publicationCapability&&config.alerts==='on'
     ?createBodyEnergyAlertDelivery({db,stores,keys,publicationCapability,env,now}):null;
   return Object.freeze({bodyEnergy,bodyEnergyAlerts,publicationQualified:Boolean(publicationCapability),configuration:config});

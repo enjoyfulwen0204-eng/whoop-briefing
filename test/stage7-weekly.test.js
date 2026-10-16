@@ -18,12 +18,14 @@ test('on-demand weekly review uses own canonical facts; automatic weekly prefere
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_prompt_deliveries')).rows[0].n,0);
 });
 
-test('weekly review reserves one week identity but never grants automatic rollout from a preference',async t=>{
+test('weekly review reserves one week identity; a preference alone does not bypass the automatic delivery window',async t=>{
  const f=await stage7Fixture(t),actor=await f.companion.interactions.authenticate({user:f.user,chatId:'123'});
  const first=await f.companion.weekly.prepare(actor),second=await f.companion.weekly.prepare(actor);
  assert.equal(first.deliveryId,second.deliveryId);assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_prompt_deliveries')).rows[0].n,1);
  await f.db.transaction(async()=>{const prefs=await f.companion.preferences(actor);await f.companion.changePreferences(actor,prefs,{weekly_enabled:1});});
- assert.equal((await f.companion.weekly.prepare(actor,{automatic:true})).status,'ROLLOUT_NOT_APPROVED');
+ assert.equal((await f.companion.weekly.prepare(actor,{automatic:true})).status,'ENROLLMENT_NOT_READY');
+ await f.db.ensureOnboarding('a',{state:'READY',now:f.core.now()});
+ assert.equal((await f.companion.weekly.prepare(actor,{automatic:true})).status,'NOT_DUE');
 });
 
 test('retracting NOT_SURE physically clears dependent weekly transport content without manufacturing a Journal fact',async t=>{

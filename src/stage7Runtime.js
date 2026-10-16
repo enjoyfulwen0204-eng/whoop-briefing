@@ -45,9 +45,10 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   const row=(await core.client.execute({sql:'SELECT * FROM journal_prompt_deliveries WHERE user_id=? AND delivery_id=?',args:[user.id,authority.deliveryId]})).rows[0],prefs=await companion.preferences(actor);
   const paused=(await core.client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[user.id]})).rows[0];
   await assertStage7Enrollment({core,db,actor,row});
+  if(!await companion.weekly.optionalSlotAvailable(actor,row))fail('STAGE7_DELIVERY_FENCED');
   if(!readableRow(row)||row.state!=='DELIVERY_STARTED'||row.preference_revision!==prefs.revision||row.expires_at<=core.timestamp()||paused?.notifications_paused
    ||inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end)
-   ||row.kind==='DAILY'&&!prefs.daily_enabled||row.kind==='COACH'&&!prefs.coach_enabled
+   ||row.kind==='DAILY'&&!prefs.daily_enabled||row.kind==='COACH'&&!prefs.coach_enabled||row.kind==='WEEKLY'&&!prefs.weekly_enabled
    ||await companionEngagementBusy({core,db,actor,excludeInteractionId:authority.interactionId}))fail('STAGE7_DELIVERY_FENCED');
   if(row.kind==='DAILY'){
    const proof=await confirmedLegacyMorningReceipt({core,actor,day:localDate(core.now(),actor.state.timezone)});
@@ -55,6 +56,10 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    if(!linked)fail('STAGE7_DELIVERY_FENCED');
   }
   if(row.kind==='COACH'&&(await invitations.due(actor,row)).status!=='READY')fail('STAGE7_DELIVERY_FENCED');
+  if(row.kind==='WEEKLY'){
+   const current=await companion.weekly.due(actor,row);
+   if(current.status!=='READY'||current.projectionDigest!==authority.weeklyProjectionDigest)fail('STAGE7_DELIVERY_FENCED');
+  }
  });
  const provider=createStage7ProductionProvider({db,core,keys,admission,env,userIds:config.userIds,beforeSend}),dispatcher=createStage7Dispatcher({core,db,companion,provider,invitations});
  async function stage7Inbound(input){
@@ -119,8 +124,11 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   if(!await captureStage7Enrollment({core,db,actor}))return {status:'ENROLLMENT_NOT_READY'};
   const daily=await companion.prepareAfterBrief({user,chatId,healthDay:day});
   const dailyResult=daily.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:daily.deliveryId}):daily;
-  const invitation=await invitations.prepare({user,chatId}),coachResult=invitation.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
-  return {daily:dailyResult.status,coach:coachResult.status};
+  const weekly=await companion.weekly.prepare(actor,{automatic:true}),weeklyResult=weekly.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:weekly.deliveryId}):weekly;
+  // Defer Coach for this tick after a new weekly send, without changing its
+  // original schedule or manufacturing a Coach interaction for the review.
+  const invitation=weeklyResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId}),coachResult=invitation.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
+  return {daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
  return Object.freeze({stage7Inbound,stage7Reply,decorate,sendReply,tick,config,companion,coach,invitations,dispatcher});
 }

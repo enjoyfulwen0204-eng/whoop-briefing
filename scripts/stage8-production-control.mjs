@@ -7,6 +7,7 @@ import {pausedSourceConfigurationProof,CA4_SOURCE_PROOF} from './stage8-source-c
 import {currentVersion} from '../src/migrations.js';
 import {assertCleanStage8Release,stage8PreservationSnapshot,verifyStage8RecoveryClient,STAGE8_PRODUCTION_HOST} from './stage8-migration-safety.mjs';
 import {withStage8MetadataReadCache} from './stage8-metadata-read-cache.mjs';
+import {assertStage8Maintenance,stage8MaintenanceFetch,stage8MaintenanceClientOptions} from './stage8-maintenance-context.mjs';
 
 export const PRODUCTION_CONTROL=Object.freeze({
  host:STAGE8_PRODUCTION_HOST,render:'srv-dahs71qd0e5s738n94c0',renderOwner:'tea-d8ptktu8bjmc73c5f9sg',
@@ -33,23 +34,23 @@ const credentials=environment=>{
  for(const key of ['RENDER_API_KEY','CLOUDFLARE_API_TOKEN','GH_TOKEN','TURSO_AUTH_TOKEN'])if(typeof environment[key]!=='string'||!environment[key])fail('STAGE8_OPERATOR_AUTH_REQUIRED');
  if(![`libsql://${PRODUCTION_CONTROL.host}`,`libsql://${PRODUCTION_CONTROL.host}/`].includes(environment.TURSO_DATABASE_URL))fail('STAGE8_PRODUCTION_TARGET_MISMATCH');
 };
-async function response(url,token,options={}){
- const value=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(30_000),headers:{...(token?{Authorization:'Bearer '+token}:{}),accept:'application/json',...options.headers}});
- if(value.status!==200)fail('STAGE8_PROVIDER_READ_FAILED');
+async function response(url,token,options={},maintenance){
+ const value=await stage8MaintenanceFetch(maintenance,url,{...options,headers:{...(token?{Authorization:'Bearer '+token}:{}),accept:'application/json',...options.headers}});
+ assertStage8Maintenance(maintenance);if(value.status!==200)fail('STAGE8_PROVIDER_READ_FAILED');
  const date=Date.parse(value.headers.get('date'));if(!Number.isFinite(date)||Math.abs(Date.now()-date)>120_000)fail('STAGE8_PROVIDER_CLOCK_UNPROVEN');
  if(Number(value.headers.get('content-length')??0)>1024*1024)fail('STAGE8_PROVIDER_RESPONSE_BOUNDS');
  const reader=value.body?.getReader();if(!reader)fail('STAGE8_PROVIDER_READ_FAILED');let bytes=0;const chunks=[];
- try{for(;;){const next=await reader.read();if(next.done)break;bytes+=next.value.length;if(bytes>1024*1024)fail('STAGE8_PROVIDER_RESPONSE_BOUNDS');chunks.push(next.value);}}
+ try{for(;;){const next=await reader.read();assertStage8Maintenance(maintenance);if(next.done)break;bytes+=next.value.length;if(bytes>1024*1024)fail('STAGE8_PROVIDER_RESPONSE_BOUNDS');chunks.push(next.value);}}
  finally{try{await reader.cancel();}catch{}reader.releaseLock();}
  try{const parsed=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!parsed||typeof parsed!=='object')throw Error();Object.defineProperty(parsed,serverDate,{value:date});return parsed;}catch{fail('STAGE8_PROVIDER_RESPONSE_INVALID');}
 }
 const renderPath=path=>'https://api.render.com/v1/'+path;
 const cfPath=path=>`https://api.cloudflare.com/client/v4/accounts/${PRODUCTION_CONTROL.cloudflare}/workers/scripts/${PRODUCTION_CONTROL.worker}/`+path;
 const ghPath=path=>`https://api.github.com/repos/${PRODUCTION_CONTROL.repo}/`+path;
-async function renderList(path,token){
+async function renderList(path,token,maintenance){
  const all=[],seen=new Set();let cursor='';
  for(let page=0;page<100;page++){
-  const result=await response(renderPath(path+'?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):'')),token);
+  const result=await response(renderPath(path+'?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):'')),token,{},maintenance);
   if(!Array.isArray(result))fail('STAGE8_PROVIDER_RESPONSE_INVALID');all.push(...result);if(result.length<100)return all;
   const next=result.at(-1)?.cursor;if(typeof next!=='string'||!next||seen.has(next))fail('STAGE8_PROVIDER_PAGINATION_UNPROVEN');seen.add(next);cursor=next;
  }
@@ -81,7 +82,7 @@ function manifestBytes(blob){
 /** This is a code-specific non-writer proof, never GitHub finality or token
  * containment. Fixed qualification bytes and actual provider reads are both
  * mandatory; no caller JSON/flag can mint the private grant. */
-async function frozenGithubBarrier(environment,schema){
+async function frozenGithubBarrier(environment,schema,maintenance){
  const pin=FROZEN_GITHUB_SCHEMA_BARRIER;
  if(!pin.schemas.includes(schema))fail('STAGE8_FROZEN_GITHUB_SCHEMA_UNQUALIFIED');
  const bytes=await readFile(new URL('../docs/evidence/stage8-frozen-cli-schema-denial-20261016/proof-report.json',import.meta.url));
@@ -90,10 +91,10 @@ async function frozenGithubBarrier(environment,schema){
  if(qualification.contract!==pin.contract||qualification.status!=='EXACT_FROZEN_CLI_DENIED_BEFORE_MUTABLE_SQL_FOR_V33_V34_V35'
   ||qualification.results.length!==9)fail('STAGE8_FROZEN_GITHUB_QUALIFICATION_UNPROVEN');
  const [run,jobs,definition,blob]=await Promise.all([
-  response(ghPath('actions/runs/'+pin.runId),environment.GH_TOKEN),
-  response(ghPath('actions/runs/'+pin.runId+'/jobs?filter=all&per_page=100'),environment.GH_TOKEN),
-  response(ghPath('contents/'+pin.path+'?ref='+pin.headSha),environment.GH_TOKEN),
-  response(ghPath('git/blobs/'+pin.blob),environment.GH_TOKEN),
+  response(ghPath('actions/runs/'+pin.runId),environment.GH_TOKEN,{},maintenance),
+  response(ghPath('actions/runs/'+pin.runId+'/jobs?filter=all&per_page=100'),environment.GH_TOKEN,{},maintenance),
+  response(ghPath('contents/'+pin.path+'?ref='+pin.headSha),environment.GH_TOKEN,{},maintenance),
+  response(ghPath('git/blobs/'+pin.blob),environment.GH_TOKEN,{},maintenance),
  ]);
  const identity=exactFrozenRun(run);
  if(jobs?.total_count!==0||!Array.isArray(jobs.jobs)||jobs.jobs.length)fail('STAGE8_FROZEN_GITHUB_JOBS_PRESENT');
@@ -140,25 +141,25 @@ export function validatePausedProviders({service,deploys,variables,settings,sche
   plan:service.serviceDetails.plan,worker:PRODUCTION_CONTROL.worker,workflow:workflow.id,
   bindings:keys.lookup(['stage8-provider-bindings-v1',bindings]),postSync:'off',github:orphan?barrier:{nonterminalRunCount:0,queuedRunCount:0}};
 }
-async function pausedProviders(environment,sourceSha,keys,schema){
+async function pausedProviders(environment,sourceSha,keys,schema,maintenance){
  const activeStatuses=['queued','in_progress','waiting','requested','pending'];
  const results=await Promise.all([
-  response(renderPath('services/'+PRODUCTION_CONTROL.render),environment.RENDER_API_KEY),
-  renderList(`services/${PRODUCTION_CONTROL.render}/deploys`,environment.RENDER_API_KEY),
-  renderList(`services/${PRODUCTION_CONTROL.render}/env-vars`,environment.RENDER_API_KEY),
-  response(cfPath('settings'),environment.CLOUDFLARE_API_TOKEN),response(cfPath('schedules'),environment.CLOUDFLARE_API_TOKEN),
-  response(ghPath('actions/workflows/'+PRODUCTION_CONTROL.workflow),environment.GH_TOKEN),
-  ...activeStatuses.map(status=>response(ghPath('actions/runs?status='+status+'&per_page=100'),environment.GH_TOKEN)),
+  response(renderPath('services/'+PRODUCTION_CONTROL.render),environment.RENDER_API_KEY,{},maintenance),
+  renderList(`services/${PRODUCTION_CONTROL.render}/deploys`,environment.RENDER_API_KEY,maintenance),
+  renderList(`services/${PRODUCTION_CONTROL.render}/env-vars`,environment.RENDER_API_KEY,maintenance),
+  response(cfPath('settings'),environment.CLOUDFLARE_API_TOKEN,{},maintenance),response(cfPath('schedules'),environment.CLOUDFLARE_API_TOKEN,{},maintenance),
+  response(ghPath('actions/workflows/'+PRODUCTION_CONTROL.workflow),environment.GH_TOKEN,{},maintenance),
+  ...activeStatuses.map(status=>response(ghPath('actions/runs?status='+status+'&per_page=100'),environment.GH_TOKEN,{},maintenance)),
  ]);
  const [service,deploys,variables,settings,schedules,workflow,...activeRuns]=results;
- const orphanBarrier=githubInventory(activeRuns)?await frozenGithubBarrier(environment,schema):null;
+ const orphanBarrier=githubInventory(activeRuns)?await frozenGithubBarrier(environment,schema,maintenance):null;
  const state=validatePausedProviders({service,deploys,variables,settings,schedules,workflow,activeRuns,orphanBarrier},sourceSha,keys,schema);
  // Check the actual POST ingress as well as GET. An edge rule that blocks only
  // GET must never qualify as writer quiescence. Unsigned empty requests cannot
  // authorize work if maintenance was unexpectedly removed during a probe.
  for(const {path,method} of PUBLIC_MAINTENANCE_PROBES){
-  const result=await fetch(PRODUCTION_CONTROL.origin+path,{method,redirect:'error',signal:AbortSignal.timeout(15_000),...(method==='POST'?{headers:{'content-type':'application/json'},body:'{}'}:{})});
-  try{if(result.status!==503)fail('STAGE8_PUBLIC_INGRESS_NOT_BLOCKED');}finally{await result.body?.cancel();}
+  const result=await stage8MaintenanceFetch(maintenance,PRODUCTION_CONTROL.origin+path,{method,...(method==='POST'?{headers:{'content-type':'application/json'},body:'{}'}:{})},15_000);
+  assertStage8Maintenance(maintenance);try{if(result.status!==503)fail('STAGE8_PUBLIC_INGRESS_NOT_BLOCKED');}finally{await result.body?.cancel();}
  }
  Object.defineProperty(state,'observedAtServer',{value:service[serverDate]});return state;
 }
@@ -187,8 +188,8 @@ async function readDatabaseControlUncached(client,keys){
   (await client.execute('SELECT * FROM phase4_migration_checkpoints ORDER BY target_version,step_key')).rows]);
  return {schema,activeLeases:0,snapshot,digest:keys.lookup(['stage8-production-all-rows-v1',snapshot,history]),history};
 }
-async function replicationIndex(environment){
- const body=await response(`https://${PRODUCTION_CONTROL.host}/v2/pipeline`,environment.TURSO_AUTH_TOKEN,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({requests:[{type:'execute',stmt:{sql:'SELECT 1',want_rows:true}},{type:'close'}]})});
+async function replicationIndex(environment,maintenance){
+ const body=await response(`https://${PRODUCTION_CONTROL.host}/v2/pipeline`,environment.TURSO_AUTH_TOKEN,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({requests:[{type:'execute',stmt:{sql:'SELECT 1',want_rows:true}},{type:'close'}]})},maintenance);
  const result=body.results?.[0];if(result?.type!=='ok'||result.response?.type!=='execute')fail('STAGE8_REPLICATION_OBSERVATION_FAILED');
  const index=result.response.result?.replication_index;
  if(index===null)return null;
@@ -197,11 +198,11 @@ async function replicationIndex(environment){
 }
 /** Complete authenticated app-log window. Any app activity forces a new quiet
  * window; raw messages never leave this module or appear in operator receipts. */
-async function assertDrainedLogs(environment,start,end,keys){
+async function assertDrainedLogs(environment,start,end,keys,maintenance){
  let from=new Date(start).toISOString(),until=new Date(end).toISOString(),count=0,hash=audit(keys,['stage8-drain-logs-v1',from,until]);
  for(let page=0;page<100;page++){
   const query=new URLSearchParams({ownerId:PRODUCTION_CONTROL.renderOwner,resource:PRODUCTION_CONTROL.render,type:'app',startTime:from,endTime:until,direction:'forward',limit:'100'});
-  const result=await response(renderPath('logs?'+query),environment.RENDER_API_KEY);
+  const result=await response(renderPath('logs?'+query),environment.RENDER_API_KEY,{},maintenance);
   if(!Array.isArray(result.logs)||typeof result.hasMore!=='boolean')fail('STAGE8_LOG_WINDOW_UNPROVEN');
   for(const row of result.logs){
    const time=Date.parse(row.timestamp);if(!Number.isFinite(time)||time<start||time>end||!Array.isArray(row.labels)||!row.labels.some(v=>v.name==='resource'&&v.value===PRODUCTION_CONTROL.render)||!row.labels.some(v=>v.name==='type'&&v.value==='app'))fail('STAGE8_LOG_WINDOW_UNPROVEN');
@@ -220,13 +221,13 @@ function verifyObservation(keys,receipt,{releaseSha,sourceSha,inventory},now){
   ||value.inventory!==audit(keys,['stage8-writer-inventory-v1',inventory])||!Number.isSafeInteger(value.observedAt)||now<value.observedAt||now-value.observedAt>PRODUCTION_CONTROL.maxObservationMs)fail('STAGE8_QUIESCENCE_OBSERVATION_INVALID');
  return value;
 }
-export function productionControl({environment,releaseSha,sourceSha,inventory}){
+export function productionControl({environment,releaseSha,sourceSha,inventory,maintenance}){
  if(Number(process.versions.node.split('.')[0])!==22)fail('STAGE8_NODE22_REQUIRED');assertCleanStage8Release(releaseSha,repository);environment=Object.freeze({...environment});
  credentials(environment);sha(releaseSha);sha(sourceSha);inventory=validateWriterInventory(inventory);
- const keys=phase4AuthorityKeys(environment),client=createClient({url:environment.TURSO_DATABASE_URL,authToken:environment.TURSO_AUTH_TOKEN,intMode:'number'});
+ assertStage8Maintenance(maintenance);const keys=phase4AuthorityKeys(environment),client=createClient(stage8MaintenanceClientOptions(environment,maintenance));
  async function observe(){
   assertCleanStage8Release(releaseSha,repository);
-  const schema=await currentVersion(client),provider=await pausedProviders(environment,sourceSha,keys,schema),before=await replicationIndex(environment),database=await readDatabaseControl(client,keys),after=await replicationIndex(environment);
+  const schema=await currentVersion(client),provider=await pausedProviders(environment,sourceSha,keys,schema,maintenance),before=await replicationIndex(environment,maintenance),database=await readDatabaseControl(client,keys),after=await replicationIndex(environment,maintenance);
   if(database.schema!==schema)fail('STAGE8_DATABASE_CHANGED_DURING_OBSERVATION');
   if(before!==after)fail('STAGE8_DATABASE_CHANGED_DURING_OBSERVATION');
   return seal(keys,{contract:'stage8-production-observation-v1',releaseSha,sourceSha,inventory:audit(keys,['stage8-writer-inventory-v1',inventory]),provider,replicationIndex:after,database,observedAt:provider.observedAtServer});
@@ -237,17 +238,17 @@ export function productionControl({environment,releaseSha,sourceSha,inventory}){
   const current=await observe();
   if(current.observedAt-initial.observedAt<PRODUCTION_CONTROL.quietMs)fail('STAGE8_FULL_QUIET_WINDOW_REQUIRED');
   if(serial(current.provider)!==serial(initial.provider)||current.replicationIndex!==initial.replicationIndex||current.database.digest!==initial.database.digest)fail('STAGE8_QUIET_WINDOW_CHANGED');
-  const logs=await assertDrainedLogs(environment,initial.observedAt,current.observedAt,keys),permit=Object.freeze({});
-  permits.set(permit,{client,keys,environment,releaseSha,sourceSha,provider:current.provider,database:current.database,issuedAt:Date.now(),logs,initialAt:initial.observedAt});return permit;
+  const logs=await assertDrainedLogs(environment,initial.observedAt,current.observedAt,keys,maintenance),permit=Object.freeze({});
+  permits.set(permit,{client,keys,environment,maintenance,releaseSha,sourceSha,provider:current.provider,database:current.database,issuedAt:Date.now(),logs,initialAt:initial.observedAt});return permit;
  }
  return Object.freeze({observe,authorize,close:()=>client.close()});
 }
 export async function requireProductionControl(permit){
  const state=permits.get(permit);if(!state||Date.now()<state.issuedAt||Date.now()-state.issuedAt>3600_000)fail('STAGE8_PRODUCTION_AUTHORITY_REQUIRED');
- assertCleanStage8Release(state.releaseSha,repository);const schema=await currentVersion(state.client),provider=await pausedProviders(state.environment,state.sourceSha,state.keys,schema);
+ assertStage8Maintenance(state.maintenance);assertCleanStage8Release(state.releaseSha,repository);const schema=await currentVersion(state.client),provider=await pausedProviders(state.environment,state.sourceSha,state.keys,schema,state.maintenance);
  if(serial(provider)!==serial(state.provider))fail('STAGE8_QUIET_WINDOW_CHANGED');
- await assertDrainedLogs(state.environment,state.initialAt,provider.observedAtServer,state.keys);
+ await assertDrainedLogs(state.environment,state.initialAt,provider.observedAtServer,state.keys,state.maintenance);
  const current=await readDatabaseControl(state.client,state.keys);
  if(current.schema!==schema)fail('STAGE8_DATABASE_CHANGED_DURING_OBSERVATION');
- return {...state,current};
+ assertStage8Maintenance(state.maintenance);return {...state,current};
 }

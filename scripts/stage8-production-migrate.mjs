@@ -3,7 +3,6 @@ import {fileURLToPath} from 'node:url';
 import {dirname,join,resolve} from 'node:path';
 import {open,readFile,mkdtemp,chmod,rm,link,unlink,lstat} from 'node:fs/promises';
 import {createCipheriv,createDecipheriv,randomBytes,createHash} from 'node:crypto';
-import Database from 'libsql';
 import {createClient} from '@libsql/client';
 import {currentVersion,runMigrations} from '../src/migrations.js';
 import {assertPhase4Schema} from '../src/phase4Migrations.js';
@@ -12,6 +11,8 @@ import {assertCleanStage8Release,stage8ProtectedDirectory,stage8ProtectedFile,st
  stage8PreservationSnapshot,verifyStage8RecoveryClient,sealStage8RecoveryImage,rehearseStage8RecoveryImage} from './stage8-migration-safety.mjs';
 import {prepareStage8AtomicMigration,stage8AtomicPlanStatements,stage8AtomicPlanSteps,stage8AtomicPlanEvidence,assertStage8AtomicPlanBinding,reconcileStage8AtomicPlan} from './stage8-atomic-migration.mjs';
 import {persistStage8AtomicRecovery,authenticateStage8AtomicRecovery} from './stage8-atomic-recovery.mjs';
+import {withStage8Maintenance,assertStage8Maintenance,stage8MaintenanceExpired,stage8MaintenanceTiming,stage8MaintenanceFetch,stage8MaintenanceClientOptions,dispatchStage8MaintenanceMutation,stage8MaintenanceDiagnosticClient} from './stage8-maintenance-context.mjs';
+import {restoreStage8Sqlite} from './stage8-sqlite-restore.mjs';
 
 const MAGIC=Buffer.from('KHOSSQL1'),MAX_DUMP=256*1024*1024,fail=code=>{throw Object.assign(Error(code),{code});};
 const atomicRecoveryPlans=new WeakMap();
@@ -22,7 +23,7 @@ async function writeAll(fd,bytes){let at=0;while(at<bytes.length){const {bytesWr
 
 /** The only Production download is the official authenticated GET /dump.
  * Plaintext is encrypted as chunks arrive; no SQL plaintext file is written. */
-async function encryptedDump(state,{backupPath,keyPath}){
+async function encryptedDump(state,{backupPath,keyPath,maintenance}){
  await stage8ProtectedDirectory(dirname(resolve(backupPath)));const key=await stage8RecoveryKey(keyPath);
  const temporary=resolve(backupPath)+'.partial-'+randomBytes(12).toString('hex');let fd,identity,published=false;
  const metadata={contract:'stage8-production-sql-recovery-v1',host:PRODUCTION_CONTROL.host,releaseSha:state.releaseSha,sourceSha:state.sourceSha,
@@ -31,10 +32,10 @@ async function encryptedDump(state,{backupPath,keyPath}){
  let first=Buffer.alloc(0),last=Buffer.alloc(0),bytes=0;
  try{
   fd=await open(temporary,'wx',0o600);identity=await fd.stat();await writeAll(fd,aad);
-  const response=await fetch(`https://${PRODUCTION_CONTROL.host}/dump`,{headers:{Authorization:'Bearer '+state.environment.TURSO_AUTH_TOKEN},redirect:'error',signal:AbortSignal.timeout(90_000)});
-  if(response.status!==200||!response.body)fail('STAGE8_BACKUP_DOWNLOAD_FAILED');
+  const response=await stage8MaintenanceFetch(maintenance,`https://${PRODUCTION_CONTROL.host}/dump`,{headers:{Authorization:'Bearer '+state.environment.TURSO_AUTH_TOKEN}},90_000);
+  assertStage8Maintenance(maintenance);if(response.status!==200||!response.body)fail('STAGE8_BACKUP_DOWNLOAD_FAILED');
   const reader=response.body.getReader();
-  try{for(;;){const next=await reader.read();if(next.done)break;const part=Buffer.from(next.value);bytes+=part.length;if(bytes>MAX_DUMP)fail('STAGE8_BACKUP_BOUND_EXCEEDED');first=Buffer.concat([first,part]).subarray(0,1024);last=Buffer.concat([last,part]).subarray(-1024);await writeAll(fd,cipher.update(part));}}
+  try{for(;;){const next=await reader.read();assertStage8Maintenance(maintenance);if(next.done)break;const part=Buffer.from(next.value);bytes+=part.length;if(bytes>MAX_DUMP)fail('STAGE8_BACKUP_BOUND_EXCEEDED');first=Buffer.concat([first,part]).subarray(0,1024);last=Buffer.concat([last,part]).subarray(-1024);await writeAll(fd,cipher.update(part));}}
   finally{try{await reader.cancel();}catch{}reader.releaseLock();}
   if(bytes<100||!first.toString().includes('BEGIN TRANSACTION')||!/COMMIT;\s*$/.test(last.toString()))fail('STAGE8_BACKUP_INCOMPLETE');
   await writeAll(fd,cipher.final());await writeAll(fd,cipher.getAuthTag());await fd.sync();await fd.close();fd=null;
@@ -62,21 +63,21 @@ export async function authenticateProductionDump({backupPath,keyPath,releaseSha,
  const sql=Buffer.concat([cipher.update(bytes.subarray(12+n,-16)),cipher.final()]);
  return {metadata,sql,encryptedDigest:digest(bytes)};
 }
-async function backupAndRehearse(permit,{backupPath,keyPath,targetVersion}){
+async function backupAndRehearse(permit,{backupPath,keyPath,targetVersion,maintenance}){
  let state=await requireProductionControl(permit);
  if(state.current.digest!==state.database.digest)fail('STAGE8_DATABASE_CHANGED_AFTER_QUIET_WINDOW');
- const original=state.current,download=await encryptedDump(state,{backupPath,keyPath});
+ const original=state.current,download=await encryptedDump(state,{backupPath,keyPath,maintenance});
  const decoded=await authenticateProductionDump({backupPath,keyPath,releaseSha:state.releaseSha,sourceSha:state.sourceSha,sourceDigest:original.digest});
- const directory=await mkdtemp(join(dirname(resolve(backupPath)),'restore-'));await chmod(directory,0o700);let native,client;
+ const directory=await mkdtemp(join(dirname(resolve(backupPath)),'restore-'));await chmod(directory,0o700);let client;
  try{
-  const sourcePath=join(directory,'restore.sqlite');native=new Database(sourcePath);native.exec(decoded.sql.toString('utf8'));native.exec('PRAGMA wal_checkpoint(TRUNCATE)');native.close();native=null;await chmod(sourcePath,0o600);
+  const sourcePath=join(directory,'restore.sqlite');await restoreStage8Sqlite({sourcePath,sql:decoded.sql,maintenance});
   client=createClient({url:'file:'+sourcePath,intMode:'number'});const schema=await verifyStage8RecoveryClient(client,state.keys);
   const snapshot=await stage8PreservationSnapshot(client,state.keys),history=state.keys.lookup(['stage8-schema-history-v1',
    (await client.execute('SELECT * FROM schema_version ORDER BY version')).rows,(await client.execute('SELECT * FROM phase4_migration_checkpoints ORDER BY target_version,step_key')).rows]);
   if(schema!==original.schema||serial(snapshot)!==serial(original.snapshot)||history!==original.history)fail('STAGE8_RESTORED_SOURCE_MISMATCH');
   client.close();client=null;
   const imagePath=backupPath+'.sqlite.enc',common={sourcePath,backupPath:imagePath,keyPath,keys:state.keys,releaseSha:state.releaseSha,sourceTarget:PRODUCTION_CONTROL.host};
-  const sealed=await sealStage8RecoveryImage(common),rehearsal=await rehearseStage8RecoveryImage({...common,targetVersion});
+  assertStage8Maintenance(maintenance);const sealed=await sealStage8RecoveryImage(common),rehearsal=await rehearseStage8RecoveryImage({...common,targetVersion});assertStage8Maintenance(maintenance);
   let atomicPlan,atomicRecovery;
   if(original.schema===33&&targetVersion===35){
    // The authenticated original33 image is already sealed. Compile the exact
@@ -93,28 +94,38 @@ async function backupAndRehearse(permit,{backupPath,keyPath,targetVersion}){
    imageEncryptedDigest:sealed.encryptedDigest,rehearsalStatus:rehearsal.status,releaseSha:state.releaseSha,targetVersion,...(atomicRecovery?{atomicRecovery}:{})};
   if(atomicPlan)atomicRecoveryPlans.set(recovery,{plan:atomicPlan,keyPath});
   return recovery;
- }finally{try{native?.close();}catch{}client?.close();decoded.sql.fill(0);await rm(directory,{recursive:true,force:true});}
+ }finally{client?.close();decoded.sql.fill(0);await rm(directory,{recursive:true,force:true});}
 }
-async function controlledAtomicMigration(permit,recovery){
+async function controlledAtomicMigration(permit,recovery,maintenance){
  const held=atomicRecoveryPlans.get(recovery);if(!held)fail('STAGE8_ATOMIC_RECOVERY_PLAN_REQUIRED');const {plan,keyPath}=held;
- if(Date.now()<recovery.createdAt||Date.now()-recovery.createdAt>3600_000)fail('STAGE8_BACKUP_BINDING_REQUIRED');
- const state=await requireProductionControl(permit);
- if(state.current.schema!==33||state.current.digest!==recovery.sourceDigest)fail('STAGE8_DATABASE_CHANGED_AFTER_BACKUP');
- assertStage8AtomicPlanBinding(plan,{keys:state.keys,releaseSha:state.releaseSha,sourceSha:state.sourceSha,sourceDigest:recovery.sourceDigest});
- const authenticated=await authenticateStage8AtomicRecovery({manifestPath:recovery.atomicRecovery.manifestPath,keyPath,keys:state.keys,releaseSha:state.releaseSha,sourceSha:state.sourceSha});
- if(authenticated.manifestDigest!==recovery.atomicRecovery.manifestDigest||JSON.stringify(authenticated.manifest.planEvidence)!==JSON.stringify(stage8AtomicPlanEvidence(plan,
-  {keys:state.keys,releaseSha:state.releaseSha,sourceSha:state.sourceSha,sourceDigest:recovery.sourceDigest})))fail('STAGE8_ATOMIC_RECOVERY_BINDING_REQUIRED');
- let responseLost=false;
- // One driver-owned BEGIN IMMEDIATE/write batch. The statements, exact schema
- // guards and marker34->35 ordering come only from the original local engine.
- // No remote apply authority is exported from the local preparation helper.
- try{await state.client.batch(stage8AtomicPlanStatements(plan),'write');}catch{responseLost=true;}
- let result;const fresh=createClient({url:state.environment.TURSO_DATABASE_URL,authToken:state.environment.TURSO_AUTH_TOKEN,intMode:'number'});
- try{result=await reconcileStage8AtomicPlan(fresh,plan,{keys:state.keys});}finally{fresh.close();}
- // Provider identities, ingress closure, complete logs and every durable row
- // are independently read again after the transaction. An unexpected writer
- // can never be adopted as a new baseline, even when counts happen to match.
- const checked=await requireProductionControl(permit);
+ let state,issued=false,responseLost=false;
+ const prepare=async()=>{
+  if(Date.now()<recovery.createdAt||Date.now()-recovery.createdAt>3600_000)fail('STAGE8_BACKUP_BINDING_REQUIRED');
+  state=await requireProductionControl(permit);
+  if(state.current.schema!==33||state.current.digest!==recovery.sourceDigest)fail('STAGE8_DATABASE_CHANGED_AFTER_BACKUP');
+  assertStage8AtomicPlanBinding(plan,{keys:state.keys,releaseSha:state.releaseSha,sourceSha:state.sourceSha,sourceDigest:recovery.sourceDigest});
+  const authenticated=await authenticateStage8AtomicRecovery({manifestPath:recovery.atomicRecovery.manifestPath,keyPath,keys:state.keys,releaseSha:state.releaseSha,sourceSha:state.sourceSha});
+  if(authenticated.manifestDigest!==recovery.atomicRecovery.manifestDigest||JSON.stringify(authenticated.manifest.planEvidence)!==JSON.stringify(stage8AtomicPlanEvidence(plan,
+   {keys:state.keys,releaseSha:state.releaseSha,sourceSha:state.sourceSha,sourceDigest:recovery.sourceDigest})))fail('STAGE8_ATOMIC_RECOVERY_BINDING_REQUIRED');
+  return state;
+ };
+ try{await dispatchStage8MaintenanceMutation(maintenance,{prepare,dispatch:prepared=>{
+  // All awaited readonly checks, including the original journal guard, finished.
+  // This synchronous check immediately precedes the ONE canonical batch call.
+  assertStage8Maintenance(maintenance);issued=true;return prepared.client.batch(stage8AtomicPlanStatements(plan),'write');
+ }});}catch(error){if(!issued)throw error;responseLost=true;}
+ const reconcile=async diagnostic=>{
+  const fresh=diagnostic?stage8MaintenanceDiagnosticClient(state.environment):createClient(maintenance===undefined
+   ?{url:state.environment.TURSO_DATABASE_URL,authToken:state.environment.TURSO_AUTH_TOKEN,intMode:'number'}:stage8MaintenanceClientOptions(state.environment,maintenance));
+  try{return await reconcileStage8AtomicPlan(fresh,plan,{keys:state.keys});}finally{fresh.close();}
+ };
+ let late=stage8MaintenanceExpired(maintenance),result=await reconcile(late);
+ if(!late&&stage8MaintenanceExpired(maintenance)){late=true;result=await reconcile(true);}
+ const lateFailure=result=>{const timing=stage8MaintenanceTiming(maintenance),prefix=timing.deadlineReached?'LATE':'ABORTED',code=result.commitVerified?`STAGE8_ATOMIC_${prefix}_PREPARED35_VERIFIED_KEEP_CLOSED`:`STAGE8_ATOMIC_${prefix}_COMMIT_UNCERTAIN`;return Object.assign(Error(code),{code,trafficReopened:false,
+  readOnlyReconciliation:{...result,...timing,readOnly:true,trafficReopened:false,normalSuccess:false,late:timing.deadlineReached}});};
+ if(late)throw lateFailure(result);
+ let checked;try{checked=await requireProductionControl(permit);assertStage8Maintenance(maintenance);}
+ catch(error){if(stage8MaintenanceExpired(maintenance))throw lateFailure(await reconcile(true));throw error;}
  if(result.status==='SOURCE33_OBSERVED_COMMIT_UNCERTAIN')fail('STAGE8_ATOMIC_SOURCE33_COMMIT_UNCERTAIN');
  if(result.status!=='PREPARED35_VERIFIED')fail('STAGE8_ATOMIC_OUTCOME_UNKNOWN');
  if(checked.current.digest!==result.digest)fail('STAGE8_DATABASE_CHANGED_DURING_MIGRATION');
@@ -157,12 +168,17 @@ function parse(argv){
  }
  for(const key of ['mode','--expected-commit','--source-commit','--inventory-file','--observation-file'])if(!options[key])fail('STAGE8_ARGUMENT_REQUIRED');return options;
 }
-export async function main(argv=process.argv.slice(2),environment=process.env){
+export async function main(argv=process.argv.slice(2),environment=process.env,windowContext){
+ const options=parse(argv);
+ if(windowContext!==undefined&&options.mode==='apply'&&(options['--from-version']!=='33'||options['--target-version']!=='35'))fail('STAGE8_BOUNDED_ATOMIC33_TO35_REQUIRED');
+ return withStage8Maintenance(windowContext,options.mode==='observe'?'OBSERVE_WRITERS':'MIGRATE_35',maintenance=>mainInternal(argv,environment,maintenance));
+}
+async function mainInternal(argv,environment,maintenance){
  if(Number(process.versions.node.split('.')[0])!==22)fail('STAGE8_NODE22_REQUIRED');const options=parse(argv),repository=fileURLToPath(new URL('../',import.meta.url));
  assertCleanStage8Release(options['--expected-commit'],repository);
  const inventory=JSON.parse(await readFile((await stage8ProtectedFile(options['--inventory-file'])).path,'utf8'));
  await stage8ProtectedDirectory(dirname(resolve(options['--observation-file'])));
- const control=productionControl({environment,releaseSha:options['--expected-commit'],sourceSha:options['--source-commit'],inventory});
+ const control=productionControl({environment,releaseSha:options['--expected-commit'],sourceSha:options['--source-commit'],inventory,maintenance});
  try{
   if(options.mode==='observe'){
    if(options['--backup-file']||options['--key-file']||options['--from-version']||options['--target-version']||options['--confirm-production'])fail('STAGE8_ARGUMENT_INVALID');
@@ -174,9 +190,9 @@ export async function main(argv=process.argv.slice(2),environment=process.env){
   const from=Number(options['--from-version']),target=Number(options['--target-version']);if(target<from)fail('STAGE8_ORDERED_SINGLE_STEP_REQUIRED');
   const observation=JSON.parse(await readFile((await stage8ProtectedFile(options['--observation-file'])).path,'utf8'));
   const permit=await control.authorize(observation),state=await requireProductionControl(permit);if(state.current.schema!==from)fail('STAGE8_SOURCE_SCHEMA_CHANGED');
-  const recovery=await backupAndRehearse(permit,{backupPath:options['--backup-file'],keyPath:options['--key-file'],targetVersion:target});
+  const recovery=await backupAndRehearse(permit,{backupPath:options['--backup-file'],keyPath:options['--key-file'],targetVersion:target,maintenance});
   assertCleanStage8Release(options['--expected-commit'],repository);const steps=[];let expectedDigest=recovery.sourceDigest,atomic;
-  if(from===33&&target===35){const applied=await controlledAtomicMigration(permit,recovery);steps.push(...applied.steps);atomic=applied.atomic;}
+  if(from===33&&target===35){const applied=await controlledAtomicMigration(permit,recovery,maintenance);steps.push(...applied.steps);atomic=applied.atomic;}
   else{
    for(let version=from;version<target;version++){if(Date.now()-recovery.createdAt>3600_000)fail('STAGE8_BACKUP_BINDING_REQUIRED');const step=await controlledStep(permit,version,version+1,expectedDigest);steps.push(step.result);expectedDigest=step.nextDigest;}
    steps.push((await controlledStep(permit,target,target,expectedDigest)).result);
@@ -185,5 +201,5 @@ export async function main(argv=process.argv.slice(2),environment=process.env){
  }finally{control.close();}
 }
 if(import.meta.url===`file://${process.argv[1]}`)main().then(result=>console.log(JSON.stringify(result))).catch(error=>{
- const code=/^STAGE8_[A-Z0-9_]+$/.test(error?.code??'')?error.code:'STAGE8_PRODUCTION_CONTROL_FAILED';console.error(JSON.stringify({code,trafficReopened:false}));process.exitCode=1;
+ const code=/^STAGE8_[A-Z0-9_]+$/.test(error?.code??'')?error.code:'STAGE8_PRODUCTION_CONTROL_FAILED';console.error(JSON.stringify({code,trafficReopened:false,...(error.readOnlyReconciliation?{readOnlyReconciliation:error.readOnlyReconciliation}:{})}));process.exitCode=1;
 });

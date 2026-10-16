@@ -2,6 +2,7 @@ import {OWNER_MAX_ATTEMPTS,ownerRetryAt} from './stage8OwnerMonitoring.js';
 import {createTelegramApi} from './bot/api.js';
 import {SEND_OUTCOME} from './sendOutcome.js';
 import {validMessageId} from './telegramAcknowledgment.js';
+import {readStage8RecipientQuietHours,stage8RecipientIsQuiet,sendStage8RecipientNotification} from './stage8NotificationQuietHours.js';
 const copy={
  'zh-TW':{title:'已追蹤使用者的健康摘要',asof:'資料截至',association:'觀察性關聯，不代表因果。'},
  en:{title:'Followed user health summary',asof:'Data as of',association:'Observational association only; not causation.'},
@@ -15,6 +16,15 @@ export function createStage8OwnerDispatcher({db,monitoring,env,enabled,now=()=>n
  async function dispatch(input,{subjectId,notificationClass}){
   if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');
   const actor=await monitoring.authenticate(input),pending=await monitoring.pending(actor,subjectId,notificationClass);
+  // Recover an already-started unknown send even during quiet hours. This is
+  // settlement of provider truth, never another network request.
+  if(pending?.state==='DELIVERY_STARTED'){
+   const attempt=(await db.raw.execute({sql:"SELECT attempt_id FROM owner_monitoring_attempts WHERE user_id=? AND message_id=? AND state='DELIVERY_STARTED'",args:[subjectId,pending.message_id]})).rows[0];
+   if(!attempt)throw Error('OWNER_ATTEMPT_NOT_FOUND');
+   await monitoring.settle({subjectId,messageId:pending.message_id,attemptId:attempt.attempt_id,outcome:'AMBIGUOUS'});
+   return {status:'AMBIGUOUS',messageId:pending.message_id,recovered:true};
+  }
+  if(stage8RecipientIsQuiet(await readStage8RecipientQuietHours(db,actor.ownerId),now()))return {status:'QUIET_HOURS',messageId:pending?.message_id??null};
   let proposal=pending?{status:pending.state,messageId:pending.message_id}:null;
   if(!proposal){const approved=await monitoring.authorize(actor,{subjectId,notificationClass});if(approved.status!=='APPROVED')return approved;proposal=await monitoring.propose(actor,approved.ticket);}
   const messageId=proposal.messageId;
@@ -28,6 +38,7 @@ export function createStage8OwnerDispatcher({db,monitoring,env,enabled,now=()=>n
   if(pending&&(pending.expires_at<=now().toISOString()||pending.attempt_count>=OWNER_MAX_ATTEMPTS))return monitoring.close(actor,subjectId,messageId);
   if(pending?.state==='FAILED_DEFINITE'&&now().getTime()<ownerRetryAt(pending))return {status:'FAILED_DEFINITE',messageId,nextAttemptAt:new Date(ownerRetryAt(pending)).toISOString()};
   let initial;try{initial=await monitoring.validate(actor,subjectId,messageId);}catch(error){await monitoring.close(actor,subjectId,messageId);return {status:'SUPPRESSED',messageId,reason:'AUTHORITY_CHANGED'};}
+  if(stage8RecipientIsQuiet(await readStage8RecipientQuietHours(db,actor.ownerId),now()))return {status:'QUIET_HOURS',messageId};
   const start=await monitoring.start(actor,{subjectId,messageId,expectedRevision:initial.row.revision});
   let outcome='FAILED_DEFINITE',providerMessageId=null,sendBegan=false;
   try{
@@ -44,10 +55,10 @@ export function createStage8OwnerDispatcher({db,monitoring,env,enabled,now=()=>n
    await db.assertRuntimeFences?.();
    // Runtime admission may yield; source withdrawal during that wait must
    // invalidate this copy before any provider request begins.
-   await monitoring.validate(actor,subjectId,messageId);
-   if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');
-   sendBegan=true;
-   const sent=await api.sendMessage(actor.chatId,{text});
+   const sent=await sendStage8RecipientNotification({db,userId:actor.ownerId,now,verify:async()=>{
+    await monitoring.validate(actor,subjectId,messageId);
+    if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');
+   },send:()=>{if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');sendBegan=true;return api.sendMessage(actor.chatId,{text});}});
    if(!validMessageId(sent?.message_id))throw Error('OWNER_ACK_INVALID');
    providerMessageId=String(sent.message_id);outcome='DELIVERED';
   }catch(error){outcome=!sendBegan||error?.sendOutcome===SEND_OUTCOME.DEFINITE_FAILURE?'FAILED_DEFINITE':'AMBIGUOUS';}

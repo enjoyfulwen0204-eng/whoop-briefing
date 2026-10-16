@@ -1,17 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {candidateSha,dockerArguments,summarize,LIMITS} from './run.mjs';
+import {spawnSync} from 'node:child_process';
+import {candidateSha,dockerArguments,summarize,controlFailure,LIMITS} from './run.mjs';
 
 const sha='a'.repeat(40);
 const plan=()=>({name:'stage8-qualification-123-1',image:'stage8-live-qualification:123-1',checkout:'/runner/work/candidate',commonGit:'/runner/repository/.git',output:'/runner/private/output',uid:1001,gid:1001});
 const profile=name=>({profile:name,productionEvidence:false,releaseSha:sha,callsStarted:7,status:'LOCAL_LIVE_HTTP_VERIFIED',node:'v22.23.3',architecture:'x64',elapsedMs:100,
+ input:{expectedTotalRows:{sleep:name==='dense'?40:0,recovery:name==='dense'?40:0,cycle:name==='dense'?40:0,workout:name==='dense'?40:0}},
+ seededRows:{whoop_sleeps:name==='dense'?40:0,whoop_recoveries:name==='dense'?40:0,whoop_cycles:name==='dense'?40:0,whoop_workouts:name==='dense'?40:0},
  preflight:{memoryMaxBytes:536870912,swapMaxBytes:0,cpuQuota:50000,cpuPeriod:100000},finishedUsers:['a','b','c'],blockedUsers:[],failures:[],explicitEmptyVerified:name==='empty',
  final:{jobs:Array.from({length:6},()=>({state:'COMPLETED',requested_generation:1,completed_generation:1})),publications:3,completionProofs:6},
  resources:{finalCgroup:{memoryMax:'536870912',swapMax:'0',cpuMax:'50000 100000',memoryPeak:'200000000'},cgroupMemoryEventDelta:{oom:0,oom_kill:0},cgroupCpuDelta:{usage_usec:1234},sampledRssPeak:150000000},
  http:{requests:1000,requestErrors:0,responseErrors:0,openTransactions:0,transactionDurationUpperBounds:{maximumMs:100}}});
 test('input cannot supply a branch, repository or shell expression instead of the full commit',()=>{
  assert.equal(candidateSha(sha),sha);for(const value of ['main','owner/repo@'+sha,sha+'\n',sha.toUpperCase(),'$(secret)',undefined])assert.throws(()=>candidateSha(value));
+});
+test('strict sqld check accepts the exact pinned image output and rejects a different version or build',()=>{
+ const dockerfile=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8'),expression=/grep -Eq '([^']+)' \/tmp\/sqld-version/.exec(dockerfile)?.[1];
+ assert.ok(expression);const check=value=>spawnSync('grep',['-Eq',expression],{input:value,encoding:'utf8'}).status;
+ assert.equal(check('sqld sqld 0.24.33 (f8fb14f3 2026-08-11)\n'),0);
+ for(const value of ['sqld 0.24.33 (f8fb14f3 2026-08-11)\n','sqld sqld 0.24.32 (f8fb14f3 2026-08-11)\n','sqld sqld 0.24.33 (00000000 2026-08-11)\n','sqld sqld 0.24.33 (f8fb14f3 2026-08-12)\n','prefix sqld sqld 0.24.33 (f8fb14f3 2026-08-11)\n'])assert.equal(check(value),1);
+ assert.match(dockerfile,/QUALIFICATION_NODE_VERSION=/);assert.match(dockerfile,/QUALIFICATION_SQLD_VERSION=/);assert.match(dockerfile,/test "\$\(cat \/tmp\/node-version\)" = v22[.]23[.]3/);
+});
+test('summary retains bounded failure hashes and numeric aggregate densities without messages or user IDs',()=>{
+ const reports=[profile('empty'),profile('dense')];reports[1].status='LOCAL_LIVE_HTTP_PARTIAL';
+ reports[1].failures=Array.from({length:18},()=>({stage:'LEG:a',code:'HTTP_ABORTED',messageSha256:'b'.repeat(64),message:'PRIVATE_HEALTH_RECORD',userId:'PRIVATE_USER'}));
+ const result=summarize({reports,expectedSha:sha,exitCode:2}),row=result.profiles[1];
+ assert.deepEqual(row.sourceRows,{expected:{sleep:40,recovery:40,cycle:40,workout:40},actual:{sleep:40,recovery:40,cycle:40,workout:40}});
+ assert.equal(row.failures.length,16);assert.equal(row.failureCount,18);assert.deepEqual(row.failures[0],{stage:'LEG:a',code:'HTTP_ABORTED',messageSha256:'b'.repeat(64)});
+ assert.ok(!JSON.stringify(result).includes('PRIVATE_'));
+ for(const change of [r=>r[0].seededRows.whoop_sleeps=1,r=>delete r[1].input,r=>r[0].resources.cgroupCpuDelta.usage_usec='PRIVATE_HEALTH_RECORD',r=>r[1].resources.cgroupCpuDelta.usage_usec=Infinity]){
+  const copy=[profile('empty'),profile('dense')];change(copy);assert.throws(()=>summarize({reports:copy,expectedSha:sha,exitCode:0}));
+ }
+});
+test('wrapper failure diagnostics emit only a trusted phase, bounded code and SHA256',()=>{
+ const error=new Error('private health record and token must never be printed');error.code='EIO';
+ const value=controlFailure(error,'IMAGE_BUILD');assert.equal(value.phase,'IMAGE_BUILD');assert.equal(value.code,'EIO');assert.match(value.messageSha256,/^[a-f0-9]{64}$/);
+ assert.deepEqual(Object.keys(value).sort(),['code','messageSha256','phase']);assert.ok(!JSON.stringify(value).includes('private'));
+ assert.equal(controlFailure(error,'private phase').phase,'UNKNOWN');error.code='private token';assert.equal(controlFailure(error,'REPORT').code,'ERROR');
+ assert.equal(controlFailure(new Error('PINNED_IMAGE_BUILD_REQUIRED'),'IMAGE_BUILD').code,'PINNED_IMAGE_BUILD_REQUIRED');
 });
 test('resource and network isolation include sqld and the application in one container',()=>{
  const argv=dockerArguments(plan());

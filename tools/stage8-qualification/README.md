@@ -28,6 +28,14 @@ Pinned official images:
   image build, before workloads):
   https://github.com/tursodatabase/libsql/pkgs/container/libsql-server
 
+The first CI run38887745672 stopped during image build, before any database or
+producer call. The pinned image's actual version line, confirmed by an isolated
+image-only `--version` diagnostic with no host mounts, is exactly
+`sqld sqld 0.24.33 (f8fb14f3 2026-08-11)`. Its repeated `sqld` prefix is part of the
+upstream output. The strict build check matches that complete line and prints
+only harmless Node/sqld versions. Both image digests and expected versions remain
+unchanged. This diagnostic is not a workload or resource qualification.
+
 Qualification is Linux AMD64, Node22.23.3, one combined shell/Node/sqld cgroup:
 512MiB memory, no swap,0.5CPU,128 PIDs, network none, read-only container and source,
 fresh0700 output. Source preflight independently verifies actual cgroup/mount
@@ -45,3 +53,9 @@ interaction, or concurrent Telegram/SYNC responsiveness. Partial, failed, aborte
 OOM or incomplete business results fail the job and remain unverified. A resource
 qualification PASS must still precede the separate approved release and actual
 Production workload verification.
+
+The summary retains expected and actual resource row totals, numeric memory/CPU
+and HTTP counters, and at most16 failure stage/code/SHA256 records per profile.
+It omits source values, private IDs, SQL, raw errors and credentials. Trusted
+wrapper failures identify their control phase and a bounded code/hash; cleanup
+failure diagnostics preserve the primary error.

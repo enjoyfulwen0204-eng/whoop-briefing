@@ -103,7 +103,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  }
  async function sendReply(send,input){
   const protectedReply=input.reply?.stage7ReplyGuard||input.reply?.stage7InteractionId||input.reply?.stage7View;
-  const beforeSend=async()=>!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply});
+  const beforeSend=async()=>(!input.beforeSend||await input.beforeSend())&&(!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply}));
   if(!await beforeSend())return {sent:false,messageId:null,reason:'stage7_reply_changed'};
   const result=await send({...input,beforeSend});
   if(result?.sent&&input.userId&&eligible(await db.getUser(input.userId))&&input.reply?.stage7InteractionId){

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage7PresentationSender} from '../stage7PresentationSender.js';
 import {createStage7Runtime} from '../stage7Runtime.js';
 import {createStage5PresentationRuntime,createStage5PresentationSender} from '../stage5PresentationReader.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
@@ -163,7 +164,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: stage7?input=>stage7.sendReply(sendAnalysis,input):sendAnalysis,
+    sendReply: createStage7PresentationSender(stage7,sendAnalysis),
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

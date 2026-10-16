@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage7PresentationSender} from '../stage7PresentationSender.js';
 import {createStage7Runtime} from '../stage7Runtime.js';
 import {createStage5PresentationRuntime,createStage5PresentationSender} from '../stage5PresentationReader.js';
 import {COMPANION_PATH,runCompanionService} from '../companionService.js';
@@ -486,7 +487,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: stage7?input=>stage7.sendReply(sendAnalysis,input):sendAnalysis,
+    sendReply: createStage7PresentationSender(stage7,sendAnalysis),
     answerCallback: id=>api.answerCallbackQuery(id),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.

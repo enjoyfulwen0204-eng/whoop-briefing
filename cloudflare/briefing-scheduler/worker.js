@@ -1,3 +1,5 @@
+import {BUFFER_PATH,BUFFER_PROBE_PATH,createEncryptedWhoopBuffer,createWhoopBufferProbeAuthenticator} from './whoop-event-buffer.js';
+import {APPROVED_WHOOP_BUFFER_PIN} from './whoop-buffer-approval.js';
 const PATH='/internal/briefing/run';
 const CONTINUATION_PATH='/internal/briefing/continuation';
 export const MAX_CONTINUATION_SEGMENTS=2;
@@ -237,5 +239,17 @@ export default {
   try{return await (event.cron===READINESS_CRON?invokeReadiness(env):invoke(env));}
   finally{if(env.BRIEFING_COMPANION_ENABLED==='on')try{await invokeCompanion(env);}catch(e){console.error(JSON.stringify({event:'companion_tick_failed',category:e.category??'unknown'}));}}
  })().catch(e=>{console.error(JSON.stringify({event:'briefing_trigger_failed',category:e.category??'unknown',retryable:!e.nonRetryable}));throw e;}));},
- async fetch(){return new Response(JSON.stringify({ok:true,service:'briefing-scheduler'}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store'}});},
+ async fetch(request,env={}){
+  const path=request?.url?new URL(request.url).pathname:'/';
+  if([BUFFER_PATH,BUFFER_PROBE_PATH].includes(path)){
+   let binding;try{binding=JSON.parse(env.WHOOP_BUFFER_BINDING??'null');}catch{}
+   const handler=createEncryptedWhoopBuffer({approvedPin:APPROVED_WHOOP_BUFFER_PIN,
+    configuration:{enabled:env.WHOOP_BUFFER_ENABLED??'off',binding},queue:env.WHOOP_EVENT_BUFFER,
+    assertOperatorProbe:APPROVED_WHOOP_BUFFER_PIN?createWhoopBufferProbeAuthenticator({approvedPin:APPROVED_WHOOP_BUFFER_PIN,secret:env.BRIEFING_TRIGGER_SECRET}):null});
+   return handler(request);
+  }
+  // A mistyped WHOOP URL must never inherit the scheduler's health200.
+  if(path.startsWith('/whoop/'))return new Response(JSON.stringify({ok:false}),{status:404,headers:{'content-type':'application/json','cache-control':'no-store'}});
+  return new Response(JSON.stringify({ok:true,service:'briefing-scheduler'}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store'}});
+ },
 };

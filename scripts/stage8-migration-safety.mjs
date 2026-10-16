@@ -78,22 +78,28 @@ export async function verifyStage8RecoveryClient(client,keys){
 /** Keyed row digests never expose health values or credentials. Preserve every
  * existing column and row, including pending jobs/receipts and preferences. */
 export async function stage8PreservationSnapshot(client,keys,definition=null){
- const result={};
  const tables=definition?Object.keys(definition):(await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name NOT LIKE 'sqlite_%' OR name='sqlite_sequence') AND name NOT IN ('schema_version','phase4_migration_checkpoints') ORDER BY name")).rows.map(row=>row.name);
- for(const table of tables){
+ const results=new Array(tables.length);let next=0,failure;
+ const capture=async table=>{
   const info=(await client.execute(`PRAGMA table_info(${identifier(table)})`)).rows;
   const columns=definition?.[table]?.columns??info.map(row=>row.name);
   if(columns.some(column=>!info.some(row=>row.name===column)))fail('STAGE8_PRESERVED_COLUMN_MISSING');
   const primary=info.filter(row=>Number(row.pk)>0).sort((a,b)=>Number(a.pk)-Number(b.pk)).map(row=>identifier(row.name));
   const order=primary.length?primary.join(','):'rowid';let offset=0,hash=keys.lookup(['stage8-preservation-table-v1',table,columns]);
   for(;;){
-   const rows=(await client.execute({sql:`SELECT ${columns.map(identifier).join(',')} FROM ${identifier(table)} ORDER BY ${order} LIMIT 128 OFFSET ?`,args:[offset]})).rows;
+   const rows=(await client.execute({sql:`SELECT ${columns.map(identifier).join(',')} FROM ${identifier(table)} ORDER BY ${order} LIMIT 1024 OFFSET ?`,args:[offset]})).rows;
    for(const row of rows)hash=keys.lookup(['stage8-preservation-row-v1',hash,serial(columns.map(column=>row[column]))]);
-   offset+=rows.length;if(rows.length<128)break;
+   offset+=rows.length;if(rows.length<1024)break;
   }
-  result[table]={columns,count:offset,hash};
- }
- return result;
+  return {columns,count:offset,hash};
+ };
+ // Four table readers, each retaining only its current <=1024-row page.
+ // Every table's original PK/rowid order and per-row HMAC chain are unchanged.
+ // Assemble by original table index so transport completion order cannot alter
+ // the all-tables digest. Settle every reader before propagating an error.
+ const worker=async()=>{while(!failure&&next<tables.length){const index=next++;try{results[index]=await capture(tables[index]);}catch(error){failure??=error;}}};
+ await Promise.all(Array.from({length:Math.min(4,tables.length)},worker));if(failure)throw failure;
+ return Object.fromEntries(tables.map((table,index)=>[table,results[index]]));
 }
 
 /** Local disposable recovery copies only. This deliberately does not grant

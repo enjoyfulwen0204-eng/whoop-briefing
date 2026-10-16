@@ -6,6 +6,7 @@ import {phase4AuthorityKeys,publicBetaConfiguration} from '../src/publicBetaConf
 import {pausedSourceConfigurationProof,CA4_SOURCE_PROOF} from './stage8-source-configuration-proof.mjs';
 import {currentVersion} from '../src/migrations.js';
 import {assertCleanStage8Release,stage8PreservationSnapshot,verifyStage8RecoveryClient,STAGE8_PRODUCTION_HOST} from './stage8-migration-safety.mjs';
+import {withStage8MetadataReadCache} from './stage8-metadata-read-cache.mjs';
 
 export const PRODUCTION_CONTROL=Object.freeze({
  host:STAGE8_PRODUCTION_HOST,render:'srv-dahs71qd0e5s738n94c0',renderOwner:'tea-d8ptktu8bjmc73c5f9sg',
@@ -152,13 +153,23 @@ async function pausedProviders(environment,sourceSha,keys,schema){
  const [service,deploys,variables,settings,schedules,workflow,...activeRuns]=results;
  const orphanBarrier=githubInventory(activeRuns)?await frozenGithubBarrier(environment,schema):null;
  const state=validatePausedProviders({service,deploys,variables,settings,schedules,workflow,activeRuns,orphanBarrier},sourceSha,keys,schema);
- for(const path of ['/health','/internal/briefing/run','/internal/briefing/companion','/telegram/webhook','/whoop/webhook','/whoop/oauth/callback']){
-  const result=await fetch(PRODUCTION_CONTROL.origin+path,{method:'GET',redirect:'error',signal:AbortSignal.timeout(15_000)});
+ // Check the actual POST ingress as well as GET. An edge rule that blocks only
+ // GET must never qualify as writer quiescence. Unsigned empty requests cannot
+ // authorize work if maintenance was unexpectedly removed during a probe.
+ for(const {path,method} of PUBLIC_MAINTENANCE_PROBES){
+  const result=await fetch(PRODUCTION_CONTROL.origin+path,{method,redirect:'error',signal:AbortSignal.timeout(15_000),...(method==='POST'?{headers:{'content-type':'application/json'},body:'{}'}:{})});
   try{if(result.status!==503)fail('STAGE8_PUBLIC_INGRESS_NOT_BLOCKED');}finally{await result.body?.cancel();}
  }
  Object.defineProperty(state,'observedAtServer',{value:service[serverDate]});return state;
 }
+export const PUBLIC_MAINTENANCE_PROBES=Object.freeze([
+ ...['/health','/internal/briefing/run','/internal/briefing/companion','/internal/briefing/continuation','/internal/briefing/readiness','/telegram/webhook','/whoop/webhook','/whoop/oauth/callback'].map(path=>Object.freeze({path,method:'GET'})),
+ ...['/internal/briefing/run','/internal/briefing/companion','/internal/briefing/continuation','/internal/briefing/readiness','/telegram/webhook','/whoop/webhook'].map(path=>Object.freeze({path,method:'POST'})),
+]);
 export async function readDatabaseControl(client,keys){
+ return withStage8MetadataReadCache(client,keys,readDatabaseControlUncached);
+}
+async function readDatabaseControlUncached(client,keys){
  const schema=await verifyStage8RecoveryClient(client,keys);
  const tables=(await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")).rows.map(row=>row.name);
  let active=0;

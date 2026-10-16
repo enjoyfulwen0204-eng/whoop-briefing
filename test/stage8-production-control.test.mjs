@@ -7,13 +7,20 @@ import {spawnSync,execFileSync} from 'node:child_process';
 import {createCipheriv} from 'node:crypto';
 import {createOwnedDb} from './stage5OwnedDb.js';
 import {fixtureKeys} from './localDb.js';
-import {validatePausedProviders,validateWriterInventory,readDatabaseControl,requireProductionControl,PRODUCTION_CONTROL,FROZEN_GITHUB_SCHEMA_BARRIER} from '../scripts/stage8-production-control.mjs';
+import {validatePausedProviders,validateWriterInventory,readDatabaseControl,requireProductionControl,PRODUCTION_CONTROL,FROZEN_GITHUB_SCHEMA_BARRIER,PUBLIC_MAINTENANCE_PROBES} from '../scripts/stage8-production-control.mjs';
 import {authenticateProductionDump,main} from '../scripts/stage8-production-migrate.mjs';
 import {configurationProof} from '../src/phase4ExecutionStore.js';
 import {publicBetaConfiguration} from '../src/publicBetaConfig.js';
 
 const SHA='a'.repeat(40),SOURCE='b'.repeat(40),KEYS={PHASE4_LOOKUP_KEY:Buffer.alloc(32,71).toString('hex'),PHASE4_AUDIT_KEY:Buffer.alloc(32,83).toString('hex')};
 const inventory={operator:'synthetic-operator',...Object.fromEntries(['directSql','localPolling','manualCli','privateNetwork','renderBackground'].map(key=>[key,'STOPPED_EXCLUSIVE_MIGRATION_OPERATOR']))};
+test('maintenance probes cover every internal and Telegram/WHOOP write route with POST',()=>{
+ assert.ok(Object.isFrozen(PUBLIC_MAINTENANCE_PROBES));
+ for(const path of ['/internal/briefing/run','/internal/briefing/companion','/internal/briefing/continuation','/internal/briefing/readiness','/telegram/webhook','/whoop/webhook'])
+  for(const method of ['GET','POST'])assert.equal(PUBLIC_MAINTENANCE_PROBES.filter(probe=>probe.path===path&&probe.method===method).length,1);
+ assert.equal(PUBLIC_MAINTENANCE_PROBES.filter(probe=>probe.path==='/whoop/oauth/callback'&&probe.method==='GET').length,1);
+ assert.ok(PUBLIC_MAINTENANCE_PROBES.every(Object.isFrozen));
+});
 function paused(){
  const env={...KEYS,PHASE4_RELEASE_SHA:SOURCE,TURSO_DATABASE_URL:'libsql://'+PRODUCTION_CONTROL.host},proof=configurationProof(fixtureKeys,publicBetaConfiguration(env),env,SOURCE);
  return {service:{id:PRODUCTION_CONTROL.render,repo:'https://github.com/'+PRODUCTION_CONTROL.repo,autoDeploy:'no',serviceDetails:{maintenanceMode:{enabled:true},envSpecificDetails:{startCommand:'npm run bot:webhook'},plan:'0.5c-512mb'}},
@@ -66,6 +73,11 @@ test('SQL backup authenticates its entire envelope before returning plaintext an
 });
 
 test('dirty release cannot observe or apply before any provider or database request',async t=>{
+ // Make the precondition real even in a clean checkout. Remove only this
+ // test's exclusively created directory; never rely on unrelated user edits.
+ const dirty=await mkdtemp(new URL('./.stage8-dirty-release-',import.meta.url));
+ t.after(()=>rm(dirty,{recursive:true,force:true}));
+ await writeFile(join(dirty,'owned-probe'),'synthetic dirty release\n',{mode:0o600,flag:'wx'});
  let calls=0;t.mock.method(globalThis,'fetch',()=>{calls++;throw Error('NETWORK_FORBIDDEN');});
  const env={...process.env};for(const name of Object.keys(env))if(name.startsWith('GIT_'))delete env[name];
  const head=execFileSync('git',['rev-parse','HEAD'],{cwd:new URL('../',import.meta.url),env,encoding:'utf8'}).trim();
@@ -78,15 +90,15 @@ test('separate operator backup/restore/ordered core preserves populated syntheti
   const safety=await import('./scripts/stage8-migration-safety.mjs'),control=await import('./scripts/stage8-production-control.mjs');
   const {fixtureKeys}=await import('./test/localDb.js'),{createOwnedDb}=await import('./test/stage5OwnedDb.js');
   const dir=await realpath(await mkdtemp(join(tmpdir(),'synthetic-operator-')));await chmod(dir,0o700);const SHA='a'.repeat(40),SOURCE='b'.repeat(40);
-  let db,saved,download=0,controls=0,injectAt=0;
+  let db,saved,sourceUrl,download=0,controls=0,injectAt=0;
   mock.module('./scripts/stage8-migration-safety.mjs',{namedExports:{...safety,assertCleanStage8Release:()=>SHA}});
   mock.module('./scripts/stage8-production-control.mjs',{namedExports:{...control,productionControl:()=>({authorize:async()=>({}),close(){}}),requireProductionControl:async()=>{
    controls++;if(controls===injectAt)await db.raw.execute("INSERT INTO journal_events(user_id,event_at,health_date,category,source,created_at,updated_at) VALUES('a','2026-10-16T02:00:00Z','2026-10-16','caffeine','manual','2026-10-16','2026-10-16')");
-   return {client:db.raw,keys:fixtureKeys,releaseSha:SHA,sourceSha:SOURCE,environment:{TURSO_AUTH_TOKEN:'synthetic-only'},database:saved,current:await control.readDatabaseControl(db.raw,fixtureKeys)};
+   return {client:db.raw,keys:fixtureKeys,releaseSha:SHA,sourceSha:SOURCE,environment:{TURSO_AUTH_TOKEN:'synthetic-only',TURSO_DATABASE_URL:sourceUrl},database:saved,current:await control.readDatabaseControl(db.raw,fixtureKeys)};
   }}});
   const {main}=await import('./scripts/stage8-production-migrate.mjs');
-  test('owned isolated DB only; writes before first, next and no-op steps cannot replace recovery baseline',async()=>{try{for(const injection of [0,4,6,8]){
-   injectAt=injection;controls=0;download=0;const path=join(dir,'source-'+injection+'.sqlite');db=createOwnedDb({url:'file:'+path});try{
+  test('owned isolated DB only; writes before or after the atomic batch cannot replace recovery baseline',async()=>{try{for(const injection of [0,4,5]){
+   injectAt=injection;controls=0;download=0;const path=join(dir,'source-'+injection+'.sqlite');sourceUrl='file:'+path;db=createOwnedDb({url:sourceUrl});try{
    await db.migrate({targetVersion:33});await db.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
    await db.raw.execute("INSERT INTO journal_events(user_id,event_at,health_date,category,source,created_at,updated_at) VALUES('a','2026-10-16T01:00:00Z','2026-10-16','caffeine','manual','2026-10-16','2026-10-16')");
    saved=await control.readDatabaseControl(db.raw,fixtureKeys);
@@ -95,8 +107,8 @@ test('separate operator backup/restore/ordered core preserves populated syntheti
    const inventory=join(dir,'inventory-'+injection+'.json'),observation=join(dir,'observation-'+injection+'.json'),key=join(dir,'key-'+injection);for(const [p,v] of [[inventory,'{}'],[observation,'{}'],[key,Buffer.alloc(32,19)]])await writeFile(p,v,{mode:0o600});
    const run=()=>main(['--apply','--expected-commit',SHA,'--source-commit',SOURCE,'--inventory-file',inventory,'--observation-file',observation,'--backup-file',join(dir,'source-'+injection+'.enc'),'--key-file',key,'--from-version','33','--target-version','35','--confirm-production','whoop-briefing'],{});
    if(injection){
-    await assert.rejects(run,/STAGE8_DATABASE_CHANGED_AFTER_BACKUP/);
-    assert.equal((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v,injection===4?33:injection===6?34:35,'detected external work prevents the next mutation/final success');
+    await assert.rejects(run,/STAGE8_DATABASE_CHANGED_(AFTER_BACKUP|DURING_MIGRATION)/);
+    assert.equal((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v,injection===4?33:35,'detected external work prevents mutation or final success;34 is never separately committed');
     assert.equal((await db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,2,'external row remains intact rather than being deleted');
    }else{
     const result=await run();assert.equal(result.schema,35);assert.equal(result.trafficReopened,false);assert.deepEqual(result.steps.map(s=>s.to),[34,35,35]);
@@ -119,10 +131,14 @@ test('actual control protocol requires signed server-timed31min stability and co
   mock.module('./scripts/stage8-migration-safety.mjs',{namedExports:{...safety,assertCleanStage8Release:()=>SHA}});
   mock.module('@libsql/client',{namedExports:{...libsql,createClient:options=>{assert.equal(options.url,'libsql://whoop-briefing-enjoyfulwen0204-eng.aws-ap-northeast-1.turso.io');return db.raw;}}});
   const {productionControl,requireProductionControl,PRODUCTION_CONTROL}=await import('./scripts/stage8-production-control.mjs');
-  const base=Date.now();let at=base,index=null,appActivity=false,requests=0;mock.method(Date,'now',()=>at);
-  globalThis.fetch=async input=>{
+  const base=Date.now();let at=base,index=null,appActivity=false,requests=0,postBypass=false;const publicProbes=[];mock.method(Date,'now',()=>at);
+  globalThis.fetch=async(input,options)=>{
    requests++;const url=new URL(input);let value;
-   if(url.host==='whoop-telegram-webhook.onrender.com')return new Response('maintenance',{status:503});
+   if(url.host==='whoop-telegram-webhook.onrender.com'){
+    publicProbes.push([url.pathname,options.method]);
+    if(options.method==='POST'){assert.equal(options.body,'{}');assert.equal(options.headers['content-type'],'application/json');assert.equal(options.headers.Authorization,undefined);}
+    return new Response('maintenance',{status:postBypass&&options.method==='POST'&&url.pathname==='/internal/briefing/continuation'?200:503});
+   }
    if(url.pathname.endsWith('/v2/pipeline'))value={results:[{type:'ok',response:{type:'execute',result:{replication_index:index}}}]};
    else if(url.pathname.endsWith('/deploys'))value=p.deploys;else if(url.pathname.endsWith('/env-vars'))value=p.variables;
    else if(url.pathname.endsWith('/settings'))value=p.settings;else if(url.pathname.endsWith('/schedules'))value=p.schedules;
@@ -136,10 +152,12 @@ test('actual control protocol requires signed server-timed31min stability and co
    const environment={...Object.fromEntries(p.variables.map(row=>[row.envVar.key,row.envVar.value])),RENDER_API_KEY:'synthetic',CLOUDFLARE_API_TOKEN:'synthetic',GH_TOKEN:'synthetic',TURSO_AUTH_TOKEN:'synthetic'};
    const inventory=${JSON.stringify(inventory)},controller=productionControl({environment,releaseSha:SHA,sourceSha:SOURCE,inventory});
    const initial=JSON.parse(JSON.stringify(await controller.observe()));assert.equal(initial.replicationIndex,null);
+   for(const path of ['/internal/briefing/run','/internal/briefing/companion','/internal/briefing/continuation','/internal/briefing/readiness','/telegram/webhook','/whoop/webhook'])assert.ok(publicProbes.some(p=>p[0]===path&&p[1]==='POST'));
    let n=requests;await assert.rejects(controller.authorize({...initial,observedAt:initial.observedAt-PRODUCTION_CONTROL.quietMs}),/OBSERVATION_INVALID/);assert.equal(requests,n,'forged JSON fails before provider requests');
    await assert.rejects(controller.authorize(initial),/FULL_QUIET_WINDOW/);assert.equal(requests,n);
    at=base+PRODUCTION_CONTROL.quietMs+2000;const permit=await controller.authorize(initial),state=await requireProductionControl(permit);
    assert.equal(state.current.digest,initial.database.digest);await assert.rejects(requireProductionControl(JSON.parse(JSON.stringify(permit))),/AUTHORITY_REQUIRED/);
+   postBypass=true;await assert.rejects(requireProductionControl(permit),/PUBLIC_INGRESS_NOT_BLOCKED/);postBypass=false;
    index='1';await assert.rejects(controller.authorize(initial),/QUIET_WINDOW_CHANGED/);index=null;
    p.schedules.result.schedules.push({cron:'* * * * *'});await assert.rejects(requireProductionControl(permit),/CLOUDFLARE_NOT_QUIESCED/);p.schedules.result.schedules=[];
    appActivity=true;await assert.rejects(requireProductionControl(permit),/APPLICATION_NOT_DRAINED/);

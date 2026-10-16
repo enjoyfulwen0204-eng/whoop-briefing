@@ -59,3 +59,39 @@ and HTTP counters, and at most16 failure stage/code/SHA256 records per profile.
 It omits source values, private IDs, SQL, raw errors and credentials. Trusted
 wrapper failures identify their control phase and a bounded code/hash; cleanup
 failure diagnostics preserve the primary error.
+
+For the next targeted diagnosis, select workflow input `mode=diagnostic-empty-one`
+with the final reviewed/published candidate SHA containing the diagnostic harness.
+This uses the same offline container, memory/CPU/mount checks and genuine producer,
+but only one empty synthetic user and at most one producer call, no dense profile,
+replay or typed-reader qualification. The outer wall cutoff is shortened to10min;
+the original45s LIVE,30s worker, six-unit and115ms HTTP latency remain unchanged.
+The job deliberately reports `ISOLATED_LINUX_LIVE_HTTP_DIAGNOSTIC_ONLY`,
+`qualificationPassed:false` and nonzero exit2. Capturing a useful diagnostic is
+not qualification PASS, Production evidence, or a new campaign authorization.
+
+Default `mode=qualification` retains the actual original call contract:
+`empty16`, then dense receives `64 - actualEmptyCalls`, combined at most64 including
+replays. No32+32 allowance is introduced. Do not dispatch this full mode merely to
+collect the single-leg diagnosis.
+
+The bounded safe summary now retains phase request/SQL counts and elapsed time,
+per-leg ordinal/elapsed/failure phase and aggregate durable before/after counts
+(including ESTABLISHED/WORK_COMMITTED/finalized execution counts and real receipts).
+It retains at most16 normalized SQL template digests with fixed verb/category and
+runtime-stage enums. The entire maximum128 detail groups are reserved for
+PRODUCER_LEG; migration/seed can never consume that capacity. All phase counters
+remain complete. Full scopes count the actual FULL_TENANT_RECOMPUTE stored enum. Arguments, SQL text/literals/comments, stack text, request
+IDs, cursor hashes, health values and credentials are discarded. SQL group timing
+is an HTTP-envelope upper bound including injected latency; groups overlap and
+must not be interpreted as individual server SQL timings. Internal stack-stage
+classification runs only in diagnostic mode; unmatched stages stay UNCLASSIFIED.
+No raw report/database artifact is uploaded. Unknown/missing readbacks remain
+null rather than fabricated zero or completion.
+
+Actual run38888919478 retained only whole-profile HTTP totals, so its17k request
+counts cannot be assigned to migration/setup versus workload after the fact. Its
+0 completed jobs is not evidence of0 committed work. The new summary preserves
+actual durable progress even when the single producer call ends SYNC_TIMEOUT.
+A separate local no-socket/non-Linux experiment reproduced that timeout with
+real persisted work; it cannot substitute for this official Linux diagnosis.

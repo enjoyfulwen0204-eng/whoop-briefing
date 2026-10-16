@@ -20,7 +20,9 @@ function run(command,args,{cwd,git=false,capture=false,check=true}={}){
  if(check){assert.ifError(result.error);assert.equal(result.status,0,`CONTROL_COMMAND_FAILED:${command}`);}
  return result;
 }
-export function dockerArguments({name,image,checkout,commonGit,output,uid,gid}){
+const modes=new Set(['qualification','diagnostic-empty-one']);
+export function dockerArguments({name,image,checkout,commonGit,output,uid,gid,mode='qualification'}){
+ assert.ok(modes.has(mode),'EXPLICIT_MODE_REQUIRED');
  for(const path of [checkout,commonGit,output])assert.ok(path===resolve(path)&&!/[\r\n,:]/.test(path),'CANONICAL_MOUNT_PATH_REQUIRED');
  assert.match(name,/^stage8-qualification-[0-9]+-[0-9]+$/,'RUN_CONTAINER_NAME_REQUIRED');
  assert.match(image,/^stage8-live-qualification:[0-9]+-[0-9]+$/,'LOCAL_IMAGE_NAME_REQUIRED');
@@ -31,7 +33,7 @@ export function dockerArguments({name,image,checkout,commonGit,output,uid,gid}){
   '--tmpfs','/tmp:rw,nosuid,nodev,mode=1777,size=67108864','--env','HOME=/tmp','--workdir',checkout];
  for(const path of [join(checkout,'src'),join(checkout,'test'),join(checkout,'package.json'),join(checkout,'package-lock.json'),join(checkout,'.git'),commonGit])args.push('--mount',`type=bind,src=${path},dst=${path},readonly`);
  args.push('--mount',`type=bind,src=${output},dst=/qualification`,'--entrypoint','/bin/sh',image,'-c',
-  'test "$(node --version)" = v22.23.3 && exec /bin/sh test/stage8-live-linux-http.sh');
+  'test "$(node --version)" = v22.23.3 && exec /bin/sh test/stage8-live-linux-http.sh'+(mode==='diagnostic-empty-one'?' diagnostic-empty-one':''));
  return args;
 }
 const number=(value,label)=>{assert.ok(Number.isSafeInteger(value)&&value>=0,`INVALID_METRIC:${label}`);return value;};
@@ -53,13 +55,44 @@ function sourceCounts(report){
 function sourceFailures(report){
  const failures=report.failures??[];assert.ok(Array.isArray(failures)&&failures.length<=1024,'BOUNDED_FAILURES_REQUIRED');
  return failures.slice(0,16).map(failure=>{
-  assert.match(failure.stage??'',/^(SETUP|ANALYSIS|VERIFY|FINAL|LEG:[abc]|READBACK:[abc])$/,'FAILURE_STAGE_REQUIRED');
+  assert.ok(sourcePhaseNames.has(failure.stage)||/^(LEG|READBACK):[abc]$/.test(failure.stage??''),'FAILURE_STAGE_REQUIRED');
   assert.match(failure.code??'',codePattern,'FAILURE_CODE_REQUIRED');assert.match(failure.messageSha256??'',/^[a-f0-9]{64}$/,'FAILURE_HASH_REQUIRED');
   return {stage:failure.stage,code:failure.code,messageSha256:failure.messageSha256};
  });
 }
-function safeProfile(report,expectedSha){
+const sourcePhaseNames=new Set(['SETUP','ANALYSIS','MIGRATION','FOUNDATION','SEED','ADMISSION','PRODUCER_CONSTRUCTOR','READER_CONSTRUCTOR','LEG_BEFORE','PRODUCER_LEG','LEG_READBACK','VERIFY','FINAL']);
+const sourceStages=new Set(['UNCLASSIFIED','TENANT_INITIALIZATION','ALGORITHM_ROLLOUT','FRESH_GENERATION','WORKER_DRAIN','DURABLE_EXECUTION','CONTEXT_CAPTURE','PRINCIPAL_READY']);
+const sqlCategories=new Set(['PRINCIPAL_READY_METADATA','LIVE_EXECUTION','LIVE_RESULT','DURABLE_JOBS','SCHEMA','TENANT_FENCE','OTHER']);
+const sqlVerbs=new Set(['SELECT','INSERT','UPDATE','DELETE','BEGIN','COMMIT','ROLLBACK','PRAGMA','CREATE','ALTER','DROP','SAVEPOINT','RELEASE','OTHER']);
+function safePhase(name){assert.ok(sourcePhaseNames.has(name),'DIAGNOSTIC_PHASE_REQUIRED');return name;}
+function phaseCounts(value){
+ if(value===undefined)return null;assert.ok(value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=sourcePhaseNames.size,'BOUNDED_PHASE_COUNTS_REQUIRED');
+ return Object.fromEntries(Object.entries(value).map(([name,n])=>[safePhase(name),number(n,'phaseRequests')]));
+}
+function durableCounts(value){
+ if(value===undefined||value===null)return null;
+ return Object.fromEntries(['jobs','completedJobs','runningJobs','pendingJobs','jobsWithCursor','fullScopes','currentComputations','completionProofs','publications','workReceipts','operationReceipts','executions','ESTABLISHED','WORK_COMMITTED','FINALIZED_SUCCESS','FINALIZED_FAILURE'].map(key=>[key,number(value[key],'durable:'+key)]));
+}
+function safeLegs(value){
+ if(value===undefined)return null;assert.ok(Array.isArray(value)&&value.length<=64,'BOUNDED_LEGS_REQUIRED');
+ return value.map(leg=>({call:number(leg.call,'legCall'),elapsedMs:leg.elapsedMs===undefined?null:number(leg.elapsedMs,'legElapsed'),failedPhase:leg.failedPhase===undefined?null:safePhase(leg.failedPhase),
+  error:['SYNC_TIMEOUT','SYNC_CANCELLED','COMMIT_INDETERMINATE','REQUEST_OWNER_FENCED','STAGE8_LIVE_PRINCIPAL_FENCED'].includes(leg.error?.code)?leg.error.code:leg.error?'OTHER':null,
+  before:durableCounts(leg.beforeCounts),after:durableCounts(leg.afterCounts),reportedMetadataProgress:typeof leg.businessProgress==='boolean'?leg.businessProgress:null,
+  exactReplayVerified:leg.exactReplayVerified===true}));
+}
+function safePhaseDiagnostics(value){
+ if(value===undefined)return null;assert.equal(value.contract,'stage8-safe-http-phase-diagnostics-v1');assert.equal(value.sqlDetailPhase,'PRODUCER_LEG','WORKLOAD_DETAIL_RESERVATION_REQUIRED');
+ assert.ok(Array.isArray(value.phases)&&value.phases.length<=sourcePhaseNames.size&&Array.isArray(value.sqlGroups)&&value.sqlGroups.length<=128,'BOUNDED_DIAGNOSTICS_REQUIRED');
+ const phases=value.phases.map(row=>({phase:safePhase(row.phase),...Object.fromEntries(['elapsedMs','requests','attemptedStatements','requestErrors','httpEnvelopeMs'].map(key=>[key,number(row[key],key)]))}));
+ const sqlGroups=value.sqlGroups.slice(0,16).map(row=>{
+  assert.equal(row.phase,'PRODUCER_LEG','ONLY_WORKLOAD_SQL_DETAIL_REQUIRED');assert.ok(sourceStages.has(row.stage)&&sqlCategories.has(row.category)&&sqlVerbs.has(row.verb),'SQL_ENUMS_REQUIRED');assert.match(row.template??'',/^[a-f0-9]{64}$/,'SQL_TEMPLATE_HASH_REQUIRED');
+  return {phase:safePhase(row.phase),stage:row.stage,category:row.category,verb:row.verb,template:row.template,...Object.fromEntries(['statements','envelopes','requestErrors','envelopeUpperBoundMsSum','maximumEnvelopeMs'].map(key=>[key,number(row[key],key)]))};
+ });
+ return {sqlDetailPhase:'PRODUCER_LEG',phases,sqlGroups,retainedSqlGroups:sqlGroups.length,totalSqlGroups:value.sqlGroups.length,overflowStatements:number(value.overflowStatements,'overflowStatements'),openRequests:number(value.openRequests,'openRequests'),timing:'HTTP envelope upper bounds include injected latency; SQL group durations overlap, not server SQL timings.'};
+}
+function safeProfile(report,expectedSha,{diagnostic=false}={}){
  assert.ok(['empty','dense'].includes(report.profile),'PROFILE_REQUIRED');
+ if(diagnostic){assert.equal(report.diagnosticOnly,true);assert.equal(report.profile,'empty');assert.equal(report.input?.syntheticUsers,1);assert.ok(report.callsStarted<=1,'ONE_DIAGNOSTIC_CALL_REQUIRED');}else assert.notEqual(report.diagnosticOnly,true,'DIAGNOSTIC_CANNOT_QUALIFY');
  assert.equal(report.productionEvidence,false);assert.equal(report.releaseSha,expectedSha,'CANDIDATE_IDENTITY_CHANGED');
  const calls=number(report.callsStarted,'callsStarted');assert.ok(calls<=64,'CALL_LIMIT_EXCEEDED');
  assert.equal(report.preflight?.memoryMaxBytes,LIMITS.memoryBytes);assert.equal(report.preflight?.swapMaxBytes,0);
@@ -77,7 +110,7 @@ function safeProfile(report,expectedSha){
   assert.ok(/^\d+$/.test(String(finalMemory.memoryPeak??'')),'ACTUAL_CGROUP_PEAK_REQUIRED');
  }
  const decimal=value=>/^\d+$/.test(String(value??''))?number(Number(value),'decimal'):null;
- return {profile:report.profile,status:['LOCAL_LIVE_HTTP_VERIFIED','LOCAL_LIVE_HTTP_PARTIAL','LOCAL_LIVE_HTTP_FAILED','INTERRUPTED_UNKNOWN_IN_FLIGHT'].includes(report.status)?report.status:'UNKNOWN',
+ return {profile:report.profile,status:['LOCAL_LIVE_HTTP_VERIFIED','LOCAL_LIVE_HTTP_PARTIAL','LOCAL_LIVE_HTTP_FAILED','INTERRUPTED_UNKNOWN_IN_FLIGHT','LOCAL_LIVE_HTTP_DIAGNOSTIC_ONLY'].includes(report.status)?report.status:'UNKNOWN',
   calls,elapsedMs:number(report.elapsedMs??0,'elapsedMs'),finishedUsers:report.finishedUsers?.length??0,blockedUsers:report.blockedUsers?.length??0,
   completedJobs:(final.jobs??[]).filter(row=>row.state==='COMPLETED'&&row.completed_generation===row.requested_generation).length,
   currentPublications:number(final.publications??0,'publications'),completionProofs:number(final.completionProofs??0,'completionProofs'),
@@ -86,8 +119,9 @@ function safeProfile(report,expectedSha){
   resources:{memoryPeakBytes:decimal(finalMemory.memoryPeak),sampledNodeRssPeakBytes:decimal(report.resources?.sampledRssPeak),
    cpuUsageMicroseconds:report.resources?.cgroupCpuDelta?.usage_usec===undefined?null:number(report.resources.cgroupCpuDelta.usage_usec,'cpuUsageMicroseconds'),oom:number(memory.oom??0,'oom'),oomKills:number(memory.oom_kill??0,'oomKills')},
   http:{requests:number(http.requests??0,'httpRequests'),requestErrors:number(http.requestErrors??0,'requestErrors'),responseErrors:number(http.responseErrors??0,'responseErrors'),
+   sqlStatements:http.sqlStatements===undefined?null:number(http.sqlStatements,'sqlStatements'),byPhase:phaseCounts(http.byPhase),
    unresolvedTransactions:number(http.openTransactions??0,'openTransactions'),transactionMaximumMs:number(http.transactionDurationUpperBounds?.maximumMs??0,'transactionMaximumMs')},
-  failureCount:report.failures?.length??0,failures:sourceFailures(report)};
+  failureCount:report.failures?.length??0,failures:sourceFailures(report),legs:safeLegs(report.legs),phaseDiagnostics:safePhaseDiagnostics(report.phaseDiagnostics)};
 }
 export function summarize({reports,expectedSha,exitCode}){
  candidateSha(expectedSha);assert.equal(reports.length,2,'TWO_PROFILES_REQUIRED');
@@ -99,8 +133,13 @@ export function summarize({reports,expectedSha,exitCode}){
   status:verified?'ISOLATED_LINUX_LIVE_HTTP_VERIFIED':'ISOLATED_LINUX_LIVE_HTTP_PARTIAL',limits:LIMITS,totalCalls,profiles,
   scope:'Synthetic producer and typed self-reader only. Includes Node, sqld and shell in one enforced cgroup. Does not qualify Telegram/SYNC concurrency, real Turso limits, or Production operation.'};
 }
+export function summarizeDiagnostic({report,expectedSha}){
+ candidateSha(expectedSha);const profile=safeProfile(report,expectedSha,{diagnostic:true});
+ return {contract:'stage8-isolated-linux-http-diagnostic-v1',productionEvidence:false,candidateSha:expectedSha,status:'ISOLATED_LINUX_LIVE_HTTP_DIAGNOSTIC_ONLY',maximumCalls:1,totalCalls:profile.calls,limits:{...LIMITS,wallSeconds:600,maximumCalls:1},profiles:[profile],qualificationPassed:false,scope:'Single empty synthetic user and one genuine producer call; diagnostic only, never a capacity or Production qualification.'};
+}
 function readReport(path){regularFile(path);assert.ok(lstatSync(path).size<8*1024*1024,'BOUNDED_REPORT_REQUIRED');return JSON.parse(readFileSync(path,'utf8'));}
-export function main(repository,expectedSha){
+export function main(repository,expectedSha,mode='qualification'){
+ assert.ok(modes.has(mode),'EXPLICIT_MODE_REQUIRED');
  candidateSha(expectedSha);assert.equal(process.platform,'linux','LINUX_CI_REQUIRED');assert.equal(process.arch,'x64','AMD64_CI_REQUIRED');
  assert.equal(process.env.GITHUB_REPOSITORY,OWNER_REPOSITORY,'OWNER_REPOSITORY_REQUIRED');assert.equal(process.env.GITHUB_EVENT_NAME,'workflow_dispatch');
  assert.equal(process.env.GITHUB_REF,'refs/heads/main','REVIEWED_MAIN_WORKFLOW_REQUIRED');assert.match(process.env.GITHUB_RUN_ID??'',/^[0-9]+$/);assert.match(process.env.GITHUB_RUN_ATTEMPT??'',/^[0-9]+$/);
@@ -125,10 +164,10 @@ export function main(repository,expectedSha){
    '--build-arg',`QUALIFICATION_ROOT=${checkout}`,'--build-arg',`QUALIFICATION_UID=${uid}`,'--build-arg',`QUALIFICATION_GID=${gid}`,context],{stdio:'inherit'});
   assert.ifError(build.error);assert.equal(build.status,0,'PINNED_IMAGE_BUILD_REQUIRED');
   phase='QUALIFICATION';
-  const qualification=spawnSync('timeout',['--signal=TERM','--kill-after=10s',`${LIMITS.wallSeconds}s`,'docker',...dockerArguments({name,image,checkout,commonGit,output,uid,gid})],{stdio:'inherit'});
+  const qualification=spawnSync('timeout',['--signal=TERM','--kill-after=10s',`${mode==='diagnostic-empty-one'?600:LIMITS.wallSeconds}s`,'docker',...dockerArguments({name,image,checkout,commonGit,output,uid,gid,mode})],{stdio:'inherit'});
   assert.ifError(qualification.error);exitCode=qualification.status??2;
   phase='REPORT';
-  result=summarize({reports:['empty','dense'].map(profile=>readReport(join(output,profile,'report.json'))),expectedSha,exitCode});
+  result=mode==='diagnostic-empty-one'?summarizeDiagnostic({report:readReport(join(output,'empty','report.json')),expectedSha}):summarize({reports:['empty','dense'].map(profile=>readReport(join(output,profile,'report.json'))),expectedSha,exitCode});
  }catch(error){primaryError=tagFailure(error,phase);}finally{
   // A watchdog can kill the Docker client while its container still exists.
   // Remove that exact run name even after partial/failing qualification.
@@ -148,5 +187,5 @@ export function main(repository,expectedSha){
  return result.status==='ISOLATED_LINUX_LIVE_HTTP_VERIFIED'?0:2;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
- try{process.exitCode=main(process.argv[2],process.argv[3]);}catch(error){console.error('ISOLATED_LINUX_QUALIFICATION_UNVERIFIED '+JSON.stringify(error.qualificationDiagnostic??controlFailure(error,'PRECHECK')));process.exitCode=2;}
+ try{process.exitCode=main(process.argv[2],process.argv[3],process.argv[4]??'qualification');}catch(error){console.error('ISOLATED_LINUX_QUALIFICATION_UNVERIFIED '+JSON.stringify(error.qualificationDiagnostic??controlFailure(error,'PRECHECK')));process.exitCode=2;}
 }

@@ -7,6 +7,14 @@ on:
         description: Reviewed, published 40-character commit in this repository
         required: true
         type: string
+      mode:
+        description: Full qualification or one empty-user one-call diagnostic (never qualification)
+        required: true
+        default: qualification
+        type: choice
+        options:
+          - qualification
+          - diagnostic-empty-one
 
 permissions:
   contents: read
@@ -25,9 +33,11 @@ jobs:
         shell: bash
         env:
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          QUALIFICATION_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
           [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$QUALIFICATION_MODE" == qualification || "$QUALIFICATION_MODE" == diagnostic-empty-one ]]
       - name: Checkout reviewed qualification controls
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -46,11 +56,12 @@ jobs:
         shell: bash
         env:
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          QUALIFICATION_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
           node --test "$GITHUB_WORKSPACE/qualification-control/tools/stage8-qualification/run.test.mjs"
           node "$GITHUB_WORKSPACE/qualification-control/tools/stage8-qualification/run.mjs" \
-            "$GITHUB_WORKSPACE/candidate-repository" "$CANDIDATE_SHA"
+            "$GITHUB_WORKSPACE/candidate-repository" "$CANDIDATE_SHA" "$QUALIFICATION_MODE"
       - name: Remove only this run's qualification container
         if: always()
         shell: bash

@@ -80,3 +80,24 @@ test('workflow is manual-only, main-scoped, read-only and does not reference Pro
  assert.equal((dockerfile.match(/^FROM [^\n]+@sha256:[a-f0-9]{64}/gm)??[]).length,2);assert.match(dockerfile,/npm ci --ignore-scripts --no-audit --no-fund/);
  assert.ok(!/COPY [.]|git init|git hash-object|qualification-commit/.test(dockerfile));
 });
+
+test('diagnostic dispatch stays exact single empty-user call under the same isolation and never enters qualification summary',async()=>{
+ const {summarizeDiagnostic}=await import('./run.mjs'),argv=dockerArguments({...plan(),mode:'diagnostic-empty-one'});
+ assert.match(argv.at(-1),/stage8-live-linux-http[.]sh diagnostic-empty-one$/);assert.throws(()=>dockerArguments({...plan(),mode:'unbounded'}),/EXPLICIT_MODE/);
+ const r=profile('empty');r.diagnosticOnly=true;r.callsStarted=1;r.input.syntheticUsers=1;r.status='LOCAL_LIVE_HTTP_DIAGNOSTIC_ONLY';r.finishedUsers=[];r.blockedUsers=['a'];r.explicitEmptyVerified=false;
+ r.http.byPhase={MIGRATION:9000,PRODUCER_LEG:377};r.http.sqlStatements=10000;
+ const counts={jobs:2,completedJobs:0,runningJobs:1,pendingJobs:1,jobsWithCursor:1,fullScopes:2,currentComputations:0,completionProofs:0,publications:0,workReceipts:4,operationReceipts:1,executions:1,ESTABLISHED:1,WORK_COMMITTED:0,FINALIZED_SUCCESS:0,FINALIZED_FAILURE:0};
+ r.legs=[{call:1,elapsedMs:45725,failedPhase:'PRODUCER_LEG',error:{code:'SYNC_TIMEOUT',message:'PRIVATE_HEALTH'},beforeCounts:{...counts,workReceipts:0,ESTABLISHED:0},afterCounts:counts,businessProgress:true,userId:'PRIVATE_USER',requestId:'PRIVATE_REQUEST'}];
+ r.phaseDiagnostics={contract:'stage8-safe-http-phase-diagnostics-v1',sqlDetailPhase:'PRODUCER_LEG',phases:[{phase:'PRODUCER_LEG',elapsedMs:45725,requests:377,attemptedStatements:725,requestErrors:2,httpEnvelopeMs:45000}],sqlGroups:[{phase:'PRODUCER_LEG',stage:'WORKER_DRAIN',category:'PRINCIPAL_READY_METADATA',verb:'SELECT',template:'c'.repeat(64),statements:296,envelopes:296,requestErrors:2,envelopeUpperBoundMsSum:35000,maximumEnvelopeMs:120,sql:'PRIVATE_SQL',args:['PRIVATE_ARGS']}],overflowStatements:0,openRequests:0,lastRequest:{sql:'PRIVATE_SQL'}};
+ const result=summarizeDiagnostic({report:r,expectedSha:sha});assert.equal(result.qualificationPassed,false);assert.equal(result.totalCalls,1);assert.equal(result.maximumCalls,1);assert.equal(result.limits.wallSeconds,600);
+ const summary=result.profiles[0];assert.deepEqual(summary.http.byPhase,{MIGRATION:9000,PRODUCER_LEG:377});assert.equal(summary.http.sqlStatements,10000);assert.equal(summary.legs[0].after.workReceipts,4);assert.equal(summary.legs[0].after.ESTABLISHED,1);assert.equal(summary.legs[0].error,'SYNC_TIMEOUT');assert.equal(summary.phaseDiagnostics.sqlDetailPhase,'PRODUCER_LEG');assert.equal(summary.phaseDiagnostics.sqlGroups[0].statements,296);assert.ok(!JSON.stringify(result).includes('PRIVATE_'));
+ assert.throws(()=>summarize({reports:[r,profile('dense')],expectedSha:sha,exitCode:0}),/DIAGNOSTIC_CANNOT_QUALIFY/);
+ for(const change of [v=>v.callsStarted=2,v=>v.input.syntheticUsers=3,v=>v.profile='dense',v=>v.http.byPhase.PRIVATE_HEALTH=1,v=>v.legs[0].afterCounts.workReceipts='PRIVATE_HEALTH',v=>v.phaseDiagnostics.sqlGroups[0].template='PRIVATE_HEALTH',v=>v.phaseDiagnostics.sqlGroups[0].phase='MIGRATION',v=>v.phaseDiagnostics.sqlDetailPhase='SEED']){
+  const changed=structuredClone(r);change(changed);assert.throws(()=>summarizeDiagnostic({report:changed,expectedSha:sha}));
+ }
+});
+test('manual workflow mode is an explicit bounded choice passed through environment; no new provider or scheduling authority',()=>{
+ const workflow=readFileSync(new URL('../../.github/workflows/stage8-live-linux-qualification.yml',import.meta.url),'utf8');
+ assert.match(workflow,/type: choice[\s\S]*?- qualification[\s\S]*?- diagnostic-empty-one/);assert.match(workflow,/QUALIFICATION_MODE: \$\{\{ inputs.mode \}\}/);assert.match(workflow,/"\$CANDIDATE_SHA" "\$QUALIFICATION_MODE"/);
+ assert.ok(!/schedule:|pull_request:|push:|secrets[.]|environment:|id-token:|upload-artifact|cache:/.test(workflow));
+});

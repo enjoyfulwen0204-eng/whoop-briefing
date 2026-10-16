@@ -1,4 +1,4 @@
-import {createExecutionBudget} from './executionBudget.js';
+import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
 import {currentDurableExecution,workStepKey} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {canonicalJson} from './phase4EntityStore.js';
@@ -74,25 +74,28 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
  // Every selected parent still enters run() and its original fresh fences.
  async function candidate(){
   const budget=createExecutionBudget({budgetMs:5000});
-  try{return await budget.run(async()=>{
+  // The deadline revokes discovery authority, but is not a join. Await the
+  // actual callback so resume/loop.stop cannot release this DB during a late ACK.
+  try{return await withExecutionBudget(budget,async()=>{
+   budget.assert();
    const at=Date.now(),release=runningReleaseSha(environment),configuration=publicBetaConfiguration(environment),
     proof=configurationProof(keys,configuration,environment,release),mode=configuration.runtime==='on'?'SHADOW':'OFF';
    const rows=(await db.raw.execute({sql:`SELECT execution_id,identity_digest,generation,result_digest,created_at FROM phase4_executions
     WHERE phase='SYNC' AND state='FINALIZED_SUCCESS' AND release_sha=? AND config_proof=? AND execution_mode=?
     AND created_at>? AND created_at<=? AND finalized_at<=? AND finalized_at>=?
-    ORDER BY created_at DESC,execution_id DESC LIMIT 64`,args:[release,proof,mode,at-EXECUTION_WORK_MAX_AGE_MS,at,at,at-HANDOFF_TTL_MS]})).rows;
+    ORDER BY created_at DESC,execution_id DESC LIMIT 64`,args:[release,proof,mode,at-EXECUTION_WORK_MAX_AGE_MS,at,at,at-HANDOFF_TTL_MS]})).rows;budget.assert();
    for(const [id,expiry] of exhausted)if(expiry<=at)exhausted.delete(id);
    for(const userId of cohort){
     budget.assert();if(!enabled()||!eligible(userId))continue;
-    const scope=await snapshot(db,keys,userId);
+    const scope=await snapshot(db,keys,userId);budget.assert();
     for(const row of rows){
      budget.assert();const id=JSON.stringify([row.execution_id,userId]);if(exhausted.has(id))continue;
-     const raw=await db.getState(keyFor(keys,row.execution_id,userId));if(!raw)continue;if(raw.length>2048)fail();
+     const raw=await db.getState(keyFor(keys,row.execution_id,userId));budget.assert();if(!raw)continue;if(raw.length>2048)fail();
      let value,hmac;try{({hmac,...value}=JSON.parse(raw));}catch{fail();}
      if(hmac!==sign(keys,value)||value.parent!==row.execution_id||value.identity!==row.identity_digest
       ||!Number.isSafeInteger(value.generation)||value.generation<1||value.generation>row.generation)fail();
      if(value.scope!==scope)continue;
-     const progressKey='stage8:sync-progress:'+keys.lookup(['stage8-sync-progress-v1',row.execution_id,userId,value.scope]),saved=await db.getState(progressKey);
+     const progressKey='stage8:sync-progress:'+keys.lookup(['stage8-sync-progress-v1',row.execution_id,userId,value.scope]),saved=await db.getState(progressKey);budget.assert();
      if(saved){
       if(saved.length>2048)fail();let p,seal;try{({hmac:seal,...p}=JSON.parse(saved));}catch{fail();}
       if(seal!==sign(keys,{progressKey,...p})||!Number.isSafeInteger(p.ordinal)||p.ordinal<0||p.ordinal>=64||typeof p.done!=='boolean')fail();
@@ -101,7 +104,7 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
      budget.assert();return {executionId:row.execution_id,userId,id,expiresAt:row.created_at+EXECUTION_WORK_MAX_AGE_MS};
     }
    }
-   return null;
+   budget.assert();return null;
   });}finally{budget.close();}
  }
  async function resume(){

@@ -9,6 +9,7 @@ import {runningReleaseSha} from '../src/phase4Release.js';
 import {recordStage8SyncSubject} from '../src/stage8PostSync.js';
 import {createStage8Runtime} from '../src/stage8Runtime.js';
 import {createSync} from '../src/sync.js';
+import {createStage8ContinuationLoop} from '../src/stage8ContinuationLoop.js';
 const env={dryRun:true,timezone:'Asia/Taipei',telegramBotToken:'SYNTHETIC_NOT_A_TOKEN'};
 const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
 async function setup(t){
@@ -60,4 +61,18 @@ test('local overlap, policy revocation and original parent expiry cannot mint an
  f.environment.STAGE8_POST_SYNC='on';const original=Date.now;Date.now=()=>original()+16*60000;
  try{assert.deepEqual(await f.app.analysis.resume(),{status:'IDLE',invoked:0});}finally{Date.now=original;}
  assert.deepEqual(await f.counts(),before);
+});
+
+test('discovery timeout retains the in-flight metadata join and cannot schedule production work',async t=>{
+ const f=await setup(t),get=f.db.getState,entered=deferred(),release=deferred();let gated=false,ackSettled=false,stopped=false,scheduled;
+ const before=await f.counts();
+ f.db.getState=async function(key){const value=await get.call(this,key);if(!gated&&key.startsWith('stage8:sync-subject:')){gated=true;entered.resolve();await release.promise;ackSettled=true;}return value;};
+ const errors=[],loop=createStage8ContinuationLoop({resume:()=>f.app.analysis.resume(),onError:error=>errors.push(error.code),timers:{set(fn){scheduled=fn;return 1;},clear(){scheduled=null;}}});
+ loop.start();const tick=scheduled;scheduled=null;tick();await entered.promise;const stopping=loop.stop().then(()=>{stopped=true;});
+ try{
+  await new Promise(resolve=>setTimeout(resolve,5200));
+  assert.equal(stopped,false,'timeout is revocation, not proof that the query joined');assert.equal(ackSettled,false);
+  assert.deepEqual(await f.app.analysis.resume(),{status:'BUSY',invoked:0});
+ }finally{release.resolve();await stopping;f.db.getState=get;}
+ assert.equal(ackSettled,true);assert.deepEqual(errors,['SYNC_TIMEOUT']);assert.equal(scheduled,null);assert.deepEqual(await f.counts(),before);
 });

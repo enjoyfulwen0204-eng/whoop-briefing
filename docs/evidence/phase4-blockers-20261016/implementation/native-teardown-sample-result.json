@@ -1,0 +1,39 @@
+{
+  "source": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "startedAtUTC": "2026-10-16T02:27:04.430459+00:00",
+  "completedAtUTC": "2026-10-16T02:30:04.758363+00:00",
+  "returncode": 1,
+  "durationSeconds": 180.330956875,
+  "maxRssBytesDarwin": 3420209152,
+  "userCpuSeconds": 150.051601,
+  "systemCpuSeconds": 27.915692,
+  "sourceIdentityUnchanged": true,
+  "sample": {
+    "targetPid": 41695,
+    "trigger": {
+      "at": "2026-10-16T02:29:37.997Z",
+      "pid": 41695,
+      "value": "COLLECT_AFTER_GC",
+      "gcType": "undefined",
+      "execArgv": [
+        "--test-concurrency=1",
+        "--test-timeout=180000",
+        "--test-name-pattern=genuine finalized"
+      ],
+      "nodeOptionsPresent": false,
+      "memory": {
+        "rss": 641449984,
+        "heapTotal": 149651456,
+        "heapUsed": 116125344,
+        "external": 3909293,
+        "arrayBuffers": 100906
+      }
+    },
+    "startedAtUTC": "2026-10-16T02:29:37.998500+00:00",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "Sampling process 41695 for 1 second with 1 millisecond of run time between samples\nSampling completed, processing symbols...\nSample analysis of process 41695 written to file /private/tmp/phase4-blockers-20261016/native-teardown-stack.txt\n"
+  },
+  "classification": "NATIVE_DIAGNOSTIC_ONLY_NOT_CAPACITY_OR_ACCEPTANCE"
+}

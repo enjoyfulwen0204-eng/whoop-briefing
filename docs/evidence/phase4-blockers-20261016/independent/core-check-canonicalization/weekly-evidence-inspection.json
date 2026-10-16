@@ -1,0 +1,73 @@
+{
+  "classification": "IMPLEMENTER_FUNCTIONAL_EVIDENCE_INSPECTED_NOT_INDEPENDENT_ACCEPTANCE",
+  "source": "/private/tmp/phase4-blockers-20261016/weekly-corrected-self-d85835e.tap",
+  "sha256": "c082fa4e9d2b738ce524fe21e78ff4db0b0a8cad4837a5440cf2cdb6ba31f0e1",
+  "pass": true,
+  "failZero": true,
+  "cancelledZero": true,
+  "legCount": 64,
+  "releases": [
+    "d85835ef8618a1d891de2fb9260d1c20caece432"
+  ],
+  "currentLegs": [
+    63
+  ],
+  "jobsFailed": 0,
+  "sourceAcks": 306,
+  "committedSubunits": 54,
+  "maximumPerLegItemsPlusUnits": 6,
+  "maxObservedHeapBytes": 192218544,
+  "maxObservedRssBytes": 1392672768,
+  "kernelPeakRssKiB": 3249216,
+  "longestLegs": [
+    {
+      "leg": 17,
+      "durationMs": 33752.26166700001,
+      "heapBytes": 58944472,
+      "rssBytes": 1080639488
+    },
+    {
+      "leg": 14,
+      "durationMs": 30134.174917,
+      "heapBytes": 131422600,
+      "rssBytes": 1208729600
+    },
+    {
+      "leg": 15,
+      "durationMs": 30125.172124999997,
+      "heapBytes": 111546784,
+      "rssBytes": 946012160
+    },
+    {
+      "leg": 16,
+      "durationMs": 30115.746000000014,
+      "heapBytes": 192218544,
+      "rssBytes": 1084506112
+    },
+    {
+      "leg": 41,
+      "durationMs": 30094.393082999974,
+      "heapBytes": 62753856,
+      "rssBytes": 1103953920
+    },
+    {
+      "leg": 42,
+      "durationMs": 27989.268125000002,
+      "heapBytes": 137830920,
+      "rssBytes": 1392672768
+    }
+  ],
+  "assertionsFromExactCommittedTest": [
+    "typed INSIGHTS CURRENT and nonempty",
+    "every item nonCausal",
+    "Owner WEEKLY_SUMMARY APPROVED then PROPOSED",
+    "second proposal returns same messageId",
+    "exactly one owner_monitoring_outbox row"
+  ],
+  "notClaimed": [
+    "independent re-execution",
+    "production HTTP/Linux512MiB capacity",
+    "native crash fix",
+    "unattended driver completion"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "sourceSha": "6a35a871d06f1028e7cefc643ba523d50e52a769",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "testTree": "2a4ad53a5f30d9e1862967f203b3379264afe871",
+  "command": "node --test --test-concurrency=1 --test-timeout=180000 test/stage8-webhook-lifecycle.test.mjs",
+  "permission": "exec_command require_escalated approved for exact synthetic listener test after ordinary listen EPERM",
+  "exitCode": 0,
+  "tapTotals": {
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "tapDurationMs": 4288.490125,
+  "sourceIdentityUnchanged": true,
+  "tapSha256": "145ac341e9072692a7a6a784683c51ab976ffd5982cd2a7e763b5bf703f19bd1",
+  "peakRss": "not captured for approved listener run",
+  "classification": "PERMISSION_RESTORED_NOT_RUNTIME_FIX; SYNTHETIC_LIFECYCLE_ONLY_NOT_PRODUCTION_CONTAINMENT_OR_CAPACITY"
+}

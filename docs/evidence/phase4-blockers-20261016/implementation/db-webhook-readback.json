@@ -1,0 +1,86 @@
+{
+  "startedAtUTC": "2026-10-16T02:21:17.818Z",
+  "credentialSource": "existing project .env; values never emitted",
+  "credentialChanges": 0,
+  "tokenMetadataInspected": false,
+  "durableWrites": 0,
+  "queries": [
+    "SELECT MAX(version) AS version FROM schema_version",
+    "SELECT name,sql FROM sqlite_schema WHERE type='table' AND (sql LIKE '%lease_until%' OR sql LIKE '%lease_expires_at%' OR name='resource_locks') ORDER BY name",
+    "SELECT count(*) AS active_leases FROM analytics_work_state WHERE lease_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    "SELECT count(*) AS active_leases FROM outbound_messages WHERE lease_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    "SELECT count(*) AS active_leases FROM phase4_executions WHERE lease_until>CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)",
+    "SELECT count(*) AS active_leases FROM phase4_jobs WHERE lease_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    "SELECT count(*) AS active_leases FROM resource_locks WHERE expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    "SELECT count(*) AS active_leases FROM telegram_processed_updates WHERE lease_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    "SELECT count(*) AS active_leases FROM whoop_reconciliation_state WHERE lease_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    "SELECT count(*) AS active_leases FROM whoop_webhook_events WHERE lease_expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    "SELECT state,count(*) AS count FROM phase4_executions WHERE finalized_at IS NULL GROUP BY state"
+  ],
+  "schema": [
+    {
+      "version": "32"
+    }
+  ],
+  "writerLeaseInventory": [
+    {
+      "table": "analytics_work_state",
+      "column": "lease_expires_at",
+      "active_leases": "0"
+    },
+    {
+      "table": "outbound_messages",
+      "column": "lease_expires_at",
+      "active_leases": "0"
+    },
+    {
+      "table": "phase4_executions",
+      "column": "lease_until",
+      "active_leases": "1"
+    },
+    {
+      "table": "phase4_jobs",
+      "column": "lease_expires_at",
+      "active_leases": "0"
+    },
+    {
+      "table": "resource_locks",
+      "column": "expires_at",
+      "active_leases": "1"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "lease_expires_at",
+      "active_leases": "0"
+    },
+    {
+      "table": "whoop_reconciliation_state",
+      "column": "lease_expires_at",
+      "active_leases": "0"
+    },
+    {
+      "table": "whoop_webhook_events",
+      "column": "lease_expires_at",
+      "active_leases": "0"
+    }
+  ],
+  "executionSettlement": [
+    {
+      "state": "ESTABLISHED",
+      "count": "38"
+    }
+  ],
+  "databaseStatus": "READBACK_COMPLETE",
+  "telegram": {
+    "ok": true,
+    "url": "https://whoop-telegram-webhook.onrender.com/telegram/webhook",
+    "pendingUpdateCount": 0,
+    "maxConnections": 1,
+    "allowedUpdates": [
+      "message",
+      "callback_query"
+    ],
+    "lastErrorDate": null
+  },
+  "completedAtUTC": "2026-10-16T02:21:21.601Z"
+}

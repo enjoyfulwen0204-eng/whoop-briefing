@@ -1,0 +1,325 @@
+[
+  {
+    "mode": "CRASH",
+    "pid": 48202,
+    "code": null,
+    "signal": "SIGKILL",
+    "value": {
+      "kind": "BEFORE_PROGRESS_SIGKILL",
+      "pid": 48202,
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 1,
+        "stage8_live_execution_work_receipts": 9,
+        "subjectLockExpiry": "2026-10-16T02:44:56.919Z",
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48358,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48358,
+      "result": {
+        "status": "BUSY",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 1,
+        "stage8_live_execution_work_receipts": 9,
+        "subjectLockExpiry": "2026-10-16T02:44:56.919Z",
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48412,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48412,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": true,
+        "continuation": true,
+        "executionId": "68c1a10d387c8cd072e9f8cedea773d9b96586caae462502e2d6acc0db1be52b",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 1,
+        "stage8_live_execution_work_receipts": 9,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48450,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48450,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "af8cfcf353693ee488666694025d8f699f72bc51b017bfce439d0fbf8ad1b3f0",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 2,
+        "stage8_live_execution_work_receipts": 17,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48496,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48496,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "80453e69cf6ae96341704792282b6ee77c9f759ad6de29b114a4bec335d2d75a",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 3,
+        "stage8_live_execution_work_receipts": 25,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48542,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48542,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "712598ae4a54c32d82d518f2172a39721a8ee59e059231981d0da48c4fe62d96",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 4,
+        "stage8_live_execution_work_receipts": 33,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48588,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48588,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "208cd757dc33458bab7658c6f4db3a42136ce4ba8325726851e4147f1397839e",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 5,
+        "stage8_live_execution_work_receipts": 41,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48641,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48641,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "227880aab87daf9b01d39edf34e48fc86af5088303e8366081ae2303ca951f32",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 6,
+        "stage8_live_execution_work_receipts": 49,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48687,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48687,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "e6279bc12de58c278edaf9f96f1ca4f21618516b7c2b3999457f4ecf26842ac1",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 7,
+        "stage8_live_execution_work_receipts": 57,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48733,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48733,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "deddfb78fc32a88391661ebc16c813b3f00cca28ea5333ac0a2b1fe89207989e",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 8,
+        "stage8_live_execution_work_receipts": 65,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48782,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48782,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "d09ba35e28f88fb24ceaac5befadb68007a5c0d1ac655d6077331382f9803303",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 9,
+        "stage8_live_execution_work_receipts": 73,
+        "subjectLockExpiry": null,
+        "completedJobs": 0
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48828,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48828,
+      "result": {
+        "status": "ANALYSIS_UPDATING",
+        "replayed": false,
+        "continuation": true,
+        "executionId": "4eed940e93a88c430d32c0960501fd9a10aa92dfaed0547c130690ea9f7e2b69",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 10,
+        "stage8_live_execution_work_receipts": 77,
+        "subjectLockExpiry": null,
+        "completedJobs": 1
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48875,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48875,
+      "result": {
+        "status": "CURRENT",
+        "replayed": false,
+        "continuation": false,
+        "executionId": "701d4c89553786db8b78e1b8e1bcf27caa6f030b622b007a7925bae817523d85",
+        "invoked": 1
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 11,
+        "stage8_live_execution_work_receipts": 81,
+        "subjectLockExpiry": null,
+        "completedJobs": 2
+      }
+    }
+  },
+  {
+    "mode": "RESUME",
+    "pid": 48921,
+    "code": 0,
+    "signal": null,
+    "value": {
+      "kind": "RESUME",
+      "pid": 48921,
+      "result": {
+        "status": "IDLE",
+        "invoked": 0
+      },
+      "counts": {
+        "phase4_executions": 1,
+        "stage8_live_executions": 11,
+        "stage8_live_execution_work_receipts": 81,
+        "subjectLockExpiry": null,
+        "completedJobs": 2
+      }
+    }
+  }
+]

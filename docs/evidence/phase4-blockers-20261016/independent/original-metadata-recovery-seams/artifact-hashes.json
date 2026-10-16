@@ -1,0 +1,26 @@
+{
+  "evidenceKind": "READ_ONLY_FINDINGS_AND_NO_DB_CONTROL_FLOW_ONLY",
+  "source": {
+    "original": {
+      "sha": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+      "srcTree": "ac443ba746beb9561978f890649bcc12fdccf084",
+      "trackedDiff": ""
+    },
+    "integrated": {
+      "sha": "d85835ef8618a1d891de2fb9260d1c20caece432",
+      "srcTree": "16f43e20eb509dccb00d7da5c56bf7fd7ea552c2",
+      "trackedDiff": ""
+    }
+  },
+  "artifacts": {
+    "actionable-findings.md": "a86d5e16c649f5844acbef1d63d9f47f0eab162055869a32e7ea5b3ad6bfdbbb",
+    "inspect-bindings.mjs": "2dbdd574594d27e65c8fc4cc8e740f51ae8c44db413bb5117b8bc2ede0858f68",
+    "binding-authentication.json": "45fce16d27b9e6ac4501f65d4596d9a59339bb36122ca9ef41ab2058ab249538",
+    "binding-authentication-final.json": "1f5b5504592676064f37d8d0704e5e66e8be797e3d92c0c5e87282daa81642df",
+    "boundary-counterexamples.test.mjs": "228b35d25c8b1925d5eca317c7ce6656dbae9c6bf4aea14e480c3a560a4d6cf6",
+    "boundary-counterexamples.tap": "c5c2cc0cdbb93a090b784853c0e231c0e494bb2ff6d9c90ab3179e768ad2ea67"
+  },
+  "fullOriginalRuntimeRecovery": "NOT_EXECUTED_PENDING_REVIEWED_SEPARATE_ENTRY_AND_COPY_ADMISSION_CAPABILITY",
+  "retainedMutation": false,
+  "productionAccess": false
+}

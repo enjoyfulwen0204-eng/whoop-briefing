@@ -1,0 +1,13 @@
+{
+  "source": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "startedAtUTC": "2026-10-16T02:19:05.934542+00:00",
+  "completedAtUTC": "2026-10-16T02:22:06.251237+00:00",
+  "returncode": 1,
+  "durationSeconds": 180.33082562500002,
+  "maxRssBytesDarwin": 3179184128,
+  "userCpuSeconds": 151.719428,
+  "systemCpuSeconds": 28.217313,
+  "sourceIdentityUnchanged": true,
+  "classification": "DIAGNOSTIC_NOT_ACCEPTANCE_SAME180S_CEILING"
+}

@@ -1,0 +1,38 @@
+{
+  "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "nodePath": "/Users/kelvin/.local/node-v22.23.2-darwin-arm64/bin/node",
+  "nodeVersion": "v22.23.2",
+  "classification": "INDEPENDENT_FUNCTIONAL_ONLY_NOT_PRODUCTION_CAPACITY_OR_NATIVE_REPAIR",
+  "perFileOuterCeilingSeconds": 900,
+  "nodeFileTimeoutMs": 890000,
+  "runtimeBudgetChanges": false,
+  "extraGcOrProfilerFlags": false,
+  "nodeOptionsPresent": false,
+  "file": "test/stage8-live-weekly-functional.test.js",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=890000",
+    "test/stage8-live-weekly-functional.test.js"
+  ],
+  "startedAtUTC": "2026-10-16T02:33:01.430Z",
+  "memoryPressureBefore": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 35%\n",
+  "runOrdinal": 1,
+  "completedAtUTC": "2026-10-16T02:37:03.247Z",
+  "elapsedSeconds": 241.82048975,
+  "exitCode": 0,
+  "outerTimedOut": false,
+  "sourceIdentityUnchanged": true,
+  "rusageWait4": {
+    "maxRssBytesDarwin": 3524427776,
+    "userCpuSeconds": 229.307547,
+    "systemCpuSeconds": 18.003598,
+    "majorPageFaults": 5067,
+    "minorPageFaults": 3539600,
+    "voluntaryContextSwitches": 1026,
+    "involuntaryContextSwitches": 352052
+  },
+  "tapSha256": "d997edf1e528e8dedb847f1c0e8e1e2e27586d073d9df5caf30baf21247d2fd2"
+}

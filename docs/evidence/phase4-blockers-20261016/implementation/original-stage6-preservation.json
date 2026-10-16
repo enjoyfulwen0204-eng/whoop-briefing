@@ -1,0 +1,22 @@
+{
+  "atUTC": "2026-10-16T02:29:56.176130+00:00",
+  "files": {
+    "data": {
+      "sha256": "c6809fcebe32da0c338352910eed41532df2f59b3dde7ec4c2ec18c3b4d49274",
+      "unchangedFromAuthenticatedSnapshot": true
+    },
+    "data-wal": {
+      "sha256": "573daab75d051d8058a936e0de6b6bf360b2bf06843f8e40e23b9e6a0e94dc90",
+      "unchangedFromAuthenticatedSnapshot": true
+    },
+    "data-shm": {
+      "sha256": "e82353538edf0319b2f899f852cd01f5a59cad1cbc2cd0f1798765d5e9c62cb3",
+      "unchangedFromAuthenticatedSnapshot": true
+    }
+  },
+  "noDatabaseOpened": true,
+  "originalRid": "b6b5b100-5741-4ed5-a92d-22a08ae1cf83",
+  "noReservationOrPermitWrites": true,
+  "originalExpiryUTC": "2026-10-16T07:29:00.357Z",
+  "metadataAuthorityReference": "READ_ONLY_CRYPTOGRAPHIC_BINDING_REVIEW_NOT_RUNTIME_ADMISSION"
+}

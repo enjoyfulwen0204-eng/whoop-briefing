@@ -1,0 +1,95 @@
+{
+  "relatedProjectCwdProcesses": [
+    {
+      "pid": 2492,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 5723,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 9312,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 20512,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 23902,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 25447,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 27277,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 27278,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 34790,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 41498,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 41693,
+      "cwd": "/Users/kelvin/.codex/worktrees/phase4-final-integration/whoop-briefing"
+    },
+    {
+      "pid": 41695,
+      "cwd": "/Users/kelvin/.codex/worktrees/phase4-final-integration/whoop-briefing"
+    },
+    {
+      "pid": 42403,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 46058,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 46744,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 59020,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 59021,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 59028,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 63807,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 83572,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 87965,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    },
+    {
+      "pid": 94669,
+      "cwd": "/Users/kelvin/Desktop/whoop-briefing"
+    }
+  ],
+  "allArgumentsSuppressed": true,
+  "readOnly": true,
+  "noProcessesStopped": true
+}

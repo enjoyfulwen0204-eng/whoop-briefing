@@ -1,0 +1,8 @@
+{
+  "artifact": "unattended-focused-first.tap",
+  "result": "4PASS1FAIL",
+  "cause": "Initial fault injection incorrectly expected afterProcessingCommit observer exception to propagate. Processing contract swallows/logs observer errors after committed data; that hook cannot model transport COMMIT ACK loss.",
+  "correction": "Inject actual crash gap before progress write after real LIVE child finalized; assert first resume replays exact original child without additional receipts, then restart progresses.",
+  "oraclePreserved": "No weakening of genuine finalization/current/replay/no-new-SYNC/authority assertions.",
+  "nativeFixClaim": false
+}

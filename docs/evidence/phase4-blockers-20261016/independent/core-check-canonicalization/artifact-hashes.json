@@ -1,0 +1,23 @@
+{
+  "sourceSha": "d85835ef8618a1d891de2fb9260d1c20caece432",
+  "srcTree": "16f43e20eb509dccb00d7da5c56bf7fd7ea552c2",
+  "trackedDiff": "",
+  "scope": "STATIC_ONLY_NO_PROPOSAL_APPLIED_NO_HEAVY_RUN",
+  "fileHashes": {
+    "src/phase4Core.js": "d61404e5d62962e8de57867829613bc73e8272bee100f054a215ba27c99560c4",
+    "src/processingTransaction.js": "0b803c214c70176eee3709a4a3014994163b547a9175c61884f032f7b326362b",
+    "src/phase4ReanalysisQueue.js": "5f7ce43c3a20f0c6b078a5744eb77e03470d5c6e7aaf3236cfad163be302919e",
+    "src/phase4ReadControls.js": "247e1f5ba08d868fea204001f394a41b9723edc76f7802e169caec8577dbde0a",
+    "src/phase4Cache.js": "733babd0ba6e49fbc01ca7c5bd7bfb0d1195989607fb391fc6285d9d31a0b0b2",
+    "src/phase4ExecutionContext.js": "d2edf7e8f696134399bca1297ce42575a290e833118d09d672de7882c7467d57",
+    "src/stage8LiveProducerAuthority.js": "7eda0fb4f4e0f97740a902183ae4bdd8e0472c0427d0a4d8095a5d6820327bc3",
+    "test/stage8-live-weekly-functional.test.js": "bd932a2c5edb40e77198e7a64e132161695dccac241e7076a7b41dbbac9137fd",
+    "node_modules/@libsql/client/lib-esm/sqlite3.js": "c872b35b2af8af428ed8a9d4480f551f678446aa53fa6a318121251502ec867c",
+    "node_modules/libsql/index.js": "cc6f0fb815d302185ba69d4f749b423dfe304add1c58d6ff687842f8c1e39152"
+  },
+  "artifacts": {
+    "weekly-corrected-self-d85835e.tap": "c082fa4e9d2b738ce524fe21e78ff4db0b0a8cad4837a5440cf2cdb6ba31f0e1",
+    "static-findings.md": "02e43bf69d63a156705298b2709f64e82aedec32a920bd454b4bcd28faed9e0f",
+    "weekly-evidence-inspection.json": "6f1e76392d556c49af0bb5a33e78a92e3aba33db7c319c5c1ff07b5b94607945"
+  }
+}

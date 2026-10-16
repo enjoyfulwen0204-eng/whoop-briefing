@@ -1,0 +1,7 @@
+{
+  "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "originalTestSha256": "0d39deedfe0d91dea539a30a9a9f925ad97d16f290ebf78f4be1d221445f7c3a",
+  "diagnosticSha256": "c859baab340bf1c4f13e140860f562e48b448cbf6f1f12acefe1699b8976c2a8",
+  "changes": "absolute imports and synchronous before/after teardown/close markers only; same workload, guards, cleanup, no profiler or GC flags",
+  "classification": "DIAGNOSTIC_NOT_ACCEPTANCE"
+}

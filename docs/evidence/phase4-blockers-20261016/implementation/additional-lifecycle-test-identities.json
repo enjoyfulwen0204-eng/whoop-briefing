@@ -1,0 +1,12 @@
+{
+  "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "recordedAtUTC": "2026-10-16T02:40:45.403006+00:00",
+  "testWorkingFiles": {
+    "test/stage8RestartChild.mjs": "bacc5ad63303c5076325188f255692bcaaf07c784f4d575153bee24765ad2817",
+    "test/stage8-real-process-restart.test.mjs": "87b897f565e9b713bf68e12bc25d7c50885a379fc8e290b9dd5468c726d6e9c9",
+    "test/stage8-webhook-lifecycle.test.mjs": "fdb5243f979b5e9d1da3a689763e2d5d32487f7e2543d83f4341890f47bd2d4e"
+  },
+  "sourceNotModifiedDuringTests": true,
+  "firstRestartFailure": "Before any DB open: child omitted existing TMPDIR, so strict actual temporary-root check rejected. Current test passes original TMPDIR unchanged; no guard removed."
+}

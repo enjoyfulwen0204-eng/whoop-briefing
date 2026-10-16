@@ -1,0 +1,24 @@
+{
+  "sourceSha": "d9e1625d02a2741807abbcef4fa34c72740bbcf4",
+  "srcTree": "a9534bf16c5cc6dd3c0e6ea45136e330533e28f0",
+  "trackedDiff": "",
+  "runtimeChangedFiles": [
+    "src/bot/webhook.js",
+    "src/stage8ContinuationLoop.js",
+    "src/stage8PostSync.js",
+    "src/stage8Runtime.js"
+  ],
+  "scope": "FOCUSED_READ_ONLY_DRIVER_REVIEW_NO_CAPACITY_OR_PRODUCTION",
+  "verdict": "NO_GO_DISCOVERY_TIMEOUT_DOES_NOT_JOIN_ACTUAL_METADATA_CALLBACK",
+  "artifacts": {
+    "review-fixture.mjs": "753fb36e41e53e93c97b73bf49a038bef081dd4578641ae24989bb9f007fcb1c",
+    "independent-counterexamples-corrected.tap": "7305d9c9aa055511c96419816f66bda2d66d73565793a7a481dfdd6a6302141b",
+    "independent-counterexamples-first.test.mjs": "b73bf0e943defb6814966d46c212c07c17782e7a83c8fdc10b83fe4dbb4394a3",
+    "committed-focused.tap": "8e56c6a8c551dc6761a4a31084c85b1d4ed3831b4bff7224fff1522f507511f2",
+    "independent-counterexamples-first.tap": "17161a71b03283ce47fa391a268bbe09583638577f6f58fbdc45b857fff90d35",
+    "review.md": "d5812ae6fff09bc0573f21dc1ec508419887ddf767d911f7059e068cf44e335d",
+    "webhook-direct-import.log": "dcf7b66bb8d8b5abd3a8473c3b8cd45b44bf8885d07b13ac8ab2fc4e3cf0809d",
+    "independent-counterexamples.test.mjs": "ad871c025f8787ed692430758c48a60ee5d345f0889670e9fb7b04063a3c1166",
+    "independent-counterexamples.tap": "17161a71b03283ce47fa391a268bbe09583638577f6f58fbdc45b857fff90d35"
+  }
+}

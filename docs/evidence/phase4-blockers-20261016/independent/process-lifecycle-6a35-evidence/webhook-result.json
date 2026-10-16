@@ -1,0 +1,27 @@
+{
+  "sourceSha": "6a35a871d06f1028e7cefc643ba523d50e52a769",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "testTree": "2a4ad53a5f30d9e1862967f203b3379264afe871",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=180000",
+    "test/stage8-webhook-lifecycle.test.mjs"
+  ],
+  "nodePath": "/Users/kelvin/.local/node-v22.23.2-darwin-arm64/bin/node",
+  "nodeVersion": "v22.23.2",
+  "startedAtUTC": "2026-10-16T02:43:51.962Z",
+  "completedAtUTC": "2026-10-16T02:43:54.443Z",
+  "elapsedSeconds": 2.4805724579999997,
+  "exitCode": 1,
+  "outerTimedOut": false,
+  "sourceIdentityUnchanged": true,
+  "rusageWait4": {
+    "maxRssBytesDarwin": 283377664,
+    "userCpuSeconds": 2.116652,
+    "systemCpuSeconds": 0.13414299999999998
+  },
+  "classification": "INDEPENDENT_SYNTHETIC_PROCESS_LIFETIME_NOT_PRODUCTION_CONTAINMENT_OR_CAPACITY",
+  "tapSha256": "b739aac877aa6643f77a5bf31b37e22f913c5adeaeb54e04d81dc7900929e317"
+}

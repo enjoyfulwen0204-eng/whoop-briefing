@@ -1,0 +1,16 @@
+{
+  "source": "d9e1625d02a2741807abbcef4fa34c72740bbcf4",
+  "srcTree": "a9534bf16c5cc6dd3c0e6ea45136e330533e28f0",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=180000",
+    "test/stage8-post-sync.test.js",
+    "test/telegram-webhook.test.js"
+  ],
+  "startedAtUTC": "2026-10-16T02:10:15.273404+00:00",
+  "fileCeilingMs": 180000,
+  "outerWatchdogSeconds": 400,
+  "classification": "AFFECTED_REGRESSIONS_NOT_PRODUCTION_CAPACITY"
+}

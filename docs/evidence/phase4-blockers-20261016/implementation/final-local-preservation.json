@@ -1,0 +1,26 @@
+{
+  "atUTC": "2026-10-16T02:51:09.736191+00:00",
+  "scope": "TARGETED_PRESERVATION_NOT_SECOND_PROVIDER_RECONCILIATION",
+  "worktrees": [
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing",
+      "head": "899dff0ae61474bb2b9ec0a0743cdbf11a999d3b",
+      "status": "",
+      "actionsPerformedByThisTask": "READ_ONLY"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+      "head": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
+      "status": "",
+      "actionsPerformedByThisTask": "READ_ONLY"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/finalization-v3-recovery-20261013/worktree",
+      "head": "828b3bad0f75d3b81d374e431872878af56f6c9a",
+      "status": " M src/bodyEnergyDerivedTime.js\n M src/bodyEnergyPublicationReader.js\n M src/bodyEnergySourceUnitAuthority.js\n M src/bot/index.js\n M src/bot/perspective.js\n M src/bot/router.js\n M src/bot/settings.js\n M src/bot/webhook.js\n M src/companionInvitation.js\n M src/db.js\n M src/index.js\n M src/morningReadiness.js\n M src/phase4Core.js\n M src/phase4EntityStore.js\n M src/phase4ExecutionStore.js\n M src/phase4IntelligenceStore.js\n M src/phase4MetricUnitReceipt.js\n M src/phase4OperationReceipts.js\n M src/phase4Reanalysis.js\n M src/phase4Redaction.js\n M src/phase4Repositories.js\n M src/phase4ResultAuthority.js\n M src/phase4Schema.js\n M src/phase4TransportStore.js\n M src/publicBeta.js\n M src/schema.js\n M src/stage7Companion.js\n M src/stage7DecisionStore.js\n M src/stage7InteractionStore.js\n M src/stage7ReplyAuthority.js\n M src/stage7Runtime.js\n M src/stage7TransportAuthority.js\n M src/stage7TrustedRegistry.js\n M test/phase4Fixture.js\n?? src/confirmedMorningReceipt.js\n?? src/morningBriefPolicy.js\n?? src/phase4V34Schema.js\n?? src/recipientIdentity.js\n?? src/scopedHealthContext.js\n?? src/stage8LiveAuthority.js\n?? src/stage8MorningPlan.js\n?? src/stage8MorningRuntime.js\n?? src/stage8MorningStore.js\n?? src/stage8OwnerMonitoring.js\n?? src/stage8Runtime.js\n?? src/stage8SelfQa.js\n?? src/stage8Settings.js\n?? test/stage8-morning.test.js\n?? test/stage8-owner.test.js\n?? test/stage8-scoped-context.test.js\n",
+      "actionsPerformedByThisTask": "READ_ONLY"
+    }
+  ],
+  "originalRetainedDbNotOpened": true,
+  "noPublicPushDeploymentMigrationCredentialOrPaidChanges": true
+}

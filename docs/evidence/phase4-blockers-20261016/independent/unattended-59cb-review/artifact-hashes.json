@@ -1,0 +1,40 @@
+{
+  "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "trackedDiff": "",
+  "runtimeDeltaFromD9e": [
+    "src/stage8PostSync.js"
+  ],
+  "protectedSourceHashes": {
+    "src/phase4Core.js": "d61404e5d62962e8de57867829613bc73e8272bee100f054a215ba27c99560c4",
+    "src/processingTransaction.js": "0b803c214c70176eee3709a4a3014994163b547a9175c61884f032f7b326362b",
+    "src/phase4Reanalysis.js": "137bae8ee953db0a3d49595c63af94df46fc1001698b895714a58f1a445765ed",
+    "src/stage8LiveExecution.js": "1661d8ff59c85765c89778f8c518e4c7d327342762a5270677b02ab24300ab1c",
+    "src/stage8LiveProducer.js": "43cd2c3f95b7b310722448b8317af59cef5cf4b3af3bf69e9f0afa6487136435",
+    "src/stage8LiveProducerAuthority.js": "7eda0fb4f4e0f97740a902183ae4bdd8e0472c0427d0a4d8095a5d6820327bc3",
+    "src/stage8BodyEnergyProjection.js": "af6e520218786ed96fe05c5e08ae931513cb115bde42f3b11dff40d6af1dbc41",
+    "src/stage8DerivedReader.js": "b5176b1ebd611d2dc46bd419c41cc273ed8cfd63bc03c3ff8750180cdac68471",
+    "src/schema.js": "bdda9a3325a1626f6ed552f0a5874231ed7c267d1704a5f06eab03d2813530ac"
+  },
+  "classification": "SCOPED_GO_BOUNDED_UNATTENDED_DRIVER_AUTHORITY_AND_JOIN_ONLY_GLOBAL_NO_GO",
+  "tests": {
+    "committed": {
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0
+    },
+    "reviewer": {
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0
+    }
+  },
+  "artifacts": {
+    "review-fixture.mjs": "1fe0c22bdde91f7cb3b6a2240673d4225c9014639d56d0906948613880e54b73",
+    "committed-focused.tap": "c6bd1a66f3b0f982fd565340dbd6b4f12bece2b4e1214325d6d5cb9d7dc5b8aa",
+    "review.md": "8a5a0a0afde9b64b94d8e5947bb2f398a1bbfc7bacb709a51775fb920c731aab",
+    "webhook-direct-import.log": "dcf7b66bb8d8b5abd3a8473c3b8cd45b44bf8885d07b13ac8ab2fc4e3cf0809d",
+    "independent-counterexamples.test.mjs": "24d7af146be3e705ebed20c1431539976dccfec5c98c1ffe2eec7514553666d6",
+    "independent-counterexamples.tap": "67dd3726287815baa6ff13144d0b2342b1cda6f24bf660a7749db14bc5642df2"
+  }
+}

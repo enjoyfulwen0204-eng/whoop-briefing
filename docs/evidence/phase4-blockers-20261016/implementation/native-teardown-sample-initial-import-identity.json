@@ -1,0 +1,8 @@
+{
+  "source": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "originalFixtureSha256": "e1d8a13677587b65cc53fa07b99c5c1a4b996552bf7687b28f9b77d653a7484b",
+  "fixtureSha256": "8b0683577379f97681086065a7b45b27a1509ec2c868e0d2167761da1f44668d",
+  "testSha256": "9154067e87daa9b49dcffeb478f5f09f60db2bbb6896d1aa8e1a15eb5fa763fe",
+  "classification": "OBSERVATION_ONLY_NO_ACCEPTANCE; same180s deadline; no GC/timer/lifetime repair; one1s native stack sample of own synthetic worker"
+}

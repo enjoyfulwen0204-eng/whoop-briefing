@@ -1,0 +1,32 @@
+{
+  "observedAtUTC": "2026-10-16T02:43:56.003729+00:00",
+  "installed": {
+    "libsql": "0.5.29",
+    "@libsql/client": "0.15.15",
+    "@libsql/darwin-arm64": "0.5.29"
+  },
+  "primarySources": [
+    {
+      "url": "https://github.com/tursodatabase/libsql-js/issues/228",
+      "statusObserved": "Open",
+      "relevance": "User report on exact0.5.29 prepared-statement lifetime after close, includingmacOSarm64; external corroboration only, not proof of our crash root cause."
+    },
+    {
+      "url": "https://github.com/tursodatabase/libsql-js/issues/230",
+      "statusObserved": "Open",
+      "relevance": "User report on exact0.5.29 prepared connection/descriptor lifetime; not a tested fix."
+    },
+    {
+      "url": "https://github.com/tursodatabase/libsql-js/pull/214",
+      "statusObserved": "Open",
+      "relevance": "Proposes explicitStatement.close and statement tracking; not installed, merged, approved or used."
+    },
+    {
+      "url": "https://github.com/tursodatabase/libsql-js/issues/231",
+      "statusObserved": "Open",
+      "relevance": "Windows native teardown report; platform differs and does not prove this Darwin/Linux fault."
+    }
+  ],
+  "changesApplied": false,
+  "conclusion": "No verified applicable released fix established. Do not replace native dependency or cleanup API based on issue reports; require independent runtime regression and Linux qualification."
+}

@@ -1,0 +1,23 @@
+{
+  "source": "d85835ef8618a1d891de2fb9260d1c20caece432",
+  "srcTree": "16f43e20eb509dccb00d7da5c56bf7fd7ea552c2",
+  "command": [
+    "/Users/kelvin/.local/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=890000",
+    "test/stage8-owned-live-classes.test.mjs"
+  ],
+  "startedAtUTC": "2026-10-16T01:57:02.247767+00:00",
+  "fileCeilingMs": 890000,
+  "outerWatchdogSeconds": 900,
+  "nativeFixClaim": false,
+  "classification": "LOCAL_FUNCTIONAL_NOT_PRODUCTION_CAPACITY",
+  "returncode": 0,
+  "durationSeconds": 180.075906458,
+  "completedAtUTC": "2026-10-16T02:00:02.307755+00:00",
+  "maxRssBytesDarwin": 3247587328,
+  "userCpuSeconds": 90.275061,
+  "systemCpuSeconds": 74.999903,
+  "sourceIdentityUnchanged": true
+}

@@ -1,0 +1,18 @@
+{
+  "binding-before.json": "1162256b2afefd31ee48ab58848adba4923d10f1b838b0cea76d6ef0af0c9266",
+  "current.json": "7e2e7010958c2b68ea0d97f1ec9ecfd40196c375aa9dc6d9481fa50889f05b4f",
+  "functional-harness.py": "2cda1dcaf410b0f3ea47463a541201b1adb193ff44d57f5dd6e1c2dd1c136264",
+  "functional-summary.json": "2dcf093698f5cc897bef54d3b1949863db95ca410dd5030933a6be1d8ddb4e95",
+  "harness-finished.json": "020717f978808af16cf349ffeef157aaacc5607b176493b3b989248a0a6bd9d6",
+  "harness.log": "dceafb644cce45455804ec8d370c62cd818ed391d9a955d04e53f58b8683db1f",
+  "owned-classes-binding-after.json": "1162256b2afefd31ee48ab58848adba4923d10f1b838b0cea76d6ef0af0c9266",
+  "owned-classes-result.json": "c175c12fcb21f842aaeafbdeecb5d8d29b5a81db2294cca70f71d609e8eec73e",
+  "owned-classes-start.json": "ffe931b2dc75ae9cc716e039d15c965e65ddaa99245c15c484744b0b5e37f81d",
+  "owned-classes.tap": "c9e6403a23e51b9e1b0a4b4451405a54456fd22e94996ada3ba91a9a7fe993a9",
+  "review.md": "6159c25d6d22dc06d3bb4f1e8ccdcfece32918701318fa7de0a31f5c87a1dd2b",
+  "run-manifest.json": "9b854cbe189fa5468e755150d6cc3e22fd51b67facd8b56460d1abdc86c25036",
+  "weekly-binding-after.json": "1162256b2afefd31ee48ab58848adba4923d10f1b838b0cea76d6ef0af0c9266",
+  "weekly-result.json": "f2ae292350dc9fd7e8e7871eea59b09366bea62839c851f527bb8e2f6ca39ea8",
+  "weekly-start.json": "72ed2be5490a38c331fd8631573b82bdac315224d68c04b71ccfdcace030cf70",
+  "weekly.tap": "d997edf1e528e8dedb847f1c0e8e1e2e27586d073d9df5caf30baf21247d2fd2"
+}

@@ -1,0 +1,39 @@
+{
+  "atUTC": "2026-10-16T02:43:55.877536+00:00",
+  "head": "6a35a871d06f1028e7cefc643ba523d50e52a769",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "runtimeChangesFrom646": [
+    "src/bot/webhook.js",
+    "src/stage8ContinuationLoop.js",
+    "src/stage8PostSync.js",
+    "src/stage8Runtime.js"
+  ],
+  "preservedRuntime": {
+    "src/phase4Core.js": {
+      "sha256": "d61404e5d62962e8de57867829613bc73e8272bee100f054a215ba27c99560c4",
+      "byteIdenticalTo646": true
+    },
+    "src/db.js": {
+      "sha256": "40a0a139d6ba33c7c981025cb1f81fe7dc904bf5976db2fb1456bf04327ebb68",
+      "byteIdenticalTo646": true
+    },
+    "src/receiverScopeLifetime.js": {
+      "sha256": "44367d6ff9ae85dfb41da8fcbb7ad0c446a7660e3041ef3d1d8b2dd0af79cab5",
+      "byteIdenticalTo646": true
+    },
+    "src/phase4V33Schema.js": {
+      "sha256": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c",
+      "byteIdenticalTo646": true
+    },
+    "src/phase4V34Schema.js": {
+      "sha256": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd",
+      "byteIdenticalTo646": true
+    },
+    "src/phase4V35Schema.js": {
+      "sha256": "3e7144ae5e76b75d4dedce2f86264618a9ed6abd422bcb309d0624a25a8b7156",
+      "byteIdenticalTo646": true
+    }
+  },
+  "srcFileCount": 327,
+  "dependencyLockUnchangedFrom646": true
+}

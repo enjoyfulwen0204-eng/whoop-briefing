@@ -1,6 +1,6 @@
 {
   "status": "FINAL_INTEGRATION_NO_GO_NOT_DEPLOYED",
-  "observedAtUTC": "2026-10-15T15:42:58.867200+00:00",
+  "observedAtUTC": "2026-10-16T02:47:07.769543+00:00",
   "heads": {
     "stage6": "a7bdbd591625cbd8c7ee0f42814f84bf55a8d6a9",
     "stage7": "828b3bad0f75d3b81d374e431872878af56f6c9a",
@@ -118,34 +118,39 @@
     }
   },
   "production": {
-    "observedAtUTC": "2026-10-15T15:35:38.074214+00:00",
+    "observedAtUTC": "2026-10-16T02:22:06.513Z",
     "renderService": "srv-dahs71qd0e5s738n94c0",
     "liveSha": "2340e8bc305c6acde29bbfa540753e79dbd34408",
     "schema": 32,
-    "resources": "0.5 CPU / 512 MiB",
-    "autoDeploy": "no",
+    "resources": "0.5CPU/512MB,1instance,selectedUSD7/month; UIread-only",
+    "autoDeploy": "disabled",
     "maintenance": false,
-    "activeWriterCountsAllZeroAtRead": true,
+    "activeWriterCountsAllZeroAtRead": null,
     "telegramPendingUpdates": 0,
     "telegramMaxConnections": 1,
     "telegramAllowedUpdates": [
       "message",
       "callback_query"
     ],
-    "workerReadback": "BLOCKED_HTTP401",
+    "workerReadback": "BLOCKED_HTTP401_AND_LOGIN_REQUIRED",
     "githubWorkflow": "disabled_manually",
     "githubInProgressRuns": 0,
-    "stage8PostSyncFlag": "ABSENT",
-    "stage8SubjectAlertsFlag": "ABSENT",
+    "stage8PostSyncFlag": "NOT_FRESHLY_VERIFIED; previouslyABSENT",
+    "stage8SubjectAlertsFlag": "NOT_FRESHLY_VERIFIED; previouslyABSENT",
     "productionMutations": 0,
     "stage7NewCandidateDeployed": false,
     "stage8NewCandidateDeployed": false,
-    "bodyEnergyPublicationFlag": "ABSENT_DEFAULT_OFF",
+    "bodyEnergyPublicationFlag": "NOT_FRESHLY_VERIFIED; previouslyABSENT_DEFAULT_OFF",
     "actualNewLiveDeliveryEvidence": null,
     "releaseApprovalForIntegratedSha": false,
     "paidUpgradePurchased": false,
     "schemaMigrationExecuted": false,
-    "publicPushAttempted": false
+    "publicPushAttempted": false,
+    "renderShaUiObservation": "around2026-10-16T01:51UTC; exactUI timestamp not captured",
+    "quiescenceEstablished": false,
+    "writerMetadata": "02:21 snapshot:38unfinalized/onefuturelease/oneresourcelock.02:22snapshot:37historicalESTABLISHED across8old-releasegroups,current2340CloudflareSYNC FINALIZED_SUCCESS withfuturelease,resourceLock0. SnapshotcountsdoNOTprovequiescence.",
+    "telegramLastErrorDate": null,
+    "applicationFlagFreshness": "No freshRenderAPIflagreadback; existingCLIidentityunavailable. Previous15OctAPIpost-sync/alert/body flagsABSENT remainhistorical only. No flag writes."
   },
   "retainedStage6": {
     "rid": "b6b5b100-5741-4ed5-a92d-22a08ae1cf83",
@@ -209,7 +214,7 @@
     },
     "genericLivePipelineAndImportant": "0PASS/1FAIL/1CANCELLED; pipeline notCURRENT within20legs; IMPORTANT120stimeout; unchanged tests retained",
     "ownedClassesB441": "120s cancelled after64legs withoutCURRENT; no completed test",
-    "independentFinal": "SCOPED_GO_EXACT646_TYPED_RESTRICTIONS_42_PASS_3_IMPORTS; whole release NO_GO; unchanged prior boundaries carry only exact-delta evidence",
+    "independentFinal": "SCOPED_GO_EXACT59cb_DRIVER_AND_THREE_CLASS_FULL_FUNCTIONALS; EXACT6a35TEST_ONLY_LIFECYCLE_AND_REAL_PROCESS_RESTART_SCOPED_GO; RUNTIME_BYTES_IDENTICAL; GLOBAL_NO_GO",
     "liveSubunitFocused": "independent scoped10PASS, exact9cb default six-slot case; two initial reviewer cursor-origin oracle failures retained and corrected with candidate unchanged",
     "typedBodyEligibility": "exact646 primary13/13PASS; independent42/42PASS plus3 standalone imports; restrictive presentation delta only, not publication qualification or full LIVE path",
     "liveClassesAndWeekly9cb": {
@@ -403,25 +408,121 @@
         "sourceIdentityUnchanged": true
       }
     },
-    "reviewCountsAreNotOneFullSuite": true
+    "reviewCountsAreNotOneFullSuite": true,
+    "latestIndependentClasses": {
+      "weekly": {
+        "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+        "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+        "functionalPassed": true,
+        "tapTotals": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "observedLegs": 63,
+        "lastLeg": 62,
+        "lastPublication": {
+          "status": "CURRENT",
+          "replayed": false,
+          "inputGeneration": 2
+        },
+        "totalItemsProcessed": 306,
+        "totalUnitsCommitted": 54,
+        "totalJobsFailed": 0,
+        "totalJobsCompleted": 2,
+        "maxLegItemsProcessed": 6,
+        "maxLegUnitsCommitted": 6,
+        "elapsedSeconds": 241.82048975,
+        "maxRssBytesDarwin": 3524427776,
+        "maxRssGiB": 3.282379150390625,
+        "testFileSha256": "bd932a2c5edb40e77198e7a64e132161695dccac241e7076a7b41dbbac9137fd",
+        "tapSha256": "d997edf1e528e8dedb847f1c0e8e1e2e27586d073d9df5caf30baf21247d2fd2",
+        "allProtectedBindingsExact": true
+      },
+      "owned-classes": {
+        "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+        "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+        "functionalPassed": true,
+        "tapTotals": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "observedLegs": 32,
+        "lastLeg": 31,
+        "lastPublication": {
+          "status": "CURRENT",
+          "replayed": false,
+          "inputGeneration": 2
+        },
+        "totalItemsProcessed": 128,
+        "totalUnitsCommitted": 55,
+        "totalJobsFailed": 0,
+        "totalJobsCompleted": 2,
+        "maxLegItemsProcessed": 6,
+        "maxLegUnitsCommitted": 6,
+        "elapsedSeconds": 157.151134791,
+        "maxRssBytesDarwin": 3801874432,
+        "maxRssGiB": 3.540771484375,
+        "testFileSha256": "89984d15eb600aba5019455c432bc49025e284196409b327810970a5e0cb0467",
+        "tapSha256": "c9e6403a23e51b9e1b0a4b4451405a54456fd22e94996ada3ba91a9a7fe993a9",
+        "allProtectedBindingsExact": true
+      }
+    },
+    "latestUnattended": {
+      "source": "59cb485d3858ef4d48024c718e547222d9a3e294",
+      "committedFocused": "6PASS",
+      "reviewerCounterexamples": "14PASS",
+      "scope": "boundeddiscovery,parent/signedsubject/progress,lock,generation,revocation,15min,ordinal63,delayedACKjoin; notnative/Productioncapacity"
+    },
+    "primaryRealProcess": {
+      "sourceRuntime": "59cb485d3858ef4d48024c718e547222d9a3e294",
+      "testOnlySuccessor": "6a35a871d06f1028e7cefc643ba523d50e52a769",
+      "pass": 1,
+      "elapsedSeconds": 80.453664042,
+      "pids": 14,
+      "syncExecutions": 1,
+      "receiptsAtCrashAndReplay": 9,
+      "finalReceipts": 81,
+      "completedJobs": 2,
+      "finalStatus": "CURRENT_THEN_IDLE",
+      "natural60sLeaseExpiry": true,
+      "clockOrLeaseReset": false,
+      "notNativeCrashContainment": true
+    },
+    "independentProcessLifecycle": {
+      "sourceSha": "6a35a871d06f1028e7cefc643ba523d50e52a769",
+      "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+      "actualWebhook": "1PASS_afterapprovedsocketpermission;originalsandboxEPERM_ENVFAILretained",
+      "realProcessRestart": "1PASS_80.4561205s_14PIDs_naturalLeaseExpiry_1SYNC_9receiptsReplay_81finalReceipts_2completed_CURRENT_IDLE",
+      "maxRssBytesDarwinRealRestart": 467189760,
+      "noClockLeaseOrPermitReset": true,
+      "noProviderCalls": true,
+      "notProductionCapacityOrNativeContainment": true
+    }
   },
   "releaseGates": {
     "stage6SixJobs": "INCOMPLETE",
-    "weeklyPositive": "genuine canonical computation/aggregateCURRENT proven9cb; no inference of qualifying SUPPORTED insights; typed/Owner end-to-end NOT_PASS; corrected private self fixture not rerun",
-    "unattendedContinuation": "MISSING_AUTONOMOUS_DRIVER",
-    "nativeStability": "NO_GO_ORIGINAL_SIGSEGV_OPEN; no actual Production child supervisor wiring",
-    "integratedRegression": "NO_GO_RETAINED_FAILURES",
+    "weeklyPositive": "FUNCTIONAL_SCOPED_GO_EXACT59cb:independentfullfilePASS;63legs0..62,306realACK,54units,2complete,0failed,authenticCURRENT,nonemptySUPPORTEDtypedINSIGHTS,OwnerWEEKLYapproval/proposal/dedup. SyntheticlocalnotProduction.",
+    "unattendedContinuation": "SCOPED_GO_EXACT59cb:6committed+14reviewerPASS. Exact6a35sameRuntime:independentactualSIGKILL14PIDs/natural60slease/1SYNC/9receiptsreplay/2completedCURRENT/IDLEPASS; actualwebhookSIGTERMjoinPASSafterapprovedlistenerpermission,originalENVFAILretained. NotProductionwirednativecontainment/Linuxcapacity.",
+    "nativeStability": "NO_GO_ORIGINAL_SIGSEGV_OPEN; nativefinalizerdrainbeforefirstJSimmmediateconfirmedby1ssample; samebinaryUUIDandcallbackoffset0x72d34; nocausalfixorProductionwiredcontainment.",
+    "integratedRegression": "NO_GO:45PASS/1fileCANCELLED180s inaffectedpost-sync+webhookselection;14nestedpost-syncPASS butunjoinedpre-closecleanup. Historical2null-manifestsyntheticprivacyfailuresretained. No fullsuitePASS.",
     "migrationOrder": "local current-binary off-profile32->33->34->35 interruption/recovery PASS with nonempty witnesses; not Production backup/recovery-binary/deploy-route qualification. remotev34LOCAL_ONLY/v35unsupported safeguards retained.",
     "resourcePurchaseAuthorization": "NOT_ESTABLISHED",
     "F02": "OWNER_ACCEPTED_KNOWN_RISK_UNCHANGED",
     "finalIntegration": "NO_GO",
-    "resourceQualification": "NO_GO; exact9cb native Darwin fixture peakRSS3,311,904KiB (~3.159GiB); actualLinuxHTTP0.5CPU512MiB unqualified; no paidupgrade",
+    "resourceQualification": "NO_GO:independentDarwinlocalownedclassespeakRSS3,801,874,432B(~3.541GiB); native1ssamplephysicalfootprint4.9G isdifferentmetric. ActualLinuxHTTP0.5CPU512MBunqualified;2GiBnotsufficientlyproven;nopaidupgrade.",
     "workerInventory": "BLOCKED_HTTP401",
-    "ownerAction": "existing Cloudflare readonly session and Docker readonly mount restoration requested; no response yet",
-    "bodyEnergy": "QUALIFICATION_PENDING; restrictive typed numeric eligibility/freshness fix646 does not grant publication cohort or alerts"
+    "ownerAction": "ExistingCloudflareloginandspecificDockerproject.gitreadonlymountrestorationrequestedonce; noresponse. No unsafe exactSHA/payment/migration approval requested.",
+    "bodyEnergy": "QUALIFICATION_PENDING; restrictive typed numeric eligibility/freshness fix646 does not grant publication cohort or alerts",
+    "threeClassOwnerMonitoring": "FUNCTIONAL_SCOPED_GO_EXACT59cb:bothindependentfullfilesPASS;DAILY/IMPORTANT/WEEKLYclasspolicy,dualprincipals,consent/subscriptions,replay,revocation,peerdenial. NoProductiondelivery."
   },
-  "implementationCommit": "646c99fc1085d0e4c964eb92499087c492351b64",
-  "runtimeSourceTree": "16f43e20eb509dccb00d7da5c56bf7fd7ea552c2",
+  "implementationCommit": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "runtimeSourceTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
   "integrationBranch": "codex/phase4-final-integration-20261015",
   "initialReconciliationPerformedOnce": true,
   "conflictsResolved": [
@@ -442,7 +543,9 @@
     "ownedClassesFixture": "b44134bafa5fbb8e025fde0d31172d2afdb02ae3",
     "defaultLiveSixSlotSubunits": "9cbccf0c3a8ea1f96a982cafb183d6ba9f301ad1",
     "restrictiveTypedBodyEligibility": "89d68520931ae9cecfc559e4f2d74f4e841a972e",
-    "typedBodyFreshness": "646c99fc1085d0e4c964eb92499087c492351b64"
+    "typedBodyFreshness": "646c99fc1085d0e4c964eb92499087c492351b64",
+    "unattendedDiscoveryAndJoinedShutdown": "59cb485d3858ef4d48024c718e547222d9a3e294",
+    "actualWebhookAndRealProcessTests": "6a35a871d06f1028e7cefc643ba523d50e52a769"
   },
   "withdrawnRevision": {
     "sha": "fd07931db0e2cb503b53a7a93f1f723b09f8ae02",
@@ -465,7 +568,7 @@
     "PHASE4_STAGES1_TO8_PRODUCTION_COMPLETE": false
   },
   "preparedAtUTC": "2026-10-15T17:06:43.119599+00:00",
-  "testTree": "c23d5e12536433d1b5a9d3e93eb74c492360e5d2",
+  "testTree": "2a4ad53a5f30d9e1862967f203b3379264afe871",
   "runtimeFiles": {
     "src/accountLifecycle.js": "17a0e45fd1c05ec9308fb5d3e1cdb89eeeef24b4979d9827682a140b502fdfae",
     "src/adminCatalog.js": "0d2270019a0c240bf908662cbd33658adba27b083ecc1df3458eeb2836dd25d1",
@@ -536,7 +639,7 @@
     "src/bot/triage.js": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
     "src/bot/triageCatalog.js": "39ad745edd9491c865e87fa050188522bbba0e044983a8c797710a8f1a7e39fc",
     "src/bot/updateProcessor.js": "7ddb389d5510015d1ea31ede88c6a505501fe27e8d679ccfcf895f7c7e4dca5e",
-    "src/bot/webhook.js": "4524fefe61b582425aa06870cc6b45354f539b661cdff351db984364f1d98441",
+    "src/bot/webhook.js": "9574da6cc61100e9d663137b116e9c83454614faa964fb2c150c789d914362fb",
     "src/botStore.js": "7a9e073fe42353aac7f594b678e113d793e7aae0370729368707fdbe9bddae70",
     "src/briefingCatalog.js": "aff29ab647af32d328db5fa1e64fd2b3806647678099ced447de3f1485e76f2c",
     "src/briefingEndpoint.js": "cceb8064da8c5d2293ecb2e9f62f08dc30400aa9e6ae72f0a7f64bcafefba36d",
@@ -748,6 +851,7 @@
     "src/stage7TrustedRegistry.js": "640fa7ac8adfe1580cfe7bba2d6d97fc6ef9ff257f2ffdffcf632b403c1ff2ce",
     "src/stage7WeeklyReview.js": "2acae49385e673b98b685b01cfc3cd5f5bdbb4a56c3f93bf5cbd627782a8fb62",
     "src/stage8BodyEnergyProjection.js": "af6e520218786ed96fe05c5e08ae931513cb115bde42f3b11dff40d6af1dbc41",
+    "src/stage8ContinuationLoop.js": "9b7ef791f7dcbe210e775fe56d2f329c3b72e22b5cd1b33d142a762fe61f0e66",
     "src/stage8DerivedReader.js": "b5176b1ebd611d2dc46bd419c41cc273ed8cfd63bc03c3ff8750180cdac68471",
     "src/stage8LiveAllocation.js": "83085a97fcf4c322d99330f919ab2333cd64d6f899051b9910465003b2976f5a",
     "src/stage8LiveAuthority.js": "2ee868aec2927e499289df792b78676611ef29030c7e0a36d9bf9be7d2444017",
@@ -761,8 +865,8 @@
     "src/stage8OwnerDispatcher.js": "eab8d0f4adafb5709f5556bf75df4bc934819fbc94209d3124f26ab1af79ff07",
     "src/stage8OwnerMonitoring.js": "7d33fe1ace475b1c6831791b46dde9724ab4eaa0b6f725dffba4f8b11272e373",
     "src/stage8Policy.js": "b39483f5c0baba43a498f603d3635b9dcfc6126f734aa2f83409399e02e1d046",
-    "src/stage8PostSync.js": "f548a6cec6aedcf14955304cda9ec498669cf3ab95af04fac0655e87755d948f",
-    "src/stage8Runtime.js": "cf099121dc0a4c16c1dc43ceb9d327951cb2f17561bcbbd5d17c4df16cba194b",
+    "src/stage8PostSync.js": "739ad8ec190cc20c2001e98888922c02b53dbe329edfbe5dc96d4c9b61121fe1",
+    "src/stage8Runtime.js": "42c05003adfe81e9857235c082940d249c033a0974569e34b42c32d120ebb8b4",
     "src/stage8SelfQa.js": "3b57077d7ef3924bd8027f11d719536fb4ee377307374de3164d14b234c5fb7d",
     "src/stage8Settings.js": "2e5eb2037143f015b5f7d7bc39100f53d94cdf0bc9e97b8d7119ce7ec9351f4c",
     "src/stage8SubjectAlertManifest.js": "5d42e117098d335cc599579cb538c1eab4c5e98b79ec93f7ef71d6efd5bd5d2e",
@@ -794,7 +898,17 @@
     "src/whoopWebhookProcessor.js": "41e527c3de87eded0b806044eee904a026dffdf3dc94b177768b6c2a1aa9d26d",
     "src/whoopWebhookStore.js": "c59720a4a79459cbd5c185bdc0149a394c8e3945837612510a293b84fb819bca"
   },
-  "sourceAndTestChangesSinceLastReview": "src/stage8BodyEnergyProjection.js pure restrictive eligibility+original90min freshness presenter; src/stage8DerivedReader.js calls presenter only after authentic artifact with existing scope asOf. Test input/positive assertions strengthened. All core/cohort/authority/schemas unchanged.",
+  "sourceAndTestChangesSinceLastReview": [
+    "src/bot/webhook.js",
+    "src/stage8ContinuationLoop.js",
+    "src/stage8PostSync.js",
+    "src/stage8Runtime.js",
+    "test/stage8-continuation-loop.test.mjs",
+    "test/stage8-real-process-restart.test.mjs",
+    "test/stage8-unattended-continuation.test.mjs",
+    "test/stage8-webhook-lifecycle.test.mjs",
+    "test/stage8RestartChild.mjs"
+  ],
   "initialWorkspacePreservation": {
     "rootBranch": "codex/whoop-final-production-release-20261015",
     "rootHead": "899dff0ae61474bb2b9ec0a0743cdbf11a999d3b",
@@ -864,6 +978,41 @@
       "verdict": "SCOPED_GO_RESTRICTIVE_PRESENTATION_42_PASS_3_IMPORTS_GLOBAL_NO_GO",
       "artifact": "docs/evidence/phase4-final-production-20261015/independent/typed-body-final-review/review.md",
       "sha256": "e06e957f016cfe48eb0b650b6406a56279c336cc9bd3cbd01946d3f64532a72e"
+    },
+    {
+      "name": "unattended-d9e-rejected",
+      "sourceSha": "d9e1625d02a2741807abbcef4fa34c72740bbcf4",
+      "verdict": "NO_GO_DELAYED_ACK_JOIN",
+      "artifact": "docs/evidence/phase4-blockers-20261016/independent/unattended-d9e-review/review.md",
+      "sha256": "d5812ae6fff09bc0573f21dc1ec508419887ddf767d911f7059e068cf44e335d"
+    },
+    {
+      "name": "unattended59cb",
+      "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+      "verdict": "SCOPED_GO_6_PLUS14_PASS_GLOBAL_NO_GO",
+      "artifact": "docs/evidence/phase4-blockers-20261016/independent/unattended-59cb-review/review.md",
+      "sha256": "8a5a0a0afde9b64b94d8e5947bb2f398a1bbfc7bacb709a51775fb920c731aab"
+    },
+    {
+      "name": "three-classes59cb",
+      "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+      "verdict": "FUNCTIONAL_SCOPED_GO_TWO_FULL_FILES_GLOBAL_NO_GO",
+      "artifact": "docs/evidence/phase4-blockers-20261016/independent/functional-59cb-evidence/review.md",
+      "sha256": "6159c25d6d22dc06d3bb4f1e8ccdcfece32918701318fa7de0a31f5c87a1dd2b"
+    },
+    {
+      "name": "native-finalizer-diagnostic",
+      "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+      "verdict": "CONFIRMED_FINALIZER_REGION_SAME_MODULE_NOT_FIX_NATIVE_NO_GO",
+      "artifact": "docs/evidence/phase4-blockers-20261016/independent/native-teardown-sample-review/review.md",
+      "sha256": "830ec115c82fcb8efc8cade5b59fbeb92ab062193257c5ab02591f6b19b61e85"
+    },
+    {
+      "name": "actual-webhook-and-real-process-restart",
+      "sourceSha": "6a35a871d06f1028e7cefc643ba523d50e52a769",
+      "verdict": "SCOPED_GO_TWO_FOCUSED_FILES_ENV_FAILURE_RETAINED_GLOBAL_NO_GO",
+      "artifact": "docs/evidence/phase4-blockers-20261016/independent/process-lifecycle-6a35-evidence/review.md",
+      "sha256": "c029fe15fdc6b132ab32d47f81811d54f2abb2cbbe353154a698fc74c1bdc51f"
     }
   ],
   "requiredLifetimeIdentity": {
@@ -873,11 +1022,53 @@
   },
   "completedAtUTC": "2026-10-15T17:10:35.881780+00:00",
   "evidenceArchive": {
-    "index": "docs/evidence/phase4-final-production-20261015/artifact-index.json",
-    "indexSha256": "4335628f894aa8650838fe5243ab017f600a6692d90da78d8dd7b3894d32516e",
-    "artifactCount": 193,
+    "index": "docs/evidence/phase4-blockers-20261016/artifact-index.json",
+    "indexSha256": "a2fa91240753e2b378fe8a950863b839a3ecaa064eb1f69a56568351982e3ea7",
+    "artifactCount": 115,
     "sourceAndArchivedHashesVerifiedBeforeCommit": true,
     "includesFailuresCancellationsAndWithdrawnCandidateCounterexamples": true,
-    "containsRawDatabaseOrCredentials": false
+    "containsRawDatabaseOrCredentials": false,
+    "priorArchiveUnchanged": {
+      "index": "docs/evidence/phase4-final-production-20261015/artifact-index.json",
+      "indexSha256": "4335628f894aa8650838fe5243ab017f600a6692d90da78d8dd7b3894d32516e",
+      "artifactCount": 193,
+      "sourceAndArchivedHashesVerifiedBeforeCommit": true,
+      "includesFailuresCancellationsAndWithdrawnCandidateCounterexamples": true,
+      "containsRawDatabaseOrCredentials": false
+    }
+  },
+  "priorEvidenceCheckpoint": {
+    "sourceSha": "646c99fc1085d0e4c964eb92499087c492351b64",
+    "evidenceCommit": "d85835ef8618a1d891de2fb9260d1c20caece432",
+    "archive": {
+      "index": "docs/evidence/phase4-final-production-20261015/artifact-index.json",
+      "indexSha256": "4335628f894aa8650838fe5243ab017f600a6692d90da78d8dd7b3894d32516e",
+      "artifactCount": 193,
+      "sourceAndArchivedHashesVerifiedBeforeCommit": true,
+      "includesFailuresCancellationsAndWithdrawnCandidateCounterexamples": true,
+      "containsRawDatabaseOrCredentials": false
+    }
+  },
+  "qualificationCandidate": "6a35a871d06f1028e7cefc643ba523d50e52a769",
+  "rejectedUnattendedCandidate": {
+    "source": "d9e1625d02a2741807abbcef4fa34c72740bbcf4",
+    "reason": "Independent delayed genuine metadata ACK proves budget.run abort race settled loop.stop before actual discovery callback joined. Corrected59cb explicitly awaits callback; original rejection retained.",
+    "neverDeployed": true
+  },
+  "blockerResolution20261016": {
+    "newRuntimeFiles": 4,
+    "preservedCoreDbReceiverAndV33V34V35": true,
+    "sameSrcTree59cbAnd6a35": true,
+    "upstreamNativeFixVerified": false,
+    "notApplied": "Previouslyrejectedterminalcheck34/35/LIVEscopeexpansion; independentstaticfeasibilityonly/semanticsWITHHELD. No GC/yield cleanuprepair/dependencyupgrade.",
+    "F02": "OWNER_ACCEPTED_KNOWN_RISK; noTokenmetadata/rotation/change. ExistingcredentialusedonlyforauthorizedSELECT/getWebhookInforeadbacks.",
+    "newEvidenceIndex": "docs/evidence/phase4-blockers-20261016/artifact-index.json"
+  },
+  "lastEvidenceRecordedAtUTC": "2026-10-16T02:49:35.078601+00:00",
+  "sourceAndArchivedEvidenceFinalVerification": {
+    "artifacts": 115,
+    "runtimeFiles": 327,
+    "independentReports": 12,
+    "allHashesVerified": true
   }
 }

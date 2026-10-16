@@ -1,0 +1,46 @@
+{
+  "observedAtUTC": "2026-10-16T01:48:52.567167+00:00",
+  "productionMutations": 0,
+  "credentialChanges": 0,
+  "tokenMetadataInspected": false,
+  "cloudflare": {
+    "settingsHttpStatus": 401
+  },
+  "renderReadbackError": {
+    "type": "RuntimeError",
+    "detailsSuppressed": true
+  },
+  "renderBrowserReadback": {
+    "source": "Existing authenticated official Render Dashboard UI; no credential access or modification",
+    "serviceId": "srv-dahs71qd0e5s738n94c0",
+    "liveSha": "2340e8bc305c6acde29bbfa540753e79dbd34408",
+    "liveDeployment": "dep-db6utp2vcj2c73f0l180",
+    "plan": "0.5c-512mb",
+    "autoDeploy": "disabled",
+    "branch": "main",
+    "noDeployAction": true,
+    "observationTimePrecision": "UI observation around01:51UTC; exact timestamp was not captured",
+    "computeReadback": {
+      "selectedMonthlyUSD": 7,
+      "selectedCPU": 0.5,
+      "selectedMemoryMB": 512,
+      "instances": 1,
+      "resourceEdits": 0
+    }
+  },
+  "dockerReadback": {
+    "inventory": "existing pinned linux arm64 image dd5abac115e1280bc2a585c55e89a287ed22586310816ff3ac2d40c036fc288f",
+    "scopedProjectGitReadOnlyMount": "DENIED_OPERATION_NOT_PERMITTED_BEFORE_CONTAINER_CREATION",
+    "paidChanges": 0,
+    "linuxQualificationRun": false
+  },
+  "cloudflareBrowserReadback": {
+    "source": "Exact official Worker URL redirected to login",
+    "state": "SAVED_EXISTING_GITHUB_PROFILE_LOGIN_REQUIRED",
+    "noLoginOrTermsAccepted": true
+  },
+  "additionalReadbacks": [
+    "db-webhook-readback.json",
+    "production-operation-metadata.json"
+  ]
+}

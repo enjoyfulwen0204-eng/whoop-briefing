@@ -1,0 +1,134 @@
+{
+  "startedAtUTC": "2026-10-16T02:22:04.825Z",
+  "credentialSource": "existing project .env; values never emitted",
+  "credentialChanges": 0,
+  "tokenMetadataInspected": false,
+  "durableWrites": 0,
+  "queries": [
+    "SELECT MAX(version) AS version FROM schema_version",
+    "SELECT phase,trigger_source,release_sha,execution_mode,state,generation,lease_until,deadline_at,created_at,updated_at FROM phase4_executions WHERE lease_until>CAST((julianday('now')-2440587.5)*86400000 AS INTEGER) ORDER BY execution_seq DESC LIMIT 20",
+    "SELECT phase,trigger_source,release_sha,execution_mode,state,count(*) AS count,MIN(created_at) AS earliest_created_at,MAX(updated_at) AS latest_updated_at FROM phase4_executions WHERE finalized_at IS NULL GROUP BY phase,trigger_source,release_sha,execution_mode,state",
+    "SELECT count(*) AS count,MIN(acquired_at) AS earliest_acquired_at,MAX(expires_at) AS latest_expires_at FROM resource_locks WHERE expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+  ],
+  "schema": [
+    {
+      "version": "32"
+    }
+  ],
+  "activeExecutions": [
+    {
+      "phase": "SYNC",
+      "trigger_source": "cloudflare",
+      "release_sha": "2340e8bc305c6acde29bbfa540753e79dbd34408",
+      "execution_mode": "SHADOW",
+      "state": "FINALIZED_SUCCESS",
+      "generation": "1",
+      "lease_until": "1792117476085",
+      "deadline_at": "1792117414388",
+      "created_at": "1792117251085",
+      "updated_at": "1792117295317"
+    }
+  ],
+  "unfinalizedGroups": [
+    {
+      "phase": "SYNC",
+      "trigger_source": "cloudflare",
+      "release_sha": "20724cf7d5f9d936a448e1be657fc204f91d311c",
+      "execution_mode": "SHADOW",
+      "state": "ESTABLISHED",
+      "count": "7",
+      "earliest_created_at": "1791731728163",
+      "latest_updated_at": "1791775959080"
+    },
+    {
+      "phase": "SYNC",
+      "trigger_source": "cloudflare",
+      "release_sha": "8fbc2d90ae2b3fe68ae29454a26d7603c98784f0",
+      "execution_mode": "OFF",
+      "state": "ESTABLISHED",
+      "count": "1",
+      "earliest_created_at": "1791527501197",
+      "latest_updated_at": "1791527621987"
+    },
+    {
+      "phase": "SYNC",
+      "trigger_source": "cloudflare",
+      "release_sha": "dfffbfb73fe844cfddcab2f357a8f7b5a84d4e54",
+      "execution_mode": "OFF",
+      "state": "ESTABLISHED",
+      "count": "18",
+      "earliest_created_at": "1791590404518",
+      "latest_updated_at": "1791689524970"
+    },
+    {
+      "phase": "SYNC",
+      "trigger_source": "cloudflare",
+      "release_sha": "ed1c1235d6cd955fef7fe4164be757d9710e381e",
+      "execution_mode": "OFF",
+      "state": "ESTABLISHED",
+      "count": "2",
+      "earliest_created_at": "1791530479244",
+      "latest_updated_at": "1791531362443"
+    },
+    {
+      "phase": "SYNC",
+      "trigger_source": "manual",
+      "release_sha": "1eca89c123a3a49a08d2512dc1f5592eee7b1212",
+      "execution_mode": "SHADOW",
+      "state": "ESTABLISHED",
+      "count": "1",
+      "earliest_created_at": "1791813932598",
+      "latest_updated_at": "1791814053721"
+    },
+    {
+      "phase": "SYNC",
+      "trigger_source": "manual",
+      "release_sha": "7b7517837b41b8eeb4f9068e9b658675682523d1",
+      "execution_mode": "SHADOW",
+      "state": "ESTABLISHED",
+      "count": "2",
+      "earliest_created_at": "1791704042939",
+      "latest_updated_at": "1791709330403"
+    },
+    {
+      "phase": "SYNC",
+      "trigger_source": "manual",
+      "release_sha": "8fbc2d90ae2b3fe68ae29454a26d7603c98784f0",
+      "execution_mode": "OFF",
+      "state": "ESTABLISHED",
+      "count": "3",
+      "earliest_created_at": "1791526105061",
+      "latest_updated_at": "1791527963487"
+    },
+    {
+      "phase": "SYNC",
+      "trigger_source": "manual",
+      "release_sha": "ed1c1235d6cd955fef7fe4164be757d9710e381e",
+      "execution_mode": "OFF",
+      "state": "ESTABLISHED",
+      "count": "3",
+      "earliest_created_at": "1791529838383",
+      "latest_updated_at": "1791530911812"
+    }
+  ],
+  "activeLockMetadata": [
+    {
+      "count": "0",
+      "earliest_acquired_at": null,
+      "latest_expires_at": null
+    }
+  ],
+  "databaseStatus": "READBACK_COMPLETE",
+  "telegram": {
+    "ok": true,
+    "url": "https://whoop-telegram-webhook.onrender.com/telegram/webhook",
+    "pendingUpdateCount": 0,
+    "maxConnections": 1,
+    "allowedUpdates": [
+      "message",
+      "callback_query"
+    ],
+    "lastErrorDate": null
+  },
+  "completedAtUTC": "2026-10-16T02:22:06.513Z"
+}

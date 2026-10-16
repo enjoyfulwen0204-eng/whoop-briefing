@@ -1,0 +1,16 @@
+{
+  "workflowReadExit": 0,
+  "inProgressReadExit": 0,
+  "providerMutations": 0,
+  "workflows": [
+    {
+      "id": 340955986,
+      "name": "WHOOP \u65e9\u6668\u7c21\u5831",
+      "path": ".github/workflows/briefing.yml",
+      "state": "disabled_manually"
+    }
+  ],
+  "inProgressCount": 0,
+  "runs": [],
+  "timestampPrecision": "Read completed around2026-10-16T02:29UTC; exact observation timestamp not recorded"
+}

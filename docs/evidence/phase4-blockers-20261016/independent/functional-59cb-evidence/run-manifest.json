@@ -1,0 +1,12 @@
+{
+  "sourceSha": "59cb485d3858ef4d48024c718e547222d9a3e294",
+  "srcTree": "c8b636b3e07a69c6c025a6d8a3a639ea3873faf6",
+  "nodePath": "/Users/kelvin/.local/node-v22.23.2-darwin-arm64/bin/node",
+  "nodeVersion": "v22.23.2",
+  "classification": "INDEPENDENT_FUNCTIONAL_ONLY_NOT_PRODUCTION_CAPACITY_OR_NATIVE_REPAIR",
+  "perFileOuterCeilingSeconds": 900,
+  "nodeFileTimeoutMs": 890000,
+  "runtimeBudgetChanges": false,
+  "extraGcOrProfilerFlags": false,
+  "nodeOptionsPresent": false
+}

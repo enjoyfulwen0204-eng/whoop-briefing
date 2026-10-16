@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage8ContinuationLoop} from '../stage8ContinuationLoop.js';
 import {createStage8Runtime} from '../stage8Runtime.js';
 import {createStage7Runtime} from '../stage7Runtime.js';
 import {COMPANION_PATH,runCompanionService} from '../companionService.js';
@@ -568,6 +569,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     whoopIngest,
     oauthCallback,
   });
+  const continuation=stage8?.analysis&&process.env.STAGE8_POST_SYNC==='on'
+    ?createStage8ContinuationLoop({resume:()=>stage8.analysis.resume(),onError:error=>log.warn('stage8_post_sync_fenced',{code:error.code??'STAGE8_POST_SYNC_FAILED'})}):null;
+  server.once('close',()=>{void continuation?.stop();});
   if (!listen) return { server, db };
 
   const p = Number(port);
@@ -579,9 +583,13 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     port: server.address()?.port ?? null, path: TELEGRAM_BOT.WEBHOOK_PATH,
   });
 
+  continuation?.start();let closing;
   const shutdown = (signal) => {
+    if(closing)return closing;
     log.info('telegram_webhook_shutdown', { signal });
-    server.close(() => { try { db.close(); } catch { /* 收工失敗不影響 */ } });
+    const stopped=continuation?.stop();
+    closing=Promise.all([stopped,new Promise(resolve=>server.close(resolve))]).then(()=>{try{db.close();}catch{/* 收工失敗不影響 */}});
+    return closing;
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));

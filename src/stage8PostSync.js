@@ -1,3 +1,4 @@
+import {createExecutionBudget} from './executionBudget.js';
 import {currentDurableExecution,workStepKey} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {canonicalJson} from './phase4EntityStore.js';
@@ -6,7 +7,7 @@ import {configurationProof} from './phase4ExecutionStore.js';
 import {publicBetaConfiguration} from './publicBetaConfig.js';
 import {runningReleaseSha} from './phase4Release.js';
 import {summarizeSync} from './syncResult.js';
-const fail=()=>{throw Object.assign(Error('STAGE8_FINALIZED_SYNC_REQUIRED'),{code:'STAGE8_FINALIZED_SYNC_REQUIRED'});};
+const fail=(code='STAGE8_FINALIZED_SYNC_REQUIRED')=>{throw Object.assign(Error(code),{code});};
 const sign=(keys,value)=>keys.lookup(['stage8-post-sync-metadata-v1',canonicalJson(value)]);
 const keyFor=(keys,id,uid)=>'stage8:sync-subject:'+keys.lookup(['stage8-sync-subject-v1',id,uid]);
 async function snapshot(db,keys,uid){
@@ -32,7 +33,9 @@ export async function recordStage8SyncSubject({db,userId,sync}){
 /** Separate LIVE authority consumes an unchanged OFF/SHADOW SYNC prerequisite.
  * Existing handoff mode/pilot policy is never promoted. One bounded leg per call;
  * a durable signed ordinal makes restart/retry reuse the exact original request. */
-export function createStage8PostSync({db,keys,producer,eligible,enabled,environment}){
+export function createStage8PostSync({db,keys,producer,eligible,enabled,environment,userIds=[]}){
+ if(!Array.isArray(userIds)||userIds.length>100||new Set(userIds).size!==userIds.length||userIds.some(id=>typeof id!=='string'||!id||id.length>128))fail();
+ const cohort=Object.freeze([...userIds]),exhausted=new Map();let resuming=false;
  async function run({executionId,userId}={}){
   if(currentDurableExecution()||!enabled()||!eligible(userId)||typeof executionId!=='string'||executionId.length>128)fail();
   const row=(await db.raw.execute({sql:'SELECT * FROM phase4_executions WHERE execution_id=?',args:[executionId]})).rows[0];
@@ -62,10 +65,57 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
    if(saved){const {hmac,...p}=JSON.parse(saved);if(hmac!==sign(keys,{progressKey,...p})||!Number.isSafeInteger(p.ordinal)||p.ordinal<0||p.ordinal>=64||typeof p.done!=='boolean')fail();ordinal=p.ordinal;done=p.done;}
    const requestId=keys.lookup(['stage8-finalized-sync-live-leg-v1',executionId,row.result_digest,userId,value.scope,ordinal]);
    const result=await db.withRuntimeFence(check,()=>producer.run({userId,requestId}));await check();
-   const complete=result.publication.status==='CURRENT',next={ordinal:complete||done?ordinal:ordinal+1,done:complete};if(next.ordinal>=64)fail();
+   const complete=result.publication.status==='CURRENT',next={ordinal:complete||done?ordinal:ordinal+1,done:complete};if(next.ordinal>=64)fail('STAGE8_POST_SYNC_ORDINAL_EXHAUSTED');
    await db.transaction(async()=>{await check();await db.setState(progressKey,canonicalJson({...next,hmac:sign(keys,{progressKey,...next})}));await check();});
    return {status:complete?'CURRENT':'ANALYSIS_UPDATING',replayed:result.replayed,continuation:!complete,executionId:result.executionId};
   }finally{await db.releaseLock(lock,owner);}
  }
- return Object.freeze({run});
+ // Discovery is bounded metadata, never a replacement producer authority.
+ // Every selected parent still enters run() and its original fresh fences.
+ async function candidate(){
+  const budget=createExecutionBudget({budgetMs:5000});
+  try{return await budget.run(async()=>{
+   const at=Date.now(),release=runningReleaseSha(environment),configuration=publicBetaConfiguration(environment),
+    proof=configurationProof(keys,configuration,environment,release),mode=configuration.runtime==='on'?'SHADOW':'OFF';
+   const rows=(await db.raw.execute({sql:`SELECT execution_id,identity_digest,generation,result_digest,created_at FROM phase4_executions
+    WHERE phase='SYNC' AND state='FINALIZED_SUCCESS' AND release_sha=? AND config_proof=? AND execution_mode=?
+    AND created_at>? AND created_at<=? AND finalized_at<=? AND finalized_at>=?
+    ORDER BY created_at DESC,execution_id DESC LIMIT 64`,args:[release,proof,mode,at-EXECUTION_WORK_MAX_AGE_MS,at,at,at-HANDOFF_TTL_MS]})).rows;
+   for(const [id,expiry] of exhausted)if(expiry<=at)exhausted.delete(id);
+   for(const userId of cohort){
+    budget.assert();if(!enabled()||!eligible(userId))continue;
+    const scope=await snapshot(db,keys,userId);
+    for(const row of rows){
+     budget.assert();const id=JSON.stringify([row.execution_id,userId]);if(exhausted.has(id))continue;
+     const raw=await db.getState(keyFor(keys,row.execution_id,userId));if(!raw)continue;if(raw.length>2048)fail();
+     let value,hmac;try{({hmac,...value}=JSON.parse(raw));}catch{fail();}
+     if(hmac!==sign(keys,value)||value.parent!==row.execution_id||value.identity!==row.identity_digest
+      ||!Number.isSafeInteger(value.generation)||value.generation<1||value.generation>row.generation)fail();
+     if(value.scope!==scope)continue;
+     const progressKey='stage8:sync-progress:'+keys.lookup(['stage8-sync-progress-v1',row.execution_id,userId,value.scope]),saved=await db.getState(progressKey);
+     if(saved){
+      if(saved.length>2048)fail();let p,seal;try{({hmac:seal,...p}=JSON.parse(saved));}catch{fail();}
+      if(seal!==sign(keys,{progressKey,...p})||!Number.isSafeInteger(p.ordinal)||p.ordinal<0||p.ordinal>=64||typeof p.done!=='boolean')fail();
+      if(p.done)continue;
+     }
+     budget.assert();return {executionId:row.execution_id,userId,id,expiresAt:row.created_at+EXECUTION_WORK_MAX_AGE_MS};
+    }
+   }
+   return null;
+  });}finally{budget.close();}
+ }
+ async function resume(){
+  if(currentDurableExecution())fail();if(!enabled())return {status:'DISABLED',invoked:0};if(resuming)return {status:'BUSY',invoked:0};
+  resuming=true;try{
+   const selected=await candidate();if(!selected)return {status:'IDLE',invoked:0};
+   if(!enabled()||!eligible(selected.userId))fail();
+   try{return {...await run({executionId:selected.executionId,userId:selected.userId}),invoked:1};}
+   catch(error){if(error.code!=='STAGE8_POST_SYNC_ORDINAL_EXHAUSTED')throw error;
+    // The original last ordinal has a finalized immutable response. Restart
+    // may replay it once; no new ordinal, parent, grant or TTL is created.
+    if(exhausted.size>=64)exhausted.delete(exhausted.keys().next().value);
+    exhausted.set(selected.id,selected.expiresAt);return {status:'EXHAUSTED',invoked:1};}
+  }finally{resuming=false;}
+ }
+ return Object.freeze({run,resume});
 }

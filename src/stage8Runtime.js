@@ -31,8 +31,8 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
  const eligible=uid=>{try{fence();return stage8Configuration(environment).userIds.includes(uid);}catch{return false;}};
  const subjectAlertProvider=createStage8SubjectAlertProvider({db,keys,admission,environment,env,eligible});
  const analysis=environment.STAGE8_LIVE_ANALYSIS==='on'?await createStage8LiveProducer({db,keys,admission,userIds:config.userIds,environment,subjectAlertProvider,enabled:()=>{try{fence();return environment.STAGE8_LIVE_ANALYSIS==='on';}catch{return false;}},eligible}):null;
- const postSync=analysis?createStage8PostSync({db,keys,producer:analysis,eligible,enabled:()=>environment.STAGE8_POST_SYNC==='on'&&eligible(config.userIds[0]),environment}):null;
- const liveAnalysis=analysis?Object.freeze({afterSync:request=>postSync.run(request),run:async request=>{fence();if(currentDurableExecution())throw Error('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');return analysis.run(request);}}):null;
+ const postSync=analysis?createStage8PostSync({db,keys,producer:analysis,userIds:config.userIds,eligible,enabled:()=>environment.STAGE8_POST_SYNC==='on'&&eligible(config.userIds[0]),environment}):null;
+ const liveAnalysis=analysis?Object.freeze({afterSync:request=>postSync.run(request),resume:()=>postSync.resume(),run:async request=>{fence();if(currentDurableExecution())throw Error('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');return analysis.run(request);}}):null;
  const derivedReader=createStage8DerivedReader({db,keys,admission,eligible,now});
  const scopes=await createScopedHealthContext({db,keys,admission,now,derivedReader}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
  const core=await buildPhase4Core({keys,admission,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},

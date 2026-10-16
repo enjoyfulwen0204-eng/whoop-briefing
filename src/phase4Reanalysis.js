@@ -520,6 +520,31 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
               // reserved lease-release and execution-settlement interval.
               assertBudget();
               if(!page.length) {
+                if(live&&familyDirectory){
+                  // EOF finalization still authenticates every registered
+                  // family inside its original atomic completion transaction.
+                  // Persist missing empty directories first as existing named
+                  // inventory units, so a productive-time yield cannot roll
+                  // all nine initializations back and repeat them forever.
+                  // These readonly existence observations are hints only:
+                  // inventory independently authenticates/creates each unit,
+                  // and complete freshly validates the full directory set.
+                  const metricKeys=Object.keys(PHASE4_METRICS);
+                  const present=await queue.owned(context,lease,()=>Promise.allSettled(metricKeys.map(metricKey=>
+                    Promise.resolve().then(()=>familyDirectory.exists(context,metricKey)))),{assertBudget});
+                  for(const result of present)if(result.status==='rejected')throw result.reason;
+                  for(let index=0;index<metricKeys.length;index++){
+                    assertBudget();if(present[index].value)continue;
+                    const metricKey=metricKeys[index],directory=await queue.owned(context,lease,
+                      ()=>familyDirectory.inventory(context,metricKey),{assertBudget,workKind:'stage6.family-inventory',
+                        workFacts:[metricKey,lease.asOfUtc]});
+                    if(directory.created){
+                      out.unitsCommitted++;handled++;
+                      if(handled>=budget.maxItemsPerTenant){await queue.release(context,lease);return;}
+                    }
+                  }
+                  assertBudget();
+                }
                 const proof=await queue.end(context,lease,(last,limit)=>inputs.enumerate(context,last,limit),{assertBudget});
                 await queue.complete(context,lease,proof,{assertBudget});out.completedJobs++;return;
               }

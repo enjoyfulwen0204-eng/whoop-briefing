@@ -41,7 +41,12 @@ export function createStage8OwnerDispatcher({db,monitoring,env,enabled,now=()=>n
    // Revalidate after all asynchronous wording/identity reads at the final boundary.
    await monitoring.validate(actor,subjectId,messageId);
    if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');
-   await db.assertRuntimeFences?.();sendBegan=true;
+   await db.assertRuntimeFences?.();
+   // Runtime admission may yield; source withdrawal during that wait must
+   // invalidate this copy before any provider request begins.
+   await monitoring.validate(actor,subjectId,messageId);
+   if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');
+   sendBegan=true;
    const sent=await api.sendMessage(actor.chatId,{text});
    if(!validMessageId(sent?.message_id))throw Error('OWNER_ACK_INVALID');
    providerMessageId=String(sent.message_id);outcome='DELIVERED';

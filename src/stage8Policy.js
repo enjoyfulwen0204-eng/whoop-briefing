@@ -6,7 +6,7 @@ export const STAGE8_CONFIGURATION_FIELDS=Object.freeze([
 ]);
 export function stage8ConfigurationValues(environment){return STAGE8_CONFIGURATION_FIELDS.map(name=>environment[name]??'');}
 export function assertStage8Recovery(environment){
- if(['RC2_V32_ROLLBACK','COMPANION_V33_RECOVERY'].includes(environment.PHASE4_EXECUTION_PROFILE)
+ if(['RC2_V32_ROLLBACK','COMPANION_V33_RECOVERY','STAGE8_V35_RECOVERY'].includes(environment.PHASE4_EXECUTION_PROFILE)
   &&['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS','STAGE8_POST_SYNC','STAGE8_SUBJECT_ALERTS','PHASE4_DELIVERY_CUTOVER'].some(name=>(environment[name]??'off')!=='off'))
   throw Object.assign(Error('RECOVERY_STAGE8_FEATURES_OFF_REQUIRED'),{code:'RECOVERY_STAGE8_FEATURES_OFF_REQUIRED'});
 }

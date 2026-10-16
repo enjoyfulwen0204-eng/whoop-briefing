@@ -1,3 +1,4 @@
+import {grantSourceConsent} from './stage8SourceConsentFixture.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {stage8Fixture} from './stage8Fixture.js';
 import {createStage8Runtime} from '../src/stage8Runtime.js';
@@ -5,13 +6,14 @@ import {createOwnerMonitoring} from '../src/stage8OwnerMonitoring.js';
 import {createStage8MorningPlan} from '../src/stage8MorningPlan.js';
 import {selfQueryPerspective} from '../src/scopedHealthContext.js';
 async function followed(f,app,klass='DAILY_SUMMARY'){
+ await grantSourceConsent(f,{notificationClass:klass});
  await app.owner.configure(f.input,{subjectId:'b',notificationClass:klass,enabled:true,expectedRevision:0,operationKey:'synthetic-follow-'+klass});
  await f.core.initializeTenant('b','LIVE');const ctx=await f.core.capture('b',{executionMode:'LIVE'}),plans=createStage8MorningPlan({...f,preferences:f.stores.preferences});await plans.persist(ctx,await plans.build(ctx,{healthDate:'2026-09-19'}));
 }
 for(const text of ['What is HRV?','How is Alice’s recovery?','What is my wife’s sleep score?','HRV是什麼？','HRV là gì?','if my HRV decreases?'])test(`general/third-party perspective cannot open scope: ${text}`,()=>assert.equal(selfQueryPerspective({text,intent:'today_status'}).usePersonalData,false));
 test('owner weekly and alerts refuse a fake completed LIVE generation with no authenticated producer',async t=>{
  const f=await stage8Fixture(t,{owner:true});t.mock.method(globalThis,'fetch',()=>{throw Error('NETWORK_FORBIDDEN');});
- for(const klass of ['WEEKLY_SUMMARY','IMPORTANT_ALERT'])await f.app.owner.configure(f.input,{subjectId:'b',notificationClass:klass,enabled:true,expectedRevision:0,operationKey:klass});
+ for(const klass of ['WEEKLY_SUMMARY','IMPORTANT_ALERT']){await grantSourceConsent(f,{notificationClass:klass});await f.app.owner.configure(f.input,{subjectId:'b',notificationClass:klass,enabled:true,expectedRevision:0,operationKey:klass});}
  await f.core.initializeTenant('b','LIVE');await f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='b' AND execution_mode='LIVE'");
  for(const klass of ['WEEKLY_SUMMARY','IMPORTANT_ALERT'])assert.equal((await f.app.owner.dispatch(f.input,{subjectId:'b',notificationClass:klass})).status,'ANALYSIS_UPDATING');
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM owner_monitoring_outbox')).rows[0].n,0);

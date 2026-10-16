@@ -12,7 +12,7 @@ test('typed LIVE reader rejects external scope/mode/kind and returns updating wi
 });
 test('real Self Q&A composition has wired reader, never promotes SHADOW or current-empty metadata, and fences a revoked cohort',async t=>{
  const f=await stage8Fixture(t);await f.core.initializeTenant('a','LIVE');await f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='a'");
- assert.match((await f.app.handle({...f.input,text:'/insights'})).text,/Analysis is updating/);const scope=await f.app.scopes.open({...f.input,text:'my recovery'});
+ assert.match((await f.app.handle({...f.input,text:'show my insights today'})).text,/Analysis is updating/);const scope=await f.app.scopes.open({...f.input,text:'my recovery'});
  f.environment.PHASE4_STAGE8_RUNTIME='off';await assert.rejects(f.app.scopes.derived(scope,'INSIGHTS'),/SCOPE_REQUIRED/);
 });
 

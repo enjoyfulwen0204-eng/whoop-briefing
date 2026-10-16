@@ -1,3 +1,4 @@
+import {captureStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {fail,readableRow} from './phase4Core.js';
 import {localDate} from './time.js';
@@ -60,7 +61,7 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
    const selection=selectCompanionInvitation({now:core.now().getTime(),...wake,journalAt,healthDay:day,timezone:actor.state.timezone,
     seed:keys.lookup(['coach-slot-seed-v1',uid,day]),quietStart:prefs.quiet_start,quietEnd:prefs.quiet_end,config:configuration});
    const state=topics.length&&selection.state==='SCHEDULED'?'PROPOSED':'SUPPRESSED',at=timestamp();
-   const schedule={...selection,healthDay:day,timezone:actor.state.timezone,profileRevision:actor.profileRevision,...wake,journalAt,
+   const schedule={...selection,enrollment:await captureStage7Enrollment({core,db,actor}),healthDay:day,timezone:actor.state.timezone,profileRevision:actor.profileRevision,...wake,journalAt,
     journalDeliveryId:journal?.delivery_id??null,topic:topics.length?topics[Number.parseInt(semantic.slice(0,8),16)%topics.length]:null};
    if(schedule.topic==='exercise')schedule.exercise=exercise;
    const row={user_id:uid,delivery_id:core.newId(),interaction_id:null,semantic_key:semantic,occasion_key:wake.occasionKey,kind:'COACH',execution_mode:'SHADOW',state,

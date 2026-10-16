@@ -1,3 +1,4 @@
+import {grantSourceConsent} from './stage8SourceConsentFixture.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {stage8Fixture} from './stage8Fixture.js';
 import {createStage8Runtime} from '../src/stage8Runtime.js';
@@ -8,7 +9,7 @@ import {publicBetaConfiguration} from '../src/publicBetaConfig.js';
 import {runningReleaseSha} from '../src/phase4Release.js';
 const ack=()=>new Response(JSON.stringify({ok:true,result:{message_id:123,date:1,chat:{id:123,type:'private'}}}),{status:200});
 const reject=status=>new Response(JSON.stringify({ok:false,error_code:status,description:'Synthetic nonacceptance'}),{status});
-const follow=(f,app)=>app.owner.configure(f.input,{subjectId:'b',notificationClass:'DAILY_SUMMARY',enabled:true,expectedRevision:0,operationKey:'synthetic-follow'});
+const follow=async(f,app)=>{await grantSourceConsent(f);return app.owner.configure(f.input,{subjectId:'b',notificationClass:'DAILY_SUMMARY',enabled:true,expectedRevision:0,operationKey:'synthetic-follow'});};
 async function morning(t,response){const f=await stage8Fixture(t);let sends=0;t.mock.method(globalThis,'fetch',()=>{sends++;return response(sends);});
  const environment={...f.environment,STAGE8_MORNING_BRIEF:'on'},runtime=await createStage8MorningRuntime({...f,environment,env:f.env,now:f.now});
  await runtime.core.initializeTenant('a','LIVE');await runtime.store.requestCutover(await runtime.core.captureControl('a'),{expectedRevision:0});f.setTime('2026-09-20T02:10:00Z');
@@ -61,7 +62,7 @@ test('Owner tick checks at most six subscriptions and never manufactures LIVE an
   await f.db.createUser({id,displayName:'Synthetic peer',timezone:'Asia/Taipei',status:'ACTIVE'});await f.db.linkTelegram({userId:id,chatId:chat,now:f.now()});await f.db.ensureOnboarding(id,{state:'READY'});
   await f.db.saveTokens(id,{accessToken:'SYNTHETIC_NOT_A_TOKEN',refreshToken:'SYNTHETIC_NOT_A_TOKEN',expiresAt:new Date('2026-12-01'),scope:'offline',whoopUserId:'synthetic-'+id},{now:f.now(),bumpAuthGeneration:true});
  }
- for(const subjectId of ['b','c','d'])for(const notificationClass of ['DAILY_SUMMARY','WEEKLY_SUMMARY','IMPORTANT_ALERT'])await f.app.owner.configure(f.input,{subjectId,notificationClass,enabled:true,expectedRevision:0,operationKey:subjectId+notificationClass});
+ for(const subjectId of ['b','c','d'])for(const notificationClass of ['DAILY_SUMMARY','WEEKLY_SUMMARY','IMPORTANT_ALERT']){await grantSourceConsent(f,{subjectId,notificationClass});await f.app.owner.configure(f.input,{subjectId,notificationClass,enabled:true,expectedRevision:0,operationKey:subjectId+notificationClass});}
  const result=await f.app.owner.tick(f.input);assert.equal(result.checked,6);assert.equal(result.results.length,6);const second=await f.app.owner.tick(f.input);assert.ok(new Set([...result.results,...second.results].map(r=>r.subjectId+r.notificationClass)).size===9);assert.ok(result.results.every(r=>r.status!=='DELIVERED'));
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM phase4_execution_producers')).rows[0].n,0);
 });

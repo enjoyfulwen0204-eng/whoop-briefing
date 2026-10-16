@@ -1,3 +1,4 @@
+import {grantSourceConsent} from './stage8SourceConsentFixture.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {stage8Fixture} from './stage8Fixture.js';
 import {createStage8Runtime,stage8Configuration} from '../src/stage8Runtime.js';
@@ -21,12 +22,12 @@ test('real router resolves self source facts through Stage 8 without a model; th
  const reads=await count(f.db,'stage8_scoped_read_audit');
  for(const text of ['How is Alice’s recovery?','What is HRV?','What is my wife’s sleep score?'])await router.handle({...f.input,text});
  assert.equal(await count(f.db,'stage8_scoped_read_audit'),reads);
- assert.match((await router.handle({...f.input,text:'/evidence'})).text,/Analysis is updating/);
+ assert.match((await router.handle({...f.input,text:'/evidence live'})).text,/Analysis is updating/);
  assert.equal((await f.db.raw.execute("SELECT count(*) n FROM phase4_computation_state WHERE execution_mode='LIVE'")).rows[0].n,0);
 });
 test('missing LIVE producer remains updating even if SQL completion metadata says current-empty',async t=>{
  const f=await stage8Fixture(t);await f.core.initializeTenant('a','LIVE');await f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='a' AND execution_mode='LIVE'");
- const reply=await f.app.handle({...f.input,text:'/insights'});assert.match(reply.text,/Analysis is updating/);assert.doesNotMatch(reply.text,/No usable source/);
+ const reply=await f.app.handle({...f.input,text:'/insights live'});assert.match(reply.text,/Analysis is updating/);assert.doesNotMatch(reply.text,/No usable source/);
 });
 test('notification Settings buttons persist fixed time, delay and pause; stale preferences and cross-user actor are rejected',async t=>{
  const f=await stage8Fixture(t),settings=createSettings({db:f.db,stage8:f.app,now:f.now});let card=await settings({...f.input,text:'/settings'});
@@ -39,7 +40,8 @@ test('notification Settings buttons persist fixed time, delay and pause; stale p
  f.environment.PHASE4_STAGE8_RUNTIME='off';await assert.rejects(f.app.preferences.read(f.input),/ACTOR_FENCED/);
 });
 test('owner Settings wiring starts empty and persists explicit class follow/disable with revisions',async t=>{
- const f=await stage8Fixture(t,{owner:true}),settings=createSettings({db:f.db,stage8:f.app,now:f.now});assert.deepEqual(await f.app.owner.read(f.input,'b'),{});
+ const f=await stage8Fixture(t,{owner:true}),settings=createSettings({db:f.db,stage8:f.app,now:f.now});
+ await grantSourceConsent(f);assert.deepEqual(await f.app.owner.read(f.input,'b'),{});
  let card=await settings({...f.input,text:'/settings'});card=await settings({...f.input,callback:tap(card,'owner')});card=await settings({...f.input,callback:tap(card,'subject0')});card=await settings({...f.input,callback:tap(card,'daily')});
  assert.equal((await f.app.owner.read(f.input,'b')).DAILY_SUMMARY.enabled,1);
  await settings({...f.input,callback:tap(card,'daily')});assert.equal((await f.app.owner.read(f.input,'b')).DAILY_SUMMARY.enabled,0);
@@ -79,6 +81,7 @@ for(const acceptance of ['delivered','network-uncertain','malformed-ack','defini
  });
  // Rebuild after installing the mock so the real API captures the isolated transport.
  const app=await createStage8Runtime({...f,environment:f.environment,env:f.env,now:f.now});
+ await grantSourceConsent(f);
  await app.owner.configure(f.input,{subjectId:'b',notificationClass:'DAILY_SUMMARY',enabled:true,expectedRevision:0,operationKey:'synthetic-follow'});
  await f.core.initializeTenant('b','LIVE');const ctx=await f.core.capture('b',{executionMode:'LIVE'}),plans=createStage8MorningPlan({...f,preferences:f.stores.preferences});await plans.persist(ctx,await plans.build(ctx,{healthDate:'2026-09-19'}));
  const request={subjectId:'b',notificationClass:'DAILY_SUMMARY'},first=await app.owner.dispatch(f.input,request),second=await app.owner.dispatch(f.input,request);

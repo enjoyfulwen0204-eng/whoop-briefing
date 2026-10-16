@@ -1,3 +1,4 @@
+import {inCompanionQuietHours} from './companionTimingPolicy.js';
 import {isStage7ProductionProvider} from './stage7TransportAuthority.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {log} from './logger.js';
@@ -24,35 +25,39 @@ export function createStage7Dispatcher({core,db,companion,provider,invitations=n
    if(!row)return {status:'NOT_FOUND'};
    if(['DELIVERED','AMBIGUOUS','DELIVERY_STARTED','SUPPRESSED'].includes(row.state))return {status:row.state};
    if(row.attempt_count>=3)return {status:'RETRY_EXHAUSTED'};
-   const prefs=await companion.preferences(actor);let interaction=row.interaction_id?await companion.interactions.read(user.id,row.interaction_id):null;
+   const prefs=await companion.preferences(actor);
+   if(['DAILY','WEEKLY'].includes(row.kind)&&inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end))return {status:'QUIET_HOURS'};
+   if(!await companion.weekly.optionalSlotAvailable(actor,row))return {status:'OPTIONAL_DAILY_LIMIT'};
+   let interaction=row.interaction_id?await companion.interactions.read(user.id,row.interaction_id):null;
    const paused=(await client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[user.id]})).rows[0];
    let invitation=null;
    if(row.kind==='COACH'&&invitations){invitation=await invitations.due(actor,row);if(invitation.status==='NOT_DUE')return invitation;if(invitation.interaction)interaction=invitation.interaction;}
+   const weekly=row.kind==='WEEKLY'?await companion.weekly.due(actor,row):null;
+   if(weekly&&!['READY','FENCED'].includes(weekly.status))return {status:weekly.status};
    const valid=readableRow(row)&&row.lifecycle_generation===actor.state.lifecycle_generation&&row.auth_generation===actor.state.auth_generation
     &&row.chat_id===actor.chat&&row.expires_at>timestamp()&&prefs.revision===row.preference_revision&&!paused?.notifications_paused
-    &&(row.kind==='DAILY'?prefs.daily_enabled&&readableRow(interaction)&&interaction.state==='ISSUED'&&interaction.selected_choice===null&&interaction.timezone===actor.state.timezone&&JSON.parse(interaction.diagnostics_json??'null')?.profileRevision===actor.profileRevision:row.kind==='COACH'&&invitation?.status==='READY');
+    &&(row.kind==='DAILY'?prefs.daily_enabled&&readableRow(interaction)&&interaction.state==='ISSUED'&&interaction.selected_choice===null&&interaction.timezone===actor.state.timezone&&JSON.parse(interaction.diagnostics_json??'null')?.profileRevision===actor.profileRevision:row.kind==='WEEKLY'?prefs.weekly_enabled&&weekly?.status==='READY':row.kind==='COACH'&&invitation?.status==='READY');
    const occupied=await companionEngagementBusy({core,db,actor,excludeInteractionId:interaction?.interaction_id});
-   // Weekly automatic rollout is intentionally unavailable. Preference is not rollout authority.
    if(!valid||occupied){await client.execute({sql:"UPDATE journal_prompt_deliveries SET state='SUPPRESSED',revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=?",args:[timestamp(),user.id,deliveryId]});return {status:'SUPPRESSED'};}
    const at=timestamp(),attemptId=core.newId(),attemptNumber=row.attempt_count+1;
    await client.execute({sql:"UPDATE journal_prompt_deliveries SET state='DELIVERY_STARTED',attempt_count=?,revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=? AND revision=? AND state IN ('PROPOSED','FAILED_DEFINITE')",args:[attemptNumber,at,user.id,deliveryId,row.revision]});
    await companion.interactions.insert('journal_delivery_attempts',{user_id:user.id,delivery_id:deliveryId,attempt_id:attemptId,attempt_number:attemptNumber,state:'DELIVERY_STARTED',started_at:at});
    // Refresh presentation from the current canonical locale without changing answer semantics.
-   const card=invitation?.card??await companion.card(actor,interaction);
-   return {status:'STARTED',actor,attemptId,card,interactionId:interaction.interaction_id};
+   const card=weekly?.card??invitation?.card??await companion.card(actor,interaction);
+   return {status:'STARTED',actor,attemptId,card,interactionId:interaction?.interaction_id??null,weeklyProjectionDigest:weekly?.projectionDigest??null};
   });
   if(started.status!=='STARTED')return started;
   let state,messageId=null;
-  try{const result=await provider.send({...started.card,chatId:String(chatId)},{userId:user.id,chatId:String(chatId),deliveryId,actor:started.actor,interactionId:started.interactionId});if(!/^\d+$/.test(result?.messageId??''))state='AMBIGUOUS';else{state='DELIVERED';messageId=result.messageId;}}
+  try{const result=await provider.send({...started.card,chatId:String(chatId)},{userId:user.id,chatId:String(chatId),deliveryId,actor:started.actor,interactionId:started.interactionId,weeklyProjectionDigest:started.weeklyProjectionDigest});if(!/^\d+$/.test(result?.messageId??''))state='AMBIGUOUS';else{state='DELIVERED';messageId=result.messageId;}}
   catch(error){state=error?.definite===true?'FAILED_DEFINITE':'AMBIGUOUS';}
   await transaction(async()=>{
    // Settlement retains provider truth even if account/content changed after start.
    await core.assertPrivacyControl(started.actor.control);
    await client.execute({sql:"UPDATE journal_delivery_attempts SET state=?,settled_at=?,message_id=? WHERE user_id=? AND attempt_id=? AND state='DELIVERY_STARTED'",args:[state,timestamp(),messageId,user.id,started.attemptId]});
    await client.execute({sql:"UPDATE journal_prompt_deliveries SET state=?,message_id=?,revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=? AND state='DELIVERY_STARTED'",args:[state,messageId,timestamp(),user.id,deliveryId]});
-   if(state==='DELIVERED'){try{await companion.interactions.bind(started.actor,started.interactionId,messageId);}catch{/* no health read or resend after lifecycle transition */}}
+   if(state==='DELIVERED'&&started.interactionId){try{await companion.interactions.bind(started.actor,started.interactionId,messageId);}catch{/* no health read or resend after lifecycle transition */}}
   });
-  return {status:state,messageId};
+  return {status:state,messageId,...(started.weeklyProjectionDigest?{deliveredNow:state==='DELIVERED'}:{})};
  }
  async function recover({user,chatId,deliveryId}){
   return transaction(async()=>{

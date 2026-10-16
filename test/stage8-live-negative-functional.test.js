@@ -1,3 +1,4 @@
+import {grantSourceConsent} from './stage8SourceConsentFixture.js';
 import {assertStage8Recovery} from '../src/stage8Policy.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
@@ -16,8 +17,9 @@ test('genuine insufficient-data LIVE computation finalizes legitimate empty type
  await t.test('existing Stage7 SHADOW decision entry cannot produce LIVE',async()=>{await f.core.initializeTenant('a','LIVE');await f.stores.withContext('a',{executionMode:'LIVE'},ctx=>assert.rejects(createStage7DecisionStore(f).evaluate(ctx,{episodeId:'fake',semanticEventId:'fake',triggerKey:'fake'}),/SHADOW_DECISION_REQUIRED/));});
  await t.test('automatic subject delivery remains off by default',async()=>{assert.equal(createStage8SubjectAlertProvider({...f,admission,environment:{},env:{telegramBotToken:'SYNTHETIC_NOT_A_TOKEN'},eligible:()=>true}),null);});
  await f.db.raw.execute("INSERT INTO user_whoop_tokens(user_id,access_token,refresh_token,access_token_expires_at,updated_at,auth_generation) VALUES('b','SYNTHETIC','SYNTHETIC','2099-01-01','2026-10-01',1)");await f.db.linkTelegram({userId:'b',chatId:'10002'});
+ await f.db.ensureOnboarding('b',{state:'READY',now:f.core.now()});
  const owner=await createOwnerMonitoring({...f,ownerId:'b',enabled:()=>true}),actor=await owner.authenticate({user:await f.db.getUser('b'),chatId:'10002'});
- for(const [notificationClass,status] of [['WEEKLY_SUMMARY','NO_QUALIFYING_CONTENT'],['IMPORTANT_ALERT','NO_APPROVED_CURRENT_ALERT']])await t.test(`legitimate ${notificationClass} no-result`,async()=>{await owner.configure(actor,{subjectId:'a',notificationClass,enabled:true,expectedRevision:0,operationKey:`empty-follow-${notificationClass}`});assert.equal((await owner.authorize(actor,{subjectId:'a',notificationClass})).status,status);});
+ for(const [notificationClass,status] of [['WEEKLY_SUMMARY','NO_QUALIFYING_CONTENT'],['IMPORTANT_ALERT','NO_APPROVED_CURRENT_ALERT']])await t.test(`legitimate ${notificationClass} no-result`,async()=>{await grantSourceConsent(f,{ownerId:'b',subjectId:'a',notificationClass});await owner.configure(actor,{subjectId:'a',notificationClass,enabled:true,expectedRevision:0,operationKey:`empty-follow-${notificationClass}`});assert.equal((await owner.authorize(actor,{subjectId:'a',notificationClass})).status,status);});
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM owner_monitoring_outbox')).rows[0].n,0);
  t.diagnostic(JSON.stringify({kind:'EMPTY_SYNTHETIC_COST',durationMs:performance.now()-started,cpu:process.cpuUsage(cpu),memory:process.memoryUsage(),resource:process.resourceUsage()}));
 });

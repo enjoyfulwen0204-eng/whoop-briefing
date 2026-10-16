@@ -12,7 +12,8 @@ export function selfQueryPerspective({text,intent=null,signals=null}){
  if(signals?.aboutSelf===false)return {...resolved,perspective:PERSPECTIVE.AMBIGUOUS,usePersonalData:false};
  const bare=/^(?:(?:今天|今日|昨天|昨晚|本週|最近(?:\s*\d+\s*天)?)的?)?(?:HRV|RHR|恢復(?:分數|狀況)?|睡眠(?:品質|時長)?)(?:是多少|多少|如何|怎麼樣|趨勢)?[?？。]?$/iu.test(String(text).trim())
   ||/^(?:(?:what is|how is|how was|show)(?: the)? )?(?:(?:today|yesterday)'?s? )?(?:HRV|RHR|recovery(?: score)?|sleep(?: quality)?)(?: (?:today|yesterday|over the (?:last|past) \d+ days))?[?.]?$/iu.test(String(text).trim());
- if(resolved.usePersonalData||intentIsInherentlyPersonal(intent)&&bare||/^\/(?:now|energy|evidence|insights|journal|healthdata|status|predictions|healthspan)(?:@[A-Za-z0-9_]+)?$/i.test(String(text).trim()))return {...resolved,perspective:PERSPECTIVE.SELF,usePersonalData:true};
+ const registeredLive=/^\/(?:(?:insights|evidence)(?:@[A-Za-z0-9_]+)?\s+live(?:\s+history)?|episodes(?:@[A-Za-z0-9_]+)?(?:\s+live)?(?:\s+history)?)$/i.test(String(text).trim());
+ if(resolved.usePersonalData||intentIsInherentlyPersonal(intent)&&bare||registeredLive||/^\/(?:now|energy|evidence|insights|journal|healthdata|status|predictions|healthspan)(?:@[A-Za-z0-9_]+)?$/i.test(String(text).trim()))return {...resolved,perspective:PERSPECTIVE.SELF,usePersonalData:true};
  return resolved;
 }
 /** The only public constructor accepts an authenticated private actor. No
@@ -50,7 +51,7 @@ export async function createScopedHealthContext({db,keys,admission,now=()=>new D
   const captured=await state(current.id),to=localDate(asOf,captured.timezone);
   const scope=Object.freeze({permitted:true,userId:current.id,executionMode:'LIVE',purpose:'SELF_QA',perspective:PERSPECTIVE.SELF,
    asOfEpochMs:asOf.getTime(),asOfUtc:asOf.toISOString(),fromDate:addDays(to,1-maxHealthDays),toDate:to,maxHealthDays,timezone:captured.timezone,locale:captured.locale});
-  scopes.set(scope,{state:captured,chatId:String(chatId)});await assert(scope);
+  scopes.set(scope,{state:captured,chatId:String(chatId),derivedReads:new Map()});await assert(scope);
   await client.execute({sql:"INSERT INTO stage8_scoped_read_audit(user_id,read_id,purpose,execution_mode,scope_hmac,as_of_utc,created_at) VALUES(?,?,'SELF_QA','LIVE',?,?,?)",args:[scope.userId,randomUUID(),keys.lookup(['scoped-health-v1',scope,captured]),scope.asOfUtc,now().toISOString()]});
   return scope;
  }
@@ -77,24 +78,38 @@ export async function createScopedHealthContext({db,keys,admission,now=()=>new D
  async function derived(scope,kind){
   await assert(scope);if(!['BODY_ENERGY','INSIGHTS','EPISODES','EVIDENCE'].includes(kind))fail('SCOPED_DERIVED_KIND');
   const row=(await client.execute({sql:"SELECT c.* FROM phase4_computation_state c WHERE c.user_id=? AND c.execution_mode='LIVE' AND c.last_completed_generation=c.input_generation AND c.source_generation_seen=? AND NOT EXISTS(SELECT 1 FROM phase4_invalidations i WHERE i.user_id=c.user_id AND i.execution_mode='LIVE' AND i.scope_kind<>'NONE')",args:[scope.userId,scopes.get(scope).state.source_generation]})).rows[0];
-  if(!row||!derivedReader)return {status:'ANALYSIS_UPDATING',kind,asOfUtc:scope.asOfUtc,items:[]};
+  const remember=result=>{scopes.get(scope).derivedReads.set(kind,{kind,fingerprint:derivedFingerprint(result),...(result.status==='CURRENT'?{validUntil:result.validUntil}:{})});return result;};
+  if(!row||!derivedReader)return remember({status:'ANALYSIS_UPDATING',kind,asOfUtc:scope.asOfUtc,items:[]});
   // Reader is owned by server composition and uses registered producer/parent
   // checks. A model-provided row or a SHADOW result is never an alternative.
-  const result=await derivedReader({scope,kind,inputGeneration:row.input_generation});await assert(scope);return result;
+  const result=await derivedReader({scope,kind,inputGeneration:row.input_generation});await assert(scope);return remember(result);
  }
+ const derivedFingerprint=result=>keys.lookup(['stage8-self-derived-projection-v1',result.status,result.kind,result.historyScope??null,result.items]);
  async function sealReply(scope,reply){
-  const captured=await assert(scope),guard={userId:scope.userId,chatId:captured.chatId,state:captured.state,asOfEpochMs:scope.asOfEpochMs};
+  const captured=await assert(scope),derivedReads=[...captured.derivedReads.values()],expiresAt=Math.min(scope.asOfEpochMs+120000,...derivedReads.filter(value=>value.validUntil!==undefined).map(value=>value.validUntil));
+  if(!Number.isFinite(expiresAt)||expiresAt<=now().getTime())fail('SCOPED_DERIVED_EXPIRED');
+  const guard={userId:scope.userId,chatId:captured.chatId,state:captured.state,asOfEpochMs:scope.asOfEpochMs,expiresAt,derivedReads};
   return {...reply,stage8ReplyGuard:{...guard,signature:keys.lookup(['stage8-self-reply-v1',guard,canonicalJson(reply)])}};
  }
  async function verifyReply({userId,chatId,reply}){
-  try{
+  try{return await db.transaction(async()=>{
    const {stage8ReplyGuard,...projection}=reply??{};const {signature,...guard}=stage8ReplyGuard??{};
    if(signature!==keys.lookup(['stage8-self-reply-v1',guard,canonicalJson(projection)])||guard.userId!==userId||guard.chatId!==String(chatId)
-    ||now().getTime()<guard.asOfEpochMs||now().getTime()-guard.asOfEpochMs>120000)return false;
+    ||now().getTime()<guard.asOfEpochMs||now().getTime()-guard.asOfEpochMs>120000||!Number.isFinite(guard.expiresAt)||now().getTime()>=guard.expiresAt
+    ||!Array.isArray(guard.derivedReads)||guard.derivedReads.length>4)return false;
    requireRuntimeAdmission(client,admission,keys,db.transaction);
    if((await db.resolveUserByChatId(chatId))?.user?.id!==userId)return false;
-   return JSON.stringify(await state(userId))===JSON.stringify(guard.state);
-  }catch{return false;}
+   if(JSON.stringify(await state(userId))!==JSON.stringify(guard.state))return false;
+   for(const read of guard.derivedReads){
+    if(!['BODY_ENERGY','INSIGHTS','EPISODES','EVIDENCE'].includes(read.kind))return false;
+    const at=now(),scope={permitted:true,userId,executionMode:'LIVE',purpose:'SELF_QA',asOfUtc:at.toISOString(),asOfEpochMs:at.getTime()},computation=guard.state.computation;
+    const result=!computation||computation.last_completed_generation!==computation.input_generation||!derivedReader
+     ?{status:'ANALYSIS_UPDATING',kind:read.kind,items:[]}
+     :await derivedReader({scope,kind:read.kind,inputGeneration:computation.input_generation});
+    if(derivedFingerprint(result)!==read.fingerprint)return false;
+   }
+   await db.assertRuntimeFences?.();return JSON.stringify(await state(userId))===JSON.stringify(guard.state);
+  });}catch{return false;}
  }
  return Object.freeze({open,assert,facts,journal,derived,sealReply,verifyReply});
 }

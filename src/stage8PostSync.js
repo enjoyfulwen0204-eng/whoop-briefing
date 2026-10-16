@@ -35,7 +35,7 @@ export async function recordStage8SyncSubject({db,userId,sync}){
  * a durable signed ordinal makes restart/retry reuse the exact original request. */
 export function createStage8PostSync({db,keys,producer,eligible,enabled,environment,userIds=[]}){
  if(!Array.isArray(userIds)||userIds.length>100||new Set(userIds).size!==userIds.length||userIds.some(id=>typeof id!=='string'||!id||id.length>128))fail();
- const cohort=Object.freeze([...userIds]),exhausted=new Map();let resuming=false;
+ const cohort=Object.freeze([...userIds]),exhausted=new Map();let resuming=false,nextSubject=0;
  async function run({executionId,userId}={}){
   if(currentDurableExecution()||!enabled()||!eligible(userId)||typeof executionId!=='string'||executionId.length>128)fail();
   const row=(await db.raw.execute({sql:'SELECT * FROM phase4_executions WHERE execution_id=?',args:[executionId]})).rows[0];
@@ -85,7 +85,12 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
     AND created_at>? AND created_at<=? AND finalized_at<=? AND finalized_at>=?
     ORDER BY created_at DESC,execution_id DESC LIMIT 64`,args:[release,proof,mode,at-EXECUTION_WORK_MAX_AGE_MS,at,at,at-HANDOFF_TTL_MS]})).rows;budget.assert();
    for(const [id,expiry] of exhausted)if(expiry<=at)exhausted.delete(id);
-   for(const userId of cohort){
+   // Rotate only discovery order. Each subject keeps its original signed
+   // parent/ordinal/expiry, including when its selected leg fails or is busy.
+   const firstSubject=nextSubject;
+   for(let offset=0;offset<cohort.length;offset++){
+    const index=(firstSubject+offset)%cohort.length,userId=cohort[index];
+    nextSubject=(index+1)%cohort.length;
     budget.assert();if(!enabled()||!eligible(userId))continue;
     const scope=await snapshot(db,keys,userId);budget.assert();
     for(const row of rows){

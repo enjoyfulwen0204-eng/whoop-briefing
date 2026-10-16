@@ -40,7 +40,7 @@ export function createPhase4TransportStore(core,entities,slotHooks,{morningAutho
       AND c.last_completed_generation=c.input_generation AND c.input_generation=?
       AND NOT EXISTS (SELECT 1 FROM phase4_invalidations i WHERE i.user_id=c.user_id AND i.execution_mode=c.execution_mode AND i.scope_kind<>'NONE')`,
       args:[context.userId,context.inputGeneration]})).rows.length;
-    if(row.message_class==='MORNING_BRIEF_V1'&&core.schemaVersion===34&&morningAuthority)await verifyMorningPlanAuthority(morningAuthority,core,context,row);
+    if(row.message_class==='MORNING_BRIEF_V1'&&[34,35].includes(core.schemaVersion)&&morningAuthority)await verifyMorningPlanAuthority(morningAuthority,core,context,row);
     else if(!current)fail('PHASE4_COMPUTATION_NOT_CURRENT');
     if(row.expires_at<=timestamp())fail('PHASE4_MESSAGE_EXPIRED');
     if(row.destination_binding_id!==await destination(context))fail('PHASE4_DESTINATION_CHANGED');

@@ -11,6 +11,7 @@ import {buildPhase4Core} from './phase4Core.js';
 import {createPhase4Stage6} from './phase4Reanalysis.js';
 import {createStage8LiveExecutionRunner} from './stage8LiveExecution.js';
 import {publishStage8Live,verifyStage8LivePublication} from './stage8LivePublication.js';
+import {createExecutionBudget,currentExecutionBudget,withExecutionBudget} from './executionBudget.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 /** Server composition only. No request may supply source results, receipts,
  * execution mode, SQL, transport, credentials, consent or follow relationships. */
@@ -81,10 +82,20 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
  }
  async function run(request){
   if(currentDurableExecution())fail('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');
-  const contexts=[];return contextLeases.run(contexts,async()=>{
-   try{return await runWork(request);}
-   finally{for(const ctx of contexts)await core.transaction(()=>core.contextRegistry.release(ctx),{readOnly:true});}
-  });
+  const parent=currentExecutionBudget(),contexts=[],budget=createExecutionBudget({budgetMs:45000,signal:parent?.signal,
+   localAuthority(){parent?.assert();liveProducerConfiguration(capability,db.raw,keys,request?.userId);}});
+  let result,failure,failed=false;
+  try{result=await contextLeases.run(contexts,()=>withExecutionBudget(budget,async()=>{budget.assert();const value=await runWork(request);budget.assert();return value;}));}
+  catch(error){failed=true;failure=error;}
+  finally{budget.cancel();budget.close();}
+  // Only release the already captured non-health context leases after work has
+  // settled. This separate bounded cleanup grants no computation or publication
+  // authority, and an error must never hide the original timeout/unknown ACK.
+  const cleanup=createExecutionBudget({budgetMs:5000});
+  try{await withExecutionBudget(cleanup,async()=>{for(const ctx of contexts)await core.transaction(()=>core.contextRegistry.release(ctx),{readOnly:true});});}
+  catch(error){if(!failed){failed=true;failure=error;}}
+  finally{cleanup.cancel();cleanup.close();}
+  if(failed)throw failure;return result;
  }
  return Object.freeze({run});
 }

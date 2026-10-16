@@ -1,3 +1,4 @@
+import {grantSourceConsent} from './stage8SourceConsentFixture.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {register} from 'node:module';
 register(new URL('./stage6FamilyDiagnosticLoader.mjs',import.meta.url));
@@ -27,7 +28,9 @@ test('qualified two-window historical LIVE computation yields typed SUPPORTED we
  await f.core.initializeTenant('b','LIVE');
  // Separate Owner principal and explicit follow; source/subject are never copied.
  await f.db.raw.execute("INSERT INTO user_whoop_tokens(user_id,access_token,refresh_token,access_token_expires_at,updated_at,auth_generation) VALUES('b','SYNTHETIC','SYNTHETIC','2099-01-01','2026-10-01',1)");await f.db.linkTelegram({userId:'b',chatId:'10002'});
+ await f.db.ensureOnboarding('b',{state:'READY',now:f.core.now()});
  const owner=await createOwnerMonitoring({...f,ownerId:'b',enabled:()=>true}),actor=await owner.authenticate({user:await f.db.getUser('b'),chatId:'10002'});
+ await grantSourceConsent(f,{ownerId:'b',subjectId:'a',notificationClass:'WEEKLY_SUMMARY'});
  await owner.configure(actor,{subjectId:'a',notificationClass:'WEEKLY_SUMMARY',enabled:true,expectedRevision:0,operationKey:'explicit-weekly-follow'});
  const approved=await owner.authorize(actor,{subjectId:'a',notificationClass:'WEEKLY_SUMMARY'});assert.equal(approved.status,'APPROVED');
  const proposed=await owner.propose(actor,approved.ticket);assert.equal(proposed.status,'PROPOSED');

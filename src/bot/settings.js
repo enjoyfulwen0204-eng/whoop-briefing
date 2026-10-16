@@ -66,7 +66,7 @@ export function createSettings({db,stage8=null,now=()=>new Date(),nonce=()=>rand
    const persist=()=>db.setState(key,JSON.stringify(s),{now:now()});
    if(command){
     s={version:1,profileRevision,uid,chatId:chat,lifecycle:current.lifecycleGeneration,nonce:nonce(),revision:0,expiresAt:at+SETTINGS_TTL_MS,
-     stage8:Boolean(stage8?.eligible(uid)),ownerAvailable:Boolean(stage8?.owner),mode:command[1].toLowerCase()==='name'?'name_edit':command[1].toLowerCase()==='language'||!locale?'language':'menu',expectedName:current.displayName??'',expectedLocale:locale};
+     stage8:Boolean(stage8?.eligible(uid)),ownerAvailable:Boolean(stage8?.owner&&stage8.config?.ownerId===uid),sourceConsentAvailable:Boolean(stage8?.sourceConsent&&stage8.config?.ownerId&&stage8.config.ownerId!==uid),mode:command[1].toLowerCase()==='name'?'name_edit':command[1].toLowerCase()==='language'||!locale?'language':'menu',expectedName:current.displayName??'',expectedLocale:locale};
     await persist();return render(s,locale);
    }
    if(!s){if(raw)await db.setState(key,null);if(callback)return {text:c.expired};return null;}
@@ -89,10 +89,10 @@ export function createSettings({db,stage8=null,now=()=>new Date(),nonce=()=>rand
      if(name!==current.displayName)await db.updateUser(uid,{displayName:name},{now:now(),expectedProfileRevision:s.profileRevision});
      if(stage8?.identity)await stage8.identity.recordExplicit({user:current,chatId:chat,name});
      await db.setState(key,null);return {text:c.saved};
-    }else if(!await stage8SettingsAction(s,action,stage8,{user:current,chatId:chat,locale,text}))return {text:c.expired};
+    }else if(!await stage8SettingsAction(s,action,stage8,{user:current,chatId:chat,locale,text,callback}))return {text:c.expired};
     s.revision++;await persist();return render(s,locale);
    }
-   if(STAGE8_SETTINGS_MODES.includes(s.mode)){const changed=await stage8SettingsAction(s,null,stage8,{user:current,chatId:chat,locale,text});if(changed===true){s.revision++;await persist();return render(s,locale);}return changed||null;}
+   if(STAGE8_SETTINGS_MODES.includes(s.mode)){const changed=await stage8SettingsAction(s,null,stage8,{user:current,chatId:chat,locale,text,callback});if(changed===true){s.revision++;await persist();return render(s,locale);}return changed||null;}
    if(s.mode!=='name_edit')return null;
    try{s.pendingName=normalizeSettingsName(text);}catch{return {text:c.invalid};}
    s.mode='name_confirm';s.revision++;await persist();return render(s,locale);

@@ -1,10 +1,11 @@
+import {confirmedLegacyMorningReceipt} from './confirmedLegacyMorningReceipt.js';
 import {readableRow} from './phase4Core.js';
 import {canonicalJson} from './phase4EntityStore.js';
 /** Receipt authority only: it proves a same-user confirmed send. It neither
  * makes historical health current nor promotes SHADOW calculations to LIVE. */
 export async function confirmedMorningReceipt({core,actor,day}){
  const {client,keys}=core,uid=actor.control.userId;
- if(core.schemaVersion===34){
+ if([34,35].includes(core.schemaVersion)){
   const row=(await client.execute({sql:`SELECT m.*,a.request_hash,a.attempt_number,a.completed_at,a.provider_message_id ack_id,p.plan_json,p.plan_hmac,p.plan_id,
     p.content_state plan_content,p.source_linkage_state plan_linkage,p.health_content_redacted_at plan_redacted
    FROM outbound_messages m JOIN outbound_semantic_reservations r ON r.user_id=m.user_id AND r.execution_mode=m.execution_mode AND r.reservation_id=m.reservation_id
@@ -20,14 +21,12 @@ export async function confirmedMorningReceipt({core,actor,day}){
    if(row.request_hash!==keys.digest(row.content_digest_salt,JSON.stringify([row.payload_hash,row.destination_binding_id,row.attempt_number]))
     ||row.payload_hash!==keys.digest(row.content_digest_salt,canonicalJson([row.payload_text,row.payload_json]))
     ||row.plan_hmac!==keys.lookup(['morning-plan-v1',uid,'LIVE',row.plan_id,row.plan_json]))return null;
+   const briefAt=Date.parse(row.completed_at);
+   if(!Number.isSafeInteger(briefAt)||briefAt>core.now().getTime())return null;
    const plan=JSON.parse(row.plan_json);if(plan.healthDate!==day||plan.timezone!==actor.state.timezone)return null;
-   return {sleepId:plan.wakeAt===null?null:plan.proofs.find(p=>p.type==='sleep')?.id??null,briefAt:Date.parse(row.completed_at),reportSource:row.privacy_artifact_id,reportType:'outbound_messages'};
+   return {sleepId:plan.wakeAt===null?null:plan.proofs.find(p=>p.type==='sleep')?.id??null,briefAt,reportSource:row.privacy_artifact_id,reportType:'outbound_messages'};
   }
  }
- const row=(await client.execute({sql:`SELECT r.sleep_id,r.sent_at,r.privacy_artifact_id report_source,c.telegram_message_id FROM report_claims c
-  JOIN report_runs r ON r.user_id=c.user_id AND r.report_type=c.report_type AND r.local_date=c.local_date AND r.status='SENT'
-  AND r.telegram_message_id=c.telegram_message_id WHERE c.user_id=? AND c.report_type='daily' AND c.local_date=?
-  AND c.delivery_state='DELIVERED' AND c.lifecycle_generation=? AND c.telegram_message_id IS NOT NULL
-  AND r.content_state='PRESENT' AND r.source_linkage_state='COMPLETE' LIMIT 1`,args:[uid,day,actor.state.lifecycle_generation]})).rows[0];
+ const row=await confirmedLegacyMorningReceipt({core,actor,day});
  return row?{sleepId:row.sleep_id?String(row.sleep_id):null,briefAt:Date.parse(row.sent_at),reportSource:row.report_source,reportType:'report_runs'}:null;
 }

@@ -1,3 +1,4 @@
+import {grantSourceConsent} from './stage8SourceConsentFixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
@@ -32,10 +33,12 @@ test('owned receiver computes and signs DAILY/IMPORTANT sources with explicit du
  const episodes=await scopes.derived(scope,'EPISODES');assert.equal(episodes.status,'CURRENT');assert.ok(episodes.items.length>0);
  const body=await scopes.derived(scope,'BODY_ENERGY');assert.equal(body.status,'CURRENT');assert.ok(body.items.length>0);assert.ok(body.items.every(i=>i.estimated===true&&Number.isInteger(i.value)&&i.value>=0&&i.value<=100));
  await f.core.initializeTenant('b','LIVE');await f.db.raw.execute("INSERT INTO user_whoop_tokens(user_id,access_token,refresh_token,access_token_expires_at,updated_at,auth_generation) VALUES('b','SYNTHETIC','SYNTHETIC','2099-01-01','2026-10-01',1)");await f.db.linkTelegram({userId:'b',chatId:'10002'});
+ await f.db.ensureOnboarding('b',{state:'READY',now:f.core.now()});
  const owner=await createOwnerMonitoring({...f,ownerId:'b',enabled:()=>true}),actor=await owner.authenticate({user:await f.db.getUser('b'),chatId:'10002'});
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM owner_monitoring_subscriptions')).rows[0].n,0);
  for(const notificationClass of ['DAILY_SUMMARY','IMPORTANT_ALERT','WEEKLY_SUMMARY']){
-  await assert.rejects(owner.authorize(actor,{subjectId:'a',notificationClass}),/SUBSCRIPTION/);
+  await assert.rejects(owner.authorize(actor,{subjectId:'a',notificationClass}),/SUBSCRIPTION|SOURCE_CONSENT_REQUIRED/);
+  await grantSourceConsent(f,{ownerId:'b',subjectId:'a',notificationClass});
   await owner.configure(actor,{subjectId:'a',notificationClass,enabled:true,expectedRevision:0,operationKey:`explicit-owned-${notificationClass}`});
  }
  assert.equal((await owner.prepareDaily(actor,'a')).status,'CURRENT_PLAN');
@@ -51,6 +54,6 @@ test('owned receiver computes and signs DAILY/IMPORTANT sources with explicit du
  assert.equal((await restart.run({userId:'a',requestId:'owned-classes-0'})).publication.status,'CURRENT');assert.equal(provider.calls.length,1);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM stage8_live_execution_work_receipts')).rows[0].n,receipts);
  await owner.configure(actor,{subjectId:'a',notificationClass:'IMPORTANT_ALERT',enabled:false,expectedRevision:1,operationKey:'revoke-owned-important'});
- await assert.rejects(owner.authorize(actor,{subjectId:'a',notificationClass:'IMPORTANT_ALERT'}),/SUBSCRIPTION/);
+ await assert.rejects(owner.authorize(actor,{subjectId:'a',notificationClass:'IMPORTANT_ALERT'}),/SUBSCRIPTION|SOURCE_CONSENT_REQUIRED/);
  await assert.rejects(producer.run({userId:'b',requestId:'owned-peer-denied'}),/PRODUCING_AUTHORITY|PRINCIPAL_FENCED/);
 });

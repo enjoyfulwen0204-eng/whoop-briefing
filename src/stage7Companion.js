@@ -1,3 +1,4 @@
+import {captureStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {COACH_TOPICS} from './companionCoach.js';
@@ -177,6 +178,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId}),prefs=await preferences(actor);
    if(!prefs.daily_enabled)return {status:'DISABLED'};
+   if(inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end))return {status:'QUIET_HOURS'};
    if(actor.state.auth_generation<1)return {status:'AUTHORIZATION_FENCED'};
    if(healthDay!==localDate(core.now(),actor.state.timezone))return {status:'NOT_CURRENT_DAY'};
    const semantic=core.keys.lookup(['daily-journal-v1',user.id,healthDay,DAILY_POLICY_VERSION]);
@@ -219,6 +221,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    for(const previous of history)await interactions.link('quick_action_interactions',issued.row,'quick_action_interactions',previous.privacy_artifact_id);
    for(const id of contextSources)await interactions.link('quick_action_interactions',issued.row,'evidence_items',id);
    const delivery={user_id:user.id,delivery_id:core.newId(),interaction_id:issued.row.interaction_id,semantic_key:semantic,occasion_key:occasion,kind:'DAILY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify(reply),
+    schedule_json:JSON.stringify({enrollment:await captureStage7Enrollment({core,db,actor})}),
     lifecycle_generation:actor.state.lifecycle_generation,auth_generation:actor.state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:issued.row.expires_at,...interactions.privacyFields(actor.state)};
    await interactions.insert('journal_prompt_deliveries',delivery);await interactions.link('journal_prompt_deliveries',delivery);
    await interactions.link('journal_prompt_deliveries',delivery,proof.reportType,proof.reportSource);

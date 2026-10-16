@@ -212,10 +212,12 @@ export async function invokeReadiness(env,{fetchImpl=fetch,now=Date.now,signImpl
   return {ok:true,kind:payload.kind,status:200};
  } finally {controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
 }
+export const COMPANION_CRON=READINESS_CRON;
 export async function invokeCompanion(env,{fetchImpl=fetch,now=Date.now,signImpl=signRequest,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=55000}={}){
+ if(![undefined,'off','on'].includes(env.BRIEFING_COMPANION_ENABLED))throw error('configuration',true);
  if(env.BRIEFING_COMPANION_ENABLED!=='on')return {enabled:false};
  const path='/internal/briefing/companion',endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
- if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||!env.BRIEFING_TRIGGER_SECRET
+ if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||/replace|placeholder/i.test(endpoint.hostname)||!env.BRIEFING_TRIGGER_SECRET
   ||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)
   ||!/^[a-f0-9]{40}$/.test(env.BRIEFING_RELEASE_SHA??'')||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF??'')
   ||!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>55000)throw error('configuration',true);

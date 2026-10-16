@@ -3,6 +3,7 @@ import {bodySha256} from './briefingTriggerAuth.js';
 import {canonicalJson} from './phase4EntityStore.js';
 import {withDurableExecution,databaseNowMs,requireSettledOperation} from './phase4ExecutionContext.js';
 import {liveProducerConfiguration,registerLiveExecution,liveScopeDigest} from './stage8LiveProducerAuthority.js';
+import {createExecutionBudget,currentExecutionBudget,withExecutionBudget} from './executionBudget.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 const safeResult=value=>Object.fromEntries(Object.entries(value).filter(([key,v])=>
  ['outcome','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','unitsCommitted','alertSourceDigest'].includes(key)
@@ -12,7 +13,8 @@ const safeResult=value=>Object.fromEntries(Object.entries(value).filter(([key,v]
 export function createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,work}){
  if(typeof capture!=='function'||typeof assertContext!=='function'||typeof work!=='function')fail('STAGE8_LIVE_RUNNER_REQUIRED');
  liveProducerConfiguration(capability,db.raw,keys);
- return async function run({userId,requestId=randomUUID()}={}){
+ async function runBounded({userId,requestId=randomUUID()}={},budget){
+  budget.assert();
   const g=liveProducerConfiguration(capability,db.raw,keys,userId),ctx=await capture(userId);
   if(ctx.userId!==userId||ctx.executionMode!=='LIVE'||![ctx.inputGeneration,ctx.sourceGeneration,ctx.lifecycleGeneration,ctx.authGeneration,ctx.purgeGeneration].every(v=>Number.isSafeInteger(v)&&v>=0))fail('STAGE8_LIVE_CAPTURE_REQUIRED');
   const tenantScope=liveScopeDigest(keys,ctx);
@@ -20,7 +22,7 @@ export function createStage8LiveExecutionRunner({db,keys,capability,capture,asse
   const request=Object.freeze({requestId,phase:'STAGE6_DRAIN',releaseSha:g.releaseSha,executionMode:'LIVE',triggerSource:'manual',configProof:g.configProof,contract:'stage8-live-producer-v1',tenantScope});
   const canonical=canonicalJson(request),identity=bodySha256(canonical),scopeKey=bodySha256(JSON.stringify(['phase4-execution-scope-v1','STAGE6_DRAIN','LIVE',g.configProof]));
   const owner=randomUUID(),at=Date.now();let claim;
-  const authority=Object.freeze({assert(){liveProducerConfiguration(capability,db.raw,keys,userId);}});
+  const authority=Object.freeze({assert(){budget.assert();liveProducerConfiguration(capability,db.raw,keys,userId);}});
   const prior=await db.transaction(async()=>{
    authority.assert();await assertContext(ctx);const row=(await db.raw.execute({sql:'SELECT * FROM stage8_live_executions WHERE execution_id=?',args:[requestId]})).rows[0];
    if(row){
@@ -46,7 +48,16 @@ export function createStage8LiveExecutionRunner({db,keys,capability,capture,asse
     output={outcome:count?'PARTIAL':'NO_WORK'};
    }else{
     const execution={claim,keys,pending:new Set(),authority};registerLiveExecution(capability,execution,db.raw,keys,userId,ctx);
-    output=await withDurableExecution(execution,async()=>{const value=await work(userId,ctx);requireSettledOperation();return value;});
+    output=await withDurableExecution(execution,async()=>{
+     try{const value=await work(userId,ctx);requireSettledOperation();budget.assert();return value;}
+     catch(error){
+      // A cancelled HTTP COMMIT can already be durable. Worker cleanup or a
+      // swallowed transport error cannot replace that uncertainty with a
+      // definite timeout/cancellation, nor permit aggregate settlement.
+      if(error?.code==='COMMIT_INDETERMINATE'||execution.indeterminate||execution.pending.size)requireSettledOperation(error);
+      throw error;
+     }
+    });
    }
    result={version:2,identity,releaseSha:g.releaseSha,phase:'STAGE6_DRAIN',source:'manual',executionMode:'LIVE',configProof:g.configProof,...safeResult(output)};
    result.signature=keys.lookup(['stage8-live-execution-result-v1',request.tenantScope,canonicalJson(result)]);
@@ -60,7 +71,15 @@ export function createStage8LiveExecutionRunner({db,keys,capability,capture,asse
    authority.assert();await assertContext(ctx);const changed=await db.raw.execute({sql:`UPDATE stage8_live_executions SET state=?,finalized_at=?,updated_at=? WHERE execution_id=? AND owner=? AND generation=? AND state='WORK_COMMITTED' AND deadline_at>${databaseNowMs} AND lease_until>${databaseNowMs}`,args:[result.outcome==='FAILED'?'FINALIZED_FAILURE':'FINALIZED_SUCCESS',Date.now(),Date.now(),requestId,owner,claim.generation]});
    if(changed.rowsAffected!==1)fail('REQUEST_OWNER_FENCED');
   });
-  return Object.freeze({replayed:false,recovered:Boolean(prior),executionId:requestId,result:Object.freeze(result)});
+  budget.assert();return Object.freeze({replayed:false,recovered:Boolean(prior),executionId:requestId,result:Object.freeze(result)});
+ }
+ return async function run(request={}){
+  const parent=currentExecutionBudget(),budget=createExecutionBudget({budgetMs:45000,signal:parent?.signal,localAuthority:()=>parent?.assert()});
+  // Abort revokes future HTTP/SQL authority. It is not a join: wait for the
+  // actual callback and its transaction cleanup, including unknown COMMIT ACKs.
+  // The durable 45s deadline and 60s lease above remain unchanged.
+  try{return await withExecutionBudget(budget,async()=>{const value=await runBounded(request,budget);budget.assert();return value;});}
+  finally{budget.cancel();budget.close();}
  };
 }
 

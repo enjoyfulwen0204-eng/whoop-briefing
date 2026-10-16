@@ -4,6 +4,7 @@ import {createPhase4MessageStore,semanticReservationKey} from './phase4MessageSt
 import {createPhase4TransportStore} from './phase4TransportStore.js';
 import {localDate,addDays} from './time.js';
 import {morningWallInstant} from './morningBriefPolicy.js';
+import {isOptionalMorningIntelligenceFailure} from './stage8MorningIntelligence.js';
 const FAMILY='MORNING_BRIEF_V1',fail=code=>{throw Error(code);};
 /** All mutations use the admitted shared transaction. Scheduling returns only
  * durable due-state; the dispatcher is the sole owner of a provider capability. */
@@ -78,7 +79,8 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
   });}catch(error){
    if(!retry||!['PHASE4_PARENT_STALE','CONTENT_REDACTED','PHASE4_SOURCE_DELETED','PHASE4_SOURCE_NOT_FOUND','PHASE4_SOURCE_NOT_CURRENT',
     'PHASE4_RESOURCE_FENCED','PHASE4_CAPABILITY_FENCED','PHASE4_INCOMPLETE_PROVENANCE','MORNING_PLAN_MISMATCH','MORNING_TYPED_PLAN_REQUIRED',
-    'MORNING_PREFERENCE_CHANGED','MORNING_PLAN_EXPIRED','MORNING_RESOURCE_REVOKED','MORNING_SOURCE_STALE','MORNING_SOURCE_CHANGED'].includes(error.message))throw error;
+    'MORNING_PREFERENCE_CHANGED','MORNING_PLAN_EXPIRED','MORNING_RESOURCE_REVOKED','MORNING_SOURCE_STALE','MORNING_SOURCE_CHANGED',
+    'MORNING_INTELLIGENCE_CHANGED','MORNING_INTELLIGENCE_EXPIRED'].includes(error.message))throw error;
    stale=true;
   }
   if(!stale)return null;
@@ -87,7 +89,7 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
   else await transport.closeMorningRetry(control,{messageId:retry.message_id,expectedRevision:retry.revision});
   return {status:'FAILED_TERMINAL',messageId:retry.message_id};
  }
- async function prepare(control,{healthDate=undefined}={}){
+ async function prepareAttempt(control,{healthDate=undefined,omitIntelligence=false}={}){
   const ctx=await context(control),day=healthDate??localDate(core.now(),ctx.timezone),mode=await commitCutover(ctx);
   if(mode.mode!=='PHASE4'||day<mode.cutover_health_date)return {status:'LEGACY_OWNS'};
   const terminal=await validateRetry(control,ctx,day);if(terminal)return terminal;
@@ -116,10 +118,11 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
       ||old.destination_binding_id!==await transport.destination(ctx)||old.content_state!=='PRESENT')return {status:'FENCED'};
     if(JSON.parse(old.payload_json).timezone!==ctx.timezone)return {status:'TIMEZONE_CHANGED'};
    }
-   const built=await plans.build(ctx,{healthDate:day});if(!built.timing.eligible)return {status:built.timing.reason};
+   const built=await plans.build(ctx,{healthDate:day,omitIntelligence});if(!built.timing.eligible)return {status:built.timing.reason};
    const previous=old?(await query("SELECT plan_json FROM morning_brief_plans WHERE user_id=? AND execution_mode='LIVE' AND plan_id=?",[ctx.userId,JSON.parse(old.payload_json).morningPlanId]))[0]:null;
    if(previous?.plan_json){const a=JSON.parse(previous.plan_json),b=built.plan;
-    if(['preferenceVersion','profileRevision','sourceGeneration','inputGeneration','locale'].every(k=>a[k]===b[k])&&core.now()-Date.parse(a.asOfUtc)<60*60000)return {status:'READY',messageId:old.message_id,revision:old.revision};}
+    const sameAnalysis=canonicalJson([a.intelligence?.status??null,a.intelligence?.publication??null,a.intelligence?.observations??[]])===canonicalJson([b.intelligence?.status??null,b.intelligence?.publication??null,b.intelligence?.observations??[]]);
+    if(a.version===b.version&&sameAnalysis&&(!a.intelligence?.validUntil||a.intelligence.validUntil>core.timestamp())&&['preferenceVersion','profileRevision','sourceGeneration','inputGeneration','locale'].every(k=>a[k]===b[k])&&core.now()-Date.parse(a.asOfUtc)<60*60000)return {status:'READY',messageId:old.message_id,revision:old.revision};}
    const stored=await plans.persist(ctx,built),payload=canonicalJson({morningPlanId:stored.row.plan_id,healthDate:day,timezone:ctx.timezone}),text=renderMorningPlan(built.plan);
    if(!old){const result=await messages.propose(ctx,{semantic:{family:FAMILY,identity:day},message:{payload_text:text,payload_json:payload,
     semantic_key_version:'semantic-key-v1',semantic_hash:keys.lookup(['morning-semantic-v1',ctx.userId,day]),expires_at:built.plan.expiresAt},sourceRefs:[stored.ref]});
@@ -137,6 +140,16 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
    const current=await core.artifact(ctx,'outbound_messages',{message_id:old.message_id});await plans.validate(ctx,current.row);
    return {status:'READY',messageId:old.message_id,revision:old.revision+1,refreshed:true};
   });
+ }
+ async function prepare(control,{healthDate=undefined}={}){
+  try{return await prepareAttempt(control,{healthDate});}
+  catch(error){
+   // A failed canonical optional read rolls its whole original transaction
+   // back. Start one fresh source-only attempt; never swallow its poisoned
+   // transaction or turn an authentication/runtime failure into a fallback.
+   if(!isOptionalMorningIntelligenceFailure(error))throw error;
+   return prepareAttempt(control,{healthDate,omitIntelligence:true});
+  }
  }
  async function expirePending(control){
   await core.assertControl(control);const pending=await query("SELECT message_id FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_class='MORNING_BRIEF_V1' AND expires_at<=? AND state IN ('PROPOSED','ELIGIBLE','FAILED_DEFINITE') ORDER BY expires_at,message_id LIMIT 8",[control.userId,core.timestamp()]);

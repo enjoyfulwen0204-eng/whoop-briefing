@@ -50,6 +50,8 @@ import {
 } from './guardianPolicy.js';
 import { log, describeError } from './logger.js';
 import { t, formatNumber } from './localization.js';
+import {schedulerTopology} from './schedulerPolicy.js';
+import {readSchedulerHealth} from './schedulerWatchdog.js';
 
 const ageMs = (iso, now) => {
   const t = Date.parse(iso ?? '');
@@ -87,7 +89,7 @@ function finding({
  * @param {Date} facts.now
  * @returns {object[]} findings（空陣列 = 一切正常 = LEVEL_0）
  */
-export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } = {}) {
+export function evaluate({ cronHeartbeat = null, schedulerHealth = null, users = [], now = new Date() } = {}) {
   const out = [];
 
   // ---- 1. cron 心跳 ----
@@ -95,7 +97,8 @@ export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } 
   // 根本還沒跑過第一輪。只有「曾經有過心跳，然後停了」才是異常。
   if (cronHeartbeat?.lastOkAt) {
     const age = ageMs(cronHeartbeat.lastOkAt, now);
-    if (age !== null && age > GUARDIAN_POLICY.CRON_HEARTBEAT_MAX_AGE_MS) {
+    if (age !== null && age > GUARDIAN_POLICY.CRON_HEARTBEAT_MAX_AGE_MS
+        && (!schedulerHealth||schedulerHealth.overall==='outage')) {
       out.push(finding({
         signal: GUARDIAN_SIGNAL.CRON_HEARTBEAT_STALE,
         level: GUARDIAN_LEVEL.LEVEL_2_NOTIFY,
@@ -224,11 +227,15 @@ export function renderFinding(f, locale = 'zh-TW') {
  * 任何一項讀取失敗都不會拋錯 —— 讀不到就當作「沒有這項事實」，
  * 寧可少報一則，也不要讓 Guardian 自己變成故障來源。
  */
-export async function gatherFacts({ db, now = new Date() }) {
+export async function gatherFacts({ db, now = new Date(), environment=process.env }) {
   const facts = { cronHeartbeat: null, users: [], now };
 
   try {
     facts.cronHeartbeat = await db.getHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON);
+    if(schedulerTopology(environment)==='cloudflare_morning_only'){
+      facts.schedulerHealth={overall:'unknown'};
+      facts.schedulerHealth=await readSchedulerHealth({db,now,environment,includePhases:false});
+    }
   } catch { /* 沒有心跳事實就不判斷這條 */ }
 
   let users = [];

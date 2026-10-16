@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import {createCompanionCoachContext} from '../companionCoachContext.js';
+import {createStage8PresentationSender} from '../stage8PresentationSender.js';
+import {createStage7PresentationSender} from '../stage7PresentationSender.js';
+import {createStage5PresentationRuntime,createStage5PresentationSender} from '../stage5PresentationReader.js';
 import {createStage8Runtime} from '../stage8Runtime.js';
 import {createStage7Runtime} from '../stage7Runtime.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
@@ -128,9 +132,15 @@ export async function main({ maxIterations = Infinity } = {}) {
   });
 
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
-  const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
-  const stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8 });
+  let stage8;
+  const coachContext=createCompanionCoachContext({getScopes:()=>stage8?.scopes});
+  const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env,coachContext});
+  stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
+  const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8,phase4Reader });
+  const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
+  const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
+  const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
@@ -163,7 +173,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: input=>{const send=createSendReply({db,api}),with7=stage7?value=>stage7.sendReply(send,value):send;return stage8?stage8.sendReply(with7,input):with7(input);},
+    sendReply: sendPresentation,
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

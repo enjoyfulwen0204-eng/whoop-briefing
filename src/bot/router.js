@@ -1,3 +1,4 @@
+import {isStage5PresentationCommand,stage5PresentationUnavailable,stage5PresentationHelp} from '../stage5PresentationReader.js';
 import {selfQueryPerspective} from '../scopedHealthContext.js';
 /**
  * 訊息路由：一則 Telegram 訊息 → 一則回覆。
@@ -404,7 +405,7 @@ export function unavailableReply(result, locale = 'zh-TW') {
 }
 
 export function createRouter({
-  db, coachFor,bodyEnergy,stage8, now = () => new Date(), lookbackDays = 120,
+  db, coachFor,bodyEnergy,stage8,phase4Reader, now = () => new Date(), lookbackDays = 120,
 }) {
   /**
    * 處理一則訊息，回傳要送出去的文字。
@@ -419,6 +420,7 @@ export function createRouter({
     if (isSymptomEducationQuestion(text)) return symptomEducationReply(locale??'en');
     if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
+    if(isStage5PresentationCommand(text))return phase4Reader?phase4Reader.handle({text,chatId,user}):stage5PresentationUnavailable(locale);
     if(stage8){const scoped=await stage8.handle({text,chatId,user});if(scoped!==null)return scoped;}
     if(bodyEnergy){
       const control=await bodyEnergy.notificationControl.handle({text,user,chatId});
@@ -741,7 +743,8 @@ export function createRouter({
           const { assessPrediction, READINESS_STATUS } = await import('../readiness.js');
           predictionReady = assessPrediction({ rows }).status === READINESS_STATUS.READY;
         } catch { /* 忽略 */ }
-        return buildHelp({ report, insightCount, predictionReady, locale });
+        const help=buildHelp({ report, insightCount, predictionReady, locale });
+        return phase4Reader?.eligible?.(userId)?`${help}\n\n${stage5PresentationHelp(locale)}`:help;
       }
 
       case 'healthdata':

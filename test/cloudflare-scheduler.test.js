@@ -9,8 +9,9 @@ import {
 } from '../src/briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../src/briefingEndpoint.js';
 import {
-  checkPeerScheduler, providerState, aggregateSchedulerState, SCHEDULER_POLICY,
+  checkPeerScheduler, aggregateSchedulerState, SCHEDULER_POLICY,
 } from '../src/schedulerWatchdog.js';
+import { morningServiceProviderState } from '../src/schedulerPolicy.js';
 import { HEARTBEAT_COMPONENT } from '../src/guardianPolicy.js';
 import {
   signRequest, retryableStatus, invoke, isRedirect,
@@ -179,11 +180,11 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   assert.equal(authAttempts, 1);
 });
 
-test('service scheduler expects hourly readiness outside morning and no disabled GitHub fallback', async () => {
+test('hourly Morning readiness and canonical dual-provider fallback retain separate health states', async () => {
   const outside=new Date('2026-09-25T12:00:00.000Z');
-  for(const minutes of [0,30,60,90])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'cloudflare',outside).state,'healthy');
-  for(const minutes of [91,120,180,420])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'cloudflare',outside).state,'stale');
-  for(const value of ['malformed',new Date(outside.getTime()+1).toISOString()])assert.equal(providerState({lastOkAt:value},'cloudflare',outside).state,'stale');
+  for(const minutes of [0,30,60,90])assert.equal(morningServiceProviderState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'cloudflare',outside).state,'healthy');
+  for(const minutes of [91,120,180,420])assert.equal(morningServiceProviderState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'cloudflare',outside).state,'stale');
+  for(const value of ['malformed',new Date(outside.getTime()+1).toISOString()])assert.equal(morningServiceProviderState({lastOkAt:value},'cloudflare',outside).state,'stale');
   const at=new Date('2026-09-25T01:00:00.000Z');let alerts=0;
   const systemTelegram={notifyError:async()=>{alerts++;return true;}};
   const heartbeats=new Map([[HEARTBEAT_COMPONENT.GITHUB,{lastOkAt:new Date(at.getTime()-13*3600000).toISOString()}]]);
@@ -196,7 +197,10 @@ test('service scheduler expects hourly readiness outside morning and no disabled
   heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,{lastOkAt:new Date(at.getTime()-3600000).toISOString()});
   heartbeats.set(HEARTBEAT_COMPONENT.GITHUB,{lastOkAt:at.toISOString()});
   const degraded=await checkPeerScheduler({db,source:'github',systemTelegram,now:at});
-  assert.equal(degraded.overall,'outage');assert.equal(degraded.alerted,true);assert.equal(alerts,1);
+  // The incident contract keeps the undeclared topology dual: fresh GitHub is
+  // canonical fallback, but cannot prove the separate Morning readiness path.
+  assert.equal(degraded.overall,'degraded');assert.equal(degraded.morningService.overall,'outage');
+  assert.equal(degraded.alerted,true);assert.equal(alerts,1);
   heartbeats.clear();assert.equal((await checkPeerScheduler({db,source:'cloudflare',systemTelegram,now:at})).overall,'outage');
   db.getHeartbeat=async()=>{throw Error('db timeout');};
   assert.equal((await checkPeerScheduler({db,source:'github',systemTelegram,now:at})).overall,'unknown');
@@ -227,7 +231,7 @@ test('primary outage alerts obey cooldown, delivery failure, and concurrent atom
       db, source: 'github', systemTelegram, now: new Date(outageNow + currentHour * 3600_000),
     });
   }
-  assert.equal(sends, 12, 'the synthetic 2h cooldown now observes all-day service; production cooldown remains 24h');
+  assert.equal(sends, 2, 'legacy dual-provider canonical alerts apply only during the remaining morning window; readiness has its own status');
 
   currentHour = 49;
   lastClaim = -Infinity;

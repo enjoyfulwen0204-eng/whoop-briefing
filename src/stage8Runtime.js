@@ -11,15 +11,17 @@ import {requireRuntimeAdmission,followRuntimeRenewal} from './runtimeAdmission.j
 import {buildPhase4Core} from './phase4Core.js';
 import {composePhase4Stores} from './phase4Repositories.js';
 import {createOwnerMonitoring} from './stage8OwnerMonitoring.js';
+import {createStage8SourceConsent} from './stage8SourceConsent.js';
 import {createStage8OwnerDispatcher} from './stage8OwnerDispatcher.js';
+import {isApprovedStage7Three} from './stage7Cohort.js';
 export function stage8Configuration(environment={}){
  assertStage8Recovery(environment);
  for(const name of ['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS','STAGE8_POST_SYNC','STAGE8_SUBJECT_ALERTS'])if(!['off','on'].includes(environment[name]??'off'))throw Error('STAGE8_CONFIG_INVALID');
  const enabled=environment.PHASE4_STAGE8_RUNTIME==='on';
  const owner=String(environment.PHASE4_BETA_PILOT_USER_ID??'').trim();
  const users=String(environment.STAGE8_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean);
- if(enabled&&(!owner||users.length!==1||users[0]!==owner))throw Error('STAGE8_OWNER_COHORT_REQUIRED');
- return Object.freeze({enabled,userIds:Object.freeze(enabled?users:[])});
+ if(enabled&&(!owner||!users.includes(owner)||!(users.length===1&&users[0]===owner||isApprovedStage7Three(users))))throw Error('STAGE8_OWNER_COHORT_REQUIRED');
+ return Object.freeze({enabled,ownerId:enabled?owner:null,userIds:Object.freeze(enabled?users:[])});
 }
 export async function createStage8Runtime({db,keys,environment={},env={},bodyEnergy,stage7=null,now=()=>new Date()}){
  const config=stage8Configuration(environment);if(!config.enabled)return null;
@@ -31,7 +33,7 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
  const eligible=uid=>{try{fence();return stage8Configuration(environment).userIds.includes(uid);}catch{return false;}};
  const subjectAlertProvider=createStage8SubjectAlertProvider({db,keys,admission,environment,env,eligible});
  const analysis=environment.STAGE8_LIVE_ANALYSIS==='on'?await createStage8LiveProducer({db,keys,admission,userIds:config.userIds,environment,subjectAlertProvider,enabled:()=>{try{fence();return environment.STAGE8_LIVE_ANALYSIS==='on';}catch{return false;}},eligible}):null;
- const postSync=analysis?createStage8PostSync({db,keys,producer:analysis,userIds:config.userIds,eligible,enabled:()=>environment.STAGE8_POST_SYNC==='on'&&eligible(config.userIds[0]),environment}):null;
+ const postSync=analysis?createStage8PostSync({db,keys,producer:analysis,userIds:config.userIds,eligible,enabled:()=>environment.STAGE8_POST_SYNC==='on'&&config.userIds.some(eligible),environment}):null;
  const liveAnalysis=analysis?Object.freeze({afterSync:request=>postSync.run(request),resume:()=>postSync.resume(),run:async request=>{fence();if(currentDurableExecution())throw Error('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');return analysis.run(request);}}):null;
  const derivedReader=createStage8DerivedReader({db,keys,admission,eligible,now});
  const scopes=await createScopedHealthContext({db,keys,admission,now,derivedReader}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
@@ -48,8 +50,11 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
   read:input=>db.transaction(async()=>{const user=await actor(input);return stores.preferences.read(await core.captureControl(user.id));}),
   update:(input,version,patch)=>db.transaction(async()=>{const user=await actor(input);return stores.preferences.update(await core.captureControl(user.id),version,patch);}),
  });
- const ownerEnabled=()=>environment.PHASE4_STAGE8_OWNER_MONITORING==='on'&&eligible(config.userIds[0]);
- const monitoring=ownerEnabled()?await createOwnerMonitoring({db,keys,ownerId:config.userIds[0],enabled:ownerEnabled,now}):null;
+ const ownerEnabled=()=>environment.PHASE4_STAGE8_OWNER_MONITORING==='on'&&eligible(config.ownerId);
+ // Source users retain the settings path to revoke a saved grant while owner
+ // monitoring is disabled. New grants still require its active authority.
+ const sourceConsent=await createStage8SourceConsent({db,keys,ownerId:config.ownerId,enabled:ownerEnabled,now});
+ const monitoring=ownerEnabled()?await createOwnerMonitoring({db,keys,ownerId:config.ownerId,enabled:ownerEnabled,sourceConsent,now}):null;
  const dispatcher=monitoring?createStage8OwnerDispatcher({db,monitoring,env,enabled:ownerEnabled,now}):null;
  const owner=monitoring?Object.freeze({
   enrolled:async input=>monitoring.enrolled(await monitoring.authenticate(input)),
@@ -74,5 +79,5 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
   return send({...input,beforeSend});
  }
  async function captureIdentity(input){fence();return identity.recordTelegram(input);}
- return Object.freeze({config,eligible,captureIdentity,handle,sendReply,scopes,identity,preferences,owner,analysis:liveAnalysis});
+ return Object.freeze({config,eligible,captureIdentity,handle,sendReply,scopes,identity,preferences,sourceConsent,owner,analysis:liveAnalysis});
 }

@@ -1,3 +1,4 @@
+import {createStage8SourceConsent,requireStage8SourceConsent} from './stage8SourceConsent.js';
 import {verifySubjectAlertExecution} from './stage8SubjectAlertManifest.js';
 import {verifyStage8LivePublication} from './stage8LivePublication.js';
 import {randomUUID} from 'node:crypto';
@@ -16,11 +17,13 @@ export const OWNER_MAX_ATTEMPTS=3;
 export const ownerRetryAt=row=>Date.parse(row.updated_at)+30000*2**Math.max(0,row.attempt_count-1);
 /** Dedicated dual-principal capability. No ordinary Q&A route receives this
  * store. Configuration accepts an explicit enrolled subject, never admin scope. */
-export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new Date()}){
+export async function createOwnerMonitoring({db,keys,ownerId,enabled,sourceConsent:providedSourceConsent,now=()=>new Date()}){
  if(typeof ownerId!=='string'||!ownerId||typeof enabled!=='function')fail('OWNER_SERVER_CONFIGURATION_REQUIRED');
  let admission=await db.admitRuntime();if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)))fail('OWNER_V34_REQUIRED');
  followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
  const client=db.raw,actors=new WeakMap(),tickets=new WeakMap(),timestamp=()=>now().toISOString();
+ const sourceConsent=providedSourceConsent??await createStage8SourceConsent({db,keys,ownerId,enabled,now});
+ requireStage8SourceConsent(sourceConsent,{db,keys,ownerId});
  const rows=async(sql,args=[])=>(await client.execute({sql,args})).rows;
  async function principal(uid,{enrolled=false}={}){
   const row=(await rows(`SELECT u.id,u.status,u.timezone,u.lifecycle_generation,COALESCE(t.auth_generation,0) auth_generation,p.source_generation,p.purge_generation,p.pending_purge_count,
@@ -48,11 +51,14 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
  async function enrolled(actor){await assertActor(actor);const found=await rows(`SELECT u.id FROM users u JOIN user_onboarding o ON o.user_id=u.id
    JOIN phase4_user_state p ON p.user_id=u.id JOIN user_whoop_tokens t ON t.user_id=u.id
    WHERE u.id<>? AND u.status='ACTIVE' AND o.state='READY' AND p.pending_purge_count=0 AND t.auth_generation>0 ORDER BY u.id LIMIT 101`,[ownerId]);
-  if(found.length>100)fail('OWNER_CONFIGURATION_BOUNDS');await assertActor(actor);return Promise.all(found.map(async r=>({subjectId:r.id,label:await resolveRecipientName({db,userId:r.id}),alias:keys.lookup(['owner-subject-alias-v1',ownerId,r.id]).slice(0,8)})));}
+  if(found.length>100)fail('OWNER_CONFIGURATION_BOUNDS');
+  const consented=[];for(const r of found){const allowedClasses=[];for(const klass of OWNER_NOTIFICATION_CLASSES)if(await sourceConsent.check(r.id,klass))allowedClasses.push(klass);if(allowedClasses.length)consented.push({...r,allowedClasses});}
+  await assertActor(actor);return Promise.all(consented.map(async r=>({subjectId:r.id,label:await resolveRecipientName({db,userId:r.id}),alias:keys.lookup(['owner-subject-alias-v1',ownerId,r.id]).slice(0,8),allowedClasses:r.allowedClasses})));}
  async function configure(actor,{subjectId,notificationClass,enabled:enable,expectedRevision,operationKey}){
   classCheck(notificationClass);if(typeof enable!=='boolean'||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||typeof operationKey!=='string'||!operationKey||operationKey.length>128||subjectId===ownerId)fail('OWNER_CONFIGURATION_INVALID');
   return db.transaction(async()=>{
    const owner=await assertActor(actor),existing=(await rows('SELECT * FROM owner_monitoring_subscriptions WHERE user_id=? AND owner_id=? AND notification_class=?',[subjectId,ownerId,notificationClass]))[0];
+   if(enable&&!await sourceConsent.check(subjectId,notificationClass))fail('OWNER_SOURCE_CONSENT_REQUIRED');
    if(!existing&&(await rows('SELECT count(*) n FROM owner_monitoring_subscriptions WHERE owner_id=?',[ownerId]))[0].n>=300)fail('OWNER_CONFIGURATION_BOUNDS');
    const subject=enable?await principal(subjectId,{enrolled:true}):existing?{lifecycle_generation:existing.subject_lifecycle,auth_generation:existing.subject_auth,enrollment_revision:existing.enrollment_revision}:null;
    if(!subject)fail('OWNER_SUBSCRIPTION_NOT_FOUND');
@@ -71,7 +77,8 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    return {revision:record.revision,enabled:enable};
   });
  }
- async function subscriptions(actor){await assertActor(actor);return rows('SELECT user_id subjectId,notification_class notificationClass,enabled,revision FROM owner_monitoring_subscriptions WHERE owner_id=? ORDER BY user_id,notification_class LIMIT 301',[ownerId]);}
+ async function subscriptions(actor){await assertActor(actor);const found=await rows('SELECT user_id subjectId,notification_class notificationClass,enabled,revision FROM owner_monitoring_subscriptions WHERE owner_id=? ORDER BY user_id,notification_class LIMIT 301',[ownerId]);
+  if(found.length>300)fail('OWNER_CONFIGURATION_BOUNDS');const allowed=[];for(const value of found)if(await sourceConsent.check(value.subjectId,value.notificationClass))allowed.push(value);await assertActor(actor);return allowed;}
  async function schedule(actor){return db.transaction(async()=>{
   await assertActor(actor);const all=await subscriptions(actor);if(all.length>300)fail('OWNER_CONFIGURATION_BOUNDS');
   const active=all.filter(row=>row.enabled),key='stage8-owner-cursor:'+keys.lookup(['owner-scheduler-v1',ownerId]),raw=await db.getState(key),offset=raw===null?0:Number(raw);
@@ -79,15 +86,17 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
   const start=active.length?offset%active.length:0,selected=[...active.slice(start),...active.slice(0,start)].slice(0,6);
   await db.setState(key,String(active.length?(start+selected.length)%active.length:0),{now:now()});return selected;
  });}
- async function scope(actor,subjectId,notificationClass){
+ async function scope(actor,subjectId,notificationClass){return db.transaction(async()=>{
   classCheck(notificationClass);if(subjectId===ownerId)fail('OWNER_DISTINCT_SUBJECT_REQUIRED');
-  const owner=await assertActor(actor),subject=await principal(subjectId,{enrolled:true});
+  const owner=await assertActor(actor),consent=await sourceConsent.check(subjectId,notificationClass);
+  if(!consent)fail('OWNER_SOURCE_CONSENT_REQUIRED');
+  const subject=await principal(subjectId,{enrolled:true});
   const subscription=(await rows('SELECT * FROM owner_monitoring_subscriptions WHERE user_id=? AND owner_id=? AND notification_class=?',[subjectId,ownerId,notificationClass]))[0];
   if(!subscription?.enabled||subscription.owner_lifecycle!==owner.lifecycle_generation||subscription.owner_auth!==owner.auth_generation
    ||subscription.subject_lifecycle!==subject.lifecycle_generation||subscription.subject_auth!==subject.auth_generation||subscription.enrollment_revision!==subject.enrollment_revision)fail('OWNER_SUBSCRIPTION_FENCED');
   const paused=(await rows('SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',[ownerId]))[0];if(paused?.notifications_paused)fail('OWNER_NOTIFICATIONS_PAUSED');
-  return {owner,subject,subscriptionRevision:subscription.revision,notificationClass};
- }
+  return {owner,subject,subscriptionRevision:subscription.revision,notificationClass,sourceConsent:consent};
+ });}
  async function synthesis(captured,asOf=now()){
   const uid=captured.subject.id,comp=captured.subject.computation;if(!comp||comp.source_generation_seen!==captured.subject.source_generation)return {status:'NO_CURRENT_SYNTHESIS'};
   const grant=issueStage8LiveAuthority({db,keys,admission,userIds:[uid],enabled}),core=await buildPhase4Core({keys,admission,liveAuthority:grant,now,
@@ -155,6 +164,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
   if(canonicalJson(current)!==canonicalJson(captured))fail('OWNER_SCOPE_CHANGED');
   const plan=await synthesis(current,new Date(auth.as_of_utc));if(plan.status!=='APPROVED'||canonicalJson(plan.refs)!==canonicalJson(planRefs)||canonicalJson(plan.claims)!==auth.claims_json||plan.semanticIdentity!==semanticIdentity)fail('OWNER_PLAN_CHANGED');
   const payload=JSON.parse(row.payload_json);if(payload.subjectId!==subjectId||payload.notificationClass!==row.notification_class||canonicalJson(payload.claims)!==auth.claims_json||payload.asOfUtc!==auth.as_of_utc)fail('OWNER_PAYLOAD_CHANGED');
+  if(canonicalJson(await scope(actor,subjectId,row.notification_class))!==canonicalJson(current))fail('OWNER_SCOPE_CHANGED');
   return {row,auth,payload};
  }
  async function start(actor,{subjectId,messageId,expectedRevision}){return db.transaction(async()=>{
@@ -167,7 +177,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
   if(changed.rowsAffected!==1)fail('OWNER_START_CAS');return {attemptId:id,payload};
  });}
  async function pending(actor,subjectId,notificationClass){
-  await assertActor(actor);classCheck(notificationClass);
+  await scope(actor,subjectId,notificationClass);
   return (await rows("SELECT user_id,owner_id,message_id,notification_class,state,attempt_count,revision,updated_at,expires_at FROM owner_monitoring_outbox WHERE user_id=? AND owner_id=? AND notification_class=? AND state IN ('PROPOSED','FAILED_DEFINITE','DELIVERY_STARTED') ORDER BY created_at,message_id LIMIT 1",[subjectId,ownerId,notificationClass]))[0]??null;
  }
  async function close(actor,subjectId,messageId){return db.transaction(async()=>{
@@ -201,5 +211,5 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    await client.execute({sql:"UPDATE owner_monitoring_outbox SET state=?,provider_message_id=?,revision=revision+1,updated_at=? WHERE user_id=? AND owner_id=? AND message_id=? AND state='DELIVERY_STARTED'",args:[outcome,providerMessageId,timestamp(),subjectId,ownerId,messageId]});return {outcome};
   });
  }
- return Object.freeze({authenticate,enrolled,configure,subscriptions,authorize,propose,start,settle,validate,pending,close,prepareDaily,schedule});
+ return Object.freeze({sourceConsent,authenticate,enrolled,configure,subscriptions,authorize,propose,start,settle,validate,pending,close,prepareDaily,schedule});
 }

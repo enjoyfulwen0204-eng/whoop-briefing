@@ -1,0 +1,54 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {candidateSha,dockerArguments,summarize,LIMITS} from './run.mjs';
+
+const sha='a'.repeat(40);
+const plan=()=>({name:'stage8-qualification-123-1',image:'stage8-live-qualification:123-1',checkout:'/runner/work/candidate',commonGit:'/runner/repository/.git',output:'/runner/private/output',uid:1001,gid:1001});
+const profile=name=>({profile:name,productionEvidence:false,releaseSha:sha,callsStarted:7,status:'LOCAL_LIVE_HTTP_VERIFIED',node:'v22.23.3',architecture:'x64',elapsedMs:100,
+ preflight:{memoryMaxBytes:536870912,swapMaxBytes:0,cpuQuota:50000,cpuPeriod:100000},finishedUsers:['a','b','c'],blockedUsers:[],failures:[],explicitEmptyVerified:name==='empty',
+ final:{jobs:Array.from({length:6},()=>({state:'COMPLETED',requested_generation:1,completed_generation:1})),publications:3,completionProofs:6},
+ resources:{finalCgroup:{memoryMax:'536870912',swapMax:'0',cpuMax:'50000 100000',memoryPeak:'200000000'},cgroupMemoryEventDelta:{oom:0,oom_kill:0},cgroupCpuDelta:{usage_usec:1234},sampledRssPeak:150000000},
+ http:{requests:1000,requestErrors:0,responseErrors:0,openTransactions:0,transactionDurationUpperBounds:{maximumMs:100}}});
+test('input cannot supply a branch, repository or shell expression instead of the full commit',()=>{
+ assert.equal(candidateSha(sha),sha);for(const value of ['main','owner/repo@'+sha,sha+'\n',sha.toUpperCase(),'$(secret)',undefined])assert.throws(()=>candidateSha(value));
+});
+test('resource and network isolation include sqld and the application in one container',()=>{
+ const argv=dockerArguments(plan());
+ const option=name=>argv[argv.indexOf(name)+1];
+ assert.equal(option('--network'),'none');assert.equal(option('--memory'),'536870912');assert.equal(option('--memory-swap'),'536870912');assert.equal(option('--cpus'),'0.5');
+ assert.equal(option('--pids-limit'),'128');assert.ok(argv.includes('--read-only'));assert.equal(option('--cap-drop'),'ALL');assert.equal(option('--security-opt'),'no-new-privileges');
+ assert.equal(option('--platform'),'linux/amd64');assert.equal(option('--user'),'1001:1001');
+ const mounts=argv.filter((_value,i)=>argv[i-1]==='--mount');assert.equal(mounts.length,7);
+ assert.ok(mounts.slice(0,6).every(value=>value.endsWith(',readonly')));assert.equal(mounts.at(-1),'type=bind,src=/runner/private/output,dst=/qualification');
+ assert.ok(!argv.some(value=>/docker[.]sock|--privileged|--env-file|TURSO_|GITHUB_TOKEN|PHASE4_RELEASE_SHA/.test(value)));
+ assert.match(argv.at(-1),/exec \/bin\/sh test\/stage8-live-linux-http[.]sh$/);assert.equal(LIMITS.wallSeconds,1920);assert.equal(LIMITS.maximumCalls,64);
+});
+test('reject mount argument injection, source remapping and root user before Docker',()=>{
+ for(const field of ['checkout','commonGit','output'])for(const value of ['relative','/path,readonly=false','/path\nother','/path:other'])assert.throws(()=>dockerArguments({...plan(),[field]:value}));
+ assert.throws(()=>dockerArguments({...plan(),uid:0}));assert.throws(()=>dockerArguments({...plan(),name:'other-container'}));
+});
+test('genuine completed reports qualify only with exact current resources and identities',()=>{
+ const reports=[profile('empty'),profile('dense')],result=summarize({reports,expectedSha:sha,exitCode:0});
+ assert.equal(result.status,'ISOLATED_LINUX_LIVE_HTTP_VERIFIED');assert.equal(result.totalCalls,14);assert.equal(result.productionEvidence,false);
+ assert.ok(!JSON.stringify(result).includes('requested_generation'));assert.match(result.scope,/Does not qualify Telegram\/SYNC/);
+ for(const change of [r=>r[0].releaseSha='b'.repeat(40),r=>r[1].preflight.memoryMaxBytes=1073741824,r=>r[0].resources.finalCgroup.cpuMax='max 100000',
+  r=>delete r[0].resources.finalCgroup.memoryPeak,r=>delete r[0].resources.cgroupMemoryEventDelta.oom,r=>r[1].callsStarted=64]){
+  const copy=structuredClone(reports);change(copy);assert.throws(()=>summarize({reports:copy,expectedSha:sha,exitCode:0}));
+ }
+});
+test('timeouts, incomplete business work and OOM remain PARTIAL despite a success-looking label',()=>{
+ for(const [change,exitCode] of [[()=>{},124],[r=>r[0].final.jobs[0].state='PENDING',0],[r=>r[1].resources.cgroupMemoryEventDelta.oom_kill=1,0],
+  [r=>r[0].explicitEmptyVerified=false,0],[r=>r[1].final.publications=2,0],[r=>r[1].http.responseErrors=1,0],[r=>r[1].http.openTransactions=1,0]]){
+  const reports=[profile('empty'),profile('dense')];change(reports);assert.equal(summarize({reports,expectedSha:sha,exitCode}).status,'ISOLATED_LINUX_LIVE_HTTP_PARTIAL');
+ }
+});
+test('workflow is manual-only, main-scoped, read-only and does not reference Production secrets or artifacts',()=>{
+ const workflow=readFileSync(new URL('../../.github/workflows/stage8-live-linux-qualification.yml',import.meta.url),'utf8');
+ assert.match(workflow,/workflow_dispatch:/);assert.match(workflow,/github.ref == 'refs\/heads\/main'/);assert.match(workflow,/contents: read/);assert.match(workflow,/runs-on: ubuntu-24[.]04/);
+ assert.ok(!/schedule:|pull_request:|push:|secrets[.]|environment:|id-token:|upload-artifact|cache:/.test(workflow));
+ assert.equal((workflow.match(/persist-credentials: false/g)??[]).length,2);assert.ok(!workflow.includes('briefing.yml'));
+ const dockerfile=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
+ assert.equal((dockerfile.match(/^FROM [^\n]+@sha256:[a-f0-9]{64}/gm)??[]).length,2);assert.match(dockerfile,/npm ci --ignore-scripts --no-audit --no-fund/);
+ assert.ok(!/COPY [.]|git init|git hash-object|qualification-commit/.test(dockerfile));
+});

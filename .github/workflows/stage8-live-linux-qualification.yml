@@ -1,0 +1,62 @@
+name: Stage8 isolated Linux HTTP qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Reviewed, published 40-character commit in this repository
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage8-isolated-linux-qualification
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Validate immutable candidate input
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+      - name: Checkout reviewed qualification controls
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ github.workflow_sha }}
+          path: qualification-control
+          persist-credentials: false
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate-repository
+          persist-credentials: false
+      - name: Qualify bounded offline producer and reader
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          node --test "$GITHUB_WORKSPACE/qualification-control/tools/stage8-qualification/run.test.mjs"
+          node "$GITHUB_WORKSPACE/qualification-control/tools/stage8-qualification/run.mjs" \
+            "$GITHUB_WORKSPACE/candidate-repository" "$CANDIDATE_SHA"
+      - name: Remove only this run's qualification container
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_name="stage8-qualification-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if timeout 10s docker container inspect "$container_name" >/dev/null 2>&1; then
+            timeout --signal=KILL 15s docker rm -f "$container_name" >/dev/null
+          fi

@@ -57,6 +57,10 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
  const companion=['STAGE7_COMPANION','STAGE7_COMPANION_USER_IDS','STAGE7_COACH_MIN_HOURS','STAGE7_COACH_MAX_HOURS','STAGE7_JOURNAL_GAP_HOURS'].map(name=>environment[name]??'');
  if(companion.some(Boolean))profile.push(['stage7-companion-configuration-v1',...companion]);
  if(environment.STAGE7_AUTOMATIC!==undefined)profile.push(['stage7-automatic-configuration-v1',environment.STAGE7_AUTOMATIC]);
+ if(environment.BRIEFING_SCHEDULER_TOPOLOGY!==undefined){
+  if(!['dual','cloudflare_morning_only'].includes(environment.BRIEFING_SCHEDULER_TOPOLOGY))fail('SCHEDULER_TOPOLOGY_INVALID');
+  profile.push(['scheduler-topology-v1',environment.BRIEFING_SCHEDULER_TOPOLOGY]);
+ }
  const scope=continuationScope(environment,config.runtime==='on'?'SHADOW':'OFF');
  if(scope)profile.push(['phase4-continuation-scope-v1',scope]);
  return keys.lookup(profile);

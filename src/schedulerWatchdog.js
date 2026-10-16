@@ -1,6 +1,6 @@
 import { GLOBAL_SCOPE } from './schema.js';
 import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
-import { schedulerProviderState,requireTriggerSource } from './schedulerPolicy.js';
+import { schedulerProviderState,requireTriggerSource,schedulerTopology } from './schedulerPolicy.js';
 import { log,describeError } from './logger.js';
 import { t } from './localization.js';
 import { readPhaseProgress } from './phase4ExecutionStore.js';
@@ -15,31 +15,34 @@ export const SCHEDULER_ALERT_COOLDOWN_HOURS=24;
 export const SCHEDULER_ALERT_TYPE='scheduler_primary_stale';
 export const providerState=schedulerProviderState;
 export function aggregateSchedulerState(cloudflare,github) {
+  if(github.state==='disabled')return cloudflare.state==='scheduled_pause'?'not_scheduled'
+    :['healthy','startup_grace'].includes(cloudflare.state)?'healthy':'outage';
   if(cloudflare.state==='not_expected')return github.state==='healthy'?'healthy':'outage';
   if(['healthy','startup_grace'].includes(cloudflare.state))return 'healthy';
   return github.ageMs!==null&&github.ageMs<=3*3600000?'degraded':'outage';
 }
-export async function readSchedulerHealth({db,now=new Date()}) {
+export async function readSchedulerHealth({db,now=new Date(),environment=process.env,includePhases=true}) {
+  const topology=schedulerTopology(environment);
   const [cf,gh]=await Promise.all([
     db.getHeartbeat(GLOBAL_SCOPE,HEARTBEAT_COMPONENT.CLOUDFLARE),
     db.getHeartbeat(GLOBAL_SCOPE,HEARTBEAT_COMPONENT.GITHUB),
   ]);
-  const cloudflare=providerState(cf,'cloudflare',now),github=providerState(gh,'github',now);
+  const cloudflare=providerState(cf,'cloudflare',now,{topology}),github=providerState(gh,'github',now,{topology});
   const phases={};
-  if(db.raw)for(const source of ['cloudflare','github']) {
+  if(includePhases&&db.raw)for(const source of ['cloudflare','github']) {
     phases[source]={sync:await readPhaseProgress(db,'SYNC',source),stage6:await readPhaseProgress(db,'STAGE6_DRAIN',source)};
   }
-  return {cloudflare,github,overall:aggregateSchedulerState(cloudflare,github),phases};
+  return {topology,cloudflare,github,overall:aggregateSchedulerState(cloudflare,github),phases};
 }
 /** Evaluation requires a running invocation. Total scheduler silence needs
  * external monitoring; this function does not create a background watcher. */
-export async function checkPeerScheduler({db,source,systemTelegram,now=new Date()}) {
+export async function checkPeerScheduler({db,source,systemTelegram,now=new Date(),environment=process.env}) {
   try {
     requireTriggerSource(source);
-    const health=await readSchedulerHealth({db,now});
+    const health=await readSchedulerHealth({db,now,environment});
     if(source==='event'||source==='manual')return {...health,peer:null,alerted:false,recovered:false};
     const peer=source==='cloudflare'?health.github:health.cloudflare;
-    const expected=health.cloudflare.expected?health.cloudflare:health.github;
+    const expected=health.topology==='cloudflare_morning_only'||health.cloudflare.expected?health.cloudflare:health.github;
     const alertType=expected.provider==='cloudflare'?SCHEDULER_ALERT_TYPE:'scheduler_github_stale';
     let alerted=false,recovered=false;
     log.info('scheduler_watchdog_state',{source,peer:peer.provider,peer_state:peer.state,overall:health.overall});

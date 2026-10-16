@@ -4,6 +4,8 @@
 # No image build/pull, credential mounting or Docker execution occurs here.
 set -eu
 umask 077
+mode=${1:-qualification}
+case "$mode" in qualification|diagnostic-empty-one) ;; *) exit 2 ;; esac
 test "$(uname -s)" = Linux
 test -f /.dockerenv
 test -d /qualification
@@ -40,10 +42,21 @@ run_profile(){
  # LIVE45s, worker30s and six-unit boundaries are never enlarged. The external
  # fifteen-minute cutoff also bounds setup/readback and preserves partial data.
  result_code=0
- timeout --signal=TERM --kill-after=5s 900s node --max-old-space-size=96 --max-semi-space-size=2 test/stage8-live-linux-http.mjs "$profile_name" "$profile_limit" > "/qualification/$profile_name/run.tap" 2>&1 || result_code=$?
+ if test "$mode" = diagnostic-empty-one;then
+  timeout --signal=TERM --kill-after=5s 900s node --max-old-space-size=96 --max-semi-space-size=2 test/stage8-live-linux-http.mjs "$profile_name" "$profile_limit" --diagnostic-empty-one > "/qualification/$profile_name/run.tap" 2>&1 || result_code=$?
+ else
+  timeout --signal=TERM --kill-after=5s 900s node --max-old-space-size=96 --max-semi-space-size=2 test/stage8-live-linux-http.mjs "$profile_name" "$profile_limit" > "/qualification/$profile_name/run.tap" 2>&1 || result_code=$?
+ fi
  printf '%s\n' "$result_code" > "/qualification/$profile_name/exit-code"
  stop_server
 }
+# This explicit path starts exactly one empty synthetic user and at most one
+# genuine producer call. It never runs dense/replay or becomes qualification.
+if test "$mode" = diagnostic-empty-one;then
+ run_profile empty 1
+ node --input-type=module -e 'import{readFileSync}from"node:fs";const r=JSON.parse(readFileSync("/qualification/empty/report.json"));if(r.diagnosticOnly!==true||r.profile!=="empty"||r.callsStarted>1||r.input.syntheticUsers!==1)throw Error("DIAGNOSTIC_BOUNDARY_INVALID");console.log(JSON.stringify({productionEvidence:false,status:"LOCAL_LIVE_HTTP_DIAGNOSTIC_ONLY",calls:r.callsStarted}));'
+ exit 2
+fi
 # Both profiles combined may start at most64 producer calls, including replays.
 run_profile empty 16
 empty_calls=$(node --input-type=module -e 'import{readFileSync}from"node:fs";const r=JSON.parse(readFileSync("/qualification/empty/report.json"));if(!Number.isSafeInteger(r.callsStarted)||r.callsStarted<0||r.callsStarted>16)throw Error("ATTEMPT_ACCOUNTING_INVALID");process.stdout.write(String(r.callsStarted));')

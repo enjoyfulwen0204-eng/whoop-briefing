@@ -16,9 +16,12 @@ import {runningReleaseSha} from '../src/phase4Release.js';
 import {createExecutionBudget,withExecutionBudget} from '../src/executionBudget.js';
 import {seedBodyInput} from './bodyEnergyFixture.js';
 import {OFFLINE_LIVE_USERS,OFFLINE_LIVE_RESOURCES,OFFLINE_LIVE_TABLES,offlineLiveFixtureShape,offlineLiveFixtureInput} from './stage8LiveLinuxFixture.js';
+import {createLinuxHttpDiagnostics,linuxSqlLabel,linuxRuntimeStage,linuxDurableCounts} from './stage8LiveLinuxDiagnostics.js';
 import {assertOfflineLiveLinuxPreflight,collectOfflineLiveLinuxPreflight} from './stage8-live-linux-preflight.test.js';
 
-const [profile,rawLimit]=process.argv.slice(2),maxLegs=Number(rawLimit);
+const [profile,rawLimit,diagnosticFlag]=process.argv.slice(2),maxLegs=Number(rawLimit),diagnostic=diagnosticFlag==='--diagnostic-empty-one';
+assert.ok(process.argv.length<=5&&(!diagnosticFlag||diagnostic),'EXPLICIT_DIAGNOSTIC_MODE_REQUIRED');
+if(diagnostic){assert.equal(profile,'empty');assert.equal(maxLegs,1);Error.stackTraceLimit=50;}
 assert.ok(['empty','dense'].includes(profile)&&Number.isSafeInteger(maxLegs)&&maxLegs>=1&&maxLegs<=64,'EXPLICIT_BOUNDED_PROFILE_REQUIRED');
 assert.equal(process.platform,'linux','LINUX_CONTAINER_REQUIRED');
 assert.ok(existsSync('/.dockerenv'),'ISOLATED_CONTAINER_REQUIRED');
@@ -32,10 +35,10 @@ assert.equal(realpathSync(process.cwd()),realpathSync(root),'REAL_CHECKOUT_CWD_R
 assert.ok(existsSync(resolve(root,'.git')),'REAL_CHECKOUT_GIT_REQUIRED');
 const preflight=assertOfflineLiveLinuxPreflight(collectOfflineLiveLinuxPreflight({root,stage:'running',profile}));
 const sha=runningReleaseSha({}),startedAt=Date.now(),keys=createPhase4Keys({lookupKey:Buffer.alloc(32,71),auditKey:Buffer.alloc(32,83)});
-const users=OFFLINE_LIVE_USERS,LATENCY_MS=115,LEG_SUPERVISION_MS=90000;
+const users=diagnostic?OFFLINE_LIVE_USERS.slice(0,1):OFFLINE_LIVE_USERS,LATENCY_MS=115,LEG_SUPERVISION_MS=90000;
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const tracked=['src/db.js','src/phase4Reanalysis.js','src/stage8LiveProducer.js','src/stage8LiveExecution.js','src/stage8LivePublication.js','src/stage8Runtime.js','src/stage8PostSync.js',
- 'test/stage8-live-linux-http.mjs','test/stage8LiveLinuxFixture.js','test/bodyEnergyFixture.js'];
+ 'test/stage8-live-linux-http.mjs','test/stage8-live-linux-http.sh','test/stage8LiveLinuxDiagnostics.js','test/stage8LiveLinuxFixture.js','test/bodyEnergyFixture.js'];
 const sourceHashes=()=>Object.fromEntries(tracked.map(path=>[path,hash(readFileSync(resolve(root,path)))]));
 const initialHashes=sourceHashes();
 const readText=path=>{try{return readFileSync(path,'utf8').trim();}catch{return null;}};
@@ -44,9 +47,12 @@ const cgroup=()=>({memoryCurrent:readText('/sys/fs/cgroup/memory.current'),memor
  memoryMax:readText('/sys/fs/cgroup/memory.max'),swapMax:readText('/sys/fs/cgroup/memory.swap.max'),memoryEvents:fields(readText('/sys/fs/cgroup/memory.events')),
  cpuMax:readText('/sys/fs/cgroup/cpu.max'),cpu:fields(readText('/sys/fs/cgroup/cpu.stat'))});
 const initialCgroup=cgroup(),initialCpu=process.cpuUsage();
-const report={contract:'stage8-live-offline-linux-http-v2',profile,productionEvidence:false,status:'RUNNING',releaseSha:sha,sourceHashes:initialHashes,preflight,
+const fixtureShape=offlineLiveFixtureShape(profile);
+if(diagnostic){fixtureShape.contract='stage8-live-synthetic-diagnostic-empty-one-v1';fixtureShape.syntheticUsers=1;fixtureShape.historyDaysPerUser={a:0};fixtureShape.expectedRowsPerUser={a:fixtureShape.expectedRowsPerUser.a};fixtureShape.provenance.description='One empty synthetic user, one producer call; diagnostic only.';fixtureShape.provenance.limitation='No three-user, dense, replay, capacity or Production coverage.';}
+const diagnostics=createLinuxHttpDiagnostics();
+const report={diagnosticOnly:diagnostic,contract:'stage8-live-offline-linux-http-v2',profile,productionEvidence:false,status:'RUNNING',releaseSha:sha,sourceHashes:initialHashes,preflight,
  startedAt:new Date(startedAt).toISOString(),node:process.version,architecture:process.arch,heapLimitBytes:getHeapStatistics().heap_size_limit,
- input:offlineLiveFixtureShape(profile),
+ input:fixtureShape,
  limits:{totalProducerCalls:maxLegs,liveExecutionDeadlineMs:45000,workerWallMs:45000,workerSafetyMarginMs:15000,workerEffectiveMs:30000,maxItemsPerTenant:6,
   legSupervisionMs:LEG_SUPERVISION_MS,addedWorkloadHttpLatencyMs:LATENCY_MS,postSyncParentUsed:false,parentTtlExtended:false},
  productionTransactionCeiling:'UNKNOWN; unmodified local sqld behavior is recorded without inventing a server cap',
@@ -54,7 +60,8 @@ const report={contract:'stage8-live-offline-linux-http-v2',profile,productionEvi
  callsStarted:0,legs:[],readers:{},http:{requests:0,sqlStatements:0,responseErrors:0,requestErrors:0,byPhase:{},errorCodes:{},transactions:[],openTransactions:0,droppedTransactions:0},
  resources:{initialCgroup,sampledRssPeak:process.memoryUsage().rss},failures:[]};
 let db,phase='SETUP',latency=false,activeLeg=null,stopping=false;
-const save=()=>writeFileSync(output,JSON.stringify(report,null,2)+'\n',{mode:0o600});
+const save=()=>{report.phaseDiagnostics=diagnostics.snapshot();writeFileSync(output,JSON.stringify(report,null,2)+'\n',{mode:0o600});};
+const setPhase=next=>{phase=next;diagnostics.switchPhase(next);};
 const failure=(error,stage)=>{const code=String(error?.code??error?.name??'ERROR');report.failures.push({stage,code:/^[A-Za-z0-9_:-]{1,100}$/.test(code)?code:'ERROR',messageSha256:hash(String(error?.message??error))});};
 const sample=setInterval(()=>{report.resources.sampledRssPeak=Math.max(report.resources.sampledRssPeak,process.memoryUsage().rss);},20);sample.unref();
 process.once('SIGTERM',()=>{stopping=true;report.status='INTERRUPTED_UNKNOWN_IN_FLIGHT';report.activeLeg=activeLeg;report.resources.finalCgroup=cgroup();save();process.exit(143);});
@@ -63,7 +70,7 @@ save();
 // Labels/counters only: no statement arguments, source values, HTTP credentials,
 // health rows, or SQL bodies are retained in the evidence report.
 const originalFetch=globalThis.fetch.bind(globalThis),streams=new Map();
-const label=sql=>({verb:/^\s*([A-Za-z]+)/.exec(sql??'')?.[1]?.toUpperCase()??'OTHER',template:hash(String(sql??'').replace(/\s+/g,' ').trim())});
+const label=linuxSqlLabel;
 const errorCode=error=>{const code=String(error?.code??error?.name??'ERROR');return /^[A-Za-z0-9_:-]{1,100}$/.test(code)?code:'ERROR';};
 const countError=error=>{report.http.responseErrors++;const code=errorCode(error);report.http.errorCodes[code]=(report.http.errorCodes[code]??0)+1;};
 const offlineFetch=async(input,init)=>{
@@ -74,7 +81,10 @@ const offlineFetch=async(input,init)=>{
 globalThis.fetch=offlineFetch;
 const observedFetch=async(input,init)=>{
  const request=new Request(input,init),body=await request.clone().json(),observedAt=Date.now();
- const stream=streams.get(body.baton)??{sql:new Map(),transaction:null};
+ const stream=streams.get(body.baton)??{sql:new Map(),transaction:null},observedPhase=phase;
+ const stored=new Map(stream.sql),requestLabels=[];
+ for(const item of body.requests??[]){if(item.type==='store_sql')stored.set(item.sql_id,label(item.sql));for(const stmt of item.type==='execute'?[item.stmt]:item.type==='batch'?item.batch.steps.map(step=>step.stmt):[])requestLabels.push(stmt.sql!==undefined?label(stmt.sql):stored.get(stmt.sql_id)??label(''));}
+ const observed=diagnostics.start(requestLabels,diagnostic?linuxRuntimeStage(new Error().stack):'UNCLASSIFIED');
  report.http.requests++;report.http.byPhase[phase]=(report.http.byPhase[phase]??0)+1;
  try{
   if(latency)await new Promise((resolve,reject)=>{
@@ -96,7 +106,7 @@ const observedFetch=async(input,init)=>{
    for(let j=0;j<statements.length;j++){
     const stmt=statements[j],entry=stmt.sql!==undefined?label(stmt.sql):stream.sql.get(stmt.sql_id)??label('');
     const success=reply?.type==='ok'&&(item.type==='execute'||reply.response?.result?.step_results?.[j]!=null);
-    if(success&&entry.verb==='BEGIN')stream.transaction={phase,startedAt:observedAt,httpRequests:1,statements:0};
+    if(success&&entry.verb==='BEGIN')stream.transaction={phase:observedPhase,startedAt:observedAt,httpRequests:1,statements:0};
     if(stream.transaction)stream.transaction.statements++;
     if(success&&['COMMIT','ROLLBACK'].includes(entry.verb)&&stream.transaction){
      if(report.http.transactions.length<4096)report.http.transactions.push({...stream.transaction,outcome:entry.verb,finishedAt,durationUpperBoundMs:finishedAt-stream.transaction.startedAt});else report.http.droppedTransactions++;
@@ -110,8 +120,8 @@ const observedFetch=async(input,init)=>{
   }
   if(body.baton)streams.delete(body.baton);if(result.baton)streams.set(result.baton,stream);
   report.http.openTransactions=[...new Set(streams.values())].filter(s=>s.transaction).length;
-  return response;
- }catch(error){report.http.requestErrors++;const code=errorCode(error);report.http.errorCodes[code]=(report.http.errorCodes[code]??0)+1;throw error;}
+  diagnostics.end(observed);return response;
+ }catch(error){diagnostics.end(observed,{failed:true});report.http.requestErrors++;const code=errorCode(error);report.http.errorCodes[code]=(report.http.errorCodes[code]??0)+1;throw error;}
 };
 
 async function bounded(work){
@@ -134,10 +144,10 @@ const progress=(before,after,userId)=>JSON.stringify({jobs:before.jobs.filter(ro
 try{
  db=createDb({url:'http://127.0.0.1:18080',phase4Keys:keys,fetch:observedFetch});assert.equal(db.raw.protocol,'http','REAL_HTTP_DATABASE_REQUIRED');
  const existing=(await db.raw.execute("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")).rows[0].n;
- assert.equal(Number(existing),0,'EMPTY_DATABASE_REQUIRED');await db.migrate({targetVersion:35});
+ assert.equal(Number(existing),0,'EMPTY_DATABASE_REQUIRED');setPhase('MIGRATION');await db.migrate({targetVersion:35});
  assert.equal(Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v),35);
- const stores=await createPhase4Foundation({db,keys}),asOf=Date.now()-1000;
- for(const [index,userId] of users.entries()){
+ setPhase('FOUNDATION');const stores=await createPhase4Foundation({db,keys}),asOf=Date.now()-1000;
+ setPhase('SEED');for(const [index,userId] of users.entries()){
   await db.createUser({id:userId,displayName:'Synthetic offline qualification',timezone:'Asia/Taipei',status:'ACTIVE'});
   await stores.initializeTenant(userId,'SHADOW');
   const input=offlineLiveFixtureInput({profile,userId,asOf});
@@ -152,23 +162,23 @@ try{
  assert.deepEqual(report.seededRowsPerUser,report.input.expectedRowsPerUser,'EXACT_SYNTHETIC_USER_SHAPE_REQUIRED');
  assert.deepEqual(report.seededRows,Object.fromEntries(OFFLINE_LIVE_RESOURCES.map(type=>[OFFLINE_LIVE_TABLES[type],report.input.expectedTotalRows[type]])),'EXACT_SYNTHETIC_TOTAL_SHAPE_REQUIRED');
  report.resources.afterSeedCgroup=cgroup();report.resources.afterSeedMemory=process.memoryUsage();
- latency=true;phase='ANALYSIS';
+ latency=true;setPhase('ADMISSION');
  const admission=await bounded(()=>db.admitRuntime({fresh:true})),eligible=id=>users.includes(id);
- const producer=await bounded(()=>createStage8LiveProducer({db,keys,admission,userIds:users,enabled:()=>true,eligible,environment:{}}));
- const reader=createStage8DerivedReader({db,keys,admission,eligible}),scopes=await createScopedHealthContext({db,keys,admission,derivedReader:reader});
+ setPhase('PRODUCER_CONSTRUCTOR');const producer=await bounded(()=>createStage8LiveProducer({db,keys,admission,userIds:users,enabled:()=>true,eligible,environment:{}}));
+ setPhase('READER_CONSTRUCTOR');const reader=createStage8DerivedReader({db,keys,admission,eligible}),scopes=await createScopedHealthContext({db,keys,admission,derivedReader:reader});
  const finished=new Set(),blocked=new Set(),noProgress=new Map();let next=0;
  while(report.callsStarted<maxLegs&&finished.size+blocked.size<users.length&&!stopping){
   const userId=users[next++%users.length];if(finished.has(userId)||blocked.has(userId))continue;
-  const before=await bounded(snapshot),requestId=`offline-${profile}-${userId}-${report.callsStarted}`;
+  setPhase('LEG_BEFORE');const before=await bounded(snapshot),requestId=`offline-${profile}-${userId}-${report.callsStarted}`;
   activeLeg={userId,requestId,startedAt:new Date().toISOString()};report.callsStarted++;save();
-  const leg={...activeLeg,call:report.callsStarted};report.legs.push(leg);
+  const leg={...activeLeg,call:report.callsStarted,beforeCounts:linuxDurableCounts(before)};report.legs.push(leg);
   try{
-   const result=await bounded(()=>producer.run({userId,requestId}));
+   setPhase('PRODUCER_LEG');const result=await bounded(()=>producer.run({userId,requestId}));
    leg.elapsedMs=Date.now()-Date.parse(leg.startedAt);leg.executionId=result.executionId;leg.result=result.result;leg.publication=result.publication;leg.replayed=result.replayed;
-   const after=await bounded(snapshot);leg.persisted=after;
+   setPhase('LEG_READBACK');const after=await bounded(snapshot);leg.persisted=after;leg.afterCounts=linuxDurableCounts(after);
    const moved=progress(before,after,userId);leg.businessProgress=moved;noProgress.set(userId,moved?0:(noProgress.get(userId)??0)+1);
-   if(result.publication.status==='CURRENT'){
-    phase='VERIFY';const verified={};report.readers[userId]=verified;
+   if(result.publication.status==='CURRENT'&&!diagnostic){
+    setPhase('VERIFY');const verified={};report.readers[userId]=verified;
     for(const kind of ['INSIGHTS','EPISODES','BODY_ENERGY','EVIDENCE']){
      const value=await bounded(async()=>{const scope=await scopes.open({user:await db.getUser(userId),chatId:String(10001+users.indexOf(userId)),text:'/insights'});return scopes.derived(scope,kind);});
      verified[kind]={status:value.status,itemCount:value.items.length};
@@ -181,12 +191,12 @@ try{
      const replay=await bounded(()=>producer.run({userId,requestId})),replayAfter=await bounded(snapshot);
      assert.equal(replay.replayed,true);assert.deepEqual(replayAfter,replayBefore,'EXACT_REPLAY_MUST_PRESERVE_DURABLE_WORK');leg.exactReplayVerified=true;
     }else leg.exactReplayVerified=false;
-    finished.add(userId);phase='ANALYSIS';
+    finished.add(userId);setPhase('PRODUCER_LEG');
    }else if(result.result.outcome==='FAILED'||(noProgress.get(userId)??0)>=2){blocked.add(userId);leg.stopped='FAILED_OR_REPEATED_NO_BUSINESS_PROGRESS';}
-  }catch(error){failure(error,`LEG:${userId}`);leg.error=report.failures.at(-1);blocked.add(userId);phase='ANALYSIS';try{leg.persisted=await bounded(snapshot);}catch(readError){failure(readError,`READBACK:${userId}`);}}
+  }catch(error){leg.failedPhase=phase;failure(error,`LEG:${userId}`);leg.error=report.failures.at(-1);blocked.add(userId);leg.elapsedMs=Date.now()-Date.parse(leg.startedAt);setPhase('LEG_READBACK');try{leg.persisted=await bounded(snapshot);leg.afterCounts=linuxDurableCounts(leg.persisted);leg.businessProgress=progress(before,leg.persisted,userId);}catch(readError){failure(readError,`READBACK:${userId}`);}}
   activeLeg=null;save();
  }
- phase='FINAL';report.final=await bounded(snapshot);report.finishedUsers=[...finished];report.blockedUsers=[...blocked];
+ setPhase('FINAL');report.final=await bounded(snapshot);report.finishedUsers=[...finished];report.blockedUsers=[...blocked];
  report.finalReaderStatus={};
  for(const userId of finished){
   const value=await bounded(async()=>{const scope=await scopes.open({user:await db.getUser(userId),chatId:String(10001+users.indexOf(userId)),text:'/insights'});return scopes.derived(scope,'INSIGHTS');});
@@ -196,11 +206,11 @@ try{
  report.pilotLedgers=Number((await db.raw.execute("SELECT count(*) n FROM system_heartbeats WHERE scope='global' AND component LIKE 'phase4_beta_pilot_permit%'")).rows[0].n);
  assert.equal(report.outboundMessages,0,'NO_SENDS_ALLOWED');assert.equal(report.pilotLedgers,0,'NO_PILOT_LEDGER_ALLOWED');
  assert.equal(runningReleaseSha({}),sha,'CHECKOUT_HEAD_CHANGED');assert.deepEqual(sourceHashes(),initialHashes,'RUNTIME_SOURCE_CHANGED');
- const complete=users.every(userId=>finished.has(userId)&&report.finalReaderStatus[userId]==='CURRENT'
+ const complete=!diagnostic&&users.every(userId=>finished.has(userId)&&report.finalReaderStatus[userId]==='CURRENT'
   &&report.legs.some(leg=>leg.userId===userId&&leg.exactReplayVerified===true)
   &&report.final.jobs.filter(row=>row.user_id===userId).length===2
   &&report.final.jobs.filter(row=>row.user_id===userId).every(row=>row.state==='COMPLETED'&&row.scope_kind==='NONE'&&row.requested_generation===row.completed_generation));
- report.status=complete&&report.failures.length===0?'LOCAL_LIVE_HTTP_VERIFIED':'LOCAL_LIVE_HTTP_PARTIAL';
+ report.status=diagnostic?'LOCAL_LIVE_HTTP_DIAGNOSTIC_ONLY':complete&&report.failures.length===0?'LOCAL_LIVE_HTTP_VERIFIED':'LOCAL_LIVE_HTTP_PARTIAL';
  report.explicitEmptyVerified=profile==='empty'&&complete;
 }catch(error){failure(error,phase);report.status='LOCAL_LIVE_HTTP_FAILED';}
 finally{

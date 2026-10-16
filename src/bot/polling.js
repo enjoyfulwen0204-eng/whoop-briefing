@@ -51,6 +51,7 @@ export function createPoller({
   /** 未授權 chat 的處理（目前只用來吃 /link）。回 null 代表完全不回。 */
   handleUnlinked = null,
   sendReply = null,
+  stage7Inbound = null,stage7Reply = null,
   api = createTelegramApi({ botToken }),
   sleepImpl = sleep,
   pollTimeoutS = TELEGRAM_BOT.POLL_TIMEOUT_S,
@@ -73,7 +74,7 @@ export function createPoller({
   // updateProcessor.js 裡，與 webhook 共用同一份。這裡只負責「長輪詢」這個
   // 傳輸方式本身：抓一批、決定 offset 要不要往前推、退避重試。
   const processor = createUpdateProcessor({
-    db, resolveUser, handleMessage, handleUnlinked, sendReply, answerCallback:id=>api.answerCallbackQuery?.(id), workerId, now, sleepImpl,
+    db, resolveUser, handleMessage, handleUnlinked, sendReply, stage7Inbound,stage7Reply,answerCallback:id=>api.answerCallbackQuery?.(id), workerId, now, sleepImpl,
   });
 
   /** offset 存檔。失敗只記錄 —— 認領表才是防重複的那一層。 */

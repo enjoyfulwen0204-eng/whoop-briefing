@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage7Runtime} from '../stage7Runtime.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
@@ -53,7 +54,7 @@ export function createSendReply({ db, api }) {
    *   狀態標成終局，而不是留下「還沒送」去誘發未來重送。
    *   真正的送出失敗會**拋錯**，由呼叫端分類成確定失敗或模糊。
    */
-  return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null,updateId }) {
+  return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null,updateId,beforeSend }) {
     if (userId) {
       const current = await db.resolveUserByChatId(chatId);
       if (current?.user?.id !== userId) {
@@ -83,6 +84,7 @@ export function createSendReply({ db, api }) {
     }
     if(userId&&updateId!==undefined&&(!db.assertTelegramReplySnapshot||!await db.assertTelegramReplySnapshot({userId,chatId,reply,updateId})))
       return {sent:false,messageId:null,reason:'health_snapshot_changed'};
+    if(beforeSend&&!await beforeSend())return {sent:false,messageId:null,reason:'reply_authority_changed'};
     const res = await api.sendMessage(chatId, reply);
     const messageId = res?.message_id;
     if(!validMessageId(messageId))throw Object.assign(Error('TELEGRAM_ACK_INVALID'),{sendOutcome:'ambiguous',sendStage:'success_shape'});
@@ -127,6 +129,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
   const settings = createSettings({db});
+  const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
   const onboardingConfigured = Boolean(
@@ -137,13 +140,14 @@ export async function main({ maxIterations = Infinity } = {}) {
 
   const poller = createPoller({
     db,
+    ...(stage7?{stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply}:{}),
     botToken: env.telegramBotToken,
     api,
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const settingReply=await settings({text,chatId,user,callback});
-      if(settingReply!==null)return settingReply;
+      if(settingReply!==null)return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
       // 上線還沒走完的人：只給狀態與下一步（與 webhook 那條路同一份邏輯）。
       if (onboardingConfigured) {
         const onboardingReply = await handleOnboardingMessage({ db, user, text, ...onboardingArgs });
@@ -152,11 +156,11 @@ export async function main({ maxIterations = Infinity } = {}) {
         const localeReply = await handleLocaleOnlyMessage({ db, user, text });
         if (localeReply !== null) return localeReply;
       }
-      return router.handle({ text, chatId, user });
+      const reply=await router.handle({ text, chatId, user });return stage7?stage7.decorate({user,chatId,text,reply}):reply;
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: createSendReply({ db, api }),
+    sendReply: stage7?input=>stage7.sendReply(createSendReply({db,api}),input):createSendReply({ db, api }),
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

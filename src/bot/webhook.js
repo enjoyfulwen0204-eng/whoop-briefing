@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage7Runtime} from '../stage7Runtime.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 /**
@@ -441,6 +442,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
+  const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
   const settings = createSettings({db});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
@@ -457,10 +459,11 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
 
   const processor = createUpdateProcessor({
     db,
+    ...(stage7?{stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply}:{}),
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const settingReply=await settings({text,chatId,user,callback});
-      if(settingReply!==null)return settingReply;
+      if(settingReply!==null)return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
       // 上線還沒走完的人：只給狀態與下一步，**不執行任何健康處理**
       // （他的資料還沒進來，任何答案都會是假的）。
       if (onboardingConfigured) {
@@ -470,7 +473,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
         const localeReply = await handleLocaleOnlyMessage({ db, user, text });
         if (localeReply !== null) return localeReply;
       }
-      return router.handle({ text, chatId, user });
+      const reply=await router.handle({ text, chatId, user });return stage7?stage7.decorate({user,chatId,text,reply}):reply;
     },
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {
       // 舊的 /link <碼> 仍然保留給管理者的復原路徑。
@@ -479,7 +482,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: createSendReply({ db, api }),
+    sendReply: stage7?input=>stage7.sendReply(createSendReply({db,api}),input):createSendReply({ db, api }),
     answerCallback: id=>api.answerCallbackQuery(id),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.

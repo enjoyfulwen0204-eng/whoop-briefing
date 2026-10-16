@@ -10,7 +10,7 @@ export async function trustedJournalFact(core,control,{interactionId,expectedRev
  if(core.schemaVersion!==33||!core.processing.active())fail('STAGE7_TRUSTED_TRANSACTION_REQUIRED');
  const state=await core.assertControl(control);
  const row=(await core.client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[control.userId,interactionId]})).rows[0];
- if(!readableRow(row)||row.revision!==expectedRevision||row.state!=='CONFIRM'||row.registry_version!==JOURNAL_REGISTRY_VERSION
+ if(!readableRow(row)||!['DAILY','QUICK'].includes(row.kind)||row.revision!==expectedRevision||row.state!=='CONFIRM'||row.registry_version!==JOURNAL_REGISTRY_VERSION
   ||!TOPICS.includes(row.category)||row.registry_id!==registryQuestion(row.category)||row.question_identity!==registryQuestion(row.category)
   ||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone
   ||!staged&&row.expires_at<=core.timestamp()||!['YES','NO'].includes(row.selected_choice)||typeof callbackReceipt!=='string'||callbackReceipt.length<16)fail('STAGE7_REGISTRY_AUTHORITY_INVALID');

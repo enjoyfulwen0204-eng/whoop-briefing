@@ -1,3 +1,5 @@
+import {isStage7ProductionProvider} from './stage7TransportAuthority.js';
+import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {log} from './logger.js';
 import {fail,readableRow} from './phase4Core.js';
 import {presentationLocale} from './stage7Registry.js';
@@ -13,8 +15,8 @@ export function createSyntheticJournalTelegram({outcomes=[]}={}){
   return {messageId:card.editMessageId??String(++sequence)};
  }});synthetic.add(provider);return provider;
 }
-export function createStage7Dispatcher({core,db,companion,provider}){
- if(!synthetic.has(provider))fail('STAGE7_FAKE_PROVIDER_REQUIRED');
+export function createStage7Dispatcher({core,db,companion,provider,invitations=null}){
+ if(!synthetic.has(provider)&&!isStage7ProductionProvider(provider))fail('STAGE7_FAKE_PROVIDER_REQUIRED');
  const {client,transaction,timestamp}=core;
  async function dispatch({user,chatId,deliveryId}){
   const started=await transaction(async()=>{
@@ -22,24 +24,26 @@ export function createStage7Dispatcher({core,db,companion,provider}){
    if(!row)return {status:'NOT_FOUND'};
    if(['DELIVERED','AMBIGUOUS','DELIVERY_STARTED','SUPPRESSED'].includes(row.state))return {status:row.state};
    if(row.attempt_count>=3)return {status:'RETRY_EXHAUSTED'};
-   const prefs=await companion.preferences(actor),interaction=row.interaction_id?await companion.interactions.read(user.id,row.interaction_id):null;
+   const prefs=await companion.preferences(actor);let interaction=row.interaction_id?await companion.interactions.read(user.id,row.interaction_id):null;
    const paused=(await client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[user.id]})).rows[0];
+   let invitation=null;
+   if(row.kind==='COACH'&&invitations){invitation=await invitations.due(actor,row);if(invitation.status==='NOT_DUE')return invitation;if(invitation.interaction)interaction=invitation.interaction;}
    const valid=readableRow(row)&&row.lifecycle_generation===actor.state.lifecycle_generation&&row.auth_generation===actor.state.auth_generation
     &&row.chat_id===actor.chat&&row.expires_at>timestamp()&&prefs.revision===row.preference_revision&&!paused?.notifications_paused
-    &&(row.kind==='DAILY'?prefs.daily_enabled&&readableRow(interaction)&&interaction.state==='ISSUED'&&interaction.selected_choice===null&&interaction.timezone===actor.state.timezone&&JSON.parse(interaction.diagnostics_json??'null')?.profileRevision===actor.profileRevision:false);
-   const occupied=(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length;
+    &&(row.kind==='DAILY'?prefs.daily_enabled&&readableRow(interaction)&&interaction.state==='ISSUED'&&interaction.selected_choice===null&&interaction.timezone===actor.state.timezone&&JSON.parse(interaction.diagnostics_json??'null')?.profileRevision===actor.profileRevision:row.kind==='COACH'&&invitation?.status==='READY');
+   const occupied=await companionEngagementBusy({core,db,actor,excludeInteractionId:interaction?.interaction_id});
    // Weekly automatic rollout is intentionally unavailable. Preference is not rollout authority.
    if(!valid||occupied){await client.execute({sql:"UPDATE journal_prompt_deliveries SET state='SUPPRESSED',revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=?",args:[timestamp(),user.id,deliveryId]});return {status:'SUPPRESSED'};}
    const at=timestamp(),attemptId=core.newId(),attemptNumber=row.attempt_count+1;
    await client.execute({sql:"UPDATE journal_prompt_deliveries SET state='DELIVERY_STARTED',attempt_count=?,revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=? AND revision=? AND state IN ('PROPOSED','FAILED_DEFINITE')",args:[attemptNumber,at,user.id,deliveryId,row.revision]});
    await companion.interactions.insert('journal_delivery_attempts',{user_id:user.id,delivery_id:deliveryId,attempt_id:attemptId,attempt_number:attemptNumber,state:'DELIVERY_STARTED',started_at:at});
    // Refresh presentation from the current canonical locale without changing answer semantics.
-   const card=await companion.card(actor,interaction);
-   return {status:'STARTED',actor,attemptId,card,interactionId:row.interaction_id};
+   const card=invitation?.card??await companion.card(actor,interaction);
+   return {status:'STARTED',actor,attemptId,card,interactionId:interaction.interaction_id};
   });
   if(started.status!=='STARTED')return started;
   let state,messageId=null;
-  try{const result=await provider.send({...started.card,chatId:String(chatId)});if(!/^\d+$/.test(result?.messageId??''))state='AMBIGUOUS';else{state='DELIVERED';messageId=result.messageId;}}
+  try{const result=await provider.send({...started.card,chatId:String(chatId)},{userId:user.id,chatId:String(chatId),deliveryId,actor:started.actor,interactionId:started.interactionId});if(!/^\d+$/.test(result?.messageId??''))state='AMBIGUOUS';else{state='DELIVERED';messageId=result.messageId;}}
   catch(error){state=error?.definite===true?'FAILED_DEFINITE':'AMBIGUOUS';}
   await transaction(async()=>{
    // Settlement retains provider truth even if account/content changed after start.

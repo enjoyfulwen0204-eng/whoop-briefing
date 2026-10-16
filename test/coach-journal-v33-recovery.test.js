@@ -1,0 +1,31 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {deliveryFixture,fixtureKeys} from './deliveryDefaultFixture.js';
+import {executionProfile} from '../src/phase4Rollback.js';import {createStage7Runtime} from '../src/stage7Runtime.js';
+import {runExecutionPhase} from '../src/phase4Execution.js';import {createBriefingEndpoint} from '../src/briefingEndpoint.js';
+import {configurationProof} from '../src/phase4ExecutionStore.js';import {runningReleaseSha} from '../src/phase4Release.js';
+import {BRIEFING_TRIGGER,signTriggerRequest} from '../src/briefingTriggerAuth.js';
+import {verifyPhase4Schema} from '../src/phase4Migrations.js';
+const environment={PHASE4_EXECUTION_PROFILE:'COMPANION_V33_RECOVERY',PHASE4_BETA_SHADOW_RUNTIME:'off',PHASE4_PUBLIC_BETA_MODE:'off',STAGE7_COMPANION:'off',BODY_ENERGY_PUBLICATION:'off',BODY_ENERGY_ALERTS:'off'};
+test('same-schema v33 Stage7-off recovery runs existing signed SYNC canonical briefing route with durable settlement/replay, retaining Journal and delivery state',async t=>{
+ const {db}=await deliveryFixture(t,{version:33});assert.equal(executionProfile(environment),'COMPANION_V33_RECOVERY');await db.admitRuntime();
+ await db.createUser({id:'retained',displayName:'Synthetic retained',timezone:'Asia/Taipei',status:'ACTIVE'});
+ await db.raw.execute("INSERT INTO journal_tracking_preferences(user_id,lifecycle_generation,created_at,updated_at) VALUES('retained',1,'2026-01-01','2026-01-01')");
+ const beforePreferences=(await db.raw.execute('SELECT * FROM journal_tracking_preferences')).rows;
+ const beforeTelegram=(await db.raw.execute('SELECT * FROM telegram_operations')).rows;
+ const beforeClaims=(await db.raw.execute('SELECT * FROM report_claims')).rows;
+ const releaseSha=runningReleaseSha(),requestId='isolated-coach-journal-v33-recovery',secret='synthetic-v33-recovery-secret-32-chars',timestamp=String(Date.now());
+ const request={requestId,releaseSha,phase:'SYNC',executionMode:'OFF',triggerSource:'cloudflare',configProof:configurationProof(fixtureKeys,{runtime:'off',mode:'off'},environment,releaseSha)},body=JSON.stringify(request);let entries=0;
+ const endpoint=createBriefingEndpoint({secret,environment,runPhase:args=>{entries++;return runExecutionPhase({...args,db,environment,keys:fixtureKeys,env:{timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1},deps:{guardian:async()=>null,drainWebhook:async()=>({}),resumeOnboarding:async()=>[],runUser:()=>{throw Error('UNAUTHORIZED_USER_MUST_NOT_RUN');}}});}});
+ const req={method:'POST',url:BRIEFING_TRIGGER.PATH,headers:{'content-type':'application/json','x-briefing-request-id':requestId,'x-briefing-timestamp':timestamp,'x-briefing-signature':signTriggerRequest({timestamp,requestId,method:'POST',path:BRIEFING_TRIGGER.PATH,body},secret)}};
+ const response=await endpoint(req,body);assert.equal(response.status,200);assert.equal(response.body.ok,true);assert.equal(response.body.drainAuthorized,false);assert.deepEqual(await endpoint(req,body),response);assert.equal(entries,1);
+ const execution=(await db.raw.execute({sql:"SELECT state,finalized_at FROM phase4_executions WHERE json_extract(canonical_request_json,'$.requestId')=?",args:[requestId]})).rows[0];assert.equal(execution.state,'FINALIZED_SUCCESS');assert.ok(execution.finalized_at);
+ assert.equal(await createStage7Runtime({db,environment}),null);await verifyPhase4Schema(db.raw,33);
+ assert.deepEqual((await db.raw.execute('SELECT * FROM journal_tracking_preferences')).rows,beforePreferences);
+ assert.deepEqual((await db.raw.execute('SELECT * FROM telegram_operations')).rows,beforeTelegram);
+ assert.deepEqual((await db.raw.execute('SELECT * FROM report_claims')).rows,beforeClaims);
+ assert.deepEqual((await db.raw.execute('PRAGMA foreign_key_check')).rows,[]);assert.equal((await db.raw.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');
+ assert.throws(()=>executionProfile({...environment,STAGE7_COMPANION:'on'}),/FEATURES_OFF/);
+});
+test('v33 runtime refuses unmigrated v32 until controlled migration',async t=>{
+ const {db}=await deliveryFixture(t,{version:32});await assert.rejects(db.admitRuntime(),/CONTROLLED_MIGRATION_REQUIRED/);
+});

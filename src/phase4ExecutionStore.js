@@ -53,6 +53,9 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
  if(pilot.some(Boolean))profile.push(['beta-pilot-v1',...pilot]);
  const allowance=['ALLOWANCE_ID','STOP'].map(name=>environment[`PHASE4_BETA_PILOT_${name}`]??'');
  if(allowance.some(Boolean))profile.push(['beta-pilot-allowance-v1',...allowance]);
+ if(environment.PHASE4_EXECUTION_PROFILE==='COMPANION_V33_RECOVERY')profile.push(['companion-recovery-profile-v1','COMPANION_V33_RECOVERY']);
+ const companion=['STAGE7_COMPANION','STAGE7_COMPANION_USER_IDS','STAGE7_COACH_MIN_HOURS','STAGE7_COACH_MAX_HOURS','STAGE7_JOURNAL_GAP_HOURS'].map(name=>environment[name]??'');
+ if(companion.some(Boolean))profile.push(['stage7-companion-configuration-v1',...companion]);
  const scope=continuationScope(environment,config.runtime==='on'?'SHADOW':'OFF');
  if(scope)profile.push(['phase4-continuation-scope-v1',scope]);
  return keys.lookup(profile);

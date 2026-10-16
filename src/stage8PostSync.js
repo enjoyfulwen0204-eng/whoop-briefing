@@ -7,6 +7,7 @@ import {configurationProof} from './phase4ExecutionStore.js';
 import {publicBetaConfiguration} from './publicBetaConfig.js';
 import {runningReleaseSha} from './phase4Release.js';
 import {summarizeSync} from './syncResult.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
 const fail=(code='STAGE8_FINALIZED_SYNC_REQUIRED')=>{throw Object.assign(Error(code),{code});};
 const sign=(keys,value)=>keys.lookup(['stage8-post-sync-metadata-v1',canonicalJson(value)]);
 const keyFor=(keys,id,uid)=>'stage8:sync-subject:'+keys.lookup(['stage8-sync-subject-v1',id,uid]);
@@ -53,13 +54,31 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
   const receipt=(await db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE receipt_key=?',args:[value.receipt]})).rows[0];
   if(!receipt||receipt.execution_id!==executionId||receipt.request_digest!==row.identity_digest||receipt.scope_key!==row.scope_key||receipt.generation!==value.generation||receipt.committed_at>row.finalized_at)fail();
   const progressKey='stage8:sync-progress:'+keys.lookup(['stage8-sync-progress-v1',executionId,userId,value.scope]),
-   lock='stage8:live-subject:'+keys.lookup(['stage8-live-subject-lock-v1',userId]),owner=await db.acquireLock(lock,{ttlMs:60000});
+   lock='stage8:live-subject:'+keys.lookup(['stage8-live-subject-lock-v1',userId]),lockAt=Date.now(),lockExpiresAt=lockAt+60000,
+   owner=await db.acquireLock(lock,{ttlMs:60000,now:new Date(lockAt)});
   if(!owner)return {status:'BUSY'};
-  const check=async()=>{
-   if(!enabled()||!eligible(userId)||Date.now()-row.created_at>=EXECUTION_WORK_MAX_AGE_MS||await snapshot(db,keys,userId)!==value.scope||!await db.holdsLock(lock,owner))fail();
-   const current=(await db.raw.execute({sql:'SELECT state,result_digest,generation FROM phase4_executions WHERE execution_id=?',args:[executionId]})).rows[0];
+  const assertLocal=()=>{if(!enabled()||!eligible(userId)||Date.now()-row.created_at>=EXECUTION_WORK_MAX_AGE_MS||Date.now()>=lockExpiresAt)fail();};
+  const check=readOnlyProcessingCheck(async()=>{
+   assertLocal();
+   // These independent non-health observations share the owned transaction's
+   // transport. Every original check remains fresh; settle all reads before
+   // rejecting in the original scope, lock, then parent order.
+   const observed=await Promise.allSettled([
+    Promise.resolve().then(()=>snapshot(db,keys,userId)),
+    Promise.resolve().then(()=>db.holdsLock(lock,owner)),
+    Promise.resolve().then(()=>db.raw.execute({sql:'SELECT state,result_digest,generation FROM phase4_executions WHERE execution_id=?',args:[executionId]})),
+   ]);
+   if(observed[0].status==='rejected')throw observed[0].reason;
+   if(observed[0].value!==value.scope)fail();
+   if(observed[1].status==='rejected')throw observed[1].reason;
+   if(!observed[1].value)fail();
+   if(observed[2].status==='rejected')throw observed[2].reason;
+   const current=observed[2].value.rows[0];
    if(current?.state!=='FINALIZED_SUCCESS'||current.result_digest!==row.result_digest||current.generation!==row.generation)fail();
-  };
+   // A batch is not an authority lease. Reject if its original local policy,
+   // parent age or exact acquired lock deadline expired while reads settled.
+   assertLocal();
+  });
   try{
    await check();const saved=await db.getState(progressKey);let ordinal=0,done=false;
    if(saved){const {hmac,...p}=JSON.parse(saved);if(hmac!==sign(keys,{progressKey,...p})||!Number.isSafeInteger(p.ordinal)||p.ordinal<0||p.ordinal>=64||typeof p.done!=='boolean')fail();ordinal=p.ordinal;done=p.done;}

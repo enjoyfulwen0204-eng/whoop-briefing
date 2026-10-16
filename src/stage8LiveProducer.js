@@ -12,6 +12,7 @@ import {createPhase4Stage6} from './phase4Reanalysis.js';
 import {createStage8LiveExecutionRunner} from './stage8LiveExecution.js';
 import {publishStage8Live,verifyStage8LivePublication} from './stage8LivePublication.js';
 import {createExecutionBudget,currentExecutionBudget,withExecutionBudget} from './executionBudget.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 /** Server composition only. No request may supply source results, receipts,
  * execution mode, SQL, transport, credentials, consent or follow relationships. */
@@ -68,15 +69,15 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
   const executionId=requestId?keys.lookup(['stage8-live-request-v1',userId,requestId]):null;
   const prior=executionId&&(await db.raw.execute({sql:'SELECT 1 FROM stage8_live_executions WHERE execution_id=?',args:[executionId]})).rows.length;
   if(!prior)await prepareFreshGeneration(userId);
-  const result=await db.withRuntimeFence(()=>ready(userId),()=>execute({userId,...(requestId?{requestId:executionId}:{})}));
+  const result=await db.withRuntimeFence(readOnlyProcessingCheck(()=>ready(userId)),()=>execute({userId,...(requestId?{requestId:executionId}:{})}));
   const ctx=await capture(userId),{computation}=await core.assertContext(ctx);
   let publication={status:'ANALYSIS_UPDATING'};
   if(computation.last_completed_generation===ctx.inputGeneration){
    const prior=(await db.raw.execute({sql:'SELECT 1 FROM stage8_live_publications WHERE user_id=? AND input_generation=?',args:[userId,ctx.inputGeneration]})).rows.length;
    // Original canonical job executions are finalized before the separately
    // signed subject-alert execution. First aggregate publication follows both.
-   if(executeAlerts&&!prior)await db.withRuntimeFence(()=>ready(userId),()=>executeAlerts({userId,requestId:subjectAlertExecutionId(keys,ctx)}));
-   publication={status:'CURRENT',...await db.withRuntimeFence(()=>ready(userId),()=>publishStage8Live(core,ctx,capability))};
+   if(executeAlerts&&!prior)await db.withRuntimeFence(readOnlyProcessingCheck(()=>ready(userId)),()=>executeAlerts({userId,requestId:subjectAlertExecutionId(keys,ctx)}));
+   publication={status:'CURRENT',...await db.withRuntimeFence(readOnlyProcessingCheck(()=>ready(userId)),()=>publishStage8Live(core,ctx,capability))};
   }
   await assertContext(ctx);return Object.freeze({...result,publication});
  }

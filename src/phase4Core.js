@@ -210,7 +210,12 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   }
   async function run(context,fn,options={}) {
     const job=jobScope.getStore();
-    const coalescible=schemaVersion===32&&job&&context.executionMode==='SHADOW'
+    // Intern an identical LIVE producer control callback, never its result.
+    // Every nested before-check and the fresh original terminal/COMMIT checks
+    // still run; one owned unit need not enqueue hundreds of identical tips.
+    const coalescible=job&&(schemaVersion===32&&context.executionMode==='SHADOW'
+      ||schemaVersion===35&&liveAllocation&&context.executionMode==='LIVE'&&context.providerRequired
+        &&isLiveExecution(currentDurableExecution(),client,keys,context.userId,context))
       &&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
       &&['allowPurge','allowInactive','ignoreInput'].every(key=>options[key]===undefined||options[key]===false);
     const prior=coalescible?terminalControlChecks.get(context)?.get(job.check):null,execution=currentDurableExecution(),budget=currentExecutionBudget();

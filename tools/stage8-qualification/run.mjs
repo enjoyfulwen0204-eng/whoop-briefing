@@ -2,6 +2,7 @@
 // resource-limited container. This module has no import-time side effects.
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {mkdtempSync,mkdirSync,copyFileSync,readFileSync,lstatSync,realpathSync,appendFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -34,6 +35,29 @@ export function dockerArguments({name,image,checkout,commonGit,output,uid,gid}){
  return args;
 }
 const number=(value,label)=>{assert.ok(Number.isSafeInteger(value)&&value>=0,`INVALID_METRIC:${label}`);return value;};
+const phases=new Set(['PRECHECK','CHECKOUT','IMAGE_BUILD','QUALIFICATION','REPORT','CLEANUP','SUMMARY']);
+const codePattern=/^[A-Za-z][A-Za-z0-9_:-]{0,79}$/;
+export function controlFailure(error,phase){
+ const message=String(error?.message??error),candidate=/^[A-Z][A-Z0-9_]{1,79}$/.test(message)?message:String(error?.code??error?.name??'ERROR');
+ return {phase:phases.has(phase)?phase:'UNKNOWN',code:codePattern.test(candidate)?candidate:'ERROR',messageSha256:createHash('sha256').update(message).digest('hex')};
+}
+const tagFailure=(error,phase)=>Object.assign(new Error('ISOLATED_QUALIFICATION_CONTROL_FAILED',{cause:error}),{qualificationDiagnostic:controlFailure(error,phase)});
+function sourceCounts(report){
+ const tables={sleep:'whoop_sleeps',recovery:'whoop_recoveries',cycle:'whoop_cycles',workout:'whoop_workouts'},expected=report.input?.expectedTotalRows,actual=report.seededRows;
+ if(expected===undefined||actual===undefined){assert.notEqual(report.status,'LOCAL_LIVE_HTTP_VERIFIED','VERIFIED_SOURCE_COUNTS_REQUIRED');return null;}
+ const counts={expected:{},actual:{}};
+ for(const [kind,table] of Object.entries(tables)){counts.expected[kind]=number(expected[kind],`expected:${kind}`);counts.actual[kind]=number(actual[table],`actual:${kind}`);}
+ if(report.status==='LOCAL_LIVE_HTTP_VERIFIED')assert.deepEqual(counts.actual,counts.expected,'VERIFIED_SOURCE_COUNTS_MUST_MATCH');
+ return counts;
+}
+function sourceFailures(report){
+ const failures=report.failures??[];assert.ok(Array.isArray(failures)&&failures.length<=1024,'BOUNDED_FAILURES_REQUIRED');
+ return failures.slice(0,16).map(failure=>{
+  assert.match(failure.stage??'',/^(SETUP|ANALYSIS|VERIFY|FINAL|LEG:[abc]|READBACK:[abc])$/,'FAILURE_STAGE_REQUIRED');
+  assert.match(failure.code??'',codePattern,'FAILURE_CODE_REQUIRED');assert.match(failure.messageSha256??'',/^[a-f0-9]{64}$/,'FAILURE_HASH_REQUIRED');
+  return {stage:failure.stage,code:failure.code,messageSha256:failure.messageSha256};
+ });
+}
 function safeProfile(report,expectedSha){
  assert.ok(['empty','dense'].includes(report.profile),'PROFILE_REQUIRED');
  assert.equal(report.productionEvidence,false);assert.equal(report.releaseSha,expectedSha,'CANDIDATE_IDENTITY_CHANGED');
@@ -52,17 +76,18 @@ function safeProfile(report,expectedSha){
   for(const field of ['oom','oom_kill'])number(memory[field],field);
   assert.ok(/^\d+$/.test(String(finalMemory.memoryPeak??'')),'ACTUAL_CGROUP_PEAK_REQUIRED');
  }
- const decimal=value=>/^\d+$/.test(String(value??''))?Number(value):null;
+ const decimal=value=>/^\d+$/.test(String(value??''))?number(Number(value),'decimal'):null;
  return {profile:report.profile,status:['LOCAL_LIVE_HTTP_VERIFIED','LOCAL_LIVE_HTTP_PARTIAL','LOCAL_LIVE_HTTP_FAILED','INTERRUPTED_UNKNOWN_IN_FLIGHT'].includes(report.status)?report.status:'UNKNOWN',
   calls,elapsedMs:number(report.elapsedMs??0,'elapsedMs'),finishedUsers:report.finishedUsers?.length??0,blockedUsers:report.blockedUsers?.length??0,
   completedJobs:(final.jobs??[]).filter(row=>row.state==='COMPLETED'&&row.completed_generation===row.requested_generation).length,
   currentPublications:number(final.publications??0,'publications'),completionProofs:number(final.completionProofs??0,'completionProofs'),
   explicitEmptyVerified:report.explicitEmptyVerified===true,
+  sourceRows:sourceCounts(report),
   resources:{memoryPeakBytes:decimal(finalMemory.memoryPeak),sampledNodeRssPeakBytes:decimal(report.resources?.sampledRssPeak),
-   cpuUsageMicroseconds:report.resources?.cgroupCpuDelta?.usage_usec??null,oom:number(memory.oom??0,'oom'),oomKills:number(memory.oom_kill??0,'oomKills')},
+   cpuUsageMicroseconds:report.resources?.cgroupCpuDelta?.usage_usec===undefined?null:number(report.resources.cgroupCpuDelta.usage_usec,'cpuUsageMicroseconds'),oom:number(memory.oom??0,'oom'),oomKills:number(memory.oom_kill??0,'oomKills')},
   http:{requests:number(http.requests??0,'httpRequests'),requestErrors:number(http.requestErrors??0,'requestErrors'),responseErrors:number(http.responseErrors??0,'responseErrors'),
    unresolvedTransactions:number(http.openTransactions??0,'openTransactions'),transactionMaximumMs:number(http.transactionDurationUpperBounds?.maximumMs??0,'transactionMaximumMs')},
-  failureCount:report.failures?.length??0};
+  failureCount:report.failures?.length??0,failures:sourceFailures(report)};
 }
 export function summarize({reports,expectedSha,exitCode}){
  candidateSha(expectedSha);assert.equal(reports.length,2,'TWO_PROFILES_REQUIRED');
@@ -87,7 +112,7 @@ export function main(repository,expectedSha){
  const sandbox=mkdtempSync(join(process.env.RUNNER_TEMP??tmpdir(),'stage8-offline-')),checkout=join(sandbox,'candidate'),context=join(sandbox,'image'),output=join(sandbox,'qualification');
  privateDirectory(context);privateDirectory(output);
  const suffix=`${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`,name=`stage8-qualification-${suffix}`,image=`stage8-live-qualification:${suffix}`;
- let exitCode=2,result=null;
+ let exitCode=2,result=null,primaryError=null,phase='CHECKOUT';
  try{
   run('git',['worktree','add','--detach',checkout,expectedSha],{cwd:source,git:true});
   const commonGit=realpathSync(resolve(checkout,run('git',['rev-parse','--git-common-dir'],{cwd:checkout,git:true,capture:true}).stdout.trim()));
@@ -95,25 +120,33 @@ export function main(repository,expectedSha){
   for(const path of ['package.json','package-lock.json','test/stage8-live-linux-http.sh','test/stage8-live-linux-http.mjs','test/stage8-live-linux-preflight.test.js'])regularFile(join(checkout,path));
   for(const file of ['package.json','package-lock.json'])copyFileSync(join(checkout,file),join(context,file));
   copyFileSync(join(sourceDirectory,'Dockerfile'),join(context,'Dockerfile'));
+  phase='IMAGE_BUILD';
   const build=spawnSync('timeout',['--signal=TERM','--kill-after=10s','600s','docker','build','--pull','--platform','linux/amd64','--tag',image,
    '--build-arg',`QUALIFICATION_ROOT=${checkout}`,'--build-arg',`QUALIFICATION_UID=${uid}`,'--build-arg',`QUALIFICATION_GID=${gid}`,context],{stdio:'inherit'});
   assert.ifError(build.error);assert.equal(build.status,0,'PINNED_IMAGE_BUILD_REQUIRED');
+  phase='QUALIFICATION';
   const qualification=spawnSync('timeout',['--signal=TERM','--kill-after=10s',`${LIMITS.wallSeconds}s`,'docker',...dockerArguments({name,image,checkout,commonGit,output,uid,gid})],{stdio:'inherit'});
   assert.ifError(qualification.error);exitCode=qualification.status??2;
+  phase='REPORT';
   result=summarize({reports:['empty','dense'].map(profile=>readReport(join(output,profile,'report.json'))),expectedSha,exitCode});
- }finally{
+ }catch(error){primaryError=tagFailure(error,phase);}finally{
   // A watchdog can kill the Docker client while its container still exists.
   // Remove that exact run name even after partial/failing qualification.
-  const removed=spawnSync('timeout',['--signal=KILL','15s','docker','rm','-f',name],{stdio:'ignore'});
-  const stillPresent=run('docker',['ps','-aq','--filter',`name=^/${name}$`],{capture:true});
-  assert.equal(stillPresent.stdout.trim(),'','CONTAINER_CLEANUP_UNCONFIRMED');
-  run('git',['worktree','remove','--force',checkout],{cwd:source,git:true,check:false});
-  if(removed.error)throw removed.error;
+  try{
+   const removed=spawnSync('timeout',['--signal=KILL','15s','docker','rm','-f',name],{stdio:'ignore'});
+   const stillPresent=run('docker',['ps','-aq','--filter',`name=^/${name}$`],{capture:true});
+   assert.equal(stillPresent.stdout.trim(),'','CONTAINER_CLEANUP_UNCONFIRMED');
+   run('git',['worktree','remove','--force',checkout],{cwd:source,git:true,check:false});
+   if(removed.error)throw removed.error;
+  }catch(error){console.error('ISOLATED_QUALIFICATION_CONTROL_FAILURE '+JSON.stringify(controlFailure(error,'CLEANUP')));if(!primaryError)primaryError=tagFailure(error,'CLEANUP');}
  }
- assert.ok(result,'NO_QUALIFICATION_RESULT');console.log(JSON.stringify(result,null,2));
- if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'```json\n'+JSON.stringify(result,null,2)+'\n```\n');
+ if(primaryError)throw primaryError;
+ try{
+  assert.ok(result,'NO_QUALIFICATION_RESULT');console.log(JSON.stringify(result,null,2));
+  if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,'```json\n'+JSON.stringify(result,null,2)+'\n```\n');
+ }catch(error){throw tagFailure(error,'SUMMARY');}
  return result.status==='ISOLATED_LINUX_LIVE_HTTP_VERIFIED'?0:2;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
- try{process.exitCode=main(process.argv[2],process.argv[3]);}catch(error){console.error(`ISOLATED_LINUX_QUALIFICATION_UNVERIFIED: ${error.code??error.name}`);process.exitCode=2;}
+ try{process.exitCode=main(process.argv[2],process.argv[3]);}catch(error){console.error('ISOLATED_LINUX_QUALIFICATION_UNVERIFIED '+JSON.stringify(error.qualificationDiagnostic??controlFailure(error,'PRECHECK')));process.exitCode=2;}
 }

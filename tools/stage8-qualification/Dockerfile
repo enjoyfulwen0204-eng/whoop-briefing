@@ -10,11 +10,14 @@ ARG QUALIFICATION_GID
 WORKDIR ${QUALIFICATION_ROOT}
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund \
-    && test "$(node --version)" = v22.23.3 \
+    && node --version > /tmp/node-version \
+    && printf 'QUALIFICATION_NODE_VERSION=' && cat /tmp/node-version \
+    && test "$(cat /tmp/node-version)" = v22.23.3 \
     && isolated-sqld --version > /tmp/sqld-version \
-    && grep -Eq '^sqld 0[.]24[.]33($| )' /tmp/sqld-version \
+    && printf 'QUALIFICATION_SQLD_VERSION=' && cat /tmp/sqld-version \
+    && grep -Eq '^sqld sqld 0[.]24[.]33 [(]f8fb14f3 2026-08-11[)]$' /tmp/sqld-version \
     && command -v git && command -v timeout \
     && chown "${QUALIFICATION_UID}:${QUALIFICATION_GID}" "${QUALIFICATION_ROOT}" \
-    && rm /tmp/sqld-version
+    && rm /tmp/node-version /tmp/sqld-version
 # The trusted runner replaces this command explicitly. No application starts.
 CMD ["/bin/false"]

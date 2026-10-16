@@ -19,6 +19,7 @@ import { log } from './logger.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {requireSettledOperation} from './phase4ExecutionContext.js';
+import {currentExecutionBudget} from './executionBudget.js';
 import {requireBetaPilotGrant,requireCurrentBetaPilotAttempt} from './betaPilotPermit.js';
 
 const capabilities=new WeakSet();
@@ -469,7 +470,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     if(!live&&db.raw.protocol!=='file'){requireBetaPilotGrant(pilotGrant,userId,db.raw);if(requireCurrentBetaPilotAttempt(userId,db.raw)!==pilotGrant)fail('BETA_PILOT_DENIED');}
     if(live&&(!userId||!hasLiveProducingAuthority(liveProducingAuthority,db.raw,keys,userId)))fail('PHASE4_LIVE_NOT_AUTHORIZED');
     requireTriggerSource(triggerSource);const budget=stage6Budget(triggerSource,overrides),started=monotonicNow();
-    const deadline=started+budget.maxWallMs-budget.safetyMarginMs;
+    // LIVE shares its producer's already-consumed wall clock. Reserve the
+    // original settlement margin inside that actual parent deadline; never
+    // grant a fresh thirty productive seconds after preparation/admission.
+    const inherited=live?currentExecutionBudget():null;
+    const productiveMs=Math.min(budget.maxWallMs-budget.safetyMarginMs,
+      inherited?Math.max(0,inherited.remainingMs()-budget.safetyMarginMs):Infinity);
+    const deadline=started+productiveMs;
     const assertBudget=()=>{if(monotonicNow()>=deadline)fail('PHASE4_DRAIN_DEADLINE_REACHED');};
     const out={triggerSource,attemptedJobs:0,claimedJobs:0,itemsAttempted:0,processedItems:0,completedJobs:0,failedJobs:0,failures:[],stoppedForBudget:false,unitsCommitted:0};
     log.info('stage6_discovery_start',{source:triggerSource});

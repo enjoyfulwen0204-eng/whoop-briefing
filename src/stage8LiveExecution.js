@@ -74,7 +74,8 @@ export function createStage8LiveExecutionRunner({db,keys,capability,capture,asse
   budget.assert();return Object.freeze({replayed:false,recovered:Boolean(prior),executionId:requestId,result:Object.freeze(result)});
  }
  return async function run(request={}){
-  const parent=currentExecutionBudget(),budget=createExecutionBudget({budgetMs:45000,signal:parent?.signal,localAuthority:()=>parent?.assert()});
+  const parent=currentExecutionBudget();parent?.assert();const startedAtMs=Date.now();
+  const budget=createExecutionBudget({startedAtMs,budgetMs:Math.max(1,Math.min(45000,parent?.remainingMs()??45000)),signal:parent?.signal,localAuthority:()=>parent?.assert()});
   // Abort revokes future HTTP/SQL authority. It is not a join: wait for the
   // actual callback and its transaction cleanup, including unknown COMMIT ACKs.
   // The durable 45s deadline and 60s lease above remain unchanged.

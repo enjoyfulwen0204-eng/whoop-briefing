@@ -82,7 +82,8 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
  }
  async function run(request){
   if(currentDurableExecution())fail('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');
-  const parent=currentExecutionBudget(),contexts=[],budget=createExecutionBudget({budgetMs:45000,signal:parent?.signal,
+  const parent=currentExecutionBudget();parent?.assert();const startedAtMs=Date.now();
+  const contexts=[],budget=createExecutionBudget({startedAtMs,budgetMs:Math.max(1,Math.min(45000,parent?.remainingMs()??45000)),signal:parent?.signal,
    localAuthority(){parent?.assert();liveProducerConfiguration(capability,db.raw,keys,request?.userId);}});
   let result,failure,failed=false;
   try{result=await contextLeases.run(contexts,()=>withExecutionBudget(budget,async()=>{budget.assert();const value=await runWork(request);budget.assert();return value;}));}

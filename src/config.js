@@ -830,29 +830,29 @@ const REQUIRED_ENV = [
   'TURSO_AUTH_TOKEN',
 ];
 
-export function loadEnv({ require: requireList = REQUIRED_ENV } = {}) {
-  const missing = requireList.filter((k) => !process.env[k]);
+export function loadEnv({ require: requireList = REQUIRED_ENV, environment = process.env } = {}) {
+  const missing = requireList.filter((k) => !environment[k]);
   if (missing.length) {
     throw new Error(`缺少環境變數：${missing.join(', ')}`);
   }
   return {
-    whoopClientId: process.env.WHOOP_CLIENT_ID,
-    whoopClientSecret: process.env.WHOOP_CLIENT_SECRET,
-    whoopRedirectUri: process.env.WHOOP_REDIRECT_URI,
-    openrouterApiKey: process.env.OPENROUTER_API_KEY,
-    openrouterModel: process.env.OPENROUTER_MODEL || COACH.DEFAULT_MODEL,
-    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
-    telegramChatId: process.env.TELEGRAM_CHAT_ID,
-    tursoUrl: process.env.TURSO_DATABASE_URL,
-    tursoToken: process.env.TURSO_AUTH_TOKEN,
-    timezone: process.env.TIMEZONE || 'Asia/Taipei',
-    dryRun: process.env.DRY_RUN === '1',
+    whoopClientId: environment.WHOOP_CLIENT_ID,
+    whoopClientSecret: environment.WHOOP_CLIENT_SECRET,
+    whoopRedirectUri: environment.WHOOP_REDIRECT_URI,
+    openrouterApiKey: environment.OPENROUTER_API_KEY,
+    openrouterModel: environment.OPENROUTER_MODEL || COACH.DEFAULT_MODEL,
+    telegramBotToken: environment.TELEGRAM_BOT_TOKEN,
+    telegramChatId: environment.TELEGRAM_CHAT_ID,
+    tursoUrl: environment.TURSO_DATABASE_URL,
+    tursoToken: environment.TURSO_AUTH_TOKEN,
+    timezone: environment.TIMEZONE || 'Asia/Taipei',
+    dryRun: environment.DRY_RUN === '1',
     // 由 GitHub Actions workflow 注入（git log -1 --format=%cI）。
     // Render / 本機不會有 → 60 天提醒自動跳過。
-    repoLastCommitAt: process.env.REPO_LAST_COMMIT_AT || null,
+    repoLastCommitAt: environment.REPO_LAST_COMMIT_AT || null,
     // cron 併發上限。TIMEZONE 只是 bootstrap 預設，真正的時區在 users.timezone。
-    maxUserConcurrency: Number(process.env.MAX_USER_CONCURRENCY) > 0
-      ? Number(process.env.MAX_USER_CONCURRENCY)
+    maxUserConcurrency: Number(environment.MAX_USER_CONCURRENCY) > 0
+      ? Number(environment.MAX_USER_CONCURRENCY)
       : CRON.MAX_USER_CONCURRENCY,
   };
 }

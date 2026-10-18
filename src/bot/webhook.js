@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createBusinessWebhookLifecycle} from '../businessWebhookLifecycle.js';
 import {createCompanionCoachContext} from '../companionCoachContext.js';
 import {createStage8PresentationSender} from '../stage8PresentationSender.js';
 import {createStage7PresentationSender} from '../stage7PresentationSender.js';
@@ -424,38 +425,56 @@ export function createWebhookServer(opts) {
  * 它們的額外設定採 fail-closed feature gate，缺少時 /health 會明確回報 scheduler
  * 狀態，詳見 docs/telegram-webhook.md。
  */
-export async function main({ port = process.env.PORT, listen = true } = {}) {
-  loadDotEnvIfPresent();
-  const profile=executionProfile(process.env);
+export async function createBusinessWebhookRuntime({environment=process.env,runtimeEpoch}={}) {
+  // Reserved for the permanent DB epoch adapter. Never silently accept fake authority.
+  // That adapter must capture ONE opaque scope here and reuse it for every ownDb.
+  if(runtimeEpoch!==undefined)throw Object.assign(Error('BUSINESS_RUNTIME_EPOCH_UNWIRED'),{code:'BUSINESS_RUNTIME_EPOCH_UNWIRED'});
+  const selectedEnvironment=Object.freeze({...environment});
+  const profile=executionProfile(selectedEnvironment);
   const env = loadEnv({
+    environment:selectedEnvironment,
     require: [
       'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET',
       'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'OPENROUTER_API_KEY',
     ],
   });
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  const briefingTriggerSecret = process.env.BRIEFING_TRIGGER_SECRET;
-  const betaConfig = publicBetaConfiguration(process.env);
-  const authorityKeys = phase4AuthorityKeys(process.env);
+  const secret = selectedEnvironment.TELEGRAM_WEBHOOK_SECRET;
+  const briefingTriggerSecret = selectedEnvironment.BRIEFING_TRIGGER_SECRET;
+  const betaConfig = publicBetaConfiguration(selectedEnvironment);
+  const authorityKeys = phase4AuthorityKeys(selectedEnvironment);
 
-  const runtimeProfile=schemaTransitionRuntimeProfileFor({environment:process.env,keys:authorityKeys});
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken, phase4Keys: authorityKeys,runtimeProfile });
-  if(Number(process.versions.node.split('.')[0])<22){db.close();throw new Error('NODE_22_REQUIRED');}
+  let db,continuation;const ownedDatabases=new Set();
+  const ownDb=()=>{
+    const runtimeProfile=schemaTransitionRuntimeProfileFor({environment:selectedEnvironment,keys:authorityKeys});
+    const owned=createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:authorityKeys,runtimeProfile});
+    ownedDatabases.add(owned);return owned;
+  };
+  const closeOwned=async owned=>{if(ownedDatabases.has(owned)){await owned.close();ownedDatabases.delete(owned);}};
+  const lifecycle=createBusinessWebhookLifecycle({stopBackground:()=>continuation?.stop(),closeDatabase:async()=>{
+    const failures=[];for(const owned of [...ownedDatabases])try{await closeOwned(owned);}catch(error){failures.push(error);}
+    if(failures.length)throw Object.assign(new AggregateError(failures,'BUSINESS_DATABASE_CLOSE_FAILED'),{code:'BUSINESS_DATABASE_CLOSE_FAILED'});
+  }});
+  const withOwnedDb=run=>async args=>{
+    const owned=ownDb();try{return await run({...args,db:owned,keys:authorityKeys,environment:selectedEnvironment,env});}
+    finally{await closeOwned(owned);}
+  };
+  try{
+  db=ownDb();
+  if(Number(process.versions.node.split('.')[0])<22)throw new Error('NODE_22_REQUIRED');
   const admissionBudget=createExecutionBudget({budgetMs:30_000});
   try { await admissionBudget.run(()=>db.admitRuntime({source:'event'})); }
-  catch(error){db.close();throw error;}
   finally{admissionBudget.close();}
 
   const coachFor = (userId) => createCoach({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId,
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
-  const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
+  const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:selectedEnvironment,env});
   let stage8;
   const coachContext=profile===SCHEMA_TRANSITION_PROFILE?null:createCompanionCoachContext({getScopes:()=>stage8?.scopes});
-  const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env,coachContext});
-  stage8=profile===SCHEMA_TRANSITION_PROFILE?null:await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
-  const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
+  const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:selectedEnvironment,coachContext});
+  stage8=profile===SCHEMA_TRANSITION_PROFILE?null:await createStage8Runtime({db,keys:authorityKeys,environment:selectedEnvironment,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
+  const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:selectedEnvironment});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8,phase4Reader });
   const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
@@ -501,7 +520,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
     sendReply: sendPresentation,
-    answerCallback: id=>api.answerCallbackQuery(id),
+    // updateProcessor bounds its own callback wait; retain ownership of the
+    // underlying local API promise even if that wait finishes first.
+    answerCallback: id=>lifecycle.fork(()=>api.answerCallbackQuery(id)),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.
     sendTyping: ({ chatId }) => api.sendChatAction(chatId, 'typing'),
@@ -512,11 +533,11 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
 
   // ---- WHOOP webhook（V1.2 Phase 1）：預設關閉 ----------------------------
   const whoopWebhook = whoopWebhookConfiguration({
-    enabledFlag: process.env.WHOOP_WEBHOOK_ENABLED,
-    clientSecret: process.env.WHOOP_CLIENT_SECRET,
+    enabledFlag: selectedEnvironment.WHOOP_WEBHOOK_ENABLED,
+    clientSecret: selectedEnvironment.WHOOP_CLIENT_SECRET,
   });
   const whoopIngest = whoopWebhook.enabled
-    ? createWhoopWebhookIngest({ db, clientSecret: process.env.WHOOP_CLIENT_SECRET })
+    ? createWhoopWebhookIngest({ db, clientSecret: selectedEnvironment.WHOOP_CLIENT_SECRET })
     : null;
   // 只記狀態名稱，絕不記密鑰或它的長度。
   log.info('whoop_webhook_configuration', { state: whoopWebhook.state });
@@ -529,7 +550,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret,
-      runPhase: runExecutionPhase,discoverContinuation:discoverExecutionContinuation,runReadiness:runMorningReadiness,runCompanion:runCompanionService }) : null;
+      environment:selectedEnvironment,runPhase:withOwnedDb(runExecutionPhase),discoverContinuation:withOwnedDb(discoverExecutionContinuation),runReadiness:withOwnedDb(runMorningReadiness),runCompanion:withOwnedDb(runCompanionService) }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //
@@ -559,7 +580,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
         .catch((err) => log.warn('onboarding_notify_failed', { error: describeError(err) }));
       await db.assertAccountActive(userId, expectedLifecycleGeneration);
       // 不 await：回呼要在瀏覽器面前很快結束。
-      runOnboardingBootstrap({
+      lifecycle.fork(()=>runOnboardingBootstrap({
         db, userId, env, expectedLifecycleGeneration,
         deps: {
           notify: async (uid, kind) => {
@@ -569,43 +590,71 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
             });
           },
         },
-      }).catch((err) => log.error('onboarding_bootstrap_detached_failed', {
+      })).catch((err) => log.error('onboarding_bootstrap_detached_failed', {
         user_id: userId, error: describeError(err),
       }));
     },
   }) : null;
 
-  const server = createWebhookServer({
+  const canonicalHandler = createWebhookHandler({
     processUpdate: processor.processUpdate, secret, briefingEndpoint, schedulerConfigured,
     schedulerState: scheduler.state,
     whoopIngest,
     oauthCallback,
   });
-  const continuation=stage8?.analysis&&process.env.STAGE8_POST_SYNC==='on'
+  continuation=stage8?.analysis&&selectedEnvironment.STAGE8_POST_SYNC==='on'
     ?createStage8ContinuationLoop({resume:()=>stage8.analysis.resume(),onError:error=>log.warn('stage8_post_sync_fenced',{code:error.code??'STAGE8_POST_SYNC_FAILED'})}):null;
-  server.once('close',()=>{void continuation?.stop();});
-  if (!listen) return { server, db };
-
-  const p = Number(port);
-  await new Promise((resolve) => {
-    // Render 要求綁 0.0.0.0 才連得進來（只綁 localhost 會被判定沒起來）。
-    server.listen(Number.isFinite(p) ? p : 0, '0.0.0.0', resolve);
+  const handler=lifecycle.trackedHandler(async(req,res)=>{
+    try{await canonicalHandler(req,res);}
+    catch(error){log.error('telegram_webhook_handler_failed',{error:describeError(error)});
+      if(!res.headersSent)res.writeHead(500,{'content-type':'application/json'});res.end('{"ok":false}');}
+  },(_req,res)=>{
+    if(!res.headersSent)res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});res.end('{"ok":false}');
   });
-  log.info('telegram_webhook_listening', {
-    port: server.address()?.port ?? null, path: TELEGRAM_BOT.WEBHOOK_PATH,
+  return Object.freeze({handler,db,closeAdmission:lifecycle.closeAdmission,waitForDrained:lifecycle.waitForDrained,dispose:lifecycle.dispose,
+    status:()=>Object.freeze({...lifecycle.status(),ownedDatabases:ownedDatabases.size}),
+    startBackground(){if(lifecycle.status().admission!=='OPEN')throw Object.assign(Error('TRANSITION_BUSINESS_ADMISSION_CLOSED'),{code:'TRANSITION_BUSINESS_ADMISSION_CLOSED'});continuation?.start();},
   });
+  }catch(error){
+    try{lifecycle.closeAdmission('construction_failure_0001');await lifecycle.dispose({signal:new AbortController().signal});}
+    catch(cleanup){throw Object.assign(new AggregateError([error,cleanup],'BUSINESS_CONSTRUCTION_CLEANUP_FAILED'),{code:'BUSINESS_CONSTRUCTION_CLEANUP_FAILED'});}
+    throw error;
+  }
+}
 
-  continuation?.start();let closing;
-  const shutdown = (signal) => {
+/** Standalone compatibility entry. The supervisor calls the owned factory and
+ * keeps its one existing listener; managed:true also creates no HTTP server. */
+export async function main({port=process.env.PORT,listen=true,managed=false,environment,runtimeEpoch}={}){
+  if(environment===undefined)loadDotEnvIfPresent();
+  const runtime=await createBusinessWebhookRuntime({environment:environment??process.env,runtimeEpoch});
+  if(managed)return runtime;
+  let server;try{server=http.createServer((req,res)=>{
+    void runtime.handler(req,res).catch(error=>{
+      // The canonical boundary already attempted its normal error response.
+      // Observe a final transport failure so Node never drops a rejected task.
+      log.error('telegram_webhook_transport_failed',{error:describeError(error)});
+      res.destroy?.();
+    });
+  });}catch(error){runtime.closeAdmission('construction_failure_0001');await runtime.dispose({signal:new AbortController().signal});throw error;}
+  let closing;
+  const shutdown=signal=>{
     if(closing)return closing;
-    log.info('telegram_webhook_shutdown', { signal });
-    const stopped=continuation?.stop();
-    closing=Promise.all([stopped,new Promise(resolve=>server.close(resolve))]).then(()=>{try{db.close();}catch{/* 收工失敗不影響 */}});
-    return closing;
+    log.info('telegram_webhook_shutdown',{signal});runtime.closeAdmission(runtime.status().originalWindowId??'standalone_shutdown_0001');
+    const stoppedServer=server.listening?new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve())):Promise.resolve();
+    closing=Promise.all([stoppedServer,runtime.dispose({signal:new AbortController().signal})]).then(()=>runtime.status());return closing;
   };
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  return { server, db };
+  const onTerm=()=>{void shutdown('SIGTERM').catch(error=>log.error('telegram_webhook_shutdown_failed',{error:describeError(error)}));};
+  const onInt=()=>{void shutdown('SIGINT').catch(error=>log.error('telegram_webhook_shutdown_failed',{error:describeError(error)}));};
+  const close=async()=>{try{return await shutdown('CLOSE');}finally{process.removeListener('SIGTERM',onTerm);process.removeListener('SIGINT',onInt);}};
+  server.once('close',()=>{void shutdown('SERVER_CLOSED').catch(error=>log.error('telegram_webhook_shutdown_failed',{error:describeError(error)}));});
+  if(!listen)return Object.freeze({...runtime,server,close});
+  try{const p=Number(port);await new Promise((resolve,reject)=>{
+    server.once('error',reject);server.listen(Number.isFinite(p)?p:0,'0.0.0.0',()=>{server.removeListener('error',reject);resolve();});
+  });}catch(error){await shutdown('LISTEN_FAILED');throw error;}
+  log.info('telegram_webhook_listening',{port:server.address()?.port??null,path:TELEGRAM_BOT.WEBHOOK_PATH});
+  try{runtime.startBackground();}catch(error){await shutdown('BACKGROUND_START_FAILED');throw error;}
+  process.on('SIGTERM',onTerm);process.on('SIGINT',onInt);
+  return Object.freeze({...runtime,server,close});
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

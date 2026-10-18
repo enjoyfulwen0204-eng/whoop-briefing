@@ -54,7 +54,7 @@ for(const version of [33,35])test(`actual business bootstrap preserves manual St
   assert.ok(!queries.some(sql=>/\b(recipient_identity_sources|stage8_live_\w*|stage8_scoped_read_audit|tenant_delivery_modes|morning_brief_plans|owner_monitoring_\w*)\b/.test(sql)));
   assert.equal(network,0);
  }finally{
-  started?.server.close();started?.db.close();process.chdir(cwd);
+  await started?.close();process.chdir(cwd);
   for(const key of Object.keys(process.env))if(!(key in previous))delete process.env[key];Object.assign(process.env,previous);
  }
 });

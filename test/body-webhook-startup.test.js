@@ -28,7 +28,7 @@ test('webhook initializes gated Body runtime with the original admitted key iden
   assert.equal(started.server.listening,false);
   assert.equal(network,0);
  }finally{
-  started?.server.close();started?.db.close();seeded.close();anchor.close();
+  await started?.close();seeded.close();anchor.close();
   globalThis.fetch=fetch;
   for(const k of Object.keys(process.env))if(!(k in previous))delete process.env[k];
   Object.assign(process.env,previous);

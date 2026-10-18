@@ -7,6 +7,7 @@ import { log } from './logger.js';
 import {withRuntimeMetadata} from './runtimeMetadataContext.js';
 import {currentExecutionBudget} from './executionBudget.js';
 import {currentDurableExecution} from './phase4ExecutionContext.js';
+import {requireSchemaTransitionRuntimeProfile,bindSchemaTransitionRuntimeProfile} from './schemaTransitionProfile.js';
 
 const connections = new WeakMap(), capabilities = new WeakMap();
 const fail = (code, object) => { throw new Phase4SchemaError(code, object); };
@@ -14,9 +15,11 @@ const fail = (code, object) => { throw new Phase4SchemaError(code, object); };
 // Capability identity is useful inside a private runtime. Caller-owned raw
 // clients have no observable native lifetime primitive: their privileged SQL
 // boundaries must always perform a new complete metadata admission.
-export function bindConnectionLifetime(base, executor, transaction) {
+export function bindConnectionLifetime(base, executor, transaction, {runtimeProfile,keys}={}) {
+  if(runtimeProfile!==undefined)bindSchemaTransitionRuntimeProfile(runtimeProfile,keys,base);
   let state=connections.get(base);
-  if(!state){state={lifetime:{revoked:false},closed:false,ended:false,renewals:new Set()};connections.set(base,state);}
+  if(!state){state={lifetime:{revoked:false},closed:false,ended:false,renewals:new Set(),runtimeProfile,profileKeys:keys};connections.set(base,state);}
+  else if(state.runtimeProfile!==runtimeProfile||runtimeProfile!==undefined&&state.profileKeys!==keys)fail('SCHEMA_TRANSITION_CONNECTION_PROFILE_CHANGED');
   connections.set(executor,state);state.transaction=transaction;
   state.retryMetadata=async()=>{
     if(state.ended)fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
@@ -114,7 +117,7 @@ export function canonicalRuntimeContract(version=SCHEMA_VERSION) {
   }
   return { objects, retired };
 }
-const contracts = new Map([34,35].map(version=>[version,canonicalRuntimeContract(version)]));
+const contracts = new Map([33,34,35].map(version=>[version,canonicalRuntimeContract(version)]));
 function tableMatches(actual, expected) {
   if (normalizeSql(actual.slice(actual.lastIndexOf(')') + 1)) !== normalizeSql(expected.ddl.slice(expected.ddl.lastIndexOf(')') + 1))) return false;
   const parts = elements(actual).map(normalizeSql).sort();
@@ -133,6 +136,7 @@ export function requireRuntimeAdmission(client, capability, keys, transaction) {
   if (!issued || issued.client !== client || !state || state.closed || client.closed
       || issued.lifetime.revoked || issued.lifetime !== state.lifetime || issued.keys !== keys || (transaction && state.transaction !== transaction))
     fail('PHASE4_RUNTIME_ADMISSION_REQUIRED');
+  if(state.runtimeProfile!==undefined)requireSchemaTransitionRuntimeProfile(state.runtimeProfile,keys);
   return issued.version;
 }
 
@@ -172,14 +176,24 @@ async function admitChecked(client, keys,stats) {
   requirePhase4Keys(keys);
   const state = connections.get(client);
   if (!state || state.closed || client.closed) fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
+  if(state.runtimeProfile!==undefined)requireSchemaTransitionRuntimeProfile(state.runtimeProfile,keys);
   const lifetime = state.lifetime;
-  const metadata = await read("SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')");
+  const metadata = await read(state.runtimeProfile!==undefined
+    ?"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view')"
+    :"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')");
   const actual = new Map(metadata.rows.map(r => [r.name, r]));
   const versions=(await read('SELECT version,note FROM schema_version')).rows;
   const version=Math.max(0,...versions.map(r=>Number(r.version)));
-  if(version<SCHEMA_VERSION)fail('PHASE4_CONTROLLED_MIGRATION_REQUIRED',`${version}/${SCHEMA_VERSION}`);
+  if(version<SCHEMA_VERSION&&!(version===33&&state.runtimeProfile!==undefined))fail('PHASE4_CONTROLLED_MIGRATION_REQUIRED',`${version}/${SCHEMA_VERSION}`);
+  if(state.runtimeProfile!==undefined&&![33,35].includes(version))fail('SCHEMA_TRANSITION_COMMITTED_VERSION_REQUIRED');
   if (!contracts.has(version)) fail('phase4_schema_version_mismatch', `${version}/${SCHEMA_VERSION}`);
   const contract=contracts.get(version);
+  // The opt-in33 path is the frozen old catalog, not a partially installed
+  // future schema whose marker still says33. SQLite-owned catalog objects
+  // (automatic indexes/statistics/sequence) cannot be application-created.
+  if(version===33&&state.runtimeProfile!==undefined)
+    for(const row of metadata.rows)if(!row.name.startsWith('sqlite_')&&!contract.objects.has(row.name))
+      fail('SCHEMA_TRANSITION_UNEXPECTED_SCHEMA_OBJECT',row.name);
   for (const expected of contract.objects.values()) {
     const got = actual.get(expected.name);
     if (!got || got.type !== expected.type || (expected.type === 'table'
@@ -204,6 +218,7 @@ async function admitChecked(client, keys,stats) {
   const checkConstraints = (await read('SELECT ignore_check_constraints FROM pragma_ignore_check_constraints()')).rows;
   if (checkConstraints.length !== 1 || checkConstraints[0]?.ignore_check_constraints !== 0) fail('PHASE4_CHECK_CONSTRAINTS_DISABLED');
   if (lifetime.revoked || lifetime !== state.lifetime || state.closed) fail('PHASE4_RUNTIME_CONNECTION_CHANGED');
+  if(state.runtimeProfile!==undefined)requireSchemaTransitionRuntimeProfile(state.runtimeProfile,keys);
   currentExecutionBudget()?.assert();
   state.admitted=true;
   const capability = Object.freeze({}); capabilities.set(capability, { client, lifetime, keys, version });

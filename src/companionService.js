@@ -1,4 +1,5 @@
 import {createStage8Runtime,stage8Configuration} from './stage8Runtime.js';
+import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
 import {createDb} from './db.js';
 import {loadEnv} from './config.js';
 import {publicBetaConfiguration,publicBetaKeys} from './publicBetaConfig.js';
@@ -23,6 +24,7 @@ export function validateCompanionRequest(request){
  * identities. This service cannot enter SYNC, DRAIN, WHOOP refresh or an AI call. */
 export async function runCompanionService({request,environment=process.env,db:providedDb,env:providedEnv,
  keys:providedKeys,now=()=>new Date(),deps={},budgetMs=COMPANION_BUDGET_MS}={}){
+ if(environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(environment);
  validateCompanionRequest(request);
  if(!Number.isSafeInteger(budgetMs)||budgetMs<1||budgetMs>COMPANION_BUDGET_MS)fail('COMPANION_BUDGET_INVALID');
  const startedAtMs=Date.now(),keys=providedKeys??publicBetaKeys(environment),config=publicBetaConfiguration(environment),releaseSha=runningReleaseSha(environment);
@@ -31,7 +33,8 @@ export async function runCompanionService({request,environment=process.env,db:pr
  if(request.configProof!==proof()||request.executionMode!==(config.runtime==='on'?'SHADOW':'OFF'))fail('EXECUTION_CONFIG_CHANGED');
  const cohort=stage7Configuration(environment),stage8Config=stage8Configuration(environment),ownerEnabled=stage8Config.enabled&&environment.PHASE4_STAGE8_OWNER_MONITORING==='on',automatic=cohort.mode==='on'&&cohort.automatic,base={kind:COMPANION_KIND,source:'cloudflare',releaseSha,drainAuthorized:false};
  if(!automatic&&!ownerEnabled)return {status:200,body:{ok:true,...base,enabled:false,checked:0}};
- const env=providedEnv??loadEnv(),db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
+ const env=providedEnv??loadEnv(),db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys,
+  runtimeProfile:schemaTransitionRuntimeProfileFor({environment,keys})});
  const budget=createExecutionBudget({budgetMs,startedAtMs});let unfollow;
  try{return await withExecutionBudget(budget,()=>budget.run(async()=>{
   let admission=await db.admitRuntime({source:'cloudflare',fresh:true});

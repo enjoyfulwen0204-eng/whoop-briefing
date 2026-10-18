@@ -1,4 +1,5 @@
 /** Stage 8 release controls are server configuration, never request authority. */
+import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile} from './schemaTransitionProfile.js';
 export const STAGE8_CONFIGURATION_FIELDS=Object.freeze([
  'PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS',
  'STAGE8_USER_IDS','PHASE4_BETA_PILOT_USER_ID','PHASE4_DELIVERY_CUTOVER','PHASE4_EXECUTION_PROFILE',
@@ -6,6 +7,7 @@ export const STAGE8_CONFIGURATION_FIELDS=Object.freeze([
 ]);
 export function stage8ConfigurationValues(environment){return STAGE8_CONFIGURATION_FIELDS.map(name=>environment[name]??'');}
 export function assertStage8Recovery(environment){
+ if(environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(environment);
  if(['RC2_V32_ROLLBACK','COMPANION_V33_RECOVERY','STAGE8_V35_RECOVERY'].includes(environment.PHASE4_EXECUTION_PROFILE)
   &&['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS','STAGE8_POST_SYNC','STAGE8_SUBJECT_ALERTS','PHASE4_DELIVERY_CUTOVER'].some(name=>(environment[name]??'off')!=='off'))
   throw Object.assign(Error('RECOVERY_STAGE8_FEATURES_OFF_REQUIRED'),{code:'RECOVERY_STAGE8_FEATURES_OFF_REQUIRED'});

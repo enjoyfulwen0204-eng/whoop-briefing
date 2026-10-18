@@ -1,4 +1,5 @@
 import {stage8ConfigurationValues} from './stage8Policy.js';
+import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile} from './schemaTransitionProfile.js';
 /** Sanitized v32 execution authority and derived heartbeat projections.
  * Generic heartbeat writers still discard free text. Accept only fixed enums,
  * nonnegative counts, timestamps and authenticated opaque transport hashes;
@@ -56,6 +57,7 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
  if(allowance.some(Boolean))profile.push(['beta-pilot-allowance-v1',...allowance]);
  if(environment.PHASE4_EXECUTION_PROFILE==='COMPANION_V33_RECOVERY')profile.push(['companion-recovery-profile-v1','COMPANION_V33_RECOVERY']);
  if(environment.PHASE4_EXECUTION_PROFILE==='STAGE8_V35_RECOVERY')profile.push(['stage8-v35-recovery-profile-v1','STAGE8_V35_RECOVERY']);
+ if(environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE){assertSchemaTransitionProfile(environment);profile.push(['stage8-schema-transition-profile-v1',SCHEMA_TRANSITION_PROFILE]);}
  const companion=['STAGE7_COMPANION','STAGE7_COMPANION_USER_IDS','STAGE7_COACH_MIN_HOURS','STAGE7_COACH_MAX_HOURS','STAGE7_JOURNAL_GAP_HOURS'].map(name=>environment[name]??'');
  if(companion.some(Boolean))profile.push(['stage7-companion-configuration-v1',...companion]);
  const stage8=stage8ConfigurationValues(environment);

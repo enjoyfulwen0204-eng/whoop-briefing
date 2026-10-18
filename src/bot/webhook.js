@@ -67,6 +67,7 @@ import {MORNING_READINESS_PATH,runMorningReadiness} from '../morningReadiness.js
 import {CONTINUATION_PATH} from '../phase4Continuation.js';
 import {discoverExecutionContinuation} from '../phase4Execution.js';
 import {executionProfile} from '../phase4Rollback.js';
+import {SCHEMA_TRANSITION_PROFILE,schemaTransitionRuntimeProfileFor} from '../schemaTransitionProfile.js';
 import { runExecutionPhase } from '../phase4Execution.js';
 import { publicBetaConfiguration, phase4AuthorityKeys } from '../publicBetaConfig.js';
 import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
@@ -425,7 +426,7 @@ export function createWebhookServer(opts) {
  */
 export async function main({ port = process.env.PORT, listen = true } = {}) {
   loadDotEnvIfPresent();
-  executionProfile(process.env);
+  const profile=executionProfile(process.env);
   const env = loadEnv({
     require: [
       'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET',
@@ -437,7 +438,8 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const betaConfig = publicBetaConfiguration(process.env);
   const authorityKeys = phase4AuthorityKeys(process.env);
 
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken, phase4Keys: authorityKeys });
+  const runtimeProfile=schemaTransitionRuntimeProfileFor({environment:process.env,keys:authorityKeys});
+  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken, phase4Keys: authorityKeys,runtimeProfile });
   if(Number(process.versions.node.split('.')[0])<22){db.close();throw new Error('NODE_22_REQUIRED');}
   const admissionBudget=createExecutionBudget({budgetMs:30_000});
   try { await admissionBudget.run(()=>db.admitRuntime({source:'event'})); }
@@ -450,9 +452,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
   let stage8;
-  const coachContext=createCompanionCoachContext({getScopes:()=>stage8?.scopes});
+  const coachContext=profile===SCHEMA_TRANSITION_PROFILE?null:createCompanionCoachContext({getScopes:()=>stage8?.scopes});
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env,coachContext});
-  stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
+  stage8=profile===SCHEMA_TRANSITION_PROFILE?null:await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
   const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8,phase4Reader });
   const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);

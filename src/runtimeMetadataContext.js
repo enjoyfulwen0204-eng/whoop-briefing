@@ -1,9 +1,11 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
 const scope=new AsyncLocalStorage();
-// This scope can exempt only the exact five read-only admission statements.
+// This scope exempts the exact five read-only admission statements, including
+// the transition profile's view-inclusive variant of the catalog projection.
 // Importing the helper cannot exempt a privileged tenant read or mutation.
 const queries=new Set([
  "SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')",
+ "SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view')",
  'SELECT version,note FROM schema_version',
  'SELECT target_version,step_key,last_cursor,postcondition_state FROM phase4_migration_checkpoints WHERE target_version IN (21,22,23,32)',
  'PRAGMA foreign_keys','SELECT ignore_check_constraints FROM pragma_ignore_check_constraints()',

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {recordStage8SyncSubject} from './stage8PostSync.js';
+import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
 import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
 import {createBodyEnergyRuntime,bodyEnergyConfiguration} from './bodyEnergyRuntime.js';
 import {traceExecutionOperation} from './executionTelemetry.js';
@@ -663,8 +664,9 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
   const authorityKeys = deps.phase4AuthorityKeys ?? ((!deps.db
     || !deps.bodyEnergy&&bodyEnergyConfiguration(process.env).publication==='on')
     ? phase4AuthorityKeys(process.env) : undefined);
+  if(process.env.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(process.env);
   const db = deps.db ?? createDb({ url: env.tursoUrl, authToken: env.tursoToken,
-    phase4Keys: authorityKeys });
+    phase4Keys: authorityKeys,runtimeProfile:schemaTransitionRuntimeProfileFor({environment:process.env,keys:authorityKeys}) });
 
   // 系統層 telegram：只用於「基礎設施故障」通知（Turso 掛了、找不到任何使用者）。
   // chat 用 bootstrap 的 TELEGRAM_CHAT_ID —— 這是唯一還會用到那個 env 的地方。

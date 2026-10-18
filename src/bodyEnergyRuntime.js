@@ -1,10 +1,12 @@
 import {BODY_ENERGY_PROVISIONAL_POLICY} from './bodyEnergyProvisionalPolicy.js';
+import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile} from './schemaTransitionProfile.js';
 import {createPhase4Foundation} from './phase4Foundation.js';
 import {requireUserId} from './userContext.js';
 import {authorizeBodyEnergyPublication,authorizeBodyEnergyOwnerProvisional} from './bodyEnergyQualificationAuthority.js';
 import {createBodyEnergyIntegration} from './bodyEnergyIntegration.js';
 import {createBodyEnergyAlertDelivery} from './bodyEnergyAlertDelivery.js';
 export function bodyEnergyConfiguration(environment={}){
+  if(environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(environment);
   const publication=environment.BODY_ENERGY_PUBLICATION??'off',alerts=environment.BODY_ENERGY_ALERTS??'off';
   if(!['off','on'].includes(publication)||!['off','on'].includes(alerts)||alerts==='on'&&publication!=='on')throw Error('BODY_ENERGY_CONFIG_INVALID');
   const ids=name=>{const raw=environment[name]??'';if(typeof raw!=='string')throw Error('BODY_ENERGY_CONFIG_INVALID');

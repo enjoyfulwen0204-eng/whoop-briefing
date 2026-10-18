@@ -1,8 +1,10 @@
 import {assertStage8Recovery} from './stage8Policy.js';
 import {publicBetaConfiguration} from './publicBetaConfig.js';
+import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile} from './schemaTransitionProfile.js';
 export function executionProfile(environment={}){
  assertStage8Recovery(environment);
  const profile=environment.PHASE4_EXECUTION_PROFILE??'PHASE4';
+ if(profile===SCHEMA_TRANSITION_PROFILE)return assertSchemaTransitionProfile(environment);
  if(!['PHASE4','RC2_V32_ROLLBACK','COMPANION_V33_RECOVERY','STAGE8_V35_RECOVERY'].includes(profile))throw Object.assign(Error('EXECUTION_PROFILE_INVALID'),{code:'EXECUTION_PROFILE_INVALID'});
  if(['RC2_V32_ROLLBACK','COMPANION_V33_RECOVERY','STAGE8_V35_RECOVERY'].includes(profile)){
   const config=publicBetaConfiguration(environment);

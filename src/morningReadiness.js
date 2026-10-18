@@ -1,4 +1,5 @@
 import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
+import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
 import {createDb} from './db.js';
 import {loadEnv} from './config.js';
 import {runForUser} from './index.js';
@@ -30,6 +31,7 @@ export function validateMorningReadinessRequest(request){
  * the daily work; optional pilot authority is neither read nor consumed. */
 export async function runMorningReadiness({request,environment=process.env,db:providedDb,env:providedEnv,
  keys:providedKeys,deps={},now=()=>new Date(),budgetMs=MORNING_READINESS_BUDGET_MS}={}){
+ if(environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(environment);
  validateMorningReadinessRequest(request);
  if(!Number.isSafeInteger(budgetMs)||budgetMs<1||budgetMs>MORNING_READINESS_BUDGET_MS)fail('READINESS_BUDGET_INVALID');
  const startedAtMs=Date.now();
@@ -38,7 +40,8 @@ export async function runMorningReadiness({request,environment=process.env,db:pr
  if(request.releaseSha!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');
  const proof=()=>configurationProof(keys,publicBetaConfiguration(environment),environment,releaseSha);
  if(request.configProof!==proof()||request.executionMode!==(config.runtime==='on'?'SHADOW':'OFF'))fail('EXECUTION_CONFIG_CHANGED');
- const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
+ const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys,
+  runtimeProfile:schemaTransitionRuntimeProfileFor({environment,keys})});
  const budget=createExecutionBudget({budgetMs,startedAtMs});
  let stopFollowing;
  try {
@@ -52,7 +55,8 @@ export async function runMorningReadiness({request,environment=process.env,db:pr
     let bodyEnergy=deps.bodyEnergy;
     if(!bodyEnergy&&bodyEnergyConfiguration(environment).publication==='on')
      bodyEnergy=(await createBodyEnergyRuntime({db,keys,admission,environment,env})).bodyEnergy;
-    const morning=deps.morning??await createStage8MorningRuntime({db,keys,admission,environment,env,now});
+    const morning=environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE?null:
+     deps.morning??await createStage8MorningRuntime({db,keys,admission,environment,env,now});
     const users=await db.listSchedulableUsers({activeStatus:USER_STATUS.ACTIVE});
     // Rotate the start at the coarse deployed slot so slow accounts cannot
     // permanently starve later accounts; retries keep canonical daily claims.

@@ -8,6 +8,7 @@ import {SYNC_YIELD_RESERVE_MS} from './syncContinuation.js';
 import { loadEnv } from './config.js';
 import { createDb } from './db.js';
 import { runBriefing } from './index.js';
+import {schemaTransitionRuntimeProfileFor,assertSchemaTransitionProfile,SCHEMA_TRANSITION_PROFILE} from './schemaTransitionProfile.js';
 import { publicBetaConfiguration, publicBetaKeys } from './publicBetaConfig.js';
 import { authorizePublicBetaRuntime, createPublicBetaRuntime } from './publicBeta.js';
 import { runPhase4Stage6 } from './shadowDrainScheduler.js';
@@ -48,7 +49,7 @@ export async function runExecutionPhase(args={}) {
  const environment=args.environment??process.env;
  // Original SYNC settlement, budgets and ALS have ended. Optional LIVE work
  // has its own durable authority and never changes the frozen SYNC response.
- if(args.request?.phase==='SYNC'&&result.body?.syncComplete===true&&environment.STAGE8_POST_SYNC==='on'){
+ if(environment.PHASE4_EXECUTION_PROFILE!==SCHEMA_TRANSITION_PROFILE&&args.request?.phase==='SYNC'&&result.body?.syncComplete===true&&environment.STAGE8_POST_SYNC==='on'){
   let owned;try{const keys=args.keys??publicBetaKeys(environment),env=args.env??loadEnv(),db=args.db??(owned=createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys}));
    const app=await createStage8Runtime({db,keys,environment,env});for(const userId of app?.config.userIds??[])try{await app.analysis?.afterSync({executionId:args.request.requestId,userId});}catch(error){log.warn('stage8_post_sync_fenced',{code:error.code??'STAGE8_POST_SYNC_FAILED'});}
   }catch(error){log.warn('stage8_post_sync_fenced',{code:error.code??'STAGE8_POST_SYNC_FAILED'});}finally{owned?.close();}
@@ -91,7 +92,8 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
  // admission or coordination SQL. SYNC/Morning Brief follows its usual path.
  if(request.phase==='STAGE6_DRAIN'&&config.runtime==='on'&&!pilotReady)
   return phaseReply({phase:request.phase,source:request.triggerSource,executionMode:mode,outcome:'DISABLED',releaseSha});
- const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
+ const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys,
+  runtimeProfile:schemaTransitionRuntimeProfileFor({environment,keys})});
  const localAuthority=drainProcessLocalAuthority(processAuthority,{db,keys,request});
  // The installed WebSocket driver can silently replace its private connection
  // after errors/age. A phase permits only the HTTP or file runtime boundary;
@@ -295,6 +297,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
 
 /** Authenticated entry composition; the discovery store cannot construct capabilities. */
 export async function discoverExecutionContinuation({query,db:providedDb,keys:providedKeys,environment=process.env,env:providedEnv,signal}={}) {
+ if(environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(environment);
  const keys=providedKeys??publicBetaKeys(environment),config=publicBetaConfiguration(environment),releaseSha=runningReleaseSha(environment);
  validateContinuationQuery(query);
  const mode=config.runtime==='on'?'SHADOW':'OFF',scope=continuationScope(environment,mode),proof=configurationProof(keys,config,environment,releaseSha);
@@ -306,7 +309,8 @@ export async function discoverExecutionContinuation({query,db:providedDb,keys:pr
  let ready=false;try{const pilot=betaPilotConfiguration(environment);ready=Boolean(pilot&&reviewedPilotAdmission(pilot)&&!pilotStopRequested(environment)&&pilotConfigurationMaySchedule(pilot));}catch{}
  if(!ready&&!scopeIncludesSync(scope))return {status:200,body:{ok:true,state:'NONE',requestBody:null}};
  const env=providedDb?null:providedEnv??loadEnv();
- const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
+ const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys,
+  runtimeProfile:schemaTransitionRuntimeProfileFor({environment,keys})});
  try {
   const pilot=ready?betaPilotConfiguration(environment):null;
   const allowDrain=pilot?.startPolicy==='FIRST_RESERVATION'

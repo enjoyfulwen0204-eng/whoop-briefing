@@ -104,7 +104,7 @@ function buildFixedEpochPermitClient({base,keys,s,epoch}){
 export function captureProductionSupervisorEpochAdmission(options={}){
  if(!options||Object.getPrototypeOf(options)!==Object.prototype||Object.keys(options).sort().join(',')!=='keys,observation')fail('EPOCH_ORIGINAL_PRODUCTION_OBSERVATION_REQUIRED');
  const {observation,keys}=options,a=requireProductionEpochBootstrap(observation,keys);
- if(a.productionAuthority!=='NONE'||a.targetUrl!==PRODUCTION_EPOCH_TARGET.databaseUrl||!Object.isFrozen(a.s)||!Object.isFrozen(a.epoch)||a.epoch.mode!=='BUSINESS'||![33,35].includes(a.epoch.schema)||!/^([a-f0-9]{40})$/.test(a.releaseSha??''))fail('EPOCH_AUTHENTICATED_PRODUCTION_ADMISSION_REQUIRED');
+ if(a.productionAuthority!=='NONE'||a.targetUrl!==PRODUCTION_EPOCH_TARGET.databaseUrl||!Object.isFrozen(a.s)||!Object.isFrozen(a.epoch)||a.epoch.mode!=='BUSINESS'||!['C_BUSINESS35','D_ABORT33'].includes(a.epoch.label)||![33,35].includes(a.epoch.schema)||!/^([a-f0-9]{40})$/.test(a.releaseSha??''))fail('EPOCH_AUTHENTICATED_PRODUCTION_ADMISSION_REQUIRED');
  const expected=a.epoch.schema===33?a.s.sourceTriggers:a.s.targetTriggers;
  if(!Object.isFrozen(expected)||sha(json(expected))!==a.manifestSha)fail('EPOCH_EXACT_CAPTURED_MANIFEST_REQUIRED');
  const admission=Object.freeze({contract:'stage8-production-supervisor-epoch-admission-v1',productionAuthority:'NONE'});

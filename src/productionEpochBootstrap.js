@@ -7,6 +7,8 @@
  * current normal configuration. That path cannot issue maintenance commands.
  */
 import {createClient} from '@libsql/client';
+import {snapshotBootstrapOptions} from './ownedProductionEpochOptions.js';
+import {META,projectMetadata,exactMetadataPredicate,rowPredicate,operatorPredicate,constraintsPredicate,serverNow,createGuard,dropGuard,guard} from './productionEpochShortBatchMetadata.js';
 import {createHash,timingSafeEqual,randomBytes} from 'node:crypto';
 import {Readable} from 'node:stream';
 import {verifyWhoopWebhook} from './whoopWebhookAuth.js';
@@ -168,7 +170,31 @@ function currentRuntimeOf(value,keys,q,s){const r=authenticate(keys,currentRunti
 const observations=new WeakMap(),bootstrapContexts=new WeakMap();
 /** Sole application issuer. Tests may replace the SDK module in an isolated
  * graph; the exported API accepts no native receiver or transport injection. */
-export function createProductionEpochBootstrap(options={}){
+async function captureInitializationMetadata(client,keys,q,s){
+ const tx=await client.transaction('read');try{
+  const read=async statement=>{active(s.bridge);const result=await tx.execute(statement);active(s.bridge);return result.rows;};
+  const boot=(await read({sql:'SELECT key,value,updated_at FROM telegram_state WHERE key=?',args:[s.bootRow.key]})).map(({key,value,updated_at})=>({key,value,updated_at}));
+  if(!same(boot,[{key:s.bootRow.key,value:s.bootRow.value,updated_at:s.bootRow.updated_at}]))fail('PRODUCTION_EPOCH_ORIGINAL_BOOT_REVOKED');
+  const operators=await read({sql:registrySql,args:[allOperatorPrefix.length,allOperatorPrefix]});if(operators.length)fail('PRODUCTION_EPOCH_FRESH_33_REQUIRED');
+  const metadata={};for(const kind of ['catalog','versions','checkpoints'])metadata[kind]=projectMetadata(kind,await read(META[kind]));
+  if(keys.lookup(['production-transition-r3-actual-catalog-v1',metadata.catalog.map(({type,name,tbl_name,sql})=>({type,name,tbl_name,sql}))])!==q.sourceCatalogDigest||!same(metadata.catalog.filter(r=>r.type==='table'&&!r.name.startsWith('sqlite_')).map(r=>r.name).sort(),s.sourceTables))fail('PRODUCTION_EPOCH_INITIAL_CATALOG_CHANGED');
+  const versions=metadata.versions;if(Math.max(0,...versions.map(r=>r.version))!==33||versions.some(r=>!Number.isSafeInteger(r.version)))fail('PRODUCTION_EPOCH_FRESH_33_REQUIRED');for(let v=21;v<=33;v++)if(versions.filter(r=>r.version===v&&r.note===`phase4 v${v} postconditions verified`).length!==1)fail('PRODUCTION_EPOCH_CANONICAL_VERSION_MARKERS_REQUIRED');
+  for(const [v,k]of [[21,'tenant_metadata'],[22,'privacy_backfill'],[22,'lookup_key_check'],[22,'audit_key_check'],[23,'legacy_insights'],[32,'execution_authority']]){const r=metadata.checkpoints.find(r=>r.target_version===v&&r.step_key===k);if(r?.postcondition_state!=='COMPLETE'||k==='lookup_key_check'&&!keys.verifyLookupCheckpoint(r.last_cursor)||k==='audit_key_check'&&!keys.verifyAuditCheckpoint(r.last_cursor)||k==='execution_authority'&&r.last_cursor!=='phase4-execution-v2')fail('PRODUCTION_EPOCH_ACTUAL_KEY_AUTHORITY_REQUIRED');}
+  metadata.cohortWhoopIds=s.bridge.tenants.map(t=>t.whoopUserId);metadata.cohort=projectMetadata('cohort',await read({sql:META.cohort,args:metadata.cohortWhoopIds}));
+  if(metadata.cohort.length!==3)fail('PRODUCTION_EPOCH_CURRENT_COHORT_REQUIRED');for(const t of s.bridge.tenants){const matches=metadata.cohort.filter(r=>r.user_id===t.userId&&r.whoop_user_id===t.whoopUserId),r=matches[0];if(matches.length!==1||r.status!=='ACTIVE'||r.pending_purge_count!==0||r.lifecycle_generation!==t.lifecycleGeneration||r.auth_generation!==t.authGeneration||r.source_generation!==t.sourceGeneration||r.purge_generation!==t.purgeGeneration)fail('PRODUCTION_EPOCH_CURRENT_COHORT_REQUIRED');}
+  if((await read('PRAGMA foreign_keys'))[0]?.foreign_keys!==1||(await read('SELECT ignore_check_constraints FROM pragma_ignore_check_constraints()'))[0]?.ignore_check_constraints!==0)fail('PRODUCTION_EPOCH_CONSTRAINTS_REQUIRED');
+  await tx.commit();active(s.bridge);return metadata;
+ }catch(error){try{await tx.rollback();}catch{}throw error;}finally{tx.close();}
+}
+function initializationPacket(metadata,q,s){
+ const exactBefore=exactMetadataPredicate(metadata,{cohort:true}),boot=rowPredicate(s.bootRow),zero=operatorPredicate(allOperatorPrefix,[]),fresh=`${serverNow}>=? AND ${serverNow}<? AND ${serverNow}>=? AND ${serverNow}<=?`,clock=[s.bridge.originalWindowStartMs,s.bridge.originalWindowEndMs,q.qualifiedAtMs,q.qualifiedAtMs+120000];
+ const before=guard([exactBefore.sql,boot.sql,zero.sql,constraintsPredicate,fresh].join(' AND '),[...exactBefore.args,...boot.args,...zero.args,...clock]);
+ const catalog=[...metadata.catalog,...s.sourceTriggers.map(({sql})=>{const m=/^CREATE TRIGGER "([^"]+)" BEFORE (?:INSERT|UPDATE|DELETE) ON "([^"]+)"/.exec(sql);if(!m)fail('PRODUCTION_EPOCH_FIXED_TRIGGER_SOURCE_REQUIRED');return {type:'trigger',name:m[1],tbl_name:m[2],rootpage:0,sql};})].sort((a,b)=>a.type<b.type?-1:a.type>b.type?1:a.name<b.name?-1:a.name>b.name?1:0);
+ const exactAfter=exactMetadataPredicate({...metadata,catalog},{cohort:true}),two=operatorPredicate(allOperatorPrefix,[s.qualificationTransport,s.records[0]].sort((a,b)=>a.key<b.key?-1:1));
+ return [createGuard,before,...productionEpochManifestStatements(s,'install33'),guard('changes()=1'),guard([exactAfter.sql,boot.sql,two.sql,constraintsPredicate,fresh].join(' AND '),[...exactAfter.args,...boot.args,...two.args,...clock]),dropGuard];
+}
+export function createProductionEpochBootstrap(input={}){
+ const options=snapshotBootstrapOptions(input);
  if(!exact(options,['environment','operatorQualification',...(Object.hasOwn(options,'currentRuntimeQualification')?['currentRuntimeQualification']:[]),...(Object.hasOwn(options,'processBoot')?['processBoot']:[])]))fail('PRODUCTION_EPOCH_OWNED_BOOTSTRAP_REQUIRED');
  const environment=Object.freeze({...options.environment}),keys=phase4AuthorityKeys(environment),qualification=qualificationOf(options.operatorQualification,keys),window=qualification.window,s=planFrom(qualification,keys);
  const current=options.currentRuntimeQualification===undefined?null:currentRuntimeOf(options.currentRuntimeQualification,keys,qualification,s);
@@ -177,7 +203,7 @@ export function createProductionEpochBootstrap(options={}){
  if(environment.RENDER_GIT_COMMIT===undefined||environment.PHASE4_RELEASE_SHA===undefined||configDigest(keys,environment)!==(current?.currentStaticConfigurationDigest??qualification.staticConfigurationDigest))fail('PRODUCTION_EPOCH_ACTUAL_STATIC_CONFIG_REQUIRED');
  const actualRelease=runningReleaseSha(environment);if(current?actualRelease!==current.currentRuntimeSha:actualRelease!==window.source33RuntimeSha&&actualRelease!==window.targetRuntimeSha)fail('PRODUCTION_EPOCH_ACTUAL_CHECKOUT_REQUIRED');
  if(options.processBoot!==undefined&&!same(capturedBoot(options.processBoot,keys,actualRelease),qualification.bootRow))fail('PRODUCTION_EPOCH_PROCESS_BOOT_QUALIFICATION_MISMATCH');
- let busy=false,closed=false,uncertain=false,generation=0;const identity=Object.freeze({});
+ let busy=false,closed=false,uncertain=false,generation=0,initializationAttempted=false;const identity=Object.freeze({});
  const check=()=>{if(closed)fail('PRODUCTION_EPOCH_BOOTSTRAP_CLOSED');if(runningReleaseSha(environment)!==actualRelease)fail('PRODUCTION_EPOCH_ACTUAL_CHECKOUT_REQUIRED');assertCleanStage8Release(actualRelease,fileURLToPath(new URL('../',import.meta.url)));};
  const maintenance=()=>{check();active(window);if(current)fail('PRODUCTION_EPOCH_NORMAL_QUALIFICATION_CANNOT_REOPEN_MAINTENANCE');};
  async function observeRestart(){
@@ -185,12 +211,8 @@ export function createProductionEpochBootstrap(options={}){
    const observation=Object.freeze({contract:'production-transition-r3-owned-restart-observation-v1',productionAuthority:'NONE',phase:result.epoch.label,schema:result.schema});observations.set(observation,{identity,s,epoch:result.epoch,actualSchema:result.schema,targetUrl:P.databaseUrl,manifestSha:sha(JSON.stringify(result.schema===33?s.sourceTriggers:s.targetTriggers)),observedAtMs:Date.now(),window,keys,actualRelease,currentCohortDigest:result.currentCohortDigest,owner:()=>!closed&&!uncertain&&capturedGeneration===generation});return observation;
   }catch(error){uncertain=true;throw error;}finally{try{native?.close();}catch(error){uncertain=true;throw error;}finally{busy=false;}}}
  const api=Object.freeze({observeRestart,
-  async initializeBusiness33(){maintenance();const processBoot=capturedBoot(options.processBoot,keys,actualRelease);if(!same(processBoot,qualification.bootRow))fail('PRODUCTION_EPOCH_PROCESS_BOOT_QUALIFICATION_MISMATCH');if(busy||uncertain)fail('PRODUCTION_EPOCH_INITIALIZATION_UNCERTAIN');busy=true;let native;try{native=ownedNative(environment,window);
-   if(Date.now()<qualification.qualifiedAtMs||Date.now()-qualification.qualifiedAtMs>120000)fail('PRODUCTION_EPOCH_FRESH_OPERATOR_BOOTSTRAP_REQUIRED');
-   const prior=await inspectOwned(native,keys,window,null,{uninitialized:true});if(!same(prior.bootRow,qualification.bootRow)||prior.catalogDigest!==qualification.sourceCatalogDigest||!same(prior.sourceTables,s.sourceTables)||actualRelease!==window.source33RuntimeSha)fail('PRODUCTION_EPOCH_INITIAL_CATALOG_CHANGED');
-   // Actual owned BEGIN IMMEDIATE: repeat canonical metadata under the same
-   // writer lock before installing the exact permanent manifest and signed A.
-   const tx=await native.transaction('write');try{if(!same(await actualBootRow(tx,keys),qualification.bootRow)||!same(capturedBoot(options.processBoot,keys,actualRelease),qualification.bootRow))fail('PRODUCTION_EPOCH_ORIGINAL_BOOT_REVOKED');const catalog=(await tx.execute(catalogSql)).rows,versions=(await tx.execute(versionsSql)).rows,checkpoints=(await tx.execute(checkpointsSql)).rows,roster=(await tx.execute({sql:cohortSql,args:window.tenants.map(t=>t.whoopUserId)})).rows;if(keys.lookup(['production-transition-r3-actual-catalog-v1',catalog])!==qualification.sourceCatalogDigest||keys.lookup(['production-transition-r3-actual-authority-v1',versions,checkpoints,roster])!==prior.authorityDigest||(await tx.execute({sql:registrySql,args:[allOperatorPrefix.length,allOperatorPrefix]})).rows.length)fail('PRODUCTION_EPOCH_INITIAL_CATALOG_CHANGED');for(const statement of productionEpochManifestStatements(s,'install33')){maintenance();await tx.execute(statement);}maintenance();await tx.commit();}catch(error){uncertain=true;try{await tx.rollback();}catch{}throw error;}finally{tx.close();}
+  async initializeBusiness33(){maintenance();if(actualRelease!==window.source33RuntimeSha)fail('PRODUCTION_EPOCH_ACTUAL_CHECKOUT_REQUIRED');const processBoot=capturedBoot(options.processBoot,keys,actualRelease);if(!same(processBoot,qualification.bootRow))fail('PRODUCTION_EPOCH_PROCESS_BOOT_QUALIFICATION_MISMATCH');if(busy||uncertain||initializationAttempted)fail('PRODUCTION_EPOCH_INITIALIZATION_UNCERTAIN');busy=true;initializationAttempted=true;let native;try{native=ownedNative(environment,window);
+   const fresh=()=>{active(window);const now=Date.now();if(now<qualification.qualifiedAtMs||now-qualification.qualifiedAtMs>120000)fail('PRODUCTION_EPOCH_FRESH_OPERATOR_BOOTSTRAP_REQUIRED');};fresh();const metadata=await captureInitializationMetadata(native,keys,qualification,s);maintenance();fresh();await native.batch(initializationPacket(metadata,qualification,s),'write');maintenance();fresh();
   }catch(error){uncertain=true;throw error;}finally{try{native?.close();}catch(error){uncertain=true;throw error;}finally{busy=false;}}return observeRestart();
   },
   inspect(observation){const o=observations.get(observation);if(!o||o.identity!==identity)fail('PRODUCTION_EPOCH_ORIGINAL_ACTUAL_OBSERVATION_REQUIRED');check();return {productionAuthority:'NONE',phase:o.epoch.label,schema:o.actualSchema,source33RuntimeSha:window.source33RuntimeSha,targetRuntimeSha:window.targetRuntimeSha,historicalCa4BaselineSha:window.historicalCa4BaselineSha,currentRuntimeSha:actualRelease,currentRuntimeConfiguration:current?'SEPARATELY_OPERATOR_QUALIFIED':'ORIGINAL_SETTLED_CONFIGURATION',currentCohortDigest:o.currentCohortDigest,originalWindowId:window.originalWindowId,originalWindowEndMs:window.originalWindowEndMs,maintenanceCommandsAllowed:!current&&Date.now()>=window.originalWindowStartMs&&Date.now()<window.originalWindowEndMs,manifestSha256:o.manifestSha,observedAtMs:o.observedAtMs,uncertain,stableListener:'UNWIRED',migrationAndRevocationDispatch:'UNWIRED',postWindowRestart:'VERIFIED_TERMINAL_C35_OR_D33_ONLY',remoteSqlFinality:false};},

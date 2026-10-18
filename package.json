@@ -22,7 +22,7 @@
     "phase0": "node scripts/phase0-status.js",
     "admin": "node scripts/admin.js",
     "bot": "node src/bot/index.js",
-    "bot:webhook": "node src/bot/webhook.js",
+    "bot:webhook": "node src/bot/webhook-entry.js",
     "telegram:webhook:status": "node scripts/telegram-webhook.js status",
     "telegram:webhook:set": "node scripts/telegram-webhook.js set",
     "telegram:webhook:delete": "node scripts/telegram-webhook.js delete",

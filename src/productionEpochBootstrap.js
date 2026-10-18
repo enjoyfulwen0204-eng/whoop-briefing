@@ -271,11 +271,11 @@ function approvedMetadata(raw){
  const parsed=parseWhoopEvent(text);return parsed.ok?{tenant,event:parsed.event}:null;
 }
 
-const ingressInsertSql=normalizeSql(`INSERT INTO whoop_webhook_events
+const ingressInsertSql=`INSERT INTO whoop_webhook_events
  (provider, whoop_user_id, event_type, resource_type, resource_id, trace_id,
  event_at, received_at, state, attempt_count, created_at, updated_at)
- VALUES ('whoop', ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`);
-const ingressDuplicateSql=normalizeSql(`SELECT id FROM whoop_webhook_events WHERE whoop_user_id = ? AND event_type = ? AND resource_id = ? AND trace_id = ?`),ingressRowSql='SELECT * FROM whoop_webhook_events WHERE id = ?';
+ VALUES ('whoop', ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`;
+const ingressDuplicateSql=`SELECT id FROM whoop_webhook_events WHERE whoop_user_id = ? AND event_type = ? AND resource_id = ? AND trace_id = ?`,ingressRowSql='SELECT * FROM whoop_webhook_events WHERE id = ?';
 const ingressResponse=(status,body={ok:status===200})=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 async function ingressBody(request,check,signal){const reader=request.body?.getReader();if(!reader)return Buffer.alloc(0);const chunks=[];let size=0;const cancel=()=>{try{void reader.cancel().catch(()=>{});}catch{}};signal.addEventListener('abort',cancel,{once:true});try{for(;;){check();const next=await reader.read();check();if(next.done)break;size+=next.value.length;if(size>16384)fail('PRODUCTION_EPOCH_INGRESS_BODY_TOO_LARGE');chunks.push(Buffer.from(next.value));}return Buffer.concat(chunks);}finally{signal.removeEventListener('abort',cancel);cancel();try{reader.releaseLock();}catch{}}}
 /** Dedicated original-window intake, independent of permanently revoked business
@@ -288,6 +288,9 @@ async function ingressBody(request,check,signal){const reader=request.body?.getR
 export async function initializeProductionEpochIngress(options={}){
  if(!exact(options,['environment','operatorQualification',...(Object.hasOwn(options,'processBoot')?['processBoot']:[])]))fail('PRODUCTION_EPOCH_OWNED_INGRESS_REQUIRED');
  const bootstrap=createProductionEpochBootstrap(options),c=bootstrapContexts.get(bootstrap),{environment,keys,qualification,window,s,actualRelease}=c;
+ // Migration-first imports can reach this module through the epoch graph.
+ // Imported normalizers are used only after module initialization completes.
+ const canonicalIngressSql=new Set([ingressInsertSql,ingressDuplicateSql,ingressRowSql].map(normalizeSql));
  if(typeof environment.WHOOP_CLIENT_SECRET!=='string'||!environment.WHOOP_CLIENT_SECRET)fail('PRODUCTION_EPOCH_INGRESS_SECRET_REQUIRED');
  let accepting=true,closed=false;const activeWork=new Set(),operationTimeoutMs=10000;
  const windowCheck=()=>{const now=Date.now();if(now<window.acceptFromMs||now>=window.acceptUntilMs||now<window.originalWindowStartMs||now>=window.originalWindowEndMs)fail('PRODUCTION_EPOCH_INGRESS_WINDOW_INACTIVE');};
@@ -302,7 +305,7 @@ export async function initializeProductionEpochIngress(options={}){
    check();raw=await ingressBody(request,check,abort.signal);check();const headers=Object.fromEntries(request.headers),auth=verifyWhoopWebhook({headers,rawBody:raw,clientSecret:environment.WHOOP_CLIENT_SECRET,now:started});if(!auth.ok)return ingressResponse(401);
    const metadata=approvedMetadata(raw);if(!metadata)return ingressResponse(400);if(!window.tenants.some(t=>t.whoopUserId===metadata.tenant))return ingressResponse(403);
    const lease={...window,originalWindowEndMs:deadlineAt};client=ownedNative(environment,lease);await validate(client,lease);check();
-   const limited={execute:async statement=>{check();const sql=normalizeSql(typeof statement==='string'?statement:statement.sql);if(![ingressInsertSql,ingressDuplicateSql,normalizeSql(ingressRowSql)].includes(sql))fail('PRODUCTION_EPOCH_INGRESS_CANONICAL_SQL_REQUIRED');const result=await client.execute(statement);check();return result;}};
+   const limited={execute:async statement=>{check();const sql=normalizeSql(typeof statement==='string'?statement:statement.sql);if(!canonicalIngressSql.has(sql))fail('PRODUCTION_EPOCH_INGRESS_CANONICAL_SQL_REQUIRED');const result=await client.execute(statement);check();return result;}};
    const store=createWhoopWebhookStore(limited),e=metadata.event,args={whoopUserId:e.whoopUserId,eventType:e.eventType,resourceType:e.resourceType,resourceId:e.resourceId,traceId:e.traceId,eventAt:String(auth.timestampMs),now:new Date(started)},receipt=await store.recordWhoopEvent(args);check();
    if(!Number.isSafeInteger(receipt?.id)||receipt.id<=0||typeof receipt.inserted!=='boolean'||typeof receipt.duplicate!=='boolean'||receipt.inserted===receipt.duplicate)fail('PRODUCTION_EPOCH_INGRESS_DURABLE_RECEIPT_REQUIRED');
    const rows=(await limited.execute({sql:ingressRowSql,args:[receipt.id]})).rows,row=rows[0];if(rows.length!==1||row.provider!=='whoop'||row.whoop_user_id!==metadata.tenant||row.event_type!==e.eventType||row.resource_type!==e.resourceType||row.resource_id!==e.resourceId||row.trace_id!==e.traceId)fail('PRODUCTION_EPOCH_INGRESS_DURABLE_IDENTITY_REQUIRED');

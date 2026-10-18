@@ -1,7 +1,6 @@
-/** Source-only encrypted ingress. Runtime remains disabled without an exact
- * separately authorized compiled pin, matching configuration and queue binding.
- * Only a public encryption key reaches this producer. Original WHOOP HMAC
- * authentication and canonical ledger consumption remain local.
+/** Worker-side encrypted WHOOP event producer. Default OFF.
+ * A separate reviewed owner grant and private compiled pin are mandatory.
+ * Raw tenant identities, the private decryption key and WHOOP secret stay local.
  */
 export const BUFFER_PATH='/whoop/encrypted-buffer/v1';
 export const BUFFER_PROBE_PATH='/whoop/encrypted-buffer/probe/v1';
@@ -10,7 +9,7 @@ export const WHOOP_FRESH_MS=5*60_000;
 export const MAX_QUEUE_ENQUEUE_SKEW_MS=60_000;
 export const BUFFER_ACTIVE_MS=2*60*60_000;
 export const MAX_BUFFER_HOLD_MS=24*60*60_000;
-const CONTRACT='stage8-whoop-encrypted-buffer-v1',encoder=new TextEncoder();
+const CONTRACT='stage8-whoop-encrypted-buffer-v1',TENANT_DOMAIN='WHOOP_BUFFER_TENANT_FENCE_V1',encoder=new TextEncoder();
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const exact=(v,keys)=>object(v)&&Object.keys(v).sort().join(',')===[...keys].sort().join(',');
 const fail=code=>{throw Object.assign(Error(code),{code});};
@@ -18,14 +17,33 @@ const integer=v=>Number.isSafeInteger(v)&&v>0;
 const hex=bytes=>Array.from(new Uint8Array(bytes),v=>v.toString(16).padStart(2,'0')).join('');
 const base64=bytes=>{let raw='';for(const b of new Uint8Array(bytes))raw+=String.fromCharCode(b);return btoa(raw);};
 function bytes64(value,max=65536){if(typeof value!=='string'||value.length>Math.ceil(max/3)*4||value.length%4!==0||!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))fail('BUFFER_BASE64_INVALID');const bytes=Uint8Array.from(atob(value),c=>c.charCodeAt(0));if(bytes.length>max||base64(bytes)!==value)fail('BUFFER_BASE64_INVALID');return bytes;}
-const aad=pin=>encoder.encode(CONTRACT+'\n'+pin.approvalId+'\n'+pin.publicKeyFingerprint+'\n'+pin.queueId);
+const aad=pin=>encoder.encode([CONTRACT,pin.approvalId,pin.publicKeyFingerprint,pin.queueId,TENANT_DOMAIN,...pin.tenantFingerprints].join('\n'));
+const validTriggerSecret=secret=>typeof secret==='string'&&encoder.encode(secret).length>=32;
+function canonicalTenant(value){
+ if(typeof value==='number'&&Number.isSafeInteger(value)&&value>0)return String(value);
+ if(typeof value==='string'&&/^[1-9]\d{0,19}$/.test(value))return value;
+ fail('BUFFER_TENANT_ID_INVALID');
+}
+/** Root derives exactly three opaque values in protected memory after the
+ * separate scope grant. Never put raw IDs or a new secret into source/config.
+ * Number/string forms of the same positive decimal ID have one identity. */
+export async function deriveWhoopBufferTenantFingerprint({approvalId,queueId,whoopUserId,triggerSecret,cryptoImpl=globalThis.crypto}){
+ if(typeof approvalId!=='string'||!/^owner-[A-Za-z0-9_.-]{1,90}$/.test(approvalId)||typeof queueId!=='string'||!/^[a-f0-9]{32}$/.test(queueId))fail('BUFFER_TENANT_FENCE_BINDING_REQUIRED');
+ if(!validTriggerSecret(triggerSecret))fail('BUFFER_TENANT_FENCE_SECRET_REQUIRED');
+ const user=canonicalTenant(whoopUserId),key=await cryptoImpl.subtle.importKey('raw',encoder.encode(triggerSecret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+ return hex(await cryptoImpl.subtle.sign('HMAC',key,encoder.encode([TENANT_DOMAIN,approvalId,queueId,user].join('\n'))));
+}
+const validTenantProfile=values=>Array.isArray(values)&&values.length===3&&Object.keys(values).join(',')==='0,1,2'&&values.every((v,i)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v)&&(i===0||values[i-1]<v));
+async function approvedTenant(pin,user,triggerSecret,cryptoImpl){
+ return pin.tenantFingerprints.includes(await deriveWhoopBufferTenantFingerprint({approvalId:pin.approvalId,queueId:pin.queueId,whoopUserId:user,triggerSecret,cryptoImpl}));
+}
 function pinOf(value){
- if(!exact(value,['contract','approvalId','accountId','workerName','queueId','origin','publicKeyFingerprint','publicKeySpkiBase64','acceptFromMs','acceptUntilMs','maxHoldMs'])
+ if(!exact(value,['contract','approvalId','accountId','workerName','queueId','origin','publicKeyFingerprint','publicKeySpkiBase64','acceptFromMs','acceptUntilMs','maxHoldMs','tenantFingerprints'])
   ||value.contract!=='stage8-whoop-buffer-owner-approval-v1'||typeof value.approvalId!=='string'||!/^owner-[A-Za-z0-9_.-]{1,90}$/.test(value.approvalId)
   ||value.accountId!=='17558c0263c5c4076055ee0f860907dc'||value.workerName!=='whoop-briefing-scheduler'
   ||typeof value.queueId!=='string'||!/^[a-f0-9]{32}$/.test(value.queueId)||!(/^[a-f0-9]{64}$/).test(value.publicKeyFingerprint??'')
   ||!integer(value.acceptFromMs)||!integer(value.acceptUntilMs)||value.acceptUntilMs-value.acceptFromMs!==BUFFER_ACTIVE_MS
-  ||!integer(value.maxHoldMs)||value.maxHoldMs>MAX_BUFFER_HOLD_MS)fail('BUFFER_SEPARATE_PINNED_OWNER_APPROVAL_REQUIRED');
+  ||!integer(value.maxHoldMs)||value.maxHoldMs>MAX_BUFFER_HOLD_MS||!validTenantProfile(value.tenantFingerprints))fail('BUFFER_SEPARATE_PINNED_OWNER_APPROVAL_REQUIRED');
  let url;try{url=new URL(value.origin);}catch{fail('BUFFER_PINNED_WORKER_ORIGIN_REQUIRED');}
  if(url.protocol!=='https:'||url.origin!==value.origin||!url.hostname.endsWith('.workers.dev')||url.username||url.password)fail('BUFFER_PINNED_WORKER_ORIGIN_REQUIRED');
  bytes64(value.publicKeySpkiBase64,1024);return structuredClone(value);
@@ -37,16 +55,33 @@ function publicHeaders(headers,receivedAt){
  if(typeof signature!=='string'||!(/^[A-Za-z0-9+/]{43}=$/).test(signature)||bytes64(signature,32).length!==32)fail('BUFFER_WHOOP_SIGNATURE_SHAPE_INVALID');
  return {timestamp,signature};
 }
-function approvedMetadataOnly(raw){
- let text,value;try{text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(raw);value=JSON.parse(text);}catch{return false;}
- if(!exact(value,['user_id','id','type','trace_id']))return false;
- // Reject duplicate/escaped keys; otherwise JSON.parse could hide an earlier
- // out-of-scope value while the ORIGINAL bytes still entered encrypted storage.
- const keys=[...text.matchAll(/"((?:[^"\\]|\\.)*)"\s*:/g)].map(m=>m[1]);
- if(keys.length!==4||new Set(keys).size!==4||keys.some(k=>!['user_id','id','type','trace_id'].includes(k)))return false;
- const user=typeof value.user_id==='number'?Number.isSafeInteger(value.user_id)&&value.user_id>0:typeof value.user_id==='string'&&/^[1-9]\d{0,19}$/.test(value.user_id);
+/** JSON.parse proves syntax and scalar types below; this scan keeps original
+ * top-level lexemes without matching key-like text inside JSON strings. */
+function metadataWireFields(text){
+ let at=0;const fields=[],space=()=>{while(/[\x20\t\r\n]/.test(text[at]??'')&&at<text.length)at++;};
+ const string=()=>{const start=at;if(text[at++]!=='"')return null;while(at<text.length){const c=text[at++];if(c==='\\')at++;else if(c==='"')return text.slice(start,at);}return null;};
+ space();if(text[at++]!=='{')return null;
+ for(;;){
+  space();const key=string();if(key===null)return null;space();if(text[at++]!==':')return null;space();const start=at;
+  if(text[at]==='"'){if(string()===null)return null;}else{while(at<text.length&&!/[\x20\t\r\n,}]/.test(text[at]))at++;}
+  const token=text.slice(start,at);if(!token)return null;fields.push({key,token});space();
+  if(text[at]===','){at++;continue;}if(text[at++]==='}')break;return null;
+ }
+ space();return at===text.length?fields:null;
+}
+function approvedMetadata(raw){
+ let text,value;try{text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(raw);value=JSON.parse(text);}catch{return null;}
+ if(!exact(value,['user_id','id','type','trace_id']))return null;
+ let user;try{user=canonicalTenant(value.user_id);}catch{return null;}
  const uuid=v=>typeof v==='string'&&/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(v);
- return Boolean(user&&uuid(value.id)&&uuid(value.trace_id)&&['sleep.updated','sleep.deleted','recovery.updated','recovery.deleted','workout.updated','workout.deleted'].includes(value.type));
+ if(!uuid(value.id)||!uuid(value.trace_id)||!['sleep.updated','sleep.deleted','recovery.updated','recovery.deleted','workout.updated','workout.deleted'].includes(value.type))return null;
+ // Require four literal, unique keys. JSON.parse must not hide duplicates or
+ // round a fractional/exponent numeric alias into one of the approved IDs.
+ const fields=metadataWireFields(text),keys=fields?.map(v=>v.key);
+ if(!keys||keys.length!==4||new Set(keys).size!==4||keys.some(k=>!['"user_id"','"id"','"type"','"trace_id"'].includes(k)))return null;
+ const token=fields.find(v=>v.key==='"user_id"').token;
+ if(token!==(typeof value.user_id==='number'?user:'"'+user+'"'))return null;
+ return {canonicalUserId:user};
 }
 async function deadline(work,ms){let timer;try{return await Promise.race([Promise.resolve(work),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('BUFFER_OPERATION_DEADLINE')),ms);})]);}finally{clearTimeout(timer);}}
 async function boundedBody(request,limit,timeoutMs){
@@ -95,13 +130,13 @@ export function createWhoopBufferProbeAuthenticator({approvedPin,secret,cryptoIm
  * assertOperatorProbe must verify a fresh, path-bound operator authentication
  * before any probe is encrypted. Default is disabled. No WHOOP secret needed.
  */
-export function createEncryptedWhoopBuffer({approvedPin=null,configuration={enabled:'off'},queue=null,cryptoImpl=globalThis.crypto,now=Date.now,assertOperatorProbe=null,operationTimeoutMs=10_000}={}){
+export function createEncryptedWhoopBuffer({approvedPin=null,configuration={enabled:'off'},queue=null,triggerSecret=null,cryptoImpl=globalThis.crypto,now=Date.now,assertOperatorProbe=null,operationTimeoutMs=10_000}={}){
  approvedPin=approvedPin?structuredClone(approvedPin):null;configuration=structuredClone(configuration);
  return async request=>{
   const url=new URL(request.url);if(![BUFFER_PATH,BUFFER_PROBE_PATH].includes(url.pathname))return null;
   let body;
   try{
-   if(!approvedPin||configuration.enabled!=='on'||!exact(configuration,['enabled','binding'])||JSON.stringify(configuration.binding)!==JSON.stringify(approvedPin)||typeof queue?.send!=='function'||!Number.isSafeInteger(operationTimeoutMs)||operationTimeoutMs<1||operationTimeoutMs>15_000)return response(503);
+   if(!approvedPin||configuration.enabled!=='on'||!exact(configuration,['enabled','binding'])||JSON.stringify(configuration.binding)!==JSON.stringify(approvedPin)||typeof queue?.send!=='function'||!validTriggerSecret(triggerSecret)||!Number.isSafeInteger(operationTimeoutMs)||operationTimeoutMs<1||operationTimeoutMs>15_000)return response(503);
    const pin=pinOf(approvedPin),receivedAt=now();if(!integer(receivedAt)||receivedAt<pin.acceptFromMs||receivedAt>=pin.acceptUntilMs)return response(503);
    if(url.origin!==pin.origin||url.search||url.hash)return response(400);if(request.method!=='POST')return response(405);
    const key=await deadline(publicKey(pin,cryptoImpl),operationTimeoutMs);let payload;
@@ -113,7 +148,8 @@ export function createEncryptedWhoopBuffer({approvedPin=null,configuration={enab
     payload={kind:'OPERATOR_PROBE',approvalId:pin.approvalId,receivedAt,nonce:control.nonce};
    }else{
     let headers;try{headers=publicHeaders(request.headers,receivedAt);}catch{return response(401);}
-    body=await boundedBody(request,MAX_WHOOP_BYTES,operationTimeoutMs);if(!body.length||!approvedMetadataOnly(body))return response(400);
+    body=await boundedBody(request,MAX_WHOOP_BYTES,operationTimeoutMs);const metadata=body.length?approvedMetadata(body):null;if(!metadata)return response(400);
+    if(!await deadline(approvedTenant(pin,metadata.canonicalUserId,triggerSecret,cryptoImpl),operationTimeoutMs))return response(403);
     payload={kind:'WHOOP_EVENT',approvalId:pin.approvalId,receivedAt,timestamp:headers.timestamp,signature:headers.signature,rawBodyBase64:base64(body)};
    }
    // No ctx.waitUntil/fire-and-forget success: durable Queue.send must resolve.

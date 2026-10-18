@@ -244,7 +244,7 @@ export default {
   if([BUFFER_PATH,BUFFER_PROBE_PATH].includes(path)){
    let binding;try{binding=JSON.parse(env.WHOOP_BUFFER_BINDING??'null');}catch{}
    const handler=createEncryptedWhoopBuffer({approvedPin:APPROVED_WHOOP_BUFFER_PIN,
-    configuration:{enabled:env.WHOOP_BUFFER_ENABLED??'off',binding},queue:env.WHOOP_EVENT_BUFFER,
+    configuration:{enabled:env.WHOOP_BUFFER_ENABLED??'off',binding},queue:env.WHOOP_EVENT_BUFFER,triggerSecret:env.BRIEFING_TRIGGER_SECRET,
     assertOperatorProbe:APPROVED_WHOOP_BUFFER_PIN?createWhoopBufferProbeAuthenticator({approvedPin:APPROVED_WHOOP_BUFFER_PIN,secret:env.BRIEFING_TRIGGER_SECRET}):null});
    return handler(request);
   }

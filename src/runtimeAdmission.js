@@ -1,6 +1,6 @@
 /** Read-only v32 contract compiled from the same frozen DDL used by migrations.
  * No tenant/history query, migration, checkpoint initialization or schema repair. */
-import { SCHEMA, ADDITIVE_COLUMNS, PHASE4_MIGRATIONS, SCHEMA_VERSION } from './schema.js';
+import { SCHEMA, ADDITIVE_COLUMNS, PHASE4_MIGRATIONS, SCHEMA_VERSION, RETAINED_LEGACY_TABLE_DDL } from './schema.js';
 import { normalizeSql, withAddedColumns, Phase4SchemaError } from './phase4Migrations.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { log } from './logger.js';
@@ -192,8 +192,16 @@ async function admitChecked(client, keys,stats) {
   // future schema whose marker still says33. SQLite-owned catalog objects
   // (automatic indexes/statistics/sequence) cannot be application-created.
   if(version===33&&state.runtimeProfile!==undefined)
-    for(const row of metadata.rows)if(!row.name.startsWith('sqlite_')&&!contract.objects.has(row.name))
-      fail('SCHEMA_TRANSITION_UNEXPECTED_SCHEMA_OBJECT',row.name);
+    for(const row of metadata.rows) {
+      if(row.name.startsWith('sqlite_')||contract.objects.has(row.name))continue;
+      // Retained legacy tables are OPTIONAL, not an arbitrary name allowance.
+      // Validate each catalog row before Map collapse: a trigger can share a
+      // table's name, and a view or changed definition must never inherit trust.
+      if(!Object.hasOwn(RETAINED_LEGACY_TABLE_DDL,row.name))
+        fail('SCHEMA_TRANSITION_UNEXPECTED_SCHEMA_OBJECT',row.name);
+      if(row.type!=='table'||normalizeSql(row.sql)!==normalizeSql(RETAINED_LEGACY_TABLE_DDL[row.name]))
+        fail('SCHEMA_TRANSITION_RETAINED_LEGACY_DEFINITION_INVALID',row.name);
+    }
   for (const expected of contract.objects.values()) {
     const got = actual.get(expected.name);
     if (!got || got.type !== expected.type || (expected.type === 'table'

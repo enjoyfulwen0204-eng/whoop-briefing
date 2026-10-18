@@ -2169,3 +2169,22 @@ export const RESHAPED_TABLES = [
 
 /** 舊的 single-user 表，被取代後留著不刪（0 列，無害）。 */
 export const LEGACY_TABLES = ['whoop_tokens', 'app_state'];
+
+// Optional retained single-user tables. These exact definitions are frozen in
+// test/migration.test.js from the original audited catalog; migrations never
+// delete them. They are metadata compatibility, not new runtime tables/defaults.
+export const RETAINED_LEGACY_TABLE_DDL = Object.freeze({
+  whoop_tokens: `CREATE TABLE whoop_tokens (
+     id                      INTEGER PRIMARY KEY CHECK (id = 1),
+     access_token            TEXT NOT NULL,
+     refresh_token           TEXT NOT NULL,
+     access_token_expires_at TEXT NOT NULL,
+     scope                   TEXT,
+     updated_at              TEXT NOT NULL
+   )`,
+  app_state: `CREATE TABLE app_state (
+     key        TEXT PRIMARY KEY,
+     value      TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   )`,
+});

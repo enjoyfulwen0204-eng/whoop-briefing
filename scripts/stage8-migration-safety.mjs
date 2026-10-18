@@ -3,6 +3,7 @@ import {readFile,writeFile,open,unlink,lstat,realpath,mkdtemp,chmod,rm} from 'no
 import {resolve,dirname,join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
+import {emitStage8ReleaseGuardAudit} from './stage8-release-guard-audit.mjs';
 import {createClient} from '@libsql/client';
 import {currentVersion,runMigrations} from '../src/migrations.js';
 import {assertPhase4Schema,verifyPhase4Schema} from '../src/phase4Migrations.js';
@@ -19,7 +20,9 @@ const gitEnvironment=()=>{const env={...process.env,LC_ALL:'C'};for(const name o
 export function assertCleanStage8Release(expectedSha,repository){
  if(!/^[a-f0-9]{40}$/.test(expectedSha??''))fail('STAGE8_EXACT_RELEASE_REQUIRED');
  const opts={cwd:repository,env:gitEnvironment(),encoding:'utf8',timeout:2000,stdio:['ignore','pipe','ignore']};
- if(execFileSync('git',['rev-parse','HEAD'],opts).trim()!==expectedSha||execFileSync('git',['status','--porcelain','--untracked-files=all'],opts).trim())fail('STAGE8_CLEAN_RELEASE_REQUIRED');
+ if(execFileSync('git',['rev-parse','HEAD'],opts).trim()!==expectedSha||execFileSync('git',['status','--porcelain','--untracked-files=all'],opts).trim()){
+  emitStage8ReleaseGuardAudit(expectedSha,repository);fail('STAGE8_CLEAN_RELEASE_REQUIRED');
+ }
  return expectedSha;
 }
 // Shared filesystem primitives retain the reviewed ownership, outside-Git,

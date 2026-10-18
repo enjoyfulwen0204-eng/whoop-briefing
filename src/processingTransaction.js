@@ -1,3 +1,4 @@
+import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
 import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -327,7 +328,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(workStep!==undefined&&(typeof workStep!=='string'||!workStep||workStep.length>512))missingStep();
     for (let attempt = 0; attempt < 12; attempt++) {
       const releaseRoot=await acquireRoot();
-      let tx,commitSubmitted=false;
+      let tx,commitSubmitted=false,commitGuardRejected=false;
       const readMemo=createReadSnapshotMemo(),readBudget=currentExecutionBudget(),closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
       if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});
       const state = { tx:null, cache,readMemo,readBudget,readExecution:execution, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
@@ -431,6 +432,12 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             context?.pending.add(token);commitSubmitted=true;
             try {readMemo.close();await tx.commit();state.syncSnapshot?.note('commitMs',performance.now()-commitAt);}
             catch(error){
+              // The exact privately owned outer guard can prove its synchronous
+              // rejection occurred before invoking native COMMIT. This marker
+              // is identity-bound, single-use, and grants no retry/replay right.
+              if(privateRuntime&&consumeOwnedCommitGuardFailure(tx,error)){
+                commitSubmitted=false;commitGuardRejected=true;throw error;
+              }
               // Explicit SQLite BUSY leaves this native transaction open: retry
               // its COMMIT only. Every other acknowledgement is indeterminate.
               if(/^(SQLITE_BUSY|SQLITE_LOCKED)(_|$)/.test(error?.code??'')&&!tx.closed){commitSubmitted=false;throw error;}
@@ -459,7 +466,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         // Only the new fixed preparation unit can use this private marker.
         // Unknown COMMIT, parent expiry/cancellation, attempted writes/provider
         // work and unacknowledged rollback cannot authorize an independent retry.
-        if(state.preparationReadOnly&&rollbackAcknowledged&&!commitSubmitted&&!context?.indeterminate&&!context?.pending?.size&&!context?.workRejected&&!state.workWrites
+        if(state.preparationReadOnly&&rollbackAcknowledged&&!commitSubmitted&&!commitGuardRejected&&!context?.indeterminate&&!context?.pending?.size&&!context?.workRejected&&!state.workWrites
           &&error?.message!=='PROCESSING_READ_ONLY_CHECK_REQUIRED'&&error?.code!=='COMMIT_INDETERMINATE'
           &&!['SYNC_TIMEOUT','SYNC_CANCELLED','ABORT_ERR'].includes(error?.code)&&error?.name!=='AbortError'){
           try{currentExecutionBudget()?.assert();if(error&&typeof error==='object')rolledBackReadOnly.set(error,{budget:currentExecutionBudget(),execution});}catch{/* original parent remains authoritative */}

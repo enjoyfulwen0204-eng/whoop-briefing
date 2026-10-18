@@ -8,6 +8,7 @@ import {withRuntimeMetadata} from './runtimeMetadataContext.js';
 import {currentExecutionBudget} from './executionBudget.js';
 import {currentDurableExecution} from './phase4ExecutionContext.js';
 import {requireSchemaTransitionRuntimeProfile,bindSchemaTransitionRuntimeProfile} from './schemaTransitionProfile.js';
+import {requireSupervisorRuntimeEpochCatalog} from './runtimeEpochScope.js';
 
 const connections = new WeakMap(), capabilities = new WeakMap();
 const fail = (code, object) => { throw new Phase4SchemaError(code, object); };
@@ -15,11 +16,12 @@ const fail = (code, object) => { throw new Phase4SchemaError(code, object); };
 // Capability identity is useful inside a private runtime. Caller-owned raw
 // clients have no observable native lifetime primitive: their privileged SQL
 // boundaries must always perform a new complete metadata admission.
-export function bindConnectionLifetime(base, executor, transaction, {runtimeProfile,keys}={}) {
+export function bindConnectionLifetime(base, executor, transaction, {runtimeProfile,runtimeEpoch,keys}={}) {
   if(runtimeProfile!==undefined)bindSchemaTransitionRuntimeProfile(runtimeProfile,keys,base);
+  if(runtimeEpoch!==undefined)requireSupervisorRuntimeEpochCatalog(runtimeEpoch,keys);
   let state=connections.get(base);
-  if(!state){state={lifetime:{revoked:false},closed:false,ended:false,renewals:new Set(),runtimeProfile,profileKeys:keys};connections.set(base,state);}
-  else if(state.runtimeProfile!==runtimeProfile||runtimeProfile!==undefined&&state.profileKeys!==keys)fail('SCHEMA_TRANSITION_CONNECTION_PROFILE_CHANGED');
+  if(!state){state={lifetime:{revoked:false},closed:false,ended:false,renewals:new Set(),runtimeProfile,runtimeEpoch,profileKeys:keys};connections.set(base,state);}
+  else if(state.runtimeProfile!==runtimeProfile||state.runtimeEpoch!==runtimeEpoch||(runtimeProfile!==undefined||runtimeEpoch!==undefined)&&state.profileKeys!==keys)fail('SCHEMA_TRANSITION_CONNECTION_PROFILE_CHANGED');
   connections.set(executor,state);state.transaction=transaction;
   state.retryMetadata=async()=>{
     if(state.ended)fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
@@ -137,6 +139,7 @@ export function requireRuntimeAdmission(client, capability, keys, transaction) {
       || issued.lifetime.revoked || issued.lifetime !== state.lifetime || issued.keys !== keys || (transaction && state.transaction !== transaction))
     fail('PHASE4_RUNTIME_ADMISSION_REQUIRED');
   if(state.runtimeProfile!==undefined)requireSchemaTransitionRuntimeProfile(state.runtimeProfile,keys);
+  if(state.runtimeEpoch!==undefined&&requireSupervisorRuntimeEpochCatalog(state.runtimeEpoch,keys).schema!==issued.version)fail('RUNTIME_EPOCH_SCHEMA_ADMISSION_MISMATCH');
   return issued.version;
 }
 
@@ -178,30 +181,55 @@ async function admitChecked(client, keys,stats) {
   if (!state || state.closed || client.closed) fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
   if(state.runtimeProfile!==undefined)requireSchemaTransitionRuntimeProfile(state.runtimeProfile,keys);
   const lifetime = state.lifetime;
-  const metadata = await read(state.runtimeProfile!==undefined
-    ?"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view')"
+  const epochCatalog=state.runtimeEpoch===undefined?undefined:requireSupervisorRuntimeEpochCatalog(state.runtimeEpoch,keys);
+  const metadata = await read(state.runtimeProfile!==undefined||epochCatalog!==undefined
+    ?"SELECT type,name,tbl_name,sql FROM sqlite_master WHERE type IN ('table','index','trigger','view')"
     :"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')");
-  const actual = new Map(metadata.rows.map(r => [r.name, r]));
   const versions=(await read('SELECT version,note FROM schema_version')).rows;
   const version=Math.max(0,...versions.map(r=>Number(r.version)));
   if(version<SCHEMA_VERSION&&!(version===33&&state.runtimeProfile!==undefined))fail('PHASE4_CONTROLLED_MIGRATION_REQUIRED',`${version}/${SCHEMA_VERSION}`);
   if(state.runtimeProfile!==undefined&&![33,35].includes(version))fail('SCHEMA_TRANSITION_COMMITTED_VERSION_REQUIRED');
   if (!contracts.has(version)) fail('phase4_schema_version_mismatch', `${version}/${SCHEMA_VERSION}`);
   const contract=contracts.get(version);
-  // The opt-in33 path is the frozen old catalog, not a partially installed
-  // future schema whose marker still says33. SQLite-owned catalog objects
-  // (automatic indexes/statistics/sequence) cannot be application-created.
-  if(version===33&&state.runtimeProfile!==undefined)
-    for(const row of metadata.rows) {
-      if(row.name.startsWith('sqlite_')||contract.objects.has(row.name))continue;
-      // Retained legacy tables are OPTIONAL, not an arbitrary name allowance.
-      // Validate each catalog row before Map collapse: a trigger can share a
-      // table's name, and a view or changed definition must never inherit trust.
+  // A fixed supervisor scope authorizes only the exact authenticated permanent
+  // trigger manifest. No prefix/name/JSON option can widen the base contract.
+  // Validate EVERY row before Map collapse, including a same-name trigger on a
+  // canonical table. A later reconnect retains this scope and cannot adopt C/D.
+  if(epochCatalog!==undefined&&epochCatalog.schema!==version)
+    fail('RUNTIME_EPOCH_SCHEMA_ADMISSION_MISMATCH');
+  if(version===33&&state.runtimeProfile!==undefined||epochCatalog!==undefined){
+    const expectedEpoch=new Map(),seenEpoch=new Set(),seenCatalog=new Set();
+    for(const row of epochCatalog?.rows??[]){
+      if(row.type!=='trigger'||typeof row.name!=='string'||typeof row.tbl_name!=='string'||typeof row.sql!=='string'
+        ||row.name.startsWith('sqlite_')||contract.objects.has(row.name)||Object.hasOwn(RETAINED_LEGACY_TABLE_DDL,row.name)||expectedEpoch.has(row.name))
+        fail('RUNTIME_EPOCH_CAPTURED_MANIFEST_INVALID');
+      expectedEpoch.set(row.name,row);
+    }
+    for(const row of metadata.rows){
+      const identity=row.type+'\0'+row.name;
+      if(seenCatalog.has(identity))fail('SCHEMA_TRANSITION_DUPLICATE_SCHEMA_OBJECT',row.name);
+      seenCatalog.add(identity);
+      if(row.name.startsWith('sqlite_'))continue;
+      const expected=contract.objects.get(row.name);
+      if(expected){
+        if(row.type!==expected.type||(expected.type==='table'?!tableMatches(row.sql,expected):normalizeSql(row.sql)!==normalizeSql(expected.ddl)))
+          fail('phase4_schema_postcondition_failed',row.name);
+        continue;
+      }
+      const extra=expectedEpoch.get(row.name);
+      if(extra){
+        if(row.type!==extra.type||row.tbl_name!==extra.tbl_name||normalizeSql(row.sql)!==normalizeSql(extra.sql)||seenEpoch.has(row.name))
+          fail('RUNTIME_EPOCH_EXACT_FENCE_MANIFEST_REQUIRED',row.name);
+        seenEpoch.add(row.name);continue;
+      }
       if(!Object.hasOwn(RETAINED_LEGACY_TABLE_DDL,row.name))
         fail('SCHEMA_TRANSITION_UNEXPECTED_SCHEMA_OBJECT',row.name);
       if(row.type!=='table'||normalizeSql(row.sql)!==normalizeSql(RETAINED_LEGACY_TABLE_DDL[row.name]))
         fail('SCHEMA_TRANSITION_RETAINED_LEGACY_DEFINITION_INVALID',row.name);
     }
+    if(seenEpoch.size!==expectedEpoch.size)fail('RUNTIME_EPOCH_EXACT_FENCE_MANIFEST_REQUIRED');
+  }
+  const actual = new Map(metadata.rows.map(r => [r.name, r]));
   for (const expected of contract.objects.values()) {
     const got = actual.get(expected.name);
     if (!got || got.type !== expected.type || (expected.type === 'table'
@@ -228,6 +256,7 @@ async function admitChecked(client, keys,stats) {
   if (lifetime.revoked || lifetime !== state.lifetime || state.closed) fail('PHASE4_RUNTIME_CONNECTION_CHANGED');
   if(state.runtimeProfile!==undefined)requireSchemaTransitionRuntimeProfile(state.runtimeProfile,keys);
   currentExecutionBudget()?.assert();
+  if(state.runtimeEpoch!==undefined&&requireSupervisorRuntimeEpochCatalog(state.runtimeEpoch,keys).schema!==version)fail('RUNTIME_EPOCH_SCHEMA_ADMISSION_MISMATCH');
   state.admitted=true;
   const capability = Object.freeze({}); capabilities.set(capability, { client, lifetime, keys, version });
   return capability;

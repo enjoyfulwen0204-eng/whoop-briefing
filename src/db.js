@@ -1,3 +1,4 @@
+import {requireSupervisorRuntimeEpochScope,bindSupervisorRuntimeEpochOwnedClient} from './runtimeEpochScope.js';
 import {ownReceiverScopes,retireReceiverScopes} from './receiverScopeLifetime.js';
 import {isReadOnlyTelegramOperation} from './telegramReadOnlyPreparation.js';
 import {verifyBodyEnergyTelegramReplyBoundary} from './bodyEnergyTelegramReplyBoundary.js';
@@ -82,7 +83,8 @@ const bindStage6Runtime=(db,base,keys)=>stage6Bindings.set(db,Object.freeze({bas
 export function stage6OwnedBinding(db){const b=stage6Bindings.get(db);if(!b||b.base.closed)throw Error('STAGE6_OWNED_RUNTIME_REQUIRED');return b;}
 export const isOwnedStage6Memory=db=>stage6Memory.has(db);
 const markStage6Memory=db=>stage6Memory.add(db);
-export function createDb({ url, authToken, phase4Keys,fetch,runtimeProfile }) {
+export function createDb({ url, authToken, phase4Keys,fetch,runtimeProfile,runtimeEpoch }) {
+  if(runtimeEpoch!==undefined)requireSupervisorRuntimeEpochScope(runtimeEpoch,phase4Keys,{url});
   const providerFetch=fetch??globalThis.fetch;
   const pendingStreams=new Map();
   const pendingFor=id=>Promise.allSettled([...(pendingStreams.get(id)??[])]);
@@ -104,30 +106,38 @@ export function createDb({ url, authToken, phase4Keys,fetch,runtimeProfile }) {
     try{return await abortableResponse(work,budget.signal);}
     catch(error){if(payload?.baton)void closeHranaStream(providerFetch,original,payload.baton,pendingFor(payload.baton)).catch(()=>{});throw error;}
   };
-  const client=createClient({url,authToken,fetch:boundedFetch});privateClients.add(client);ownReceiverScopes(client);
-  try{const db=composeDb(client,{phase4Keys,runtimeProfile});bindStage6Runtime(db,client,phase4Keys);return db;}
+  const nativeClient=createClient({url,authToken,fetch:boundedFetch});ownReceiverScopes(nativeClient);let client=nativeClient;
+  try{
+   if(runtimeEpoch!==undefined)client=bindSupervisorRuntimeEpochOwnedClient({scope:runtimeEpoch,keys:phase4Keys,base:nativeClient,url});
+   privateClients.add(client);const db=composeDb(client,{phase4Keys,runtimeProfile,runtimeEpoch});bindStage6Runtime(db,client,phase4Keys);return db;
+  }
   catch(error){client.close();retireReceiverScopes(client);throw error;}
 }
 /** Owned file fixture/runtime seam: the constructor owns the native receiver;
  * unlike composeDb it never accepts a caller's reconnectable client. */
-export function createOwnedFileDb({url,phase4Keys,runtimeProfile}){
+export function createOwnedFileDb({url,phase4Keys,runtimeProfile,runtimeEpoch}){
  if(!url?.startsWith('file:'))throw Error('OWNED_FILE_DATABASE_REQUIRED');
- const path=fileURLToPath(url),anchor=new Database(path),client=new Sqlite3Client(path,{},anchor,'number');
- client.transaction=async(mode='write')=>{
-  await client.execute(mode==='write'?'BEGIN IMMEDIATE':mode==='read'?'BEGIN DEFERRED':'BEGIN');
+ if(runtimeEpoch!==undefined)requireSupervisorRuntimeEpochScope(runtimeEpoch,phase4Keys,{url});
+ const path=fileURLToPath(url),anchor=new Database(path),nativeClient=new Sqlite3Client(path,{},anchor,'number');
+ nativeClient.transaction=async(mode='write')=>{
+  await nativeClient.execute(mode==='write'?'BEGIN IMMEDIATE':mode==='read'?'BEGIN DEFERRED':'BEGIN');
   return new Sqlite3Transaction(anchor,'number');
  };
- privateClients.add(client);ownReceiverScopes(client);
- try{const db=composeDb(client,{phase4Keys,runtimeProfile});bindStage6Runtime(db,client,phase4Keys);return db;}
+ ownReceiverScopes(nativeClient);let client=nativeClient;
+ try{
+  if(runtimeEpoch!==undefined)client=bindSupervisorRuntimeEpochOwnedClient({scope:runtimeEpoch,keys:phase4Keys,base:nativeClient,url});
+  privateClients.add(client);const db=composeDb(client,{phase4Keys,runtimeProfile,runtimeEpoch});bindStage6Runtime(db,client,phase4Keys);return db;
+ }
  catch(error){client.close();retireReceiverScopes(client);throw error;}
 }
 
 /** Internal composition seam: tests can own a named, shared-cache in-memory
  * connection without changing the application's URL/credential factory. */
-export function composeDb(baseClient, { phase4Keys,runtimeProfile } = {}) {
+export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch } = {}) {
+  if(runtimeEpoch!==undefined&&!privateClients.has(baseClient))throw Error('RUNTIME_EPOCH_OWNED_COMPOSITION_REQUIRED');
   const processing = processingTransactions(baseClient,{privateRuntime:privateClients.has(baseClient)});
   const transactionClient=processing.client;
-  bindConnectionLifetime(baseClient, transactionClient, processing.transaction,{runtimeProfile,keys:phase4Keys});
+  bindConnectionLifetime(baseClient, transactionClient, processing.transaction,{runtimeProfile,runtimeEpoch,keys:phase4Keys});
   const privateRuntime=privateClients.has(baseClient);
   processing.setLifetimeEnding(()=>endRuntimeLifetime(transactionClient));
   let runtimeAdmission, pendingAdmission;

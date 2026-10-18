@@ -54,8 +54,8 @@ test('legacy listen:false exposes awaitable idempotent close without listening',
  const f=await fixture(t,33),started=await main({listen:false,environment:environment(f.url)});
  assert.equal(started.server.listening,false);await started.close();await started.close();assert.equal(started.status().ownedDatabases,0);
 });
-test('reserved epoch option fails closed before accepting fake authority',async()=>{
- await assert.rejects(createBusinessWebhookRuntime({environment:{},runtimeEpoch:{}}),{code:'BUSINESS_RUNTIME_EPOCH_UNWIRED'});
+test('unissued epoch option fails closed before constructing any business DB',async()=>{
+ await assert.rejects(createBusinessWebhookRuntime({environment:environment('file:/synthetic-never-opened.db'),runtimeEpoch:{}}),{code:'RUNTIME_EPOCH_ORIGINAL_OPAQUE_SCOPE_REQUIRED'});
 });
 test('one unchanged environment can dispose all33 clients, migrate the owned synthetic file, and cold construct35',async t=>{
  const f=await fixture(t,33),env=environment(f.url);let original,current;

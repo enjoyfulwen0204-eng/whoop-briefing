@@ -54,6 +54,7 @@ import { randomUUID } from 'node:crypto';
 
 import { loadDotEnvIfPresent, loadEnv, TELEGRAM_BOT, WHOOP_WEBHOOK } from '../config.js';
 import { createDb } from '../db.js';
+import {requireSupervisorRuntimeEpochScope} from '../runtimeEpochScope.js';
 import { createExecutionBudget } from '../executionBudget.js';
 import { createCoach } from '../coach.js';
 import { createTelegramApi } from './api.js';
@@ -426,9 +427,8 @@ export function createWebhookServer(opts) {
  * 狀態，詳見 docs/telegram-webhook.md。
  */
 export async function createBusinessWebhookRuntime({environment=process.env,runtimeEpoch}={}) {
-  // Reserved for the permanent DB epoch adapter. Never silently accept fake authority.
-  // That adapter must capture ONE opaque scope here and reuse it for every ownDb.
-  if(runtimeEpoch!==undefined)throw Object.assign(Error('BUSINESS_RUNTIME_EPOCH_UNWIRED'),{code:'BUSINESS_RUNTIME_EPOCH_UNWIRED'});
+  // A trusted supervisor captures this opaque scope ONCE. Every primary and
+  // secondary below retains it; no connection adopts a later DB registry epoch.
   const selectedEnvironment=Object.freeze({...environment});
   const profile=executionProfile(selectedEnvironment);
   const env = loadEnv({
@@ -442,11 +442,14 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   const briefingTriggerSecret = selectedEnvironment.BRIEFING_TRIGGER_SECRET;
   const betaConfig = publicBetaConfiguration(selectedEnvironment);
   const authorityKeys = phase4AuthorityKeys(selectedEnvironment);
+  // Canonical key branding plus BOTH fixed key checkpoints permit legitimate
+  // reconstruction from identical key bytes, never request-supplied authority.
+  if(runtimeEpoch!==undefined)requireSupervisorRuntimeEpochScope(runtimeEpoch,authorityKeys,{url:env.tursoUrl});
 
   let db,continuation;const ownedDatabases=new Set();
   const ownDb=()=>{
     const runtimeProfile=schemaTransitionRuntimeProfileFor({environment:selectedEnvironment,keys:authorityKeys});
-    const owned=createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:authorityKeys,runtimeProfile});
+    const owned=createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:authorityKeys,runtimeProfile,runtimeEpoch});
     ownedDatabases.add(owned);return owned;
   };
   const closeOwned=async owned=>{if(ownedDatabases.has(owned)){await owned.close();ownedDatabases.delete(owned);}};

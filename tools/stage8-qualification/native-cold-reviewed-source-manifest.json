@@ -1,0 +1,18 @@
+{
+  "contract": "stage6-native-cold-reviewed-source-manifest-v1",
+  "applicationBaselineSha": "ca01f63d2bd948f24a3a0400decdaca898811f39",
+  "profile": "three-original-calls-two-os-300s-v1",
+  "files": {
+    ".github/workflows/stage8-live-linux-qualification.yml": "ee8585c8f03a8f2994ad127b83343208dd1a14d85bb91bda0d77599fd69d3857",
+    "test/stage6-ca01-application-source-manifest.json": "142cd5420b2a2b0341b901e42f325da9bbf563a4592d5d74f19e41bbba5a7812",
+    "test/stage6-cold-progress-contract.mock.test.mjs": "84c9d5abea80de2184743011a1e92072525f37941dfa384dacc078e8a5f46411",
+    "test/stage6-cold-progress-contract.proposal.mjs": "8765cf20a58ebe91b51996486df35f0c1e40faa0c3ca8aa3a8b0b9ce11d93e74",
+    "test/stage6-cold-three-attribution.proposal.mjs": "72e5caf5dc581cd7618498e6659ec20f74ce8209fd612d257325ce57de612c7d",
+    "test/stage6-cold-three-observer.mock.test.mjs": "1450b0e9ab2a436896fa9a0d638833299448618501bd65004c467ff89d9f44e5",
+    "test/stage6-cold-three-observer.proposal.mjs": "069fb5b8518a412b62a05291348809dfc0d98fd40d402558a31696bb6a6c3966",
+    "test/stage6-native-cold-progress.mjs": "0849c680f61853353a6bf47d3b3f7519d5e592b1fcb8f37e5727cb9eb464c67d",
+    "test/stage6-native-cold-progress.sh": "1f195381ee0a234fc3c492b4361a2d28e2cb15722411a501c3a7d02051731d0c",
+    "tools/stage8-qualification/native-cold-progress-ci.mock.test.py": "b119759dd19261fe44bc9f96ff38587cf3d34b80997adbd283517bf3f25ff836",
+    "tools/stage8-qualification/native-cold-progress-ci.py": "5e271ffce3b3327c53db4f5ec9ff3292e1180f9cbb5c9bdef200e49a63930466"
+  }
+}

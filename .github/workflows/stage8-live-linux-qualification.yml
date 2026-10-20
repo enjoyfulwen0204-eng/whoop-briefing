@@ -19,6 +19,7 @@ on:
           - native-empty-attribution
           - native-empty-metadata-repair
           - native-empty-principal-snapshot-repair
+          - native-empty-cold-progress
       diagnostic_run_intent:
         description: Only for native-empty-attribution; explicit one-original-empty-120s-v1
         required: false
@@ -33,6 +34,27 @@ on:
 
       principal_snapshot_repair_run_intent:
         description: Only for native-empty-principal-snapshot-repair; one-original-empty-120s-principal-snapshot-repair-v1
+        required: false
+        default: ""
+        type: string
+
+      cold_progress_run_intent:
+        description: Only new three-original-calls-two-os-300s-v1 technical profile
+        required: false
+        default: ""
+        type: string
+      root_cold_choice_b64:
+        description: Exact new Root technical choice bytes; never credentials or health data
+        required: false
+        default: ""
+        type: string
+      root_cold_review_b64:
+        description: Minimal public-safe independent source review bytes
+        required: false
+        default: ""
+        type: string
+      root_cold_intent_b64:
+        description: New one-original Root dispatch intent; old grants are inapplicable
         required: false
         default: ""
         type: string
@@ -227,6 +249,44 @@ jobs:
         run: |
           set -euo pipefail
           control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-empty-principal-snapshot-repair-ci.py"
+          if test -f "$control"; then
+            python3 "$control" --cleanup-only
+          fi
+
+
+  native-empty-cold-progress:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/native-cold-continuation-20261020' && inputs.mode == 'native-empty-cold-progress' && inputs.cold_progress_run_intent == 'three-original-calls-two-os-300s-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      QUALIFICATION_MODE: ${{ inputs.mode }}
+      NATIVE_COLD_RUN_INTENT: ${{ inputs.cold_progress_run_intent }}
+      QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      ROOT_NATIVE_COLD_CHOICE_B64: ${{ inputs.root_cold_choice_b64 }}
+      ROOT_NATIVE_COLD_REVIEW_B64: ${{ inputs.root_cold_review_b64 }}
+      ROOT_NATIVE_COLD_INTENT_B64: ${{ inputs.root_cold_intent_b64 }}
+    steps:
+      - name: Checkout exact independently reviewed cold continuation source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate-repository
+          persist-credentials: false
+          fetch-depth: 0
+      - name: One original three-call two-OS empty partial witness; no retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-cold-progress-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
+      - name: Remove only an exited exact captured owned cold witness container
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-cold-progress-ci.py"
           if test -f "$control"; then
             python3 "$control" --cleanup-only
           fi

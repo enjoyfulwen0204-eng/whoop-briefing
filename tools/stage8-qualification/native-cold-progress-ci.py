@@ -9,7 +9,7 @@ import base64,hashlib,itertools,json,math,os,pathlib,platform,re,shutil,subproce
 
 APP_BASE='ca01f63d2bd948f24a3a0400decdaca898811f39'
 REPOSITORY='enjoyfulwen0204-eng/whoop-briefing'
-REF='refs/heads/diagnostic/native-cold-integer-timeout-20261020'
+REF='refs/heads/diagnostic/native-cold-budget-attribution-20261020'
 MODE='native-empty-cold-progress'
 PROFILE='three-original-calls-two-os-300s-v1'
 REQUESTS=['native-cold-progress-original-1','native-cold-progress-original-2','native-cold-progress-original-3']
@@ -17,7 +17,7 @@ NODE_IMAGE='node@sha256:ae9f58d5c9f5a537110310be6b3cf67cf9c67146a3bb9310c0cb515f
 SQLD_IMAGE='ghcr.io/tursodatabase/libsql-server@sha256:756fb4d34447cfa9507dceb3a8e680435d7f2173e2aa680f44a1329e774f7d31'
 BASELINE_PATH='test/stage6-ca01-application-source-manifest.json'
 MANIFEST_PATH='tools/stage8-qualification/native-cold-reviewed-source-manifest.json'
-RUNTIME_PATHS=['test/stage6-native-cold-progress.mjs','test/stage6-cold-progress-contract.proposal.mjs','test/stage6-native-cold-progress.sh','test/stage6-cold-three-attribution.proposal.mjs','test/stage6-cold-three-observer.proposal.mjs','test/stage6-cold-diagnostic-metadata.proposal.mjs','test/stage6-native-cold-entry.proposal.mjs']
+RUNTIME_PATHS=['test/stage6-native-cold-progress.mjs','test/stage6-cold-progress-contract.proposal.mjs','test/stage6-native-cold-progress.sh','test/stage6-cold-three-attribution.proposal.mjs','test/stage6-cold-three-observer.proposal.mjs','test/stage6-cold-diagnostic-metadata.proposal.mjs','test/stage6-native-cold-entry.proposal.mjs','test/stage6-cold-budget-attribution.proposal.mjs']
 CONTROLLER_PATH='tools/stage8-qualification/native-cold-progress-ci.py'
 WORKFLOW_PATH='.github/workflows/stage8-live-linux-qualification.yml'
 HEX40=re.compile(r'^[a-f0-9]{40}$');HEX64=re.compile(r'^[a-f0-9]{64}$')
@@ -95,7 +95,7 @@ def validate_source(root,binding):
  require(digest(raw)==binding['choice']['sourceManifestSha256'],'REVIEWED_SOURCE_MANIFEST_BYTES_REQUIRED')
  exact_keys(manifest,['contract','applicationBaselineSha','profile','files'])
  require(manifest['contract']=='stage6-native-cold-reviewed-source-manifest-v1' and manifest['applicationBaselineSha']==APP_BASE and manifest['profile']==PROFILE,'EXACT_SOURCE_MANIFEST_SCOPE_REQUIRED')
- required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs','test/stage6-cold-diagnostic-metadata.mock.test.mjs','test/stage6-native-cold-integer-timeout.mock.test.mjs'])
+ required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs','test/stage6-cold-diagnostic-metadata.mock.test.mjs','test/stage6-native-cold-integer-timeout.mock.test.mjs','test/stage6-cold-budget-attribution.mock.test.mjs'])
  require(type(manifest['files']) is dict and set(manifest['files'])==required,'EXACT_FINITE_REVIEWED_SOURCE_SET_REQUIRED')
  for name,pin in manifest['files'].items():require(bool(HEX64.fullmatch(str(pin))) and sha(root/name)==pin,'APPROVED_SOURCE_BYTES_REQUIRED')
  baseline_raw=(root/BASELINE_PATH).read_bytes();baseline=json.loads(baseline_raw)
@@ -275,10 +275,55 @@ def report_projection(label,report):
  report=mapping(report);resources=mapping(report.get('resources'));adapter=mapping(mapping(report.get('attribution')).get('adapter'));failure=mapping(report.get('failure'))
  code=failure.get('code');error_hash=failure.get('messageSha256')
  return {'phase':label,'reportAvailable':bool(report),'callsStarted':known_count(report.get('callsStarted'),3),'terminalComplete':adapter.get('terminalComplete') if type(adapter.get('terminalComplete')) is bool else None,'transportInvocations':safe_number(adapter.get('transportInvocations')),'unknownProtocolReplies':known_count(adapter.get('unknownProtocolReplies'),999999999),'activeFetches':known_count(adapter.get('activeFetches'),999999999),'unresolvedStreams':known_count(adapter.get('unresolvedStreams'),999999999),'memoryPeakBytes':int(resources['memoryPeak']) if type(resources.get('memoryPeak')) is str and resources['memoryPeak'].isdigit() and len(resources['memoryPeak'])<=10 else None,'failureCode':code if type(code) is str and code in ['ERR_ASSERTION','NATIVE_COLD_PROOF_REFUSED'] else 'UNKNOWN','errorMessageSha256':error_hash if type(error_hash) is str and HEX64.fullmatch(error_hash) else None}
+ATTR_CATEGORIES=['TX_BEGIN','TX_COMMIT','TX_ROLLBACK','DDL','PRAGMA','SCHEMA_CATALOG','SCHEMA_VERSION','MIGRATION_METADATA','AUTHORITY_ASSERTION','PRINCIPAL_READINESS','CONTEXT_LEASE_RELEASE','EXECUTION_CONTROL','OPERATION_RECEIPT','CONTEXT_LEASE','QUEUE_CONTROL','FAMILY_DIRECTORY','SOURCE_DATA','DERIVED_DATA','OTHER']
+ATTR_UNITS=['CREATE_DB','MIGRATE','SEED_EMPTY_FIXTURE','RUNTIME_ADMISSION','BUILD_LIVE_PRODUCER','ORIGINAL_PRODUCER_RUN','READBACK','ORIGINAL_REQUEST_REPLAY','CLEANUP','UNKNOWN']
+FRAME_BASENAMES=['stage8LiveProducer.js','stage8LiveExecution.js','phase4Cache.js','executionBudget.js','processingTransaction.js','db.js','phase4Reanalysis.js','phase4Core.js','phase4QueueStore.js','phase4ExecutionContext.js','phase4Coordination.js']
+ATTR_CODES=['NONE','OTHER','UNKNOWN','SYNC_TIMEOUT','SYNC_CANCELLED','PHASE4_DRAIN_DEADLINE_REACHED','COMMIT_INDETERMINATE','RUNTIME_REPLACEMENT_REQUIRED','SQLITE_BUSY','SQLITE_LOCKED','PHASE4_LIVE_NOT_AUTHORIZED','STAGE8_LIVE_PRINCIPAL_FENCED']
+BUDGET_WIDTHS=['MS_5000','MS_10000','MS_15000','MS_45000','MS_50000','MS_70000','OTHER','NONE','UNKNOWN']
+ATTR_COUNTS=['requests','submittedStatements','observedExecutedStatements','requestErrors','responseErrors','unknownReplies']
+ATTR_TIMES=['sumRequestDurationMs','maxRequestDurationMs','sumInjectedDelayMs','phaseWallMs']
+TX_COUNTS=['begun','committed','rolledBack','unknownTerminal','open','atOrAbove5s']
+TX_TIMES=['sumDurationUpperBoundMs','maxDurationUpperBoundMs']
+def nullable_number(value,maximum=1e12,integer=False):
+ return value is None or type(value) in ([int] if integer else [int,float]) and math.isfinite(value) and 0<=value<maximum
+def checked_numbers(value,fields,maximum=1e12,integer=False):
+ for field in fields:require(nullable_number(value[field],maximum,integer),'BOUNDED_ATTRIBUTION_NUMBER_REQUIRED')
+def checked_bools(value,fields):
+ for field in fields:require(value[field] is None or type(value[field]) is bool,'OBSERVED_ATTRIBUTION_BOOLEAN_OR_UNKNOWN_REQUIRED')
+def finite_enum(value,allowed):require(type(value) is str and value in allowed,'CLOSED_ATTRIBUTION_ENUM_REQUIRED')
+def budget_attribution_projection(record):
+ # Validate every nested key/value before any public output. No raw SQL,
+ # request data, identity, free message or arbitrary string can pass this shape.
+ exact_keys(record,['contract','productionEvidence','actualNativeQualified','wholeJobCompletionQualified','capacityQualified','candidateSha','phase','stage','callIntents','elapsedMs','failureCode','errorMessageSha256','typedFailureCode','safeFrames','coverage','adapter','phaseBins','fetchBudgets'])
+ for field in ['productionEvidence','actualNativeQualified','wholeJobCompletionQualified','capacityQualified']:require(record[field] is False,'DIAGNOSTICS_CANNOT_QUALIFY_NATIVE_OR_PRODUCTION')
+ require(record['contract']=='stage6-native-cold-budget-attribution-v1' and type(record['candidateSha']) is str and HEX40.fullmatch(record['candidateSha']),'BOUND_BUDGET_ATTRIBUTION_REQUIRED')
+ finite_enum(record['phase'],['A','B']);finite_enum(record['stage'],['LEG_METADATA_READY','APP_FAILURE']);checked_numbers(record,['callIntents'],4,True);checked_numbers(record,['elapsedMs'])
+ require(record['failureCode'] is None or record['failureCode'] in ['ERR_ASSERTION','NATIVE_COLD_PROOF_REFUSED','UNKNOWN'],'CLOSED_ATTRIBUTION_FAILURE_CODE_REQUIRED');require(record['errorMessageSha256'] is None or type(record['errorMessageSha256']) is str and HEX64.fullmatch(record['errorMessageSha256']),'HASH_ONLY_ATTRIBUTION_FAILURE_REQUIRED')
+ finite_enum(record['typedFailureCode'],ATTR_CODES);frames=record['safeFrames'];require(type(frames) is list and len(frames)<=8,'FINITE_SAFE_FRAME_BOUND_REQUIRED')
+ for frame in frames:
+  exact_keys(frame,['sourceBasename','line']);finite_enum(frame['sourceBasename'],FRAME_BASENAMES);require(type(frame['line']) is int and 1<=frame['line']<=1000000,'FINITE_SAFE_FRAME_LINE_REQUIRED')
+ coverage=record['coverage'];coverage_counts=['inflightRequests','pendingAcknowledgedBegins','unsettledTransactions','droppedObservations','droppedTransactionSamples'];coverage_flags=['physicalTerminalObservationComplete','observationCoverageComplete','allRequestsSettled','allAcknowledgedBeginsLinked','allTransactionsSettled','allRepliesKnown','allTransactionTerminalsKnown','transactionSampleCoverageComplete'];exact_keys(coverage,coverage_counts+coverage_flags);checked_numbers(coverage,coverage_counts,1e9,True);checked_bools(coverage,coverage_flags)
+ adapter=record['adapter'];counts=['activeFetches','transportInvocations','responsesObserved','unresolvedStreams','droppedObservations','unknownProtocolReplies'];flags=['terminalComplete','coverageComplete'];exact_keys(adapter,counts+flags);checked_numbers(adapter,counts,1e9,True);checked_bools(adapter,flags)
+ bins=record['phaseBins'];require(type(bins) is list and len(bins)<=len(PHASES),'FINITE_PHASE_BIN_BOUND_REQUIRED');seen=set()
+ for row in bins:
+  exact_keys(row,['phase',*ATTR_COUNTS,*ATTR_TIMES,'lastKnownOuterWorkUnit','lastStorageCategory','lastTypedCode','categories','transactions']);finite_enum(row['phase'],PHASES);require(row['phase'] not in seen,'DISTINCT_PHASE_BINS_REQUIRED');seen.add(row['phase']);checked_numbers(row,ATTR_COUNTS,1e9,True);checked_numbers(row,ATTR_TIMES)
+  finite_enum(row['lastKnownOuterWorkUnit'],ATTR_UNITS);finite_enum(row['lastStorageCategory'],ATTR_CATEGORIES+['UNKNOWN']);finite_enum(row['lastTypedCode'],ATTR_CODES)
+  categories=row['categories'];require(type(categories) is list and len(categories)<=len(ATTR_CATEGORIES),'FINITE_CATEGORY_BIN_BOUND_REQUIRED');seen_categories=set()
+  for item in categories:
+   exact_keys(item,['category','submitted','executed']);finite_enum(item['category'],ATTR_CATEGORIES);require(item['category'] not in seen_categories,'DISTINCT_CATEGORY_BINS_REQUIRED');seen_categories.add(item['category']);checked_numbers(item,['submitted','executed'],1e9,True)
+  tx=row['transactions'];exact_keys(tx,TX_COUNTS+TX_TIMES);checked_numbers(tx,TX_COUNTS,1e9,True);checked_numbers(tx,TX_TIMES)
+ budget=record['fetchBudgets'];exact_keys(budget,['captures','droppedCaptures','inflight','recentEvictions','widthBins','recentEntries']);checked_numbers(budget,['captures','droppedCaptures','inflight','recentEvictions'],1e9,True)
+ widths=budget['widthBins'];require(type(widths) is list and len(widths)==len(BUDGET_WIDTHS),'COMPLETE_FINITE_WIDTH_BINS_REQUIRED');seen_widths=set()
+ for row in widths:
+  fields=['captures','settled','requestErrors','abortedAtEntry','abortedAtSettlement'];exact_keys(row,['widthBucket',*fields,'lastTypedErrorCode']);finite_enum(row['widthBucket'],BUDGET_WIDTHS);require(row['widthBucket'] not in seen_widths,'DISTINCT_WIDTH_BINS_REQUIRED');seen_widths.add(row['widthBucket']);checked_numbers(row,fields,1e9,True);finite_enum(row['lastTypedErrorCode'],ATTR_CODES)
+ entries=budget['recentEntries'];require(type(entries) is list and len(entries)<=8,'FINITE_RECENT_BUDGET_BOUND_REQUIRED')
+ for row in entries:
+  number_fields=['widthMs','remainingMs','remainingMsAtSettlement'];clock_fields=['workRemainingMs','outerRemainingMs','workRemainingMsAtSettlement','outerRemainingMsAtSettlement'];flags=['signalAborted','settled','requestError','signalAbortedAtSettlement'];exact_keys(row,['phase','callOrdinal','widthBucket',*number_fields,*clock_fields,'elapsedMs',*flags,'typedErrorCode']);finite_enum(row['phase'],PHASES);finite_enum(row['widthBucket'],BUDGET_WIDTHS);finite_enum(row['typedErrorCode'],ATTR_CODES);checked_numbers(row,['callOrdinal'],4,True);checked_numbers(row,number_fields,225001);checked_numbers(row,clock_fields,300001);checked_numbers(row,['elapsedMs']);checked_bools(row,flags)
+ return {key:value for key,value in record.items() if key!='contract'}
 class DiagnosticCollector:
- def __init__(self,output,binding):self.output=output;self.binding=binding;self.seen=set();self.faults=set();self.reports={};self.emitted=0
+ def __init__(self,output,binding):self.output=output;self.binding=binding;self.seen=set();self.faults=set();self.reports={};self.budgetAttributions={};self.emitted=0
  def emit(self,event,metadata=None):
-  require(event in ['PROGRESS','APP_REPORT','METADATA_UNREADABLE','RECORD_LIMIT','HOST_NATIVE_LAUNCH','HOST_TIMEOUT','HOST_CONTROL_REFUSED'],'FINITE_PUBLIC_DIAGNOSTIC_EVENT_REQUIRED')
+  require(event in ['PROGRESS','APP_REPORT','METADATA_UNREADABLE','RECORD_LIMIT','HOST_NATIVE_LAUNCH','HOST_TIMEOUT','HOST_CONTROL_REFUSED','BUDGET_ATTRIBUTION'],'FINITE_PUBLIC_DIAGNOSTIC_EVENT_REQUIRED')
   if self.emitted>=96:return
   self.emitted+=1
   value={'contract':'stage6-native-cold-diagnostic-public-v1','candidateSha':self.binding['candidateSha'],'event':event,'metadata':metadata,'sqlOwnerSettlement':'UNKNOWN','productionEvidence':False,'actualNativeQualified':False,'wholeJobCompletionQualified':False,'capacityQualified':False}
@@ -294,6 +339,14 @@ class DiagnosticCollector:
    try:
     _,record=private_json(path,4096);projected=diagnostic_projection(record);self.seen.add(path.name);self.emit('PROGRESS',projected)
    except Exception:self.unreadable(path.name)
+  for label in ['A','B']:
+   path=self.output/(label+'-budget-attribution.private.json')
+   if label in self.budgetAttributions or not path.exists():continue
+   try:
+    _,record=private_json(path,32768);projected=budget_attribution_projection(record)
+    require(record['candidateSha']==self.binding['candidateSha'] and record['phase']==label,'SAME_ACTUAL_BUDGET_ATTRIBUTION_REQUIRED')
+    self.budgetAttributions[label]=projected;self.emit('BUDGET_ATTRIBUTION',projected)
+   except Exception:self.unreadable('BUDGET_ATTRIBUTION_'+label)
   for label in ['A','B']:
    path=self.output/(label+'-result.private.json')
    if label in self.reports or not path.exists():continue
@@ -370,6 +423,7 @@ def main():
    if result['exitCode'] is None:result['status']='NATIVE_OR_SETTLEMENT_UNKNOWN_RETAINED'
   result['nativeRuntimeMs']=(time.monotonic_ns()-native_started)/1000000
   if result.get('exitCode')==0:
+   require(set(collector.budgetAttributions)=={'A','B'} and all(collector.budgetAttributions[label]['stage']=='LEG_METADATA_READY' and collector.budgetAttributions[label]['callIntents']==calls for label,calls in [('A',2),('B',3)]),'COMPLETE_BOUNDED_ATTRIBUTION_METADATA_REQUIRED_OR_UNKNOWN')
    require(a is not None and b is not None,'BOTH_ACTUAL_REPORTS_REQUIRED_FOR_ACCEPTANCE')
    validate_reports(a,b,binding,activation_sha,host,result['nativeRuntimeMs'])
    call_files=sorted(output.glob('original-call-*.intent.private.json'));require([f.name for f in call_files]==['original-call-1.intent.private.json','original-call-2.intent.private.json','original-call-3.intent.private.json'],'NO_FOURTH_ORIGINAL_OR_CHANGED_CALL_SET')

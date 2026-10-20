@@ -9,13 +9,14 @@ import {createDb}from '../src/db.js';import {createPhase4Keys}from '../src/phase
 import {createPhase4Foundation}from '../src/phase4Foundation.js';import {createStage8LiveProducer}from '../src/stage8LiveProducer.js';
 import {runningReleaseSha}from '../src/phase4Release.js';import {canonicalJson}from '../src/phase4EntityStore.js';
 import {verifyLiveExecutionResult}from '../src/stage8LiveExecution.js';
-import {createExecutionBudget,withExecutionBudget}from '../src/executionBudget.js';
+import {createExecutionBudget,withExecutionBudget,currentExecutionBudget}from '../src/executionBudget.js';
 import {seedBodyInput}from './bodyEnergyFixture.js';import {offlineLiveFixtureInput,OFFLINE_LIVE_RESOURCES,OFFLINE_LIVE_TABLES}from './stage8LiveLinuxFixture.js';
 import {assertNativeResources,NATIVE_NODE}from './stage6-linux-native-contract.mjs';
 import {createDiagnosticFetch}from './stage6-cold-three-observer.proposal.mjs';
 import {PipelineRespBody}from '../node_modules/@libsql/hrana-client/lib-esm/http/json_decode.js';
 import {APPLICATION_BASELINE,PROFILE,KINDS,runLeg,safeFailureCode}from './stage6-cold-progress-contract.proposal.mjs';
 import {createDiagnosticPublisher,SETTLEMENT_RESERVE_MS}from './stage6-cold-diagnostic-metadata.proposal.mjs';
+import {createFetchBudgetProbe,budgetAttributionRecord,typedDiagnosticCode,BUDGET_ATTRIBUTION_MAX_BYTES}from './stage6-cold-budget-attribution.proposal.mjs';
 const phase=process.argv[2];assert.ok(['A','B'].includes(phase)&&process.argv.length===3,'EXPLICIT_NATIVE_COLD_LEG');
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url))),OUT='/qualification',USER='a';
 const digest=raw=>createHash('sha256').update(raw).digest('hex'),hex=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
@@ -37,7 +38,7 @@ const baselineRaw=privateRead('/ca01-application-source-manifest.json'),baseline
 assert.equal(baseline.applicationBaselineSha,APPLICATION_BASELINE);assert.equal(Object.keys(baseline.files).length,360);assert.equal(Object.keys(baseline.reusedHarnessFiles).length,7);
 for(const [name,pin]of Object.entries({...baseline.files,...baseline.reusedHarnessFiles})){assert.ok(/^(?:src|test|tools)\/[A-Za-z0-9_./-]+$/.test(name)||['package.json','package-lock.json'].includes(name));assert.ok(!name.split('/').includes('..'));assert.equal(digest(readFileSync(join(ROOT,name))),pin,'CA01_APPLICATION_BYTES_REQUIRED');}
 for(const [name,pin]of Object.entries(activation.proposalSourcePins)){assert.ok(name.startsWith('test/')&&!name.split('/').includes('..'));assert.ok(hex(pin));assert.equal(digest(readFileSync(join(ROOT,name))),pin);}
-for(const name of ['test/stage6-native-cold-progress.mjs','test/stage6-cold-progress-contract.proposal.mjs','test/stage6-native-cold-progress.sh','test/stage6-cold-three-attribution.proposal.mjs','test/stage6-cold-three-observer.proposal.mjs'])assert.ok(hex(activation.proposalSourcePins[name]));
+for(const name of ['test/stage6-native-cold-progress.mjs','test/stage6-cold-progress-contract.proposal.mjs','test/stage6-native-cold-progress.sh','test/stage6-cold-three-attribution.proposal.mjs','test/stage6-cold-three-observer.proposal.mjs','test/stage6-cold-budget-attribution.proposal.mjs'])assert.ok(hex(activation.proposalSourcePins[name]));
 const startNs=BigInt(host.nativeStartedMonotonicNs),now=()=>Number(process.hrtime.bigint())/1e6,started=Number(startNs)/1e6,deadlineMs=started+PROFILE.proposedOuterMs;
 const workDeadlineMs=deadlineMs-SETTLEMENT_RESERVE_MS;
 function guard(){assert.ok(now()>=started&&now()<workDeadlineMs,'ORIGINAL_285S_WORK_BOUND_WITHIN_300S');}
@@ -55,8 +56,16 @@ function physicalIdentity(){
 const observedLog=createHash('sha256');let logBytes=0;const originalPrint=console.log.bind(console);
 for(const name of ['log','info','warn','error'])console[name]=(...v)=>{let b;try{b=Buffer.from(JSON.stringify(v));}catch{b=Buffer.from('[UNSERIALIZABLE_APPLICATION_LOG]');}observedLog.update(b);logBytes+=b.length;};
 let db,latency=false,callCount=phase==='A'?0:2,producer;const networkFetch=globalThis.fetch.bind(globalThis);
-const transport=createDiagnosticFetch({fetch:(input,init)=>{guard();const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.ok(!url.username&&!url.password);return networkFetch(r,{signal:AbortSignal.any([r.signal,abort.signal,AbortSignal.timeout(Math.max(1,Math.floor(workDeadlineMs-now())))])});},decodePipelineReply:PipelineRespBody,latencyEnabled:()=>latency});
+const fetchBudgets=createFetchBudgetProbe({getBudget:currentExecutionBudget,elapsedMs:()=>Math.max(0,now()-started),clocks:()=>({workRemainingMs:Math.max(0,workDeadlineMs-now()),outerRemainingMs:Math.max(0,deadlineMs-now())})});
+const transport=createDiagnosticFetch({fetch:(input,init)=>{guard();const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.ok(!url.username&&!url.password);return networkFetch(r,{signal:AbortSignal.any([r.signal,abort.signal,AbortSignal.timeout(Math.max(1,Math.floor(workDeadlineMs-now())))])});},decodePipelineReply:PipelineRespBody,latencyEnabled:()=>latency,onFetchEntry:fetchBudgets.captureEntry,onFetchSettled:fetchBudgets.settle});
 globalThis.fetch=(input,init)=>transport.fetch(input,init);
+function setDiagnosticPhase(phase,unit,ordinal){transport.observer.setPhase(phase,unit,ordinal);fetchBudgets.notePhase(phase,ordinal);}
+function attributionSnapshot(stage,failure=null,error=null){
+ try{if(error!==null)transport.observer.typedCode({code:typedDiagnosticCode(error)});const record=budgetAttributionRecord({candidateSha,phase,stage,callIntents:callCount,elapsedMs:Math.max(0,now()-started),failureCode:failure?.code??null,errorMessageSha256:failure?.messageSha256??null,error,attribution:transport.snapshot(),budgetObservations:fetchBudgets.snapshot()});
+  const bytes=Buffer.from(JSON.stringify(record)+'\n');assert.ok(bytes.length<=BUDGET_ATTRIBUTION_MAX_BYTES);report.budgetAttribution=record;
+  const fd=openSync(OUT+'/'+phase+'-budget-attribution.private.json','wx',0o600);try{writeSync(fd,bytes);fsyncSync(fd);}finally{closeSync(fd);}const dir=openSync(OUT,'r');try{fsyncSync(dir);}finally{closeSync(dir);}
+ }catch{/* diagnostics cannot hide the original failure or settle an unknown owner */}
+}
 // Diagnostic writes are finite, private and independent of mutation admission.
 // They may survive a work-bound refusal; they grant no additional native time.
 const publish=createDiagnosticPublisher({phase,elapsedMs:()=>Math.max(0,now()-started),writeExclusive:(name,value)=>{const bytes=Buffer.from(JSON.stringify(value)+'\n');assert.ok(bytes.length<=4096);const fd=openSync(OUT+'/'+name,'wx',0o600);try{writeSync(fd,bytes);fsyncSync(fd);}finally{closeSync(fd);}const dir=openSync(OUT,'r');try{fsyncSync(dir);}finally{closeSync(dir);}}});
@@ -70,7 +79,7 @@ async function executionRows(){
   const result=verifyLiveExecutionResult(keys,row);assert.equal(result.outcome,'PARTIAL');assert.ok(row.finalized_at<=row.deadline_at);byId.set(row.execution_id,row);}
  return byId;
 }
-async function capture(){transport.observer.setPhase('READBACK','READBACK',callCount);return bounded(PROFILE.readbackMs,async()=>{
+async function capture(){setDiagnosticPhase('READBACK','READBACK',callCount);return bounded(PROFILE.readbackMs,async()=>{
  const count=async table=>Number((await db.raw.execute('SELECT count(*) n FROM '+table)).rows[0].n);
  const sourceTables=[...Object.values(OFFLINE_LIVE_TABLES),'journal_events','journal_coverage_windows','experiment_field_groups'];
  const sourceRows=(await Promise.all(sourceTables.map(count))).reduce((a,b)=>a+b,0);
@@ -94,27 +103,27 @@ try{
  if(phase==='A')once(startRecord,{contract:'one-three-call-two-os-native-cold-operation-v1',activationHash,candidateSha,applicationBaselineSha:APPLICATION_BASELINE,startedMonotonicNs:String(startNs),deadlineMs,requestIdentityHashes:REQUESTS.map(id=>keys.lookup(['native-cold-request-v1',id])),maximumCalls:3,maximumAttempts:1});
  else{const start=JSON.parse(privateRead(startRecord));assert.equal(start.activationHash,activationHash);assert.equal(start.candidateSha,candidateSha);assert.equal(start.deadlineMs,deadlineMs);}
  db=createDb({url:'http://127.0.0.1:18080',phase4Keys:keys,fetch:transport.fetch});assert.equal(db.raw.protocol,'http');
- if(phase==='A'){progress('SETUP_ENTER');transport.observer.setPhase('SETUP_SCHEMA1_TO35_SYNTHETIC_ONLY','MIGRATE',0);await bounded(70000,async()=>{
+ if(phase==='A'){progress('SETUP_ENTER');setDiagnosticPhase('SETUP_SCHEMA1_TO35_SYNTHETIC_ONLY','MIGRATE',0);await bounded(70000,async()=>{
   assert.equal(Number((await db.raw.execute("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")).rows[0].n),0,'FRESH_DB_ONLY');
-  await db.migrate({targetVersion:35});transport.observer.setPhase('SETUP_EMPTY_FIXTURE','SEED_EMPTY_FIXTURE',0);const stores=await createPhase4Foundation({db,keys}),asOf=Date.now()-1000;
+  await db.migrate({targetVersion:35});setDiagnosticPhase('SETUP_EMPTY_FIXTURE','SEED_EMPTY_FIXTURE',0);const stores=await createPhase4Foundation({db,keys}),asOf=Date.now()-1000;
   await db.createUser({id:USER,displayName:'Synthetic empty cold proof',timezone:'Asia/Taipei',status:'ACTIVE'});await stores.initializeTenant(USER,'SHADOW');
   await db.transaction(()=>seedBodyInput(db,offlineLiveFixtureInput({profile:'empty',userId:USER,asOf})));await db.ensureOnboarding(USER,{state:'READY'});await db.linkTelegram({userId:USER,chatId:'10001'});await db.setLocale(USER,'en');
   for(const resource of OFFLINE_LIVE_RESOURCES)await db.saveSyncState(USER,resource,{backfillComplete:true,lastSuccessAt:new Date(asOf).toISOString()});await stores.preferences.read(await stores.captureControl(USER));
  });progress('SETUP_RETURNED');}
- progress('ADMISSION_ENTER');transport.observer.setPhase('ADMISSION_AND_COMPOSITION','BUILD_LIVE_PRODUCER',callCount);latency=true;const admission=await bounded(10000,()=>db.admitRuntime({fresh:true}));producer=await bounded(10000,()=>createStage8LiveProducer({db,keys,admission,userIds:[USER],enabled:()=>true,eligible:id=>id===USER,environment:{}}));progress('ADMISSION_RETURNED');
+ progress('ADMISSION_ENTER');setDiagnosticPhase('ADMISSION_AND_COMPOSITION','BUILD_LIVE_PRODUCER',callCount);latency=true;const admission=await bounded(10000,()=>db.admitRuntime({fresh:true}));producer=await bounded(10000,()=>createStage8LiveProducer({db,keys,admission,userIds:[USER],enabled:()=>true,eligible:id=>id===USER,environment:{}}));progress('ADMISSION_RETURNED');
  let carry=null;
  if(phase==='B'){progress('COLD_BOUNDARY_ENTER');const prior=JSON.parse(privateRead(OUT+'/A-result.private.json'));assert.equal(prior.activationHash,activationHash);assert.equal(prior.physicalIdentityHash,physicalIdentity());assert.equal(prior.serverPid,serverPid);assert.notEqual(prior.pid,process.pid);assert.equal(prior.canonicalBoundaryDigest,digest(canonicalJson(prior.carry.afterA)));carry=prior.carry;progress('COLD_BOUNDARY_RETURNED');}
  const runOriginal=async(requestId,ordinal)=>{
   assert.equal(ordinal,callCount+1);assert.equal(requestId,REQUESTS[callCount]);guard();once(OUT+'/original-call-'+ordinal+'.intent.private.json',{activationHash,candidateSha,ordinal,requestIdentityHash:keys.lookup(['native-cold-request-v1',requestId]),maximumRetries:0,pid:process.pid});callCount++;progress('CALL_INTENT_DURABLE');
-  transport.observer.setPhase('GENUINE_ORIGINAL_PRODUCER_CALL','ORIGINAL_PRODUCER_RUN',ordinal);const value=await bounded(50000,()=>producer.run({userId:USER,requestId}));assert.equal(value.replayed,false);progress('CALL_RETURNED');
+  setDiagnosticPhase('GENUINE_ORIGINAL_PRODUCER_CALL','ORIGINAL_PRODUCER_RUN',ordinal);const value=await bounded(50000,()=>producer.run({userId:USER,requestId}));assert.equal(value.replayed,false);progress('CALL_RETURNED');
   return bounded(PROFILE.readbackMs,async()=>{const e=(await executionRows()).get(executionId(requestId));assert.ok(e);assert.equal(canonicalJson(value.result),canonicalJson(verifyLiveExecutionResult(keys,e)),'ACTUAL_RETURN_MATCHES_AUTHENTICATED_RESULT');const receipts=(await db.raw.execute({sql:'SELECT receipt_key FROM stage8_live_execution_work_receipts WHERE execution_id=?',args:[e.execution_id]})).rows;const ctx=JSON.parse(e.canonical_request_json);const current=(await db.raw.execute("SELECT input_generation FROM phase4_computation_state WHERE user_id='a' AND execution_mode='LIVE'")).rows[0];
    const claimed=KINDS.filter(kind=>{const logical=keys.lookup(['phase4-logical-work-v1','stage6.claim',[USER,'LIVE',kind,current.input_generation]]);const expected=keys.lookup(['execution-work-step-v2',e.identity_digest,e.scope_key,['named',logical]]);return receipts.some(r=>r.receipt_key===expected);});assert.equal(claimed.length,1,'ORIGINAL_NAMED_CLAIM_ACK_REQUIRED');
    return {requestId,selectedJobKind:claimed[0],replayed:value.replayed,executionState:e.state,executionGeneration:e.generation,outcome:value.result.outcome,unitsCommitted:value.result.unitsCommitted};});
  };
  const result=await runLeg({phase,pid:process.pid,requestIds:REQUESTS,carry,now,deadlineMs,capture,runOriginal});progress('LEG_METADATA_READY');
  report={...report,status:phase==='A'?'TWO_PRODUCTIVE_ORIGINALS_AWAIT_NEW_OS_LEG':'ACTUAL_THREE_ORIGINAL_CALLS_COLD_PARTIAL_METADATA_OBSERVED',pid:process.pid,serverPid,activationHash,physicalIdentityHash:physicalIdentity(),callsStarted:callCount,
- ...(phase==='A'?{carry:result,canonicalBoundaryDigest:digest(canonicalJson(result.afterA))}:{metadataProof:result,coldProcessPidDifferent:true}),resources:resources(),elapsedMs:now()-started};
-}catch(error){process.exitCode=2;report.failure={code:safeFailureCode(error),messageSha256:digest(String(error.message??error))};progress('APP_FAILURE',report.failure);}
+ ...(phase==='A'?{carry:result,canonicalBoundaryDigest:digest(canonicalJson(result.afterA))}:{metadataProof:result,coldProcessPidDifferent:true}),resources:resources(),elapsedMs:now()-started};attributionSnapshot('LEG_METADATA_READY');
+}catch(error){process.exitCode=2;report.failure={code:safeFailureCode(error),messageSha256:digest(String(error.message??error))};progress('APP_FAILURE',report.failure);attributionSnapshot('APP_FAILURE',report.failure,error);}
 finally{
  try{progress('DB_CLOSE_ENTER');await db?.close();progress('DB_CLOSE_RETURNED');progress('TRANSPORT_IDLE_ENTER');await transport.awaitIdle();progress('TRANSPORT_IDLE_RETURNED');}catch{report.status='CLEANUP_OR_TERMINAL_UNKNOWN';process.exitCode=2;}
  const attribution=transport.snapshot();report.attribution=attribution;report.resources=resources();report.elapsedMs=now()-started;try{assertNativeResources(report.resources);}catch{report.status='FINAL_RESOURCE_CONTRACT_UNQUALIFIED';process.exitCode=2;}

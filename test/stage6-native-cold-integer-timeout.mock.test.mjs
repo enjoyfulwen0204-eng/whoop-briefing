@@ -11,8 +11,8 @@ const fixed='AbortSignal.timeout(Math.max(1,Math.floor(workDeadlineMs-now())))';
 const prior='AbortSignal.timeout(Math.max(1,workDeadlineMs-now()))';
 assert.equal(source.split(fixed).length,2);
 const oldSource=source.replace(fixed,prior);
-// This reconstructs the exact original R2 module, not a mirrored implementation.
-assert.equal(createHash('sha256').update(oldSource).digest('hex'),'80762524e4e384cbc3a26d791c37681ee8f46f17c927f56c0076669a0ad3d759');
+// R4 adds diagnostics outside this function. Bind the exact previously reviewed
+// original/fixed wrappers; no native module import or mirrored implementation.
 function extracted(text){
  const lines=text.split('\n'),guards=lines.filter(line=>line.startsWith('function guard(){'));
  const prefix='const transport=createDiagnosticFetch({fetch:',wrappers=lines.filter(line=>line.startsWith(prefix));
@@ -21,6 +21,8 @@ function extracted(text){
  return {guard:guards[0],wrapper:wrappers[0].slice(prefix.length,end)};
 }
 const old=extracted(oldSource),current=extracted(source);assert.equal(old.guard,current.guard);
+assert.equal(createHash('sha256').update(old.wrapper).digest('hex'),'a20085f1680201ef5619910177df9fda067fb837c89a5f4549c5937b7d5b82d8');
+assert.equal(createHash('sha256').update(current.wrapper).digest('hex'),'5a1d755418b2aedbb19fe4e95162f4bcd14f04ed70831af1f9e47bd6a9e422d0');
 function probe(text,remainingMs){
  const {guard,wrapper}=extracted(text),network=[];
  const state={remaining:remainingMs};
@@ -53,7 +55,7 @@ test('exact source guard refuses original work deadline, later clock and pre-sta
  }
  const p=probe(source,100);p.state.remaining=0;assert.throws(p.invoke,/ORIGINAL_285S_WORK_BOUND_WITHIN_300S/);assert.equal(p.network.length,0);
 });
-test('source fix preserves original outer budget, reserve and every other R2 native module byte',()=>{
+test('source fix preserves original outer budget, reserve and exact reviewed integer wrapper',()=>{
  assert.ok(source.includes('deadlineMs=started+PROFILE.proposedOuterMs'));
  assert.ok(source.includes('const workDeadlineMs=deadlineMs-SETTLEMENT_RESERVE_MS;'));
  assert.equal(source.replace(fixed,prior),oldSource);

@@ -8,7 +8,7 @@ const delay=(ms,signal)=>new Promise((resolve,reject)=>{
  const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);
  if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});
 });
-export function createDiagnosticFetch({fetch,decodePipelineReply,observer=createAttribution(),now=()=>performance.now(),latencyEnabled=()=>false,wait=delay}={}){
+export function createDiagnosticFetch({fetch,decodePipelineReply,observer=createAttribution(),now=()=>performance.now(),latencyEnabled=()=>false,wait=delay,onFetchEntry=()=>null,onFetchSettled=()=>{}}={}){
  if(typeof fetch!=='function'||typeof decodePipelineReply!=='function')throw failure('DIAGNOSTIC_ADAPTER_REQUIRED');
  const streams=new Map(),unresolved=new Set(),idleWaiters=[];let active=0,dropped=0,unknownProtocolReplies=0,transportInvocations=0,responsesObserved=0;
  function terminal(stream,outcome,finished){
@@ -22,6 +22,7 @@ export function createDiagnosticFetch({fetch,decodePipelineReply,observer=create
  function orphan(stream){if(!stream?.transaction)return;if(unresolved.size+streams.size<bound)unresolved.add(stream);else dropped++;}
  async function observedFetch(input,init){
   // The request owner is captured before Request creation, body decoding, latency or transport awaits.
+  let budgetToken=null,diagnosticFailed=false,diagnosticError=null;try{budgetToken=onFetchEntry();}catch{}
   const requestOwner=observer.startRequest(),started=now();active++;
   let request,body,stream,entries=[],requestFinished=false,injectedDelayMs=0,protocolKnown=true;
   try{
@@ -103,10 +104,11 @@ export function createDiagnosticFetch({fetch,decodePipelineReply,observer=create
    }
    return response;
   }catch(error){
+   diagnosticFailed=true;diagnosticError=error;
    if(!requestFinished)observer.finishRequest(requestOwner,{durationMs:Math.max(0,now()-started),injectedDelayMs,requestError:true,successMask:[]});
    if(stream?.transaction){if(body?.baton)streams.delete(body.baton);orphan(stream);}
    throw error;
-  }finally{active--;if(active===0)for(const resolve of idleWaiters.splice(0))resolve();}
+  }finally{try{onFetchSettled(budgetToken,diagnosticFailed,diagnosticError);}catch{}active--;if(active===0)for(const resolve of idleWaiters.splice(0))resolve();}
  }
  return Object.freeze({fetch:observedFetch,observer,awaitIdle:()=>active===0?Promise.resolve():new Promise(resolve=>idleWaiters.push(resolve)),snapshot(){
   const attribution=observer.snapshot();

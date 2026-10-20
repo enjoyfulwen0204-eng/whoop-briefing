@@ -241,7 +241,7 @@ class DiagnosticObservation(unittest.TestCase):
     self.assertEqual(c.wait_with_diagnostics(Child(),300000000000,collector),2)
    self.assertEqual(collector.reports['A']['callsStarted'],2);self.assertNotIn('B',collector.reports);self.assertIn('"callsStarted":2',out.getvalue());self.assertNotIn('SYNTHETIC_PRIVATE_CANARY',out.getvalue())
  def test_old_dae_branch_is_not_the_new_observation_source_context(self):
-  self.assertEqual(c.REF,'refs/heads/diagnostic/native-cold-integer-timeout-20261020')
+  self.assertEqual(c.REF,'refs/heads/diagnostic/native-cold-budget-attribution-20261020')
   env,choice,review,intent=bundles();intent['ref']='refs/heads/diagnostic/native-cold-continuation-20261020'
   with self.assertRaises(AssertionError):c.validate_bundles(env,RAW(choice),RAW(review),RAW(intent),1500)
  def test_missing_reports_and_counts_are_unknown_never_zero(self):
@@ -268,5 +268,37 @@ class DiagnosticObservation(unittest.TestCase):
    with contextlib.redirect_stdout(out):
     for _ in range(200):collector.emit('HOST_TIMEOUT')
    self.assertEqual(len(out.getvalue().splitlines()),96)
+
+def attribution_fixture():
+ tx={**{key:0 for key in c.TX_COUNTS},**{key:0 for key in c.TX_TIMES}}
+ row={'phase':'GENUINE_ORIGINAL_PRODUCER_CALL',**{key:0 for key in c.ATTR_COUNTS},**{key:0 for key in c.ATTR_TIMES},'lastKnownOuterWorkUnit':'ORIGINAL_PRODUCER_RUN','lastStorageCategory':'CONTEXT_LEASE_RELEASE','lastTypedCode':'SYNC_TIMEOUT','categories':[{'category':'CONTEXT_LEASE_RELEASE','submitted':1,'executed':0}],'transactions':tx};row.update(requests=1,submittedStatements=1,requestErrors=1,sumInjectedDelayMs=115)
+ widths=[{'widthBucket':name,'captures':1 if name=='MS_5000' else 0,'settled':1 if name=='MS_5000' else 0,'requestErrors':1 if name=='MS_5000' else 0,'abortedAtEntry':0,'abortedAtSettlement':1 if name=='MS_5000' else 0,'lastTypedErrorCode':'SYNC_TIMEOUT' if name=='MS_5000' else 'NONE'} for name in c.BUDGET_WIDTHS]
+ entry={'phase':'GENUINE_ORIGINAL_PRODUCER_CALL','callOrdinal':3,'widthBucket':'MS_5000','widthMs':5000,'remainingMs':4000,'signalAborted':False,'workRemainingMs':88000,'outerRemainingMs':103000,'elapsedMs':197000,'settled':True,'requestError':True,'typedErrorCode':'SYNC_TIMEOUT','remainingMsAtSettlement':0,'signalAbortedAtSettlement':True,'workRemainingMsAtSettlement':88000,'outerRemainingMsAtSettlement':103000}
+ return {'contract':'stage6-native-cold-budget-attribution-v1','productionEvidence':False,'actualNativeQualified':False,'wholeJobCompletionQualified':False,'capacityQualified':False,'candidateSha':'a'*40,'phase':'B','stage':'APP_FAILURE','callIntents':3,'elapsedMs':197000,'failureCode':'NATIVE_COLD_PROOF_REFUSED','errorMessageSha256':H(123),'typedFailureCode':'SYNC_TIMEOUT','safeFrames':[],'coverage':{**{key:0 for key in ['inflightRequests','pendingAcknowledgedBegins','unsettledTransactions','droppedObservations','droppedTransactionSamples']},**{key:None for key in ['physicalTerminalObservationComplete','observationCoverageComplete','allRequestsSettled','allAcknowledgedBeginsLinked','allTransactionsSettled','allRepliesKnown','allTransactionTerminalsKnown','transactionSampleCoverageComplete']}},'adapter':{'activeFetches':0,'transportInvocations':1,'responsesObserved':0,'unresolvedStreams':0,'droppedObservations':0,'unknownProtocolReplies':0,'terminalComplete':False,'coverageComplete':True},'phaseBins':[row],'fetchBudgets':{'captures':1,'droppedCaptures':0,'inflight':0,'recentEvictions':0,'widthBins':widths,'recentEntries':[entry]}}
+
+class FailureBudgetAttribution(unittest.TestCase):
+ def test_closed_projection_preserves_numeric_budget_and_existing_bins_without_authority(self):
+  value=attribution_fixture();projected=c.budget_attribution_projection(value)
+  self.assertEqual(projected['fetchBudgets']['recentEntries'][0]['widthMs'],5000);self.assertEqual(projected['phaseBins'][0]['categories'][0]['category'],'CONTEXT_LEASE_RELEASE');self.assertIs(projected['productionEvidence'],False)
+ def test_early_failure_record_publishes_before_unsettled_child_wait_without_report(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   output=pathlib.Path(tmp);c.once(output/'B-budget-attribution.private.json',attribution_fixture());collector=c.DiagnosticCollector(output,binding());clock=[0];text=io.StringIO()
+   class Child:
+    def wait(self,timeout):
+     assert 'BUDGET_ATTRIBUTION' in text.getvalue() and timeout<=1;clock[0]+=1000000000;raise c.subprocess.TimeoutExpired('SYNTHETIC_ONLY',timeout)
+   with contextlib.redirect_stdout(text),patch.object(c.time,'monotonic_ns',side_effect=lambda:clock[0]):self.assertIsNone(c.wait_with_diagnostics(Child(),2000000000,collector))
+   self.assertEqual(text.getvalue().count('"event":"BUDGET_ATTRIBUTION"'),1);self.assertIn('"sqlOwnerSettlement":"UNKNOWN"',text.getvalue());self.assertIn('"actualNativeQualified":false',text.getvalue());self.assertEqual(collector.reports,{})
+ def test_nested_canary_unknown_enum_nonfinite_or_unbounded_projection_refuses(self):
+  mutations=[lambda r:r.update(productionEvidence=True),lambda r:r.update(safeFrames=[{'sourceBasename':'SYNTHETIC_PRIVATE_CANARY','line':1}]),lambda r:r['coverage'].update(rawSql='SYNTHETIC_PRIVATE_CANARY'),lambda r:r.update(rawSql='SYNTHETIC_PRIVATE_CANARY'),lambda r:r['phaseBins'][0].update(rawSql='SYNTHETIC_PRIVATE_CANARY'),lambda r:r['phaseBins'][0].update(lastTypedCode='SYNTHETIC_PRIVATE_CANARY'),lambda r:r['fetchBudgets']['recentEntries'][0].update(widthMs=float('nan')),lambda r:r['fetchBudgets']['recentEntries'].append({}),lambda r:r['fetchBudgets']['widthBins'][0].update(captures=True),lambda r:r['phaseBins'].append(copy.deepcopy(r['phaseBins'][0]))]
+  for change in mutations:
+   with self.subTest(change=change):
+    value=attribution_fixture();change(value)
+    with self.assertRaises(AssertionError):c.budget_attribution_projection(value)
+ def test_invalid_or_wrong_candidate_record_never_echoes_raw_fields(self):
+  for mutate in [lambda r:r.update(candidateSha='b'*40),lambda r:r.update(secret='SYNTHETIC_PRIVATE_CANARY')]:
+   with tempfile.TemporaryDirectory() as tmp:
+    output=pathlib.Path(tmp);value=attribution_fixture();mutate(value);c.once(output/'B-budget-attribution.private.json',value);collector=c.DiagnosticCollector(output,binding());text=io.StringIO()
+    with contextlib.redirect_stdout(text):collector.collect();collector.collect()
+    self.assertNotIn('SYNTHETIC_PRIVATE_CANARY',text.getvalue());self.assertNotIn('"event":"BUDGET_ATTRIBUTION"',text.getvalue());self.assertEqual(text.getvalue().count('METADATA_UNREADABLE'),1)
 
 if __name__=='__main__':unittest.main()

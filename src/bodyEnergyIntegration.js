@@ -41,7 +41,7 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
         ||(current.displayName??'')!==(user.displayName??'')||await db.getLocale(id)!==locale
         ||profileRevision!==null&&await revisionFor(id)!==profileRevision)throw Error('BODY_ENERGY_RECIPIENT_FENCED');
     };
-    let grant;try{grant=await assertBodyEnergyPublication(publicationCapability,db,id);}catch{
+    let grant;try{grant=await assertReadPolicy(id);}catch{
       return work(renderBodyEnergy({status:'QUALIFICATION_PENDING'},{locale,displayName:user.displayName}),profileVerify,
         {status:'QUALIFICATION_PENDING',userId:id});
     }
@@ -52,7 +52,7 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
       const view=await stores.bodyEnergy.readForPublication(context,{healthDate:date,asOfEpochMs:requestedAt.getTime(),presentationPolicy:grant.presentationPolicy});
       const snapshot=JSON.stringify(view),name=user.displayName??'';
       const verify=async()=>{
-        await profileVerify();await assertBodyEnergyPublication(publicationCapability,db,id);await stores.assertCurrent(context);
+        await profileVerify();await assertReadPolicy(id);await stores.assertCurrent(context);
         if((await db.getOnboarding(id))?.state!=='READY')throw Error('BODY_ENERGY_RECIPIENT_FENCED');
         const currentUser=await db.getUser(id),currentLocale=await db.getLocale(id);
         if(!currentUser||currentUser.status!=='ACTIVE'||currentUser.lifecycleGeneration!==context.lifecycleGeneration
@@ -94,8 +94,15 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
     if(verified!==true)throw Error('BODY_ENERGY_RECIPIENT_FENCED');return true;
   }
   async function query(request){return isBodyEnergyQuery(request?.text)?currentSection({...request,details:true,sourcePage:bodyEnergyQueryPage(request.text)??1}):null;}
+  async function beforeMorning(request){
+    // Optional Body must not defer ordinary Morning after its server
+    // publication configuration was disabled or changed during inspection.
+    if(!publicationEnabled())return {action:'ORDINARY'};
+    const result=await morningReadiness.inspect(request);
+    return publicationEnabled()?result:{action:'ORDINARY'};
+  }
   registerBodyEnergyTelegramReplyBoundary(db,verifyReplyGuard);
 
   return Object.freeze({withCurrentSection,currentSection,verifyReplyGuard,assertReadPolicy,isQuery:isBodyEnergyQuery,query,notificationControl,
-    beforeMorning:morningReadiness.inspect});
+    beforeMorning});
 }

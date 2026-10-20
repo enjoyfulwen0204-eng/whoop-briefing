@@ -25,13 +25,21 @@ import {bodyEnergyMetricAnalysisTime,verifyBodyEnergyProducer} from '../src/body
 import {canonicalMetricSourceValue} from '../src/phase4IntelligenceStore.js';
 import {bodyHealthDate} from '../src/bodyEnergyInputs.js';
 const AT=Date.now()-1000,DATE=bodyHealthDate(AT,'Asia/Taipei');
-async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=false,measure=false,days=30,provisional=false,isolatedMemory=false}={}){
+// Fixed64-source fixture:9 directory +45 preparation/domain +1 Body +9
+// family yields +6 scan/EOF passes=70; retain10 bounded spare passes.
+const FIXTURE_DRAIN_PASS_CAP=80,FIXTURE_WALL_MS=180000;
+async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=false,measure=false,days=30,provisional=false,isolatedMemory=true}={}){
+  const started=performance.now();
+  const assertFixtureWindow=()=>{
+    assert.equal(bodyHealthDate(Date.now(),'Asia/Taipei'),DATE,'fixture health day changed');
+    assert.ok(performance.now()-started<=FIXTURE_WALL_MS,'fixture whole-case wall limit exceeded');
+  };
   let time=AT,revision=0,closed=false;
-  // Alert-only fixtures need distinct native memory identities while retaining
+  // Every fixture needs a distinct native memory identity while retaining
   // the installed driver's normal rotating transaction connections.
   const uri=isolatedMemory?`file:body-publication-${randomUUID()}?mode=memory&cache=shared`:'file::memory:?cache=shared',anchor=new Database(uri);
   const db=isolatedMemory?composeDb(new Sqlite3Client(uri,{},anchor,'number'),{phase4Keys:fixtureKeys}):createDb({url:uri,phase4Keys:fixtureKeys});
-  const close=async()=>{if(closed)return;closed=true;global.gc?.();await new Promise(resolve=>setImmediate(resolve));db.close();anchor.close();};
+  const close=async()=>{if(closed)return;closed=true;global.gc?.();await new Promise(resolve=>setImmediate(resolve));await db.close();await anchor.close();assertFixtureWindow();};
   t.after(close);
   await db.migrate();for(const id of ['a','b'])await db.createUser({id,displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'},{now:new Date(AT)});
   const stores=await createPhase4Foundation({db,keys:fixtureKeys,admission:await db.admitRuntime()});
@@ -50,11 +58,16 @@ async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=fal
   const worker=await createPhase4Stage6({db:f.db,keys:f.keys,executionMode:'SHADOW',workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'}),now:()=>new Date(Math.max(time,Date.now()))});
   await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));
   const drainAll=async()=>{
-    for(let n=0;n<12&&(await worker.diagnostics()).pendingJobs;n++){
-      const result=await finalizedFixtureDrain(f.db,worker,{budget:{maxItemsPerTenant:32,maxItems:64,maxWallMs:90000,leaseMs:120000}});
-      assert.equal(result.failedJobs,0,JSON.stringify(result));
+    let diagnostics=await worker.diagnostics();assertFixtureWindow();
+    for(let n=0;n<FIXTURE_DRAIN_PASS_CAP&&diagnostics.pendingJobs;n++){
+      assertFixtureWindow();const remaining=FIXTURE_WALL_MS-(performance.now()-started);
+      assert.ok(remaining>45000,'fixture settlement reserve unavailable');
+      const result=await finalizedFixtureDrain(f.db,worker,{budget:{maxItemsPerTenant:32,maxItems:64,
+        maxWallMs:Math.min(90000,Math.floor(remaining-30000)),safetyMarginMs:15000,leaseMs:120000}});
+      assertFixtureWindow();assert.equal(result.failedJobs,0,JSON.stringify(result));
+      diagnostics=await worker.diagnostics();assertFixtureWindow();
     }
-    assert.equal((await worker.diagnostics()).pendingJobs,0);
+    assert.equal(diagnostics.pendingJobs,0);
     return {body:{result:{outcome:'COMPLETE'}}};
   };
   if(drain&&measure)await withPhaseTelemetry({phase:'STAGE6_DRAIN',source:'manual',releaseSha:'b37fd100754a8d76ea009f97cd392b38ae786abd',emit:(event,fields)=>{if(event==='phase4_trace_summary'||event==='phase4_operation_totals')process.stdout.write('BODY_ENERGY_NATIVE_TELEMETRY '+JSON.stringify({event,...fields})+'\n');}},drainAll);
@@ -63,7 +76,7 @@ async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=fal
   return {...f,worker,grant,close,drainAll,input,now:()=>new Date(Math.max(time,Date.now())),setNow:value=>{time=value;},advanceProfile:async()=>{const user=await db.getUser('a');await db.updateUser('a',{displayName:'Synthetic ABA'});await db.updateUser('a',{displayName:user.displayName});}};
 }
 const service=f=>createBodyEnergyIntegration({db:f.db,stores:f.stores,keys:f.keys,publicationCapability:f.grant,now:f.now});
-test('qualified fixture consumes actual finalized v32 Body result, localized owner and scoped durable provenance',async t=>{
+test('qualified fixture consumes actual finalized v34 Body result, localized owner and scoped durable provenance',async t=>{
   const f=await setup(t,{measure:true}),ui=service(f);
   const view=await f.stores.withContext('a',{executionMode:'SHADOW',providerRequired:true},c=>f.stores.bodyEnergy.readForPublication(c,{healthDate:DATE,asOfEpochMs:f.now().getTime()}));
   assert.equal(view.status,'AVAILABLE');assert.equal(view.value,70);assert.equal(view.algorithm,CRITERIA.algorithm);

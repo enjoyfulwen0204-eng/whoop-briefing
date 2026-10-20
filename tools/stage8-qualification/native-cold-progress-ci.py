@@ -5,11 +5,11 @@ original dispatch intent, supplied by an explicit authorized manual event.
 This is not a global anti-abuse counter: Root's immutable intent/wire/ACK/run
 reconciliation must enforce one original dispatch. Run attempt one alone does not.
 """
-import base64,hashlib,json,math,os,pathlib,platform,re,shutil,subprocess,sys,time
+import base64,hashlib,itertools,json,math,os,pathlib,platform,re,shutil,subprocess,sys,time
 
 APP_BASE='ca01f63d2bd948f24a3a0400decdaca898811f39'
 REPOSITORY='enjoyfulwen0204-eng/whoop-briefing'
-REF='refs/heads/diagnostic/native-cold-continuation-20261020'
+REF='refs/heads/diagnostic/native-cold-observation-20261020'
 MODE='native-empty-cold-progress'
 PROFILE='three-original-calls-two-os-300s-v1'
 REQUESTS=['native-cold-progress-original-1','native-cold-progress-original-2','native-cold-progress-original-3']
@@ -17,7 +17,7 @@ NODE_IMAGE='node@sha256:ae9f58d5c9f5a537110310be6b3cf67cf9c67146a3bb9310c0cb515f
 SQLD_IMAGE='ghcr.io/tursodatabase/libsql-server@sha256:756fb4d34447cfa9507dceb3a8e680435d7f2173e2aa680f44a1329e774f7d31'
 BASELINE_PATH='test/stage6-ca01-application-source-manifest.json'
 MANIFEST_PATH='tools/stage8-qualification/native-cold-reviewed-source-manifest.json'
-RUNTIME_PATHS=['test/stage6-native-cold-progress.mjs','test/stage6-cold-progress-contract.proposal.mjs','test/stage6-native-cold-progress.sh','test/stage6-cold-three-attribution.proposal.mjs','test/stage6-cold-three-observer.proposal.mjs']
+RUNTIME_PATHS=['test/stage6-native-cold-progress.mjs','test/stage6-cold-progress-contract.proposal.mjs','test/stage6-native-cold-progress.sh','test/stage6-cold-three-attribution.proposal.mjs','test/stage6-cold-three-observer.proposal.mjs','test/stage6-cold-diagnostic-metadata.proposal.mjs','test/stage6-native-cold-entry.proposal.mjs']
 CONTROLLER_PATH='tools/stage8-qualification/native-cold-progress-ci.py'
 WORKFLOW_PATH='.github/workflows/stage8-live-linux-qualification.yml'
 HEX40=re.compile(r'^[a-f0-9]{40}$');HEX64=re.compile(r'^[a-f0-9]{64}$')
@@ -95,7 +95,7 @@ def validate_source(root,binding):
  require(digest(raw)==binding['choice']['sourceManifestSha256'],'REVIEWED_SOURCE_MANIFEST_BYTES_REQUIRED')
  exact_keys(manifest,['contract','applicationBaselineSha','profile','files'])
  require(manifest['contract']=='stage6-native-cold-reviewed-source-manifest-v1' and manifest['applicationBaselineSha']==APP_BASE and manifest['profile']==PROFILE,'EXACT_SOURCE_MANIFEST_SCOPE_REQUIRED')
- required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs'])
+ required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs','test/stage6-cold-diagnostic-metadata.mock.test.mjs'])
  require(type(manifest['files']) is dict and set(manifest['files'])==required,'EXACT_FINITE_REVIEWED_SOURCE_SET_REQUIRED')
  for name,pin in manifest['files'].items():require(bool(HEX64.fullmatch(str(pin))) and sha(root/name)==pin,'APPROVED_SOURCE_BYTES_REQUIRED')
  baseline_raw=(root/BASELINE_PATH).read_bytes();baseline=json.loads(baseline_raw)
@@ -122,22 +122,86 @@ def readonly_source_mount_args(checkout,common):
  for path in paths:args+=['--mount','type=bind,src='+str(path)+',dst='+str(path)+',readonly']
  return args
 
+def launch_context(sandbox,name,binding):
+ raw,operation=private_json(sandbox/'original-operation.private.json',4096)
+ exact_keys(operation,['contract','candidateSha','choiceSha256','intentSha256','operationId','runId','runAttempt','maximumDispatchAttempts','maximumOriginalCalls','automaticRedispatchAllowed'])
+ require(operation['contract']=='one-original-three-call-cold-ci-operation-v1','ORIGINAL_OPERATION_REQUIRED')
+ for key in ['candidateSha','choiceSha256','intentSha256','operationId']:require(operation[key]==binding[key],'EXACT_ORIGINAL_OPERATION_REQUIRED')
+ require(type(operation['runId']) is str and re.fullmatch(r'[1-9][0-9]*',operation['runId']) and operation['runAttempt']==1 and type(operation['runAttempt']) is int,'ORIGINAL_RUN_ID_REQUIRED')
+ require(type(operation['maximumDispatchAttempts']) is int and operation['maximumDispatchAttempts']==1 and type(operation['maximumOriginalCalls']) is int and operation['maximumOriginalCalls']==3 and operation['automaticRedispatchAllowed'] is False,'ORIGINAL_SPENT_OPERATION_SCOPE_REQUIRED')
+ return {'candidateSha':binding['candidateSha'],'intentSha256':binding['intentSha256'],'operationId':binding['operationId'],'originalOperationSha256':digest(raw),'name':name}
+def bound_record(path,contract,context,extra):
+ raw,value=private_json(path,8192);exact_keys(value,['contract',*context,*extra])
+ require(value['contract']==contract,'EXACT_LAUNCH_PROVENANCE_CONTRACT_REQUIRED')
+ for key,expected in context.items():require(value[key]==expected,'EXACT_ORIGINAL_LAUNCH_PROVENANCE_REQUIRED')
+ return raw,value
+def captured_cid(sandbox):
+ path=sandbox/'container.cid'
+ if not path.exists() and not path.is_symlink():return None
+ require(not path.is_symlink() and path.is_file(),'REGULAR_CAPTURED_CID_REQUIRED')
+ st=path.stat();require(st.st_uid==os.getuid() and st.st_mode&0o077==0 and st.st_size<=65,'PRIVATE_BOUNDED_CAPTURED_CID_REQUIRED')
+ value=path.read_text().strip();require(bool(HEX64.fullmatch(value)),'EXACT_CAPTURED_CID_REQUIRED');return value
+def record_not_invoked(sandbox,name,binding):
+ # Positive durable state, before this source can invoke its sole docker run.
+ return once(sandbox/'launch-not-invoked.private.json',{'contract':'stage6-original-native-launch-not-invoked-v1',**launch_context(sandbox,name,binding)})
+def launch_intent(sandbox,name,binding,args):
+ context=launch_context(sandbox,name,binding)
+ bound_record(sandbox/'launch-not-invoked.private.json','stage6-original-native-launch-not-invoked-v1',context,[])
+ raw,state=private_json(sandbox/'owned-runtime-state.private.json',4096)
+ exact_keys(state,['candidateSha','intentSha256','name','imageId'])
+ require(state['candidateSha']==context['candidateSha'] and state['intentSha256']==context['intentSha256'] and state['name']==name and type(state['imageId']) is str and HEX64.fullmatch(state['imageId'].removeprefix('sha256:')),'EXACT_OWNED_RUNTIME_STATE_REQUIRED')
+ # O_EXCL + file/parent fsync must return BEFORE Popen. Any intent, including
+ # a torn/unreadable one, irrevocably invalidates the NOT_INVOKED state.
+ return once(sandbox/'launch-intent.private.json',{'contract':'stage6-original-native-launch-intent-v1',**context,'runtimeStateSha256':digest(raw),'commandSha256':digest(canonical(args).encode())})
+def original_launch(sandbox,name,binding):
+ context=launch_context(sandbox,name,binding)
+ bound_record(sandbox/'launch-not-invoked.private.json','stage6-original-native-launch-not-invoked-v1',context,[])
+ raw,intent=bound_record(sandbox/'launch-intent.private.json','stage6-original-native-launch-intent-v1',context,['runtimeStateSha256','commandSha256'])
+ for key in ['runtimeStateSha256','commandSha256']:require(type(intent[key]) is str and HEX64.fullmatch(intent[key]),'EXACT_LAUNCH_DIGEST_REQUIRED')
+ state_raw,state=private_json(sandbox/'owned-runtime-state.private.json',4096);exact_keys(state,['candidateSha','intentSha256','name','imageId'])
+ require(digest(state_raw)==intent['runtimeStateSha256'] and state['candidateSha']==context['candidateSha'] and state['intentSha256']==context['intentSha256'] and state['name']==name,'ORIGINAL_RUNTIME_STATE_BYTES_REQUIRED')
+ require(type(state['imageId']) is str and state['imageId'].startswith('sha256:') and HEX64.fullmatch(state['imageId'][7:]),'EXACT_ORIGINAL_IMAGE_REQUIRED')
+ return context,raw,intent,state
+def record_launch_terminal(sandbox,name,binding,code):
+ # Called only after wait() on the original Popen returned an actual integer.
+ # A nonzero CLI exit never proves that Docker's create POST did not take effect.
+ require(type(code) is int and -255<=code<=255,'ACTUAL_TERMINAL_DOCKER_CLI_CODE_REQUIRED')
+ context,raw,intent,state=original_launch(sandbox,name,binding)
+ return once(sandbox/'launch-terminal.private.json',{'contract':'stage6-original-native-launch-terminal-v1',**context,'launchIntentSha256':digest(raw),'cliExitCode':code,'capturedOriginalCid':captured_cid(sandbox)})
 def owned_cleanup(sandbox,name,binding):
+ context=launch_context(sandbox,name,binding)
+ bound_record(sandbox/'launch-not-invoked.private.json','stage6-original-native-launch-not-invoked-v1',context,[])
+ intentpath=sandbox/'launch-intent.private.json'
+ if not intentpath.exists() and not intentpath.is_symlink():
+  # Absence alone is never a never-invoked witness. The positive initial state
+  # and source ordering establish it; contradictory evidence must still refuse.
+  require(not (sandbox/'launch-terminal.private.json').exists() and not (sandbox/'launch-terminal.private.json').is_symlink() and captured_cid(sandbox) is None,'CONTRADICTORY_NOT_INVOKED_STATE')
+  require(not run(['docker','ps','-aq','--no-trunc','--filter','name=^/'+name+'$']),'NOT_INVOKED_NAME_COLLISION_RETAINED')
+  return True
+ context,intent_raw,intent,state=original_launch(sandbox,name,binding)
+ terminal_raw,terminal=bound_record(sandbox/'launch-terminal.private.json','stage6-original-native-launch-terminal-v1',context,['launchIntentSha256','cliExitCode','capturedOriginalCid'])
+ require(terminal['launchIntentSha256']==digest(intent_raw) and type(terminal['cliExitCode']) is int and -255<=terminal['cliExitCode']<=255,'GENUINE_ORIGINAL_TERMINAL_LAUNCH_REQUIRED')
+ captured=captured_cid(sandbox)
+ require(type(terminal['capturedOriginalCid']) is str and HEX64.fullmatch(terminal['capturedOriginalCid']) and captured==terminal['capturedOriginalCid'],'INVOKED_WITHOUT_ORIGINAL_CAPTURED_CID_RETAINED')
+ removal_context={**context,'launchTerminalSha256':digest(terminal_raw),'capturedOriginalCid':captured,'runtimeStateSha256':intent['runtimeStateSha256']}
  observed=run(['docker','ps','-aq','--no-trunc','--filter','name=^/'+name+'$'])
- cidpath=sandbox/'container.cid';captured=cidpath.read_text().strip() if cidpath.is_file() and not cidpath.is_symlink() else None
- require(captured or not observed,'MISSING_OWNED_CID_NO_REMOVAL')
- if captured:
-  require(bool(HEX64.fullmatch(captured)),'EXACT_CAPTURED_CID_REQUIRED')
-  present=run(['docker','ps','-aq','--no-trunc','--filter','id='+captured])
-  if present:
-   _,state=private_json(sandbox/'owned-runtime-state.private.json');info=json.loads(run(['docker','container','inspect',captured]))[0]
-   require(state['candidateSha']==binding['candidateSha'] and state['intentSha256']==binding['intentSha256'] and state['name']==name,'EXACT_OWNED_OPERATION_REQUIRED')
-   require(info['Id']==captured and info['Name']=='/'+name and info['Image']==state['imageId'],'EXACT_OWNED_CONTAINER_REQUIRED')
-   labels=info['Config']['Labels'];require(labels.get('healthos.stage6.native-cold')==name and labels.get('healthos.stage6.intent')==binding['intentSha256'],'EXACT_OWNED_LABELS_REQUIRED')
-   require(info['State']['Running'] is False,'OWNED_RUNNING_OR_UNKNOWN_RETAIN_NO_FORCE_REMOVAL')
-   run(['docker','rm',captured],15)
-  require(not run(['docker','ps','-aq','--no-trunc','--filter','id='+captured]),'OWNED_CID_STILL_PRESENT')
+ present=run(['docker','ps','-aq','--no-trunc','--filter','id='+captured])
+ removed=sandbox/'owned-container-removed.private.json'
+ if removed.exists() or removed.is_symlink():
+  bound_record(removed,'stage6-original-stopped-owned-container-removed-v1',removal_context,[])
+  require(not observed and not present,'REMOVED_ORIGINAL_ID_OR_NAME_REAPPEARED_RETAINED')
+  return True
+ # Terminal CLI + captured CID does not prove daemon/container settlement by
+ # itself. Observe the exact original image, labels and stopped state before rm.
+ require(present==captured and observed==captured,'ORIGINAL_CONTAINER_SETTLEMENT_UNOBSERVED_RETAINED')
+ info=json.loads(run(['docker','container','inspect',captured]))[0]
+ require(info['Id']==captured and info['Name']=='/'+name and info['Image']==state['imageId'],'EXACT_OWNED_CONTAINER_REQUIRED')
+ labels=info['Config']['Labels'];require(labels.get('healthos.stage6.native-cold')==name and labels.get('healthos.stage6.intent')==binding['intentSha256'],'EXACT_OWNED_LABELS_REQUIRED')
+ require(info['State']['Running'] is False,'OWNED_RUNNING_OR_UNKNOWN_RETAIN_NO_FORCE_REMOVAL')
+ run(['docker','rm',captured],15)
+ require(not run(['docker','ps','-aq','--no-trunc','--filter','id='+captured]),'OWNED_CID_STILL_PRESENT')
  require(not run(['docker','ps','-aq','--no-trunc','--filter','name=^/'+name+'$']),'OWNED_NAME_STILL_PRESENT')
+ once(removed,{'contract':'stage6-original-stopped-owned-container-removed-v1',**removal_context})
  return True
 
 def check_terminal(report):
@@ -188,13 +252,72 @@ def validate_call_intents(records,binding,activation_sha,a,b):
  require(len(set(hashes))==3,'THREE_DISTINCT_ORIGINAL_IDENTITIES_REQUIRED')
  return True
 
+
+# Diagnostic records are not receipts, acceptance, provider/SQLD settlement or
+# permission. Unknown counts stay None; arbitrary messages/keys/paths never print.
+DIAGNOSTIC_FIELDS=['contract','phase','stage','callIntents','elapsedMs','failureCode','errorMessageSha256','terminalComplete','activeFetches','unresolvedStreams','unknownProtocolReplies']
+NATIVE_DIAGNOSTIC_STAGES=['APP_IMPORT_ENTER','APP_BOOTSTRAP_FAILURE','APP_ENTER','SETUP_ENTER','SETUP_RETURNED','ADMISSION_ENTER','ADMISSION_RETURNED','COLD_BOUNDARY_ENTER','COLD_BOUNDARY_RETURNED','CALL_INTENT_DURABLE','CALL_RETURNED','LEG_METADATA_READY','APP_FAILURE','DB_CLOSE_ENTER','DB_CLOSE_RETURNED','TRANSPORT_IDLE_ENTER','TRANSPORT_IDLE_RETURNED','REPORT_WRITTEN','WORK_BOUND_REACHED']
+SHELL_DIAGNOSTIC_STAGES=['SHELL_ENTERED','BOOTSTRAP_REFUSED','SQLD_STARTED','SQLD_READY','SQLD_READINESS_FAILED_WAIT_UNKNOWN','A_STARTED','A_FAILED_WAIT_UNKNOWN','A_RETURNED','B_STARTED','B_FAILED_WAIT_UNKNOWN','B_RETURNED','GRACEFUL_OWNER_STOP_REQUESTED','SQLD_PROCESS_EXIT_OBSERVED','OWNER_EXIT_UNCONFIRMED']
+def mapping(value):return value if type(value) is dict else {}
+def known_count(value,maximum):return value if type(value) is int and 0<=value<=maximum else None
+def diagnostic_projection(record):
+ exact_keys(record,DIAGNOSTIC_FIELDS);require(record['contract']=='stage6-native-cold-diagnostic-record-v1','DIAGNOSTIC_CONTRACT_REQUIRED')
+ phase=record['phase'];require(phase in ['A','B','SHELL'],'FINITE_DIAGNOSTIC_PHASE_REQUIRED')
+ require(record['stage'] in (SHELL_DIAGNOSTIC_STAGES if phase=='SHELL' else NATIVE_DIAGNOSTIC_STAGES),'FINITE_DIAGNOSTIC_STAGE_REQUIRED')
+ for key in ['callIntents','activeFetches','unresolvedStreams','unknownProtocolReplies']:
+  require(record[key] is None or known_count(record[key],3 if key=='callIntents' else 999999999) is not None,'FINITE_DIAGNOSTIC_COUNT_REQUIRED')
+ require(record['elapsedMs'] is None or safe_number(record['elapsedMs']) is not None,'FINITE_DIAGNOSTIC_TIME_REQUIRED')
+ require(record['terminalComplete'] is None or type(record['terminalComplete']) is bool,'OBSERVED_TERMINAL_OR_UNKNOWN_REQUIRED')
+ require(record['failureCode'] is None or record['failureCode'] in ['ERR_ASSERTION','NATIVE_COLD_PROOF_REFUSED'],'FINITE_DIAGNOSTIC_FAILURE_REQUIRED')
+ require(record['errorMessageSha256'] is None or type(record['errorMessageSha256']) is str and HEX64.fullmatch(record['errorMessageSha256']),'HASH_ONLY_DIAGNOSTIC_ERROR_REQUIRED')
+ return {key:record[key] for key in DIAGNOSTIC_FIELDS if key!='contract'}
+def report_projection(label,report):
+ report=mapping(report);resources=mapping(report.get('resources'));adapter=mapping(mapping(report.get('attribution')).get('adapter'));failure=mapping(report.get('failure'))
+ code=failure.get('code');error_hash=failure.get('messageSha256')
+ return {'phase':label,'reportAvailable':bool(report),'callsStarted':known_count(report.get('callsStarted'),3),'terminalComplete':adapter.get('terminalComplete') if type(adapter.get('terminalComplete')) is bool else None,'transportInvocations':safe_number(adapter.get('transportInvocations')),'unknownProtocolReplies':known_count(adapter.get('unknownProtocolReplies'),999999999),'activeFetches':known_count(adapter.get('activeFetches'),999999999),'unresolvedStreams':known_count(adapter.get('unresolvedStreams'),999999999),'memoryPeakBytes':int(resources['memoryPeak']) if type(resources.get('memoryPeak')) is str and resources['memoryPeak'].isdigit() and len(resources['memoryPeak'])<=10 else None,'failureCode':code if type(code) is str and code in ['ERR_ASSERTION','NATIVE_COLD_PROOF_REFUSED'] else 'UNKNOWN','errorMessageSha256':error_hash if type(error_hash) is str and HEX64.fullmatch(error_hash) else None}
+class DiagnosticCollector:
+ def __init__(self,output,binding):self.output=output;self.binding=binding;self.seen=set();self.faults=set();self.reports={};self.emitted=0
+ def emit(self,event,metadata=None):
+  require(event in ['PROGRESS','APP_REPORT','METADATA_UNREADABLE','RECORD_LIMIT','HOST_NATIVE_LAUNCH','HOST_TIMEOUT','HOST_CONTROL_REFUSED'],'FINITE_PUBLIC_DIAGNOSTIC_EVENT_REQUIRED')
+  if self.emitted>=96:return
+  self.emitted+=1
+  value={'contract':'stage6-native-cold-diagnostic-public-v1','candidateSha':self.binding['candidateSha'],'event':event,'metadata':metadata,'sqlOwnerSettlement':'UNKNOWN','productionEvidence':False,'actualNativeQualified':False,'wholeJobCompletionQualified':False,'capacityQualified':False}
+  print('STAGE6_NATIVE_COLD_DIAGNOSTIC '+json.dumps(value,separators=(',',':')),flush=True)
+ def unreadable(self,key):
+  if key not in self.faults:self.faults.add(key);self.emit('METADATA_UNREADABLE')
+ def collect(self):
+  paths=list(itertools.islice(itertools.chain(self.output.glob('[AB]-progress-*.private.json'),self.output.glob('shell-progress-*.private.json')),65))
+  if len(paths)>64:self.unreadable('LIMIT');self.emit('RECORD_LIMIT');paths=paths[:64]
+  for path in sorted(paths):
+   if path.name in self.seen:continue
+   if not re.fullmatch(r'(?:[AB]-progress-(?:0[0-9]|1[0-9]|2[0-4])|shell-progress-(?:0[1-9]|1[0-4]))\.private\.json',path.name):self.unreadable('NAME');continue
+   try:
+    _,record=private_json(path,4096);projected=diagnostic_projection(record);self.seen.add(path.name);self.emit('PROGRESS',projected)
+   except Exception:self.unreadable(path.name)
+  for label in ['A','B']:
+   path=self.output/(label+'-result.private.json')
+   if label in self.reports or not path.exists():continue
+   try:
+    _,report=private_json(path,8*1024*1024)
+    require(type(report) is dict and report.get('contract')=='stage6-three-call-two-os-cold-progress-proposal-v1' and report.get('phase')==label and report.get('candidateSha')==self.binding['candidateSha'],'BOUND_PRIVATE_APP_REPORT_REQUIRED')
+    self.reports[label]=report;self.emit('APP_REPORT',report_projection(label,report))
+   except Exception:self.unreadable('REPORT_'+label)
+  return self.reports.get('A'),self.reports.get('B')
+def wait_with_diagnostics(child,deadline_ns,collector):
+ # Each wait yields up to one second; finite302 passes, no busy/convergence loop.
+ for _ in range(302):
+  collector.collect();remaining=(deadline_ns-time.monotonic_ns())/1000000000
+  if remaining<=0:collector.emit('HOST_TIMEOUT');return None
+  try:
+   code=child.wait(timeout=min(1.0,remaining));collector.collect();return code
+  except subprocess.TimeoutExpired:pass
+ collector.emit('HOST_TIMEOUT');return None
+
 def safe_summary(result,a=None,b=None):
  """Closed public projection; all raw activation/identity/SQLite/logs stay private."""
  def enum(value,values):return value if type(value) is str and value in values else 'UNKNOWN'
- out={'contract':'stage6-native-cold-progress-ci-safe-summary-v1','candidateSha':result.get('candidateSha') if HEX40.fullmatch(str(result.get('candidateSha',''))) else None,'applicationBaselineSha':APP_BASE,'profile':PROFILE,'status':enum(result.get('status'),STATUSES),'productionEvidence':False,'actualNativeQualified':False,'wholeJobCompletionQualified':False,'capacityQualified':False,'serverEnforcedAbsoluteTransactionLimit':'UNKNOWN','callsStartedA':safe_number((a or {}).get('callsStarted')),'callsStartedB':safe_number((b or {}).get('callsStarted')),'nativeRuntimeMs':safe_number(result.get('nativeRuntimeMs')),'exitCode':safe_number(result.get('exitCode')),'buildCompleted':result.get('buildCompleted') is True,'ownedRuntimeCleanupConfirmed':result.get('ownedRuntimeCleanupConfirmed') is True,'worktreeCleanupConfirmed':result.get('worktreeCleanupConfirmed') is True,'cleanHeadUnchanged':result.get('cleanHeadUnchanged') is True,'coldApplicationPidDifferent':type((a or {}).get('pid')) is int and type((b or {}).get('pid')) is int and a['pid']!=b['pid'],'samePersistentSqliteOwner':type((a or {}).get('serverPid')) is int and (a or {}).get('serverPid')==(b or {}).get('serverPid'),'controlFailureCode':enum(result.get('controlFailureCode'),['CONTROL_REFUSED','CONTROL_TIMEOUT','CONTROL_SUBPROCESS_ERROR','NONE'])}
- for label,report in [('A',a or {}),('B',b or {})]:
-  resources=report.get('resources',{});adapter=report.get('attribution',{}).get('adapter',{})
-  out[label]={'terminalComplete':adapter.get('terminalComplete') is True,'transportInvocations':safe_number(adapter.get('transportInvocations')),'unknownProtocolReplies':safe_number(adapter.get('unknownProtocolReplies')),'memoryPeakBytes':int(resources['memoryPeak']) if type(resources.get('memoryPeak')) is str and resources['memoryPeak'].isdigit() and len(resources['memoryPeak'])<=10 else None,'failureCode':enum((report.get('failure') or {}).get('code'),['ERR_ASSERTION','NATIVE_COLD_PROOF_REFUSED'])}
+ out={'contract':'stage6-native-cold-progress-ci-safe-summary-v1','candidateSha':result.get('candidateSha') if HEX40.fullmatch(str(result.get('candidateSha',''))) else None,'applicationBaselineSha':APP_BASE,'profile':PROFILE,'status':enum(result.get('status'),STATUSES),'productionEvidence':False,'actualNativeQualified':False,'wholeJobCompletionQualified':False,'capacityQualified':False,'serverEnforcedAbsoluteTransactionLimit':'UNKNOWN','callsStartedA':known_count(mapping(a).get('callsStarted'),3),'callsStartedB':known_count(mapping(b).get('callsStarted'),3),'nativeRuntimeMs':safe_number(result.get('nativeRuntimeMs')),'exitCode':safe_number(result.get('exitCode')),'buildCompleted':result.get('buildCompleted') is True,'ownedRuntimeCleanupConfirmed':result.get('ownedRuntimeCleanupConfirmed') is True,'worktreeCleanupConfirmed':result.get('worktreeCleanupConfirmed') is True,'cleanHeadUnchanged':result.get('cleanHeadUnchanged') is True,'coldApplicationPidDifferent':type((a or {}).get('pid')) is int and type((b or {}).get('pid')) is int and a['pid']!=b['pid'],'samePersistentSqliteOwner':type((a or {}).get('serverPid')) is int and (a or {}).get('serverPid')==(b or {}).get('serverPid'),'controlFailureCode':enum(result.get('controlFailureCode'),['CONTROL_REFUSED','CONTROL_TIMEOUT','CONTROL_SUBPROCESS_ERROR','NONE'])}
+ for label,report in [('A',a),('B',b)]:out[label]=report_projection(label,report)
  return out
 
 def main():
@@ -202,7 +325,8 @@ def main():
  launch=sys.argv[1]=='--run';binding=gate(launch=launch) # Before any Git/Docker/source/provider I/O.
  sandbox,name,image=paths(os.environ)
  if not launch:
-  if sandbox.exists():owned_cleanup(sandbox,name,binding)
+  require(sandbox.is_dir() and not sandbox.is_symlink(),'ORIGINAL_OWNERSHIP_PROVENANCE_REQUIRED')
+  owned_cleanup(sandbox,name,binding)
   return 0
  require(len(sys.argv)==3,'EXPLICIT_IMMUTABLE_SOURCE_PATH_REQUIRED');source=pathlib.Path(sys.argv[2]).resolve();workspace=pathlib.Path(os.environ['GITHUB_WORKSPACE']).resolve()
  require(source==workspace/'candidate-repository' and (source/'.git').is_dir() and not (source/'.git').is_symlink(),'ACTUAL_CI_CHECKOUT_REQUIRED')
@@ -210,8 +334,9 @@ def main():
  clean_head(source,expected);manifest,baseline_raw=validate_source(source,binding);public_lock(source/'package-lock.json')
  require(not run(['docker','ps','-aq','--no-trunc','--filter','name=^/'+name+'$']),'NO_EXISTING_RUNTIME_REUSE')
  sandbox.mkdir(mode=0o700);once(sandbox/'original-operation.private.json',{'contract':'one-original-three-call-cold-ci-operation-v1','candidateSha':expected,'choiceSha256':binding['choiceSha256'],'intentSha256':binding['intentSha256'],'operationId':binding['operationId'],'runId':os.environ['GITHUB_RUN_ID'],'runAttempt':1,'maximumDispatchAttempts':1,'maximumOriginalCalls':3,'automaticRedispatchAllowed':False})
+ record_not_invoked(sandbox,name,binding)
  checkout=sandbox/'candidate';context=sandbox/'context';context.mkdir(mode=0o700);output=sandbox/'output';output.mkdir(mode=0o700)
- result={'candidateSha':expected,'status':'UNQUALIFIED','buildCompleted':False,'ownedRuntimeCleanupConfirmed':False,'worktreeCleanupConfirmed':False,'cleanHeadUnchanged':False,'controlFailureCode':'NONE'};a=b=None;native_started=None
+ result={'candidateSha':expected,'status':'UNQUALIFIED','buildCompleted':False,'ownedRuntimeCleanupConfirmed':False,'worktreeCleanupConfirmed':False,'cleanHeadUnchanged':False,'controlFailureCode':'NONE'};a=b=None;native_started=None;collector=None
  try:
   run(['git','-C',str(source),'worktree','add','--detach',str(checkout),expected],30);clean_head(checkout,expected);validate_source(checkout,binding)
   common=pathlib.Path(run(['git','-C',str(checkout),'rev-parse','--git-common-dir']));common=(checkout/common).resolve() if not common.is_absolute() else common.resolve();require(common.is_dir(),'REAL_GIT_COMMON_DIRECTORY_REQUIRED')
@@ -235,22 +360,28 @@ def main():
   require(binding['choice']['issuedAtMs']<=time.time_ns()//1000000<binding['choice']['expiresAtMs'],'ORIGINAL_ROOT_CHOICE_EXPIRED_BEFORE_NATIVE_START')
   native_started=time.monotonic_ns();deadline_ns=native_started+300000000000
   host={'contract':'stage6-native-host-observation-v1','diagnosticContract':PROFILE,'monotonicClock':'LINUX_CLOCK_MONOTONIC_SHARED_KERNEL','candidateSha':expected,'platform':sys.platform,'machine':platform.machine(),'runnerArchitecture':os.environ['RUNNER_ARCH'],'dockerArchitecture':docker_arch,'imageArchitecture':info['Architecture'],'requestedPlatform':'linux/amd64','nativeStartedMonotonicNs':str(native_started)};once(host_path,host)
-  result['status']='NATIVE_RUNNING'
+  result['status']='NATIVE_RUNNING';collector=DiagnosticCollector(output,binding);collector.emit('HOST_NATIVE_LAUNCH')
   with (sandbox/'container.private.log').open('w') as log:
+   launch_intent(sandbox,name,binding,args)
    child=subprocess.Popen(args,stdout=log,stderr=subprocess.STDOUT)
-   try:result['exitCode']=child.wait(timeout=max(0.001,(deadline_ns-time.monotonic_ns())/1000000000))
-   except subprocess.TimeoutExpired:result['exitCode']=None;result['status']='NATIVE_OR_SETTLEMENT_UNKNOWN_RETAINED'
+   result['exitCode']=wait_with_diagnostics(child,deadline_ns,collector)
+   if result['exitCode'] is not None:record_launch_terminal(sandbox,name,binding,result['exitCode'])
+   a,b=collector.collect()
+   if result['exitCode'] is None:result['status']='NATIVE_OR_SETTLEMENT_UNKNOWN_RETAINED'
   result['nativeRuntimeMs']=(time.monotonic_ns()-native_started)/1000000
   if result.get('exitCode')==0:
-   _,a=private_json(output/'A-result.private.json',8*1024*1024);_,b=private_json(output/'B-result.private.json',8*1024*1024)
+   require(a is not None and b is not None,'BOTH_ACTUAL_REPORTS_REQUIRED_FOR_ACCEPTANCE')
    validate_reports(a,b,binding,activation_sha,host,result['nativeRuntimeMs'])
    call_files=sorted(output.glob('original-call-*.intent.private.json'));require([f.name for f in call_files]==['original-call-1.intent.private.json','original-call-2.intent.private.json','original-call-3.intent.private.json'],'NO_FOURTH_ORIGINAL_OR_CHANGED_CALL_SET')
    validate_call_intents([private_json(f)[1] for f in call_files],binding,activation_sha,a,b);result['status']='METADATA_OBSERVED_PENDING_INDEPENDENT_ACTUAL_REVIEW'
   elif result.get('exitCode') is not None:result['status']='NEGATIVE_OR_INCOMPLETE_METADATA'
  except Exception as error:
+  if collector is not None:collector.emit('HOST_CONTROL_REFUSED');a,b=collector.collect()
+  result['status']='NEGATIVE_OR_INCOMPLETE_METADATA'
   result['controlFailureCode']='CONTROL_TIMEOUT' if isinstance(error,subprocess.TimeoutExpired) else 'CONTROL_SUBPROCESS_ERROR' if isinstance(error,subprocess.CalledProcessError) else 'CONTROL_REFUSED'
   result['controlFailureMessageSha256']=digest(str(error).encode())
  finally:
+  if collector is not None:a,b=collector.collect()
   try:owned_cleanup(sandbox,name,binding);result['ownedRuntimeCleanupConfirmed']=True
   except Exception:result['status']='CLEANUP_UNCONFIRMED'
   try:clean_head(source,expected);clean_head(checkout,expected);validate_source(checkout,binding);result['cleanHeadUnchanged']=True
@@ -266,7 +397,7 @@ def main():
   summary=safe_summary(result,a,b);once(sandbox/'safe-summary.private.json',summary)
   if native_started is not None and (time.monotonic_ns()-native_started)>=300000000000:
    result['nativeRuntimeMs']=(time.monotonic_ns()-native_started)/1000000;result['status']='ORIGINAL_300S_WALL_UNQUALIFIED';summary=safe_summary(result,a,b);once(sandbox/'safe-summary-final-wall.private.json',summary)
-  print('STAGE6_NATIVE_COLD_PROGRESS_SAFE_SUMMARY '+json.dumps(summary,separators=(',',':')))
+  print('STAGE6_NATIVE_COLD_PROGRESS_SAFE_SUMMARY '+json.dumps(summary,separators=(',',':')),flush=True)
  return 0 if result['status']=='METADATA_OBSERVED_PENDING_INDEPENDENT_ACTUAL_REVIEW' else 2
 
 if __name__=='__main__':

@@ -1,5 +1,5 @@
 """Pure/fake source tests. No controller main, Git, Docker, native, DB or network."""
-import base64,copy,importlib.util,json,pathlib,tempfile,unittest
+import base64,contextlib,copy,importlib.util,io,json,pathlib,tempfile,unittest
 from unittest.mock import patch
 HERE=pathlib.Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location('cold_control',HERE/'native-cold-progress-ci.py')
@@ -141,25 +141,132 @@ class FakeDocker:
   raise AssertionError('UNEXPECTED_FAKE_COMMAND')
 
 class OwnedCleanup(unittest.TestCase):
- def fixture(self,tmp,running=False):
+ def fixture(self,tmp,running=False,stage='terminal',capture=True,exit_code=0):
   sandbox=pathlib.Path(tmp);bind=binding();name='synthetic-owned-one';fake=FakeDocker(name,bind,running=running)
-  (sandbox/'container.cid').write_text(fake.cid);c.once(sandbox/'owned-runtime-state.private.json',{'candidateSha':bind['candidateSha'],'intentSha256':bind['intentSha256'],'name':name,'imageId':'sha256:'+H(6)})
+  c.once(sandbox/'original-operation.private.json',{'contract':'one-original-three-call-cold-ci-operation-v1','candidateSha':bind['candidateSha'],'choiceSha256':bind['choiceSha256'],'intentSha256':bind['intentSha256'],'operationId':bind['operationId'],'runId':'12345','runAttempt':1,'maximumDispatchAttempts':1,'maximumOriginalCalls':3,'automaticRedispatchAllowed':False})
+  c.record_not_invoked(sandbox,name,bind)
+  if stage!='not-invoked':
+   c.once(sandbox/'owned-runtime-state.private.json',{'candidateSha':bind['candidateSha'],'intentSha256':bind['intentSha256'],'name':name,'imageId':'sha256:'+H(6)})
+   c.launch_intent(sandbox,name,bind,['SYNTHETIC_DOCKER_RUN_ONLY'])
+   if capture:
+    (sandbox/'container.cid').write_text(fake.cid);(sandbox/'container.cid').chmod(0o600)
+   if stage=='terminal':c.record_launch_terminal(sandbox,name,bind,exit_code)
+  else:fake.exists=False
   return sandbox,bind,name,fake
- def test_only_captured_stopped_exact_owner_is_removed(self):
+ def cleanup(self,sandbox,bind,name,fake,cleanup_only):
+  with patch.object(c,'run',fake.run),patch.object(c,'gate',return_value=bind),patch.object(c,'paths',return_value=(sandbox,name,'SYNTHETIC_IMAGE')),patch.object(c.sys,'argv',['SYNTHETIC_CONTROLLER','--cleanup-only']):
+   return c.main()==0 if cleanup_only else c.owned_cleanup(sandbox,name,bind)
+ def test_only_original_terminal_captured_stopped_owner_removed_and_idempotent(self):
+  for cleanup_only in [False,True]:
+   with self.subTest(cleanup_only=cleanup_only),tempfile.TemporaryDirectory() as tmp:
+    sandbox,bind,name,fake=self.fixture(tmp)
+    self.assertTrue(self.cleanup(sandbox,bind,name,fake,cleanup_only));self.assertTrue(self.cleanup(sandbox,bind,name,fake,cleanup_only))
+    self.assertEqual([x for x in fake.commands if x[:2]==['docker','rm']],[['docker','rm',fake.cid]])
+    self.assertTrue((sandbox/'owned-container-removed.private.json').is_file())
+ def test_pending_launch_no_cid_empty_ps_never_clears_including_cleanup_only(self):
+  for cleanup_only in [False,True]:
+   with self.subTest(cleanup_only=cleanup_only),tempfile.TemporaryDirectory() as tmp:
+    sandbox,bind,name,fake=self.fixture(tmp,stage='pending',capture=False);fake.exists=False
+    with self.assertRaises(AssertionError):self.cleanup(sandbox,bind,name,fake,cleanup_only)
+    self.assertEqual(fake.commands,[]);self.assertTrue((sandbox/'launch-intent.private.json').is_file())
+ def test_terminal_nonzero_launch_no_cid_empty_ps_never_clears_including_cleanup_only(self):
+  for cleanup_only in [False,True]:
+   with self.subTest(cleanup_only=cleanup_only),tempfile.TemporaryDirectory() as tmp:
+    sandbox,bind,name,fake=self.fixture(tmp,capture=False,exit_code=2);fake.exists=False
+    with self.assertRaisesRegex(AssertionError,'INVOKED_WITHOUT_ORIGINAL_CAPTURED_CID_RETAINED'):self.cleanup(sandbox,bind,name,fake,cleanup_only)
+    self.assertEqual(fake.commands,[])
+ def test_positive_durable_never_invoked_state_can_clear_including_cleanup_only(self):
+  for cleanup_only in [False,True]:
+   with self.subTest(cleanup_only=cleanup_only),tempfile.TemporaryDirectory() as tmp:
+    sandbox,bind,name,fake=self.fixture(tmp,stage='not-invoked')
+    self.assertTrue(self.cleanup(sandbox,bind,name,fake,cleanup_only));self.assertFalse(any(x[:2]==['docker','rm'] for x in fake.commands))
+ def test_absence_alone_no_launch_authority_or_cleanup_only_success(self):
+  for cleanup_only in [False,True]:
+   with self.subTest(cleanup_only=cleanup_only),tempfile.TemporaryDirectory() as tmp:
+    sandbox=pathlib.Path(tmp);bind=binding();name='synthetic-owned-one';fake=FakeDocker(name,bind);fake.exists=False
+    with self.assertRaises(AssertionError):self.cleanup(sandbox,bind,name,fake,cleanup_only)
+    self.assertEqual(fake.commands,[])
   with tempfile.TemporaryDirectory() as tmp:
-   sandbox,bind,name,fake=self.fixture(tmp)
-   with patch.object(c,'run',fake.run):self.assertTrue(c.owned_cleanup(sandbox,name,bind))
-   self.assertEqual([x for x in fake.commands if x[:2]==['docker','rm']],[['docker','rm',fake.cid]])
+   sandbox=pathlib.Path(tmp)/'absent';bind=binding();fake=FakeDocker('synthetic-owned-one',bind)
+   with self.assertRaisesRegex(AssertionError,'ORIGINAL_OWNERSHIP_PROVENANCE_REQUIRED'):self.cleanup(sandbox,bind,fake.name,fake,True)
+ def test_pending_launch_captured_cid_does_not_claim_cli_settlement(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   sandbox,bind,name,fake=self.fixture(tmp,stage='pending')
+   with self.assertRaises(AssertionError):self.cleanup(sandbox,bind,name,fake,False)
+   self.assertEqual(fake.commands,[])
  def test_running_or_wrong_image_retained_without_termination(self):
   for running,image in [(True,'sha256:'+H(6)),(False,'sha256:'+H(99))]:
    with self.subTest(running=running),tempfile.TemporaryDirectory() as tmp:
     sandbox,bind,name,fake=self.fixture(tmp,running);fake.image=image
-    with patch.object(c,'run',fake.run),self.assertRaises(AssertionError):c.owned_cleanup(sandbox,name,bind)
+    with self.assertRaises(AssertionError):self.cleanup(sandbox,bind,name,fake,False)
     self.assertFalse(any(x[:2]==['docker','rm'] for x in fake.commands));self.assertTrue(fake.exists)
- def test_missing_captured_identity_does_not_remove_name_collision(self):
+ def test_missing_original_capture_cannot_be_repaired_by_later_cid(self):
   with tempfile.TemporaryDirectory() as tmp:
-   sandbox,bind,name,fake=self.fixture(tmp);(sandbox/'container.cid').unlink()
-   with patch.object(c,'run',fake.run),self.assertRaises(AssertionError):c.owned_cleanup(sandbox,name,bind)
+   sandbox,bind,name,fake=self.fixture(tmp,capture=False,exit_code=2)
+   (sandbox/'container.cid').write_text(fake.cid);(sandbox/'container.cid').chmod(0o600)
+   with self.assertRaisesRegex(AssertionError,'INVOKED_WITHOUT_ORIGINAL_CAPTURED_CID_RETAINED'):self.cleanup(sandbox,bind,name,fake,False)
+   self.assertEqual(fake.commands,[])
+ def test_changed_terminal_intent_or_original_operation_refuses(self):
+  for filename,field,value in [('launch-terminal.private.json','launchIntentSha256',H(99)),('launch-intent.private.json','runtimeStateSha256',H(99)),('original-operation.private.json','operationId',H(99))]:
+   with self.subTest(filename=filename),tempfile.TemporaryDirectory() as tmp:
+    sandbox,bind,name,fake=self.fixture(tmp);path=sandbox/filename;record=json.loads(path.read_text());record[field]=value;path.write_text(json.dumps(record))
+    with self.assertRaises(AssertionError):self.cleanup(sandbox,bind,name,fake,False)
+    self.assertEqual(fake.commands,[])
+ def test_captured_terminal_cid_absent_without_original_removal_witness_is_unknown(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   sandbox,bind,name,fake=self.fixture(tmp);fake.exists=False
+   with self.assertRaisesRegex(AssertionError,'ORIGINAL_CONTAINER_SETTLEMENT_UNOBSERVED_RETAINED'):self.cleanup(sandbox,bind,name,fake,False)
    self.assertFalse(any(x[:2]==['docker','rm'] for x in fake.commands))
+
+
+class DiagnosticObservation(unittest.TestCase):
+ def record(self,**changes):
+  return {'contract':'stage6-native-cold-diagnostic-record-v1','phase':'A','stage':'APP_FAILURE','callIntents':2,'elapsedMs':100,'failureCode':'ERR_ASSERTION','errorMessageSha256':H(123),'terminalComplete':False,'activeFetches':1,'unresolvedStreams':1,'unknownProtocolReplies':0,**changes}
+ def collector(self,tmp):return c.DiagnosticCollector(pathlib.Path(tmp),binding())
+ def test_failure_progress_published_before_wait_even_when_owner_never_settles(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   out=io.StringIO();collector=self.collector(tmp);c.once(pathlib.Path(tmp)/'A-progress-01.private.json',self.record());clock=[0]
+   class Child:
+    def wait(self,timeout):
+     self.assertion=timeout;assert timeout<=1 and 'APP_FAILURE' in out.getvalue();clock[0]+=1000000000;raise c.subprocess.TimeoutExpired('SYNTHETIC_ONLY',timeout)
+   with contextlib.redirect_stdout(out),patch.object(c.time,'monotonic_ns',side_effect=lambda:clock[0]):self.assertIsNone(c.wait_with_diagnostics(Child(),3000000000,collector))
+   self.assertEqual(out.getvalue().count('"event":"PROGRESS"'),1);self.assertIn('"event":"HOST_TIMEOUT"',out.getvalue());self.assertIn('"sqlOwnerSettlement":"UNKNOWN"',out.getvalue())
+ def test_available_application_report_is_read_before_nonzero_exit_and_not_self_accepted(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   collector=self.collector(tmp);out=io.StringIO();bind,host,a,b=reports();a.update(contract='stage6-three-call-two-os-cold-progress-proposal-v1',failure={'code':'ERR_ASSERTION','messageSha256':H(123),'message':'SYNTHETIC_PRIVATE_CANARY'})
+   c.once(pathlib.Path(tmp)/'A-result.private.json',a)
+   class Child:
+    def wait(self,timeout):return 2
+   with contextlib.redirect_stdout(out),patch.object(c.time,'monotonic_ns',return_value=0),patch.object(c,'validate_reports',side_effect=AssertionError('NOT_AN_ACCEPTANCE_PATH')):
+    self.assertEqual(c.wait_with_diagnostics(Child(),300000000000,collector),2)
+   self.assertEqual(collector.reports['A']['callsStarted'],2);self.assertNotIn('B',collector.reports);self.assertIn('"callsStarted":2',out.getvalue());self.assertNotIn('SYNTHETIC_PRIVATE_CANARY',out.getvalue())
+ def test_old_dae_branch_is_not_the_new_observation_source_context(self):
+  self.assertEqual(c.REF,'refs/heads/diagnostic/native-cold-observation-20261020')
+  env,choice,review,intent=bundles();intent['ref']='refs/heads/diagnostic/native-cold-continuation-20261020'
+  with self.assertRaises(AssertionError):c.validate_bundles(env,RAW(choice),RAW(review),RAW(intent),1500)
+ def test_missing_reports_and_counts_are_unknown_never_zero(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   with contextlib.redirect_stdout(io.StringIO()):a,b=self.collector(tmp).collect()
+   summary=c.safe_summary({},a,b);self.assertIsNone(summary['callsStartedA']);self.assertIsNone(summary['callsStartedB']);self.assertIsNone(summary['A']['terminalComplete']);self.assertIsNone(summary['A']['activeFetches'])
+ def test_malformed_or_private_injected_progress_never_leaks_raw_values_and_can_later_be_read(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   collector=self.collector(tmp);path=pathlib.Path(tmp)/'A-progress-01.private.json';path.write_text('{"message":"SYNTHETIC_PRIVATE_CANARY"');path.chmod(0o600);out=io.StringIO()
+   with contextlib.redirect_stdout(out):collector.collect();collector.collect()
+   self.assertEqual(out.getvalue().count('METADATA_UNREADABLE'),1);self.assertNotIn('SYNTHETIC_PRIVATE_CANARY',out.getvalue())
+   path.write_text(json.dumps(self.record()))
+   with contextlib.redirect_stdout(out):collector.collect();collector.collect()
+   self.assertEqual(out.getvalue().count('"event":"PROGRESS"'),1)
+ def test_closed_progress_schema_refuses_extra_raw_fields_unknown_enums_or_nonfinite_counts(self):
+  for changes in [{'stage':'SYNTHETIC_PRIVATE_CANARY'},{'message':'SYNTHETIC_PRIVATE_CANARY'},{'callIntents':False},{'callIntents':4},{'activeFetches':float('inf')},{'failureCode':'SYNTHETIC_PRIVATE_CANARY'},{'errorMessageSha256':'SYNTHETIC_PRIVATE_CANARY'},{'phase':'UNKNOWN'}]:
+   with self.subTest(changes=changes),self.assertRaises(AssertionError):c.diagnostic_projection(self.record(**changes))
+ def test_report_projection_is_closed_and_never_claims_unknown_diagnostics_settled(self):
+  row=c.report_projection('B',{'callsStarted':'SYNTHETIC_PRIVATE_CANARY','failure':{'code':'SYNTHETIC_PRIVATE_CANARY','message':'SYNTHETIC_PRIVATE_CANARY'},'attribution':{'adapter':{'terminalComplete':'true'}}})
+  self.assertIsNone(row['callsStarted']);self.assertIsNone(row['terminalComplete']);self.assertEqual(row['failureCode'],'UNKNOWN');self.assertNotIn('SYNTHETIC_PRIVATE_CANARY',json.dumps(row))
+ def test_public_diagnostic_limit_is_finite(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   collector=self.collector(tmp);out=io.StringIO()
+   with contextlib.redirect_stdout(out):
+    for _ in range(200):collector.emit('HOST_TIMEOUT')
+   self.assertEqual(len(out.getvalue().splitlines()),96)
 
 if __name__=='__main__':unittest.main()

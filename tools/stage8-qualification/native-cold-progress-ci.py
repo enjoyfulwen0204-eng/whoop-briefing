@@ -9,7 +9,7 @@ import base64,hashlib,itertools,json,math,os,pathlib,platform,re,shutil,subproce
 
 APP_BASE='ca01f63d2bd948f24a3a0400decdaca898811f39'
 REPOSITORY='enjoyfulwen0204-eng/whoop-briefing'
-REF='refs/heads/diagnostic/native-cold-observation-20261020'
+REF='refs/heads/diagnostic/native-cold-integer-timeout-20261020'
 MODE='native-empty-cold-progress'
 PROFILE='three-original-calls-two-os-300s-v1'
 REQUESTS=['native-cold-progress-original-1','native-cold-progress-original-2','native-cold-progress-original-3']
@@ -95,7 +95,7 @@ def validate_source(root,binding):
  require(digest(raw)==binding['choice']['sourceManifestSha256'],'REVIEWED_SOURCE_MANIFEST_BYTES_REQUIRED')
  exact_keys(manifest,['contract','applicationBaselineSha','profile','files'])
  require(manifest['contract']=='stage6-native-cold-reviewed-source-manifest-v1' and manifest['applicationBaselineSha']==APP_BASE and manifest['profile']==PROFILE,'EXACT_SOURCE_MANIFEST_SCOPE_REQUIRED')
- required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs','test/stage6-cold-diagnostic-metadata.mock.test.mjs'])
+ required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs','test/stage6-cold-diagnostic-metadata.mock.test.mjs','test/stage6-native-cold-integer-timeout.mock.test.mjs'])
  require(type(manifest['files']) is dict and set(manifest['files'])==required,'EXACT_FINITE_REVIEWED_SOURCE_SET_REQUIRED')
  for name,pin in manifest['files'].items():require(bool(HEX64.fullmatch(str(pin))) and sha(root/name)==pin,'APPROVED_SOURCE_BYTES_REQUIRED')
  baseline_raw=(root/BASELINE_PATH).read_bytes();baseline=json.loads(baseline_raw)

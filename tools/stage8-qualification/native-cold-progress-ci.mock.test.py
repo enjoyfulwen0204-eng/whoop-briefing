@@ -241,7 +241,7 @@ class DiagnosticObservation(unittest.TestCase):
     self.assertEqual(c.wait_with_diagnostics(Child(),300000000000,collector),2)
    self.assertEqual(collector.reports['A']['callsStarted'],2);self.assertNotIn('B',collector.reports);self.assertIn('"callsStarted":2',out.getvalue());self.assertNotIn('SYNTHETIC_PRIVATE_CANARY',out.getvalue())
  def test_old_dae_branch_is_not_the_new_observation_source_context(self):
-  self.assertEqual(c.REF,'refs/heads/diagnostic/native-cold-observation-20261020')
+  self.assertEqual(c.REF,'refs/heads/diagnostic/native-cold-integer-timeout-20261020')
   env,choice,review,intent=bundles();intent['ref']='refs/heads/diagnostic/native-cold-continuation-20261020'
   with self.assertRaises(AssertionError):c.validate_bundles(env,RAW(choice),RAW(review),RAW(intent),1500)
  def test_missing_reports_and_counts_are_unknown_never_zero(self):

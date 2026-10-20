@@ -55,7 +55,7 @@ function physicalIdentity(){
 const observedLog=createHash('sha256');let logBytes=0;const originalPrint=console.log.bind(console);
 for(const name of ['log','info','warn','error'])console[name]=(...v)=>{let b;try{b=Buffer.from(JSON.stringify(v));}catch{b=Buffer.from('[UNSERIALIZABLE_APPLICATION_LOG]');}observedLog.update(b);logBytes+=b.length;};
 let db,latency=false,callCount=phase==='A'?0:2,producer;const networkFetch=globalThis.fetch.bind(globalThis);
-const transport=createDiagnosticFetch({fetch:(input,init)=>{guard();const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.ok(!url.username&&!url.password);return networkFetch(r,{signal:AbortSignal.any([r.signal,abort.signal,AbortSignal.timeout(Math.max(1,workDeadlineMs-now()))])});},decodePipelineReply:PipelineRespBody,latencyEnabled:()=>latency});
+const transport=createDiagnosticFetch({fetch:(input,init)=>{guard();const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.ok(!url.username&&!url.password);return networkFetch(r,{signal:AbortSignal.any([r.signal,abort.signal,AbortSignal.timeout(Math.max(1,Math.floor(workDeadlineMs-now())))])});},decodePipelineReply:PipelineRespBody,latencyEnabled:()=>latency});
 globalThis.fetch=(input,init)=>transport.fetch(input,init);
 // Diagnostic writes are finite, private and independent of mutation admission.
 // They may survive a work-bound refusal; they grant no additional native time.

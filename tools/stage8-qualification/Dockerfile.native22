@@ -16,7 +16,7 @@ COPY --from=sqld /bin/sqld /usr/local/bin/isolated-sqld
 RUN cmp package-lock.json /tmp/dependency-package-lock.json \
  && test "$(node --version)" = v22.23.2 \
  && git --version \
- && isolated-sqld --version | grep -Eq '^sqld sqld 0[.]24[.]33 [(]f8fb14f3 2026-08-11[)]$' \
+ && isolated-sqld --version | grep -Eq '^sqld sqld 0[.]24[.]33 [(]40a151bd 2025-12-19[)]$' \
  && command -v timeout \
  && chown "${QUALIFICATION_UID}:${QUALIFICATION_GID}" "${QUALIFICATION_ROOT}" \
  && rm /tmp/dependency-package-lock.json

@@ -11,7 +11,7 @@ import {REPORT_CLAIM} from './config.js';
 import {deliverReport,DELIVERY_RESULT} from './reportDelivery.js';
 import {createTelegram,TelegramError} from './telegram.js';
 import {SEND_OUTCOME} from './sendOutcome.js';
-import {withDeliveryAuthorization} from './accountLifecycle.js';
+import {withDeliveryAuthorization,ACCOUNT_INACTIVE} from './accountLifecycle.js';
 
 const fixtures=new WeakSet();
 /** Fixed in-memory transport only; callers cannot inject a callback/provider.
@@ -20,7 +20,7 @@ export function createBodyEnergyFixtureTransport({outcome='DELIVERED'}={}){
   if(!['DELIVERED','AMBIGUOUS','DEFINITE_FAILURE','DRY_RUN','INVALID_ACK'].includes(outcome))throw Error('BODY_ENERGY_FIXTURE_OUTCOME_INVALID');
   const messages=[],transport=Object.freeze({messages,
     async send(text,{authorize}={}){
-      await authorize?.();
+      if(authorize&&!await authorize())return {messageId:null,suppressed:ACCOUNT_INACTIVE};
       if(outcome==='DEFINITE_FAILURE')throw new TelegramError('SYNTHETIC_DEFINITE_FAILURE',{sendOutcome:SEND_OUTCOME.DEFINITE_FAILURE,sendStage:'pre_send'});
       messages.push(text);
       if(outcome==='AMBIGUOUS')throw new TelegramError('SYNTHETIC_AMBIGUOUS',{sendOutcome:SEND_OUTCOME.AMBIGUOUS,sendStage:'response'});
@@ -33,7 +33,7 @@ const pointerParse=raw=>{try{const value=JSON.parse(raw);return value?.version==
 
 /** Narrow post-finalized-drain publisher, without Stage 7 slots/UI or LIVE
  * worker activation. Calculation never sends. Root composition owns cadence. */
-export function createBodyEnergyAlertDelivery({db,stores,keys,publicationCapability,env,now=()=>new Date(),fixtureTransport}={}){
+export function createBodyEnergyAlertDelivery({db,stores,keys,publicationCapability,env,now=()=>new Date(),fixtureTransport,publicationEnabled=()=>true}={}){
   requirePhase4Keys(keys);
   for(const method of ['getUser','getLocale','getOnboarding','getActiveChatIdForUser','getState','setState','transaction',
     'isProactiveEnabled','claimProactiveEvent','markProactiveEventSent','claimReport','getClaim','releaseSuppressedProactiveEvent'])
@@ -43,9 +43,15 @@ export function createBodyEnergyAlertDelivery({db,stores,keys,publicationCapabil
   const pointerKey=id=>'body-energy:alert-pointer:'+keys.lookup(['body-energy-alert-pointer-v1',id]);
   async function preferences(id){return (await db.raw.execute({sql:'SELECT notifications_paused,preference_version FROM user_notification_preferences WHERE user_id=?',args:[id]})).rows[0]
     ??{notifications_paused:0,preference_version:0};}
+  async function currentPublication(id){
+    if(!publicationEnabled())fail('BODY_ENERGY_ALERT_CONFIG_CHANGED');
+    const grant=await assertBodyEnergyPublication(publicationCapability,db,id,{purpose:'alerts'});
+    if(!publicationEnabled())fail('BODY_ENERGY_ALERT_CONFIG_CHANGED');
+    return grant;
+  }
   async function deliver({userId,drainAuthority}={}){
     const id=requireUserId(userId,'bodyEnergyDropAlert');
-    let grant;try{grant=await assertBodyEnergyPublication(publicationCapability,db,id,{purpose:'alerts'});}catch{return {status:'publication_not_qualified'};}
+    let grant;try{grant=await currentPublication(id);}catch{return {status:'publication_not_qualified'};}
     if(grant.fixture&&!fixtures.has(fixtureTransport)||!grant.fixture&&fixtureTransport)fail('BODY_ENERGY_FIXTURE_TRANSPORT_REQUIRED');
     try{await assertBodyEnergyFinalizedDrain(drainAuthority,db,id,grant);}catch{return {status:'trigger_not_admitted'};}
     const user=await db.getUser(id),locale=await db.getLocale(id),consent=await controls.read(id),prefs=await preferences(id);
@@ -67,7 +73,7 @@ export function createBodyEnergyAlertDelivery({db,stores,keys,publicationCapabil
       if(!candidate.eligible){await advance();return {status:'no_eligible_drop',reason:candidate.reason};}
       const snapshot=view.publicationProof,controlRevision=consent.revision,preferenceVersion=prefs.preference_version;
       const verify=async()=>{
-        await assertBodyEnergyFinalizedDrain(drainAuthority,db,id,grant);await assertBodyEnergyPublication(publicationCapability,db,id,{purpose:'alerts'});await stores.assertCurrent(context);
+        await assertBodyEnergyFinalizedDrain(drainAuthority,db,id,grant);await currentPublication(id);await stores.assertCurrent(context);
         const currentUser=await db.getUser(id),currentConsent=await controls.read(id),currentPrefs=await preferences(id);
         if(!currentUser||currentUser.status!=='ACTIVE'||currentUser.lifecycleGeneration!==life||(currentUser.displayName??'')!==(user.displayName??'')
           ||await db.getLocale(id)!==locale||(profileRevision!==null&&await db.getProfileRevision(id)!==profileRevision)
@@ -77,6 +83,8 @@ export function createBodyEnergyAlertDelivery({db,stores,keys,publicationCapabil
         const fresh=await stores.bodyEnergy.readDropCandidate(context,{...request,asOfEpochMs:at().getTime()});
         if(!fresh.eligible||fresh.episodeId!==candidate.episodeId||fresh.semanticEventId!==candidate.semanticEventId
           ||fresh.view.publicationProof!==snapshot)fail('BODY_ENERGY_ALERT_CURRENTNESS_FENCED');
+        if(!publicationEnabled())fail('BODY_ENERGY_ALERT_CONFIG_CHANGED');
+        return true;
       };
       await verify();
       // Atomic common admission protects rolling cap across legacy + Body;

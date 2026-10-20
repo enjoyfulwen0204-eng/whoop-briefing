@@ -1,8 +1,10 @@
 import {BODY_ENERGY_PROVISIONAL_POLICY as PROVISIONAL} from '../src/bodyEnergyProvisionalPolicy.js';
 import {withPhaseTelemetry} from '../src/executionTelemetry.js';
 import test from 'node:test';import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
 import Database from 'libsql';
-import {createDb} from '../src/db.js';
+import {Sqlite3Client} from '@libsql/client/sqlite3';
+import {composeDb,createDb} from '../src/db.js';
 import {fixtureKeys} from './localDb.js';
 import {createPhase4Foundation} from '../src/phase4Foundation.js';
 import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
@@ -23,8 +25,12 @@ import {bodyEnergyMetricAnalysisTime,verifyBodyEnergyProducer} from '../src/body
 import {canonicalMetricSourceValue} from '../src/phase4IntelligenceStore.js';
 import {bodyHealthDate} from '../src/bodyEnergyInputs.js';
 const AT=Date.now()-1000,DATE=bodyHealthDate(AT,'Asia/Taipei');
-async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=false,measure=false,days=30,provisional=false}={}){
-  let time=AT,revision=0,closed=false;const anchor=new Database('file::memory:?cache=shared'),db=createDb({url:'file::memory:?cache=shared',phase4Keys:fixtureKeys});
+async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=false,measure=false,days=30,provisional=false,isolatedMemory=false}={}){
+  let time=AT,revision=0,closed=false;
+  // Alert-only fixtures need distinct native memory identities while retaining
+  // the installed driver's normal rotating transaction connections.
+  const uri=isolatedMemory?`file:body-publication-${randomUUID()}?mode=memory&cache=shared`:'file::memory:?cache=shared',anchor=new Database(uri);
+  const db=isolatedMemory?composeDb(new Sqlite3Client(uri,{},anchor,'number'),{phase4Keys:fixtureKeys}):createDb({url:uri,phase4Keys:fixtureKeys});
   const close=async()=>{if(closed)return;closed=true;global.gc?.();await new Promise(resolve=>setImmediate(resolve));db.close();anchor.close();};
   t.after(close);
   await db.migrate();for(const id of ['a','b'])await db.createUser({id,displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'},{now:new Date(AT)});
@@ -123,11 +129,11 @@ const viewFor=(f,resultId='synthetic-current')=>({status:'AVAILABLE',userId:'a',
   asOfUtc:f.now().toISOString(),asOfEpochMs:f.now().getTime(),timezone:'Asia/Taipei',value:45,quality:'AVAILABLE',confidence:1,
   algorithm:CRITERIA.algorithm,constantsHash:CRITERIA.constantsHash,publicationProof:'synthetic-current-proof',
   drivers:{initialCharge:70,timeDepletion:1,loadDepletion:24,napRecharge:0}});
-async function eligibleDeliveryFixture(t,outcome='DELIVERED'){
-  const f=await setup(t,{drain:false}),transport=createBodyEnergyFixtureTransport({outcome}),user=await f.db.getUser('a');
+async function eligibleDeliveryFixture(t,outcome='DELIVERED',publicationEnabled=()=>true){
+  const f=await setup(t,{drain:false,isolatedMemory:true}),transport=createBodyEnergyFixtureTransport({outcome}),user=await f.db.getUser('a');
   const stores={...f.stores,bodyEnergy:{...f.stores.bodyEnergy,readDropCandidate:async()=>({view:viewFor(f),eligible:true,
     reason:'QUALIFIED_FRESH_LOAD_DROP',episodeId:'synthetic-episode',semanticEventId:'synthetic-semantic'})}};
-  const sender=createBodyEnergyAlertDelivery({db:f.db,stores,keys:f.keys,publicationCapability:f.grant,fixtureTransport:transport,now:f.now});
+  const sender=createBodyEnergyAlertDelivery({db:f.db,stores,keys:f.keys,publicationCapability:f.grant,fixtureTransport:transport,now:f.now,publicationEnabled});
   await sender.controls.handle({text:'/energy alerts on',user,chatId:'100001'});return {...f,sender,transport,drainAuthority:await authorizeBodyEnergyFixtureDrain({db:f.db,userId:'a'})};
 }
 test('isolated deterministic alert delivery durably acknowledges and deduplicates same episode without external transport',async t=>{
@@ -310,4 +316,35 @@ test('baseline-limited provisional section is sent with the future ordinary brie
  assert.match(messages[0],/試用估計／個人基準仍在建立中/);assert.match(messages[0],/HRV 27\/30 · RHR 27\/30/);assert.match(messages[0],/LIMITED/);
  assert.equal((await f.db.getClaim('a','daily',DATE)).deliveryState,'DELIVERED');
  assert.equal((await runDaily({...args,now:f.now()})).status,'already_sent');assert.equal(messages.length,1);
+});
+
+
+test('server alert configuration switched off after construction consumes no claim or provider attempt',async t=>{
+  let enabled=true;const f=await eligibleDeliveryFixture(t,'DELIVERED',()=>enabled);enabled=false;
+  const result=await f.sender.deliver({userId:'a',drainAuthority:f.drainAuthority});
+  assert.equal(result.status,'publication_not_qualified');assert.equal(f.transport.messages.length,0);
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM proactive_events')).rows[0].n,0);
+  assert.equal(await f.db.getClaim('a',POLICY.reportType,'synthetic-episode'),null);
+});
+test('server alert configuration revoked after claim remains a definite non-send with no fabricated acknowledgement',async t=>{
+  let enabled=true;const f=await eligibleDeliveryFixture(t,'DELIVERED',()=>enabled),claim=f.db.claimReport;
+  f.db.claimReport=async request=>{const value=await claim(request);enabled=false;return value;};
+  const result=await f.sender.deliver({userId:'a',drainAuthority:f.drainAuthority});
+  assert.equal(result.status,'fenced');assert.equal(f.transport.messages.length,0);
+  // A pre-send content fence releases only its own CLAIMED report; it must
+  // never fabricate a delivered row or a provider acknowledgement.
+  assert.equal(await f.db.getClaim('a',POLICY.reportType,'synthetic-episode'),null);
+  const row=(await f.db.raw.execute("SELECT sent_at,outcome FROM proactive_events WHERE user_id='a'")).rows[0];
+  assert.equal(row.sent_at,null);assert.notEqual(row.outcome,'DELIVERED');
+});
+
+test('isolated alert transport mirrors the actual Telegram Boolean authorization contract',async()=>{
+  const transport=createBodyEnergyFixtureTransport();
+  for(const result of [false,undefined]){
+    const sent=await transport.send('Synthetic',{authorize:async()=>result});
+    assert.equal(sent.messageId,null);assert.equal(sent.suppressed,'ACCOUNT_INACTIVE');
+  }
+  assert.equal(transport.messages.length,0);
+  assert.equal((await transport.send('Synthetic',{authorize:async()=>true})).messageId,1);
+  assert.equal(transport.messages.length,1);
 });

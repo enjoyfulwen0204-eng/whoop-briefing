@@ -1,0 +1,19 @@
+# Root-verified official LinuxAMD64 OCI CHILD manifests, not index/ARM64IDs.
+# Private SOURCE proposal only; no image URI caller override.
+FROM ghcr.io/tursodatabase/libsql-server@sha256:756fb4d34447cfa9507dceb3a8e680435d7f2173e2aa680f44a1329e774f7d31 AS sqld
+FROM node@sha256:ae9f58d5c9f5a537110310be6b3cf67cf9c67146a3bb9310c0cb515fe71c8392
+ARG QUALIFICATION_ROOT
+ARG QUALIFICATION_UID
+ARG QUALIFICATION_GID
+WORKDIR ${QUALIFICATION_ROOT}
+COPY package.json package-lock.json ./
+COPY --from=sqld /bin/sqld /usr/local/bin/isolated-sqld
+RUN npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org \
+ && test "$(node --version)" = v22.23.2 \
+ && git --version \
+ && isolated-sqld --version > /tmp/sqld-version \
+ && grep -Fx 'sqld sqld 0.24.33 (40a151bd 2025-12-19)' /tmp/sqld-version \
+ && rm /tmp/sqld-version \
+ && command -v timeout \
+ && chown "${QUALIFICATION_UID}:${QUALIFICATION_GID}" "${QUALIFICATION_ROOT}"
+CMD ["/bin/false"]

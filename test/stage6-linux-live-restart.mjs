@@ -21,11 +21,13 @@ const root=fileURLToPath(new URL('..',import.meta.url)),OUT='/qualification',has
 assert.ok(existsSync('/.dockerenv'));assert.equal(realpathSync(process.cwd()),realpathSync(root));assert.equal(realpathSync(OUT),OUT);
 for(const name of Object.keys(process.env))if(/^(?:GIT_|TURSO_|WHOOP_|TELEGRAM_|OPENROUTER_|PHASE4_|RENDER_|CLOUDFLARE_)/.test(name))assert.ok(!process.env[name],'EXTERNAL_ENVIRONMENT_FORBIDDEN');
 const text=path=>readFileSync(path,'utf8').trim();
-const resources=()=>({node:process.version,platform:process.platform,architecture:process.arch,memoryMax:text('/sys/fs/cgroup/memory.max'),swapMax:text('/sys/fs/cgroup/memory.swap.max'),cpuMax:text('/sys/fs/cgroup/cpu.max'),interfaces:readdirSync('/sys/class/net').sort(),memoryPeak:text('/sys/fs/cgroup/memory.peak'),memoryEvents:text('/sys/fs/cgroup/memory.events')});
+const nativeHost=JSON.parse(text('/native-host-proof.json'));
+const resources=()=>({node:process.version,platform:process.platform,architecture:process.arch,nativeHost,memoryMax:text('/sys/fs/cgroup/memory.max'),swapMax:text('/sys/fs/cgroup/memory.swap.max'),cpuMax:text('/sys/fs/cgroup/cpu.max'),interfaces:readdirSync('/sys/class/net').sort(),memoryPeak:text('/sys/fs/cgroup/memory.peak'),memoryEvents:text('/sys/fs/cgroup/memory.events')});
 assertNativeResources(resources());assert.equal(process.version,NATIVE_NODE);
 const resumePath=OUT+'/original-restart-intent.json',prior=mode==='restart'?JSON.parse(readFileSync(resumePath,'utf8')):null;
 const startedAtMs=prior?.startedAtMs??Date.now(),deadlineAtMs=startedAtMs+NATIVE_LIMITS.wallMs,sha=runningReleaseSha({}),keys=createPhase4Keys({lookupKey:Buffer.alloc(32,71),auditKey:Buffer.alloc(32,83)});
 if(prior){assert.equal(prior.synthetic,true);assert.equal(prior.releaseSha,sha);assert.notEqual(prior.producerPid,process.pid,'ACTUAL_NEW_NODE_PROCESS_REQUIRED');}
+assert.equal(nativeHost.candidateSha,sha,'MEASURED_HOST_PROOF_EXACT_CANDIDATE_REQUIRED');
 const tracked=['src/phase4Reanalysis.js','src/stage8LiveProducer.js','src/stage8LiveExecution.js','src/stage8LivePublication.js','test/stage6-linux-live-restart.mjs','test/stage6-linux-native-contract.mjs'];
 const sourceHashes=Object.fromEntries(tracked.map(p=>[p,hash(readFileSync(resolve(root,p)))]));if(prior)assert.deepEqual(sourceHashes,prior.sourceHashes,'NO_SOURCE_CHANGE_BETWEEN_PROCESSES');
 const http={requests:0,requestErrors:0,responseErrors:0,openTransactions:0,droppedTransactions:0,transactions:[]},streams=new Map();let latency=false;

@@ -7,6 +7,7 @@ test -f /.dockerenv
 test "$(node --version)" = v22.23.2
 node test/stage8-live-linux-preflight.test.js --check initial
 node --input-type=module -e 'import assert from "node:assert/strict";import{readFileSync}from"node:fs";import{parseOfflineMountInfo}from"./test/stage8-live-linux-preflight.test.js";const root=process.cwd()+"/scripts",mounts=parseOfflineMountInfo(readFileSync("/proc/self/mountinfo","utf8")),own=mounts.filter(m=>m.path===root);assert.equal(own.length,1,"EXACT_READONLY_SCRIPTS_MOUNT_REQUIRED");assert.ok(own[0].options.includes("ro")&&!own[0].options.includes("rw"),"READONLY_SCRIPTS_REQUIRED");assert.ok(!mounts.some(m=>m.path.startsWith(root+"/")&&(!m.options.includes("ro")||m.options.includes("rw"))),"NO_WRITABLE_NESTED_SCRIPTS");'
+node --input-type=module -e 'import assert from "node:assert/strict";import{readFileSync}from"node:fs";import{parseOfflineMountInfo}from"./test/stage8-live-linux-preflight.test.js";const rows=parseOfflineMountInfo(readFileSync("/proc/self/mountinfo","utf8")).filter(m=>m.path==="/native-host-proof.json");assert.equal(rows.length,1,"EXACT_HOST_PROOF_MOUNT_REQUIRED");assert.ok(rows[0].options.includes("ro")&&!rows[0].options.includes("rw"),"READONLY_HOST_PROOF_REQUIRED");'
 node --test test/stage6-linux-native-contract.test.mjs > /qualification/contract.tap 2>&1
 server_pid=
 stop_server(){

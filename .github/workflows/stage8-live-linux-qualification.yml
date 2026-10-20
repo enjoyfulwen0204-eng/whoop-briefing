@@ -15,6 +15,7 @@ on:
         options:
           - qualification
           - diagnostic-empty-one
+          - native-empty-restart
 
 permissions:
   contents: read
@@ -25,7 +26,7 @@ concurrency:
 
 jobs:
   qualify:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'native-empty-restart'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -70,4 +71,38 @@ jobs:
           container_name="stage8-qualification-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           if timeout 10s docker container inspect "$container_name" >/dev/null 2>&1; then
             timeout --signal=KILL 15s docker rm -f "$container_name" >/dev/null
+          fi
+
+  native-empty-restart:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/repair/unattended-20261020' && inputs.mode == 'native-empty-restart' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      QUALIFICATION_MODE: ${{ inputs.mode }}
+      QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+    steps:
+      - name: Checkout exact reviewed branch commit without persisting credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate-repository
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Run one bounded native empty-user completion and cold replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-empty-ci.py" \
+            --run "$GITHUB_WORKSPACE/candidate-repository"
+      - name: Remove only captured created-container identity if needed
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-empty-ci.py"
+          if test -f "$control"; then
+            python3 "$control" --cleanup-only
           fi

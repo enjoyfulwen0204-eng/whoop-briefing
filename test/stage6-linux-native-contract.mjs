@@ -5,7 +5,12 @@ export const NATIVE_LIMITS=Object.freeze({memoryBytes:536870912,cpuQuota:50000,c
 export function assertNativeResources(value){
  assert.equal(value.node,NATIVE_NODE,'EXACT_PRODUCTION_NODE_REQUIRED');
  assert.equal(value.platform,'linux','ACTUAL_LINUX_REQUIRED');
- assert.equal(value.architecture,'arm64','EXPLICIT_NATIVE_ARM64_SCOPE_REQUIRED');
+ assert.ok(['x64','arm64'].includes(value.architecture),'EXPLICIT_SUPPORTED_NATIVE_ARCH_REQUIRED');
+ const host=value.nativeHost,normalize=v=>({x64:'x64',amd64:'x64',x86_64:'x64',X64:'x64',arm64:'arm64',aarch64:'arm64',ARM64:'arm64'})[v];
+ assert.equal(host?.contract,'stage6-native-host-observation-v1');assert.equal(host.platform,'linux');
+ for(const field of ['machine','dockerArchitecture','imageArchitecture','runnerArchitecture'])assert.equal(normalize(host[field]),value.architecture,'MEASURED_HOST_IMAGE_ARCHITECTURES_MUST_MATCH');
+ assert.equal(host.requestedPlatform,'linux/'+(value.architecture==='x64'?'amd64':'arm64'));
+ assert.match(host.candidateSha??'',/^[a-f0-9]{40}$/);
  assert.equal(value.memoryMax,String(NATIVE_LIMITS.memoryBytes));assert.equal(value.swapMax,'0');
  assert.equal(value.cpuMax,'50000 100000');assert.deepEqual(value.interfaces,['lo']);
  assert.match(value.memoryPeak??'',/^[0-9]+$/);assert.ok(Number(value.memoryPeak)>0&&Number(value.memoryPeak)<=NATIVE_LIMITS.memoryBytes);

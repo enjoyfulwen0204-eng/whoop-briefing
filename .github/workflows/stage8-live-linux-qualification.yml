@@ -18,6 +18,7 @@ on:
           - native-empty-restart
           - native-empty-attribution
           - native-empty-metadata-repair
+          - native-empty-principal-snapshot-repair
       diagnostic_run_intent:
         description: Only for native-empty-attribution; explicit one-original-empty-120s-v1
         required: false
@@ -26,6 +27,12 @@ on:
 
       metadata_repair_run_intent:
         description: Only for native-empty-metadata-repair; one-original-empty-120s-metadata-repair-v1
+        required: false
+        default: ""
+        type: string
+
+      principal_snapshot_repair_run_intent:
+        description: Only for native-empty-principal-snapshot-repair; one-original-empty-120s-principal-snapshot-repair-v1
         required: false
         default: ""
         type: string
@@ -185,6 +192,41 @@ jobs:
         run: |
           set -euo pipefail
           control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-empty-metadata-repair-ci.py"
+          if test -f "$control"; then
+            python3 "$control" --cleanup-only
+          fi
+
+
+  principal-snapshot-repair-verification:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/principal-snapshot-20261020' && inputs.mode == 'native-empty-principal-snapshot-repair' && inputs.principal_snapshot_repair_run_intent == 'one-original-empty-120s-principal-snapshot-repair-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      QUALIFICATION_MODE: ${{ inputs.mode }}
+      NATIVE_PRINCIPAL_SNAPSHOT_REPAIR_RUN_INTENT: ${{ inputs.principal_snapshot_repair_run_intent }}
+      QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+    steps:
+      - name: Checkout exact reviewed principal snapshot repair verification commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate-repository
+          persist-credentials: false
+          fetch-depth: 0
+      - name: One original empty repair verification including all setup; no replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-empty-principal-snapshot-repair-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
+      - name: Remove only an exited captured owned repair verification container
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/native-empty-principal-snapshot-repair-ci.py"
           if test -f "$control"; then
             python3 "$control" --cleanup-only
           fi

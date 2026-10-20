@@ -244,7 +244,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             }
             const memo=state.readMemo,context=readScope.getStore(),sameScope=state.readBudget===currentExecutionBudget()&&state.readExecution===currentDurableExecution();
             if(!mutations.length&&sameScope){const observed=key==='execute'?state.syncSnapshot?.get(args[0]):state.syncSnapshot?.getBatch(args[0]);if(observed!==undefined){currentExecutionBudget()?.assert();return observed;}}
-            const snapshotKey=key==='execute'&&!mutations.length&&!metadata&&sameScope?readSnapshotKey(args[0],context):null;
+            const snapshotKey=key==='execute'&&!mutations.length&&!metadata&&sameScope?readSnapshotKey(args[0],context,{allowPrincipalReadiness:state.principalReadinessMemoEnabled&&context?.executionMode==='LIVE'}):null;
             if(mutations.length)memo.clear();
             try{
               currentExecutionBudget()?.assert();
@@ -332,7 +332,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       const readMemo=createReadSnapshotMemo(),readBudget=currentExecutionBudget(),closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
       if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});
       const state = { tx:null, cache,readMemo,readBudget,readExecution:execution, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
-        commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,failure: null, deferred: null, committed: [], completed: [] };
+        commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,principalReadinessMemoEnabled:false,failure: null, deferred: null, committed: [], completed: [] };
       state.syncSnapshot=createSyncCommitSnapshot(syncBinding);const syncStarted=performance.now();
       let receipt,admissionChecked=false,admissionFailure;
       const observeReceipt=readOnlyProcessingCheck(async()=>{receipt=await readWorkStep(client,['named',state.workStep]);});
@@ -382,6 +382,11 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           // before re-admission; never reconnect an active transaction.
           afterBusy:refreshIdleConnection,
         });state.tx=tx;
+        // Every processing root opens write mode; the locked HTTP driver maps it
+        // to BEGIN IMMEDIATE and the branch above awaited its original ACK.
+        // Never opt in outside this owned LIVE Stage6 root or before that ACK.
+        state.principalReadinessMemoEnabled=privateRuntime&&base.protocol==='http'
+          &&execution?.claim?.request?.phase==='STAGE6_DRAIN'&&execution.claim.request.executionMode==='LIVE';
         // Metadata failure after acknowledged BEGIN follows the original
         // failure/rollback path. It is never an admission retry or callback run.
         if(admissionFailure)throw admissionFailure;
@@ -404,6 +409,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           const callbackAt=performance.now(),result = await fn();
           state.syncSnapshot?.note('callbackMs',performance.now()-callbackAt);
           if (state.failure) throw state.failure;
+          // The row-data optimization ends with the business callback. Keep
+          // every terminal predicate and original database observation fresh.
+          if(state.principalReadinessMemoEnabled)readMemo.close();
           // Terminal receipt checks and every COMMIT attempt use the original
           // fresh observations, never the transaction's immutable read pool.
           state.syncSnapshot?.clear();const terminalAt=performance.now();
@@ -422,6 +430,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           await retryContention(async()=>{
             // Recheck ownership after all deferred result validation and before
             // each COMMIT attempt, including time spent waiting on contention.
+            // Repeat this barrier for every definite-BUSY COMMIT retry too;
+            // neither cached principal data nor a cached guard may settle work.
+            if(state.principalReadinessMemoEnabled)readMemo.close();
             await runChecks([...fenceChecks(),...state.finalChecks,...state.commitFences],client);
             if(state.failure)throw state.failure;
             for(const assert of state.commitAuthorities)assert();

@@ -73,6 +73,7 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
   try{
    assertCaller();if(signal?.aborted)controller.abort();
    const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path:CONTINUATION_PATH,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+   assertCaller();if(controller.signal.aborted||now()>=discoveryDeadline)throw error('timeout',true);
    const pendingDiscovery=Promise.resolve(fetchImpl(new URL(CONTINUATION_PATH,endpoint).toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
     headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})).then(value=>{
       if(controller.signal.aborted){try{void value.body?.cancel().catch(()=>{});}catch{}}return value;
@@ -202,6 +203,7 @@ export async function invokeReadiness(env,{fetchImpl=fetch,now=Date.now,signImpl
  const controller=new AbortController(),deadlineAt=now()+timeoutMs,timer=setTimer(()=>controller.abort(),timeoutMs);let response;
  try {
   const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path:READINESS_PATH,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+  if(controller.signal.aborted||now()>=deadlineAt)throw error('timeout',true);
   response=await raceAbort(Promise.resolve(fetchImpl(new URL(READINESS_PATH,endpoint).toString(),{
    method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
    headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
@@ -226,6 +228,7 @@ export async function invokeCompanion(env,{fetchImpl=fetch,now=Date.now,signImpl
  const requestId=crypto.randomUUID(),timestamp=String(now()),body=canonical({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,kind:'COMPANION_V1',executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
  const controller=new AbortController(),deadlineAt=now()+timeoutMs,timer=setTimer(()=>controller.abort(),timeoutMs);let response;
  try{const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+  if(controller.signal.aborted||now()>=deadlineAt)throw error('timeout',true);
   response=await raceAbort(Promise.resolve(fetchImpl(new URL(path,endpoint).toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
    headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
   const raw=await readResponseBody(response,{controller,deadlineAt,now});let payload;try{payload=JSON.parse(raw);}catch{throw error('invalid_companion',true);}

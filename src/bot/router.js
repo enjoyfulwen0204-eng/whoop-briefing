@@ -1,5 +1,6 @@
 import {isStage5PresentationCommand,stage5PresentationUnavailable,stage5PresentationHelp} from '../stage5PresentationReader.js';
 import {selfQueryPerspective} from '../scopedHealthContext.js';
+import {stage8LiveCommand,stage8LivePresentationUnavailable} from '../stage8SelfQa.js';
 /**
  * 訊息路由：一則 Telegram 訊息 → 一則回覆。
  *
@@ -421,6 +422,12 @@ export function createRouter({
     if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
     if(isStage5PresentationCommand(text))return phase4Reader?phase4Reader.handle({text,chatId,user}):stage5PresentationUnavailable(locale);
+    // An explicit LIVE request must never fall back to legacy analysis when
+    // its runtime is disabled or the authenticated user is outside its cohort.
+    if(stage8LiveCommand(text)){
+      const scoped=stage8?await stage8.handle({text,chatId,user}):null;
+      return scoped??{text:stage8LivePresentationUnavailable(locale)};
+    }
     if(stage8){const scoped=await stage8.handle({text,chatId,user});if(scoped!==null)return scoped;}
     if(bodyEnergy){
       const control=await bodyEnergy.notificationControl.handle({text,user,chatId});

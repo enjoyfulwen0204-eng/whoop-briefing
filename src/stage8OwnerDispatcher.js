@@ -2,12 +2,45 @@ import {OWNER_MAX_ATTEMPTS,ownerRetryAt} from './stage8OwnerMonitoring.js';
 import {createTelegramApi} from './bot/api.js';
 import {SEND_OUTCOME} from './sendOutcome.js';
 import {validMessageId} from './telegramAcknowledgment.js';
+import {stage8AssociationProjection} from './stage8DerivedReader.js';
+import {labelForCategory} from './journal.js';
+import {t,localizedDisplay} from './localization.js';
 import {readStage8RecipientQuietHours,stage8RecipientIsQuiet,sendStage8RecipientNotification} from './stage8NotificationQuietHours.js';
 const copy={
- 'zh-TW':{title:'已追蹤使用者的健康摘要',asof:'資料截至',association:'觀察性關聯，不代表因果。'},
- en:{title:'Followed user health summary',asof:'Data as of',association:'Observational association only; not causation.'},
- vi:{title:'Tóm tắt sức khỏe người được theo dõi',asof:'Dữ liệu tính đến',association:'Chỉ là mối liên hệ quan sát, không phải quan hệ nhân quả.'},
+ 'zh-TW':{title:'已追蹤使用者的健康摘要',asof:'資料截至',association:'觀察性關聯，不代表因果。',associationClaim:'{factor}與{metric}{direction}在已追蹤使用者的資料中多次呈現關聯。'},
+ en:{title:'Followed user health summary',asof:'Data as of',association:'Observational association only; not causation.',associationClaim:'Repeated associations in the followed user’s data: {factor} and {direction} {metric}.'},
+ vi:{title:'Tóm tắt sức khỏe người được theo dõi',asof:'Dữ liệu tính đến',association:'Chỉ là mối liên hệ quan sát, không phải quan hệ nhân quả.',associationClaim:'Dữ liệu của người được theo dõi nhiều lần cho thấy {factor} có liên quan đến {metric} {direction}.'},
 };
+const dailyMetrics=Object.freeze({sleep:'sleep_duration_minutes',recovery:'recovery_score',load:'cycle_strain'});
+/** Pure presentation only. The dispatcher still requires the same freshly
+ * validated durable authorization; this formatter never grants send authority
+ * or rewrites canonical claims. Unsupported claims have no raw-text fallback. */
+export function renderStage8OwnerPayload(payload,requestedLocale){
+ const locale=Object.hasOwn(copy,requestedLocale)?requestedLocale:'en',c=copy[locale];
+ const fail=()=>{throw Error('OWNER_CLAIM_UNRENDERABLE');};
+ if(!Array.isArray(payload?.claims)||!payload.claims.length||payload.claims.length>3
+  ||typeof payload.asOfUtc!=='string'||!Number.isFinite(Date.parse(payload.asOfUtc)))fail();
+ const lines=payload.claims.map(claim=>{
+  if(payload.notificationClass==='DAILY_SUMMARY'&&claim?.kind==='SOURCE_FACT_SUMMARY'){
+   if(!Object.hasOwn(dailyMetrics,claim.metric)||typeof claim.value!=='string'||!claim.value.trim())fail();
+   return `${t(locale,`metric.${dailyMetrics[claim.metric]}`)}: ${localizedDisplay(locale,claim.value)}`;
+  }
+  if(payload.notificationClass==='WEEKLY_SUMMARY'&&claim?.kind==='OBSERVATIONAL_ASSOCIATION'){
+   if(typeof claim.claim!=='string'||claim.nonCausal!==true)fail();
+   const association=stage8AssociationProjection(claim.claim);if(!association)fail();
+   const values={factor:labelForCategory(association.factor,locale),
+    metric:t(locale,association.metricKey==='respiratory_rate'?'qa.metric.respiratory_rate':`metric.${association.metricKey}`),
+    direction:t(locale,`beta.direction${association.direction==='HIGHER'?'Higher':'Lower'}`)};
+   return c.associationClaim.replace(/\{(factor|metric|direction)\}/g,(_,key)=>values[key])+`\n${c.association}`;
+  }
+  // IMPORTANT retains the exact source-approved alert text. Translating that
+  // signed copy requires a separate typed alert presentation contract.
+  if(payload.notificationClass==='IMPORTANT_ALERT'&&claim?.kind==='APPROVED_IMPORTANT_ALERT'
+   &&typeof claim.claim==='string'&&claim.claim.trim())return claim.claim;
+  fail();
+ });
+ return `${c.title}\n${lines.join('\n')}\n${c.asof}: ${payload.asOfUtc}`;
+}
 /** Server-owned provider boundary. A request cannot supply credentials,
  * transport, destination or claims. Only a freshly validated durable plan
  * reaches Telegram. An uncertain prior attempt permanently prevents resend. */
@@ -46,8 +79,8 @@ export function createStage8OwnerDispatcher({db,monitoring,env,enabled,now=()=>n
    if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');
    const resolved=await db.resolveUserByChatId(input.chatId);
    if(resolved?.user?.id!==actor.ownerId)throw Error('OWNER_DESTINATION_FENCED');
-   const locale=await db.getLocale(actor.ownerId),c=copy[locale]??copy.en;
-   const text=`${c.title}\n${fresh.payload.claims.map(claim=>claim.kind==='SOURCE_FACT_SUMMARY'?`${claim.metric}: ${claim.value}`:claim.claim+(claim.nonCausal?`\n${c.association}`:'')).join('\n')}\n${c.asof}: ${fresh.payload.asOfUtc}`;
+   const locale=await db.getLocale(actor.ownerId);
+   const text=renderStage8OwnerPayload(fresh.payload,locale);
    if(text.length>3800)throw Error('OWNER_PAYLOAD_BOUNDS');
    // Revalidate after all asynchronous wording/identity reads at the final boundary.
    await monitoring.validate(actor,subjectId,messageId);

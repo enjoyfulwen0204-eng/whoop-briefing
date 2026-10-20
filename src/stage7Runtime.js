@@ -96,7 +96,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  async function decorate({user,chatId,text,reply}){
   if(!eligible(user)||!reply||typeof reply!=='string'&&(reply.bodyEnergyReplyGuard||reply.stage8ReplyGuard||reply.stage5PresentationGuard))return reply;
   const settings=typeof text==='string'&&/^\/settings(?:@[A-Za-z0-9_]+)?\s*$/i.test(text.trim());
-  const natural=typeof text==='string'&&!text.trim().startsWith('/')&&/[?？]|睡|恢復|運動|sleep|recovery|exercise|ngủ|phục hồi/i.test(text);
+  const natural=typeof text==='string'&&!text.trim().startsWith('/')&&/[?？]|睡|恢復|運動|sleep|recovery|exercise|ngủ|phục hồi|vận động|tập luyện/i.test(text);
   if(!settings&&!natural)return reply;
   const actor=await companion.interactions.authenticate({user,chatId});
   if(settings){

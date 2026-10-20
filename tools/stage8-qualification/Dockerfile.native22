@@ -1,0 +1,23 @@
+# Offline build, only pre-existing cached images. Controller must assert the
+# dependency tag's exact local ID before AND after build. No old source copied.
+FROM stage6-synthetic:family-no-result-reviewed AS deps
+FROM ghcr.io/tursodatabase/libsql-server@sha256:f8ca0134cdded747793888e48591aece07647d9d598d3ac229aabfa93159ca88 AS sqld
+FROM node@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9
+ARG QUALIFICATION_ROOT
+ARG QUALIFICATION_UID
+ARG QUALIFICATION_GID
+WORKDIR ${QUALIFICATION_ROOT}
+COPY package.json package-lock.json ./
+COPY --from=deps /app/package-lock.json /tmp/dependency-package-lock.json
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /usr/bin/git /usr/bin/git
+COPY --from=deps /usr/lib/aarch64-linux-gnu/libpcre2-8.so.0* /usr/lib/aarch64-linux-gnu/
+COPY --from=sqld /bin/sqld /usr/local/bin/isolated-sqld
+RUN cmp package-lock.json /tmp/dependency-package-lock.json \
+ && test "$(node --version)" = v22.23.2 \
+ && git --version \
+ && isolated-sqld --version | grep -Eq '^sqld sqld 0[.]24[.]33 [(]f8fb14f3 2026-08-11[)]$' \
+ && command -v timeout \
+ && chown "${QUALIFICATION_UID}:${QUALIFICATION_GID}" "${QUALIFICATION_ROOT}" \
+ && rm /tmp/dependency-package-lock.json
+CMD ["/bin/false"]

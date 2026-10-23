@@ -1,13 +1,13 @@
-"""One new native SQLD HTTP EOF regression for the reviewed clock-free ownership DATA repair.
+"""One new native SQLD HTTP EOF regression for the reviewed clock-free context-lease DATA repair.
 No old run/attempt is resumed. Importing performs no action.
 """
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='009e2538cca7d982b656e3060ae2403a413f43e8'
-REF='refs/heads/diagnostic/stage6-native-joined-close-20261024'
+BASE='de262df36aea6199db41405963fb7cf45a0453f4'
+REF='refs/heads/diagnostic/stage6-native-lease-data-eof-20261024'
 MODE='native-positive-hybrid-eof'
-INTENT='one-original-joined-close-positive-eof-and-replay-v1'
+INTENT='one-original-context-lease-data-positive-eof-and-replay-v1'
 CONTROL='tools/stage8-qualification/positive-eof-ci.py';WRAPPER='tools/stage8-qualification/positive-eof-supervisor.mjs';UNIT='tools/stage8-qualification/positive-eof-ci.test.py';TEST='test/stage6-native-positive-eof-hrana.mjs';WORKFLOW=h.WORKFLOW
 
 def validate(e,system,machine,uid,gid):
@@ -25,7 +25,7 @@ def source_gate(source,expected):
  assert h.run(['git','-C',str(source),'rev-parse','HEAD'])==expected
  assert not h.run(['git','-C',str(source),'status','--porcelain=v1','--untracked-files=all'])
  assert h.run(['git','-C',str(source),'rev-parse','HEAD^'])==BASE
- allowed={'M\t'+WORKFLOW,'M\t'+CONTROL,'M\t'+UNIT,'M\t'+TEST,'A\ttest/stage6-native-join-barrier.mjs','A\ttest/stage6-native-join-barrier.test.mjs'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
+ allowed={'M\t'+WORKFLOW,'M\t'+CONTROL,'M\t'+UNIT};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
  assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci'])
  h.public_lock(source/'package-lock.json')
 

@@ -711,8 +711,8 @@ jobs:
             python3 "$control" --cleanup-only
           fi
 
-  native-owned-close-positive-eof:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-native-joined-close-20261024' && inputs.mode == 'native-positive-hybrid-eof' && inputs.positive_hybrid_eof_intent == 'one-original-joined-close-positive-eof-and-replay-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+  native-lease-data-positive-eof:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-native-lease-data-eof-20261024' && inputs.mode == 'native-positive-hybrid-eof' && inputs.positive_hybrid_eof_intent == 'one-original-context-lease-data-positive-eof-and-replay-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:

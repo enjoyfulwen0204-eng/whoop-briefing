@@ -10,7 +10,7 @@ class Gate(unittest.TestCase):
     e=self.env.copy();del e[k]
     with self.assertRaises(AssertionError):self.call(e)
  def test_old_or_mutated_authority_refused(self):
-  for k,v in [('GITHUB_REF','refs/heads/diagnostic/stage6-native-lease-data-eof-20261024'),('FIRST20_DIAGNOSTIC_INTENT','one-original-context-lease-data-positive-eof-and-replay-v1'),('GITHUB_REF','refs/heads/main'),('QUALIFICATION_MODE','native-positive-hybrid-eof'),('GITHUB_RUN_ATTEMPT','2'),('GITHUB_SHA','d'*40),('QUALIFICATION_WORKFLOW_SHA','d'*40),('QUALIFICATION_REPOSITORY_PRIVATE','true'),('GITHUB_RUN_ID','1;bad')]:
+  for k,v in [('GITHUB_REF','refs/heads/diagnostic/stage6-native-first17-cpu-20261024'),('FIRST20_DIAGNOSTIC_INTENT','one-original-current-first17-cpu-diagnostic-v1'),('GITHUB_REF','refs/heads/diagnostic/stage6-native-lease-data-eof-20261024'),('FIRST20_DIAGNOSTIC_INTENT','one-original-context-lease-data-positive-eof-and-replay-v1'),('GITHUB_REF','refs/heads/main'),('QUALIFICATION_MODE','native-positive-hybrid-eof'),('GITHUB_RUN_ATTEMPT','2'),('GITHUB_SHA','d'*40),('QUALIFICATION_WORKFLOW_SHA','d'*40),('QUALIFICATION_REPOSITORY_PRIVATE','true'),('GITHUB_RUN_ID','1;bad')]:
    with self.subTest(k=k,v=v):
     with self.assertRaises(AssertionError):self.call({**self.env,k:v})
  def test_non_native_or_root_refused(self):
@@ -20,7 +20,7 @@ class Gate(unittest.TestCase):
  def test_pure_cpu_and_closed_source_transforms(self):
   root=pathlib.Path(__file__).resolve().parents[2]
   r=subprocess.run(['node','--test',str(root/'test/stage6-native-cpu-profile.test.mjs')],capture_output=True,text=True,timeout=30)
-  self.assertEqual(r.returncode,0,r.stdout+r.stderr);self.assertIn('# pass 14',r.stdout)
+  self.assertEqual(r.returncode,0,r.stdout+r.stderr);self.assertIn('# pass 16',r.stdout)
  def test_fixture_contains_only17_cpu_work_and_no_eof_result_claim(self):
   root=pathlib.Path(__file__).resolve().parents[2];source=(root/'test/stage6-native-first17-cpu.mjs').read_text()
   self.assertEqual(source.count('for(let i=0;i<17;i++)'),1);self.assertIn('started<240000',source);self.assertNotIn("stage='GENUINE_NATIVE_EOF'",source);self.assertNotIn('exactReplayVerified:true',source)

@@ -3,7 +3,7 @@ import {readFile,stat,open,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {networkInterfaces} from 'node:os';
 import assert from 'node:assert/strict';
-import {CPU_PUBLIC_FILES,CPU_PUBLIC_FUNCTIONS} from '../../test/stage6-native-cpu-profile.mjs';
+import {CPU_PUBLIC_FILES,CPU_PUBLIC_FUNCTIONS,CPU_SOURCE_BUCKETS} from '../../test/stage6-native-cpu-profile.mjs';
 const publicFiles=new Set(CPU_PUBLIC_FILES),publicFunctions=new Set(CPU_PUBLIC_FUNCTIONS);
 export function exactKeys(value,names){
  assert.ok(value&&typeof value==='object'&&!Array.isArray(value));
@@ -19,8 +19,12 @@ export function validateLeg(x,i){
    assert.ok(/^(READ_ONLY_OR_OTHER|stage6\.(end|family-inventory|family|body-source|associations|checkpoint|source):(NA|UNKNOWN|recovery_score|hrv|rhr|sleep_performance|sleep_duration_minutes|sleep_efficiency|respiratory_rate|cycle_strain|body_energy))$/.test(key));
    exactKeys(c,['calls','inclusiveMs','maxInclusiveMs']);assert.ok(Number.isSafeInteger(c.calls)&&c.calls>0);assert.ok(Number.isFinite(c.inclusiveMs)&&Number.isFinite(c.maxInclusiveMs)&&c.inclusiveMs>=c.maxInclusiveMs&&c.maxInclusiveMs>=0);
   }
-  const cpu=x.cpu;exactKeys(cpu,['sampledMs','sampleCount','rawProfilePersisted','top20','wallMs','nodeUserCpuMs','nodeSystemCpuMs','onlyPreparationOrdinal','setupIncluded','includesOriginalPostSettlementContextCleanup','profilingOverheadNotSubtracted','qualification']);assert.ok(Number.isFinite(cpu.sampledMs)&&cpu.sampledMs>=0);assert.ok(Number.isSafeInteger(cpu.sampleCount)&&cpu.sampleCount>=0&&cpu.sampleCount<=200000);
+  const cpu=x.cpu;exactKeys(cpu,['sampledMs','sampleCount','rawProfilePersisted','sourceTotalsMs','top20','wallMs','nodeUserCpuMs','nodeSystemCpuMs','onlyPreparationOrdinal','setupIncluded','includesOriginalPostSettlementContextCleanup','profilingOverheadNotSubtracted','qualification']);assert.ok(Number.isFinite(cpu.sampledMs)&&cpu.sampledMs>=0);assert.ok(Number.isSafeInteger(cpu.sampleCount)&&cpu.sampleCount>=0&&cpu.sampleCount<=200000);
   for(const k of ['wallMs','nodeUserCpuMs','nodeSystemCpuMs'])assert.ok(Number.isFinite(cpu[k])&&cpu[k]>=0);
+  exactKeys(cpu.sourceTotalsMs,CPU_SOURCE_BUCKETS);
+  for(const value of Object.values(cpu.sourceTotalsMs))assert.ok(Number.isFinite(value)&&value>=0&&value<=cpu.sampledMs+0.00001);
+  assert.ok(Math.abs(Object.values(cpu.sourceTotalsMs).reduce((a,b)=>a+b,0)-cpu.sampledMs)<=0.00001*Math.max(1,cpu.sampledMs));
+
   assert.equal(cpu.qualification,false);assert.equal(cpu.rawProfilePersisted,false);assert.equal(cpu.setupIncluded,false);assert.equal(cpu.onlyPreparationOrdinal,i+1);
   assert.equal(cpu.includesOriginalPostSettlementContextCleanup,true);assert.equal(cpu.profilingOverheadNotSubtracted,true);
   assert.ok(Array.isArray(cpu.top20)&&cpu.top20.length<=20);
@@ -29,7 +33,7 @@ export function validateLeg(x,i){
 export function validateDiagnostic(v){
  exactKeys(v,['contract','status','applicationSource','diagnosticLegs','preparationTransactions','httpRequests','statementCount','maxPreparations','sourceHealthRows','users','addedLatencyMs','rawCpuProfilePersisted','setupIncludedInCpuProfile','profiledOrdinals','productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','elapsedMs','ownedServerExited','originalPostconditionsPassed']);
  assert.equal(v.contract,'one-native-first17-cpu-diagnostic-v1');assert.equal(v.status,'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION');
- assert.equal(v.applicationSource,'de262df36aea6199db41405963fb7cf45a0453f4');
+ assert.equal(v.applicationSource,'8cb10488209db3745e913ef0f1c615e0735ee44b');
  for(const k of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','rawCpuProfilePersisted','setupIncludedInCpuProfile'])assert.equal(v[k],false);
  assert.deepEqual(v.profiledOrdinals,Array.from({length:17},(_,i)=>i+1));assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.equal(v.users,1);assert.equal(v.addedLatencyMs,0);
  assert.ok(Array.isArray(v.diagnosticLegs));assert.equal(v.diagnosticLegs.length,17);

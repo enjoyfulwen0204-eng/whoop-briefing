@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {summarizeCpuProfile,profileCpuWork,createCpuDiagnosticStats} from './stage6-native-cpu-profile.mjs';
+import {summarizeCpuProfile,profileCpuWork,createCpuDiagnosticStats,CPU_SOURCE_BUCKETS} from './stage6-native-cpu-profile.mjs';
 import {readFile} from 'node:fs/promises';
 import {transformCpuDiagnostic} from './stage6-native-first17-cpu-loader.mjs';
 import {validateDiagnostic,validateLeg,projectFailure,projectTerminal} from '../tools/stage8-qualification/first17-cpu-supervisor.mjs';
@@ -42,8 +42,8 @@ test('app source mutations and unrecognized URLs cannot receive permissive trans
 });
 const fakeLeg=ordinal=>({ordinal,kind:'RETURNED_CANONICAL_PREPARATION',postconditionsNotYetChecked:true,replayed:false,wallMs:1,processedItems:0,unitsCommitted:0,failedJobs:0,
  contextLeaseSupportedProjections:1,contextLeaseUnsupportedProjections:0,ownedWork:{READ_ONLY_OR_OTHER:{calls:1,inclusiveMs:1,maxInclusiveMs:1}},
- cpu:{sampledMs:1,sampleCount:1,wallMs:1,nodeUserCpuMs:1,nodeSystemCpuMs:0,qualification:false,rawProfilePersisted:false,setupIncluded:false,onlyPreparationOrdinal:ordinal,includesOriginalPostSettlementContextCleanup:true,profilingOverheadNotSubtracted:true,top20:[]}});
-const fakePacket=()=>({elapsedMs:1,ownedServerExited:true,originalPostconditionsPassed:true,httpRequests:1,statementCount:1,contract:'one-native-first17-cpu-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',applicationSource:'de262df36aea6199db41405963fb7cf45a0453f4',
+ cpu:{sampledMs:1,sampleCount:1,sourceTotalsMs:Object.fromEntries(CPU_SOURCE_BUCKETS.map(k=>[k,k==='UNKNOWN_OR_OTHER_SELF'?1:0])),wallMs:1,nodeUserCpuMs:1,nodeSystemCpuMs:0,qualification:false,rawProfilePersisted:false,setupIncluded:false,onlyPreparationOrdinal:ordinal,includesOriginalPostSettlementContextCleanup:true,profilingOverheadNotSubtracted:true,top20:[]}});
+const fakePacket=()=>({elapsedMs:1,ownedServerExited:true,originalPostconditionsPassed:true,httpRequests:1,statementCount:1,contract:'one-native-first17-cpu-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',applicationSource:'8cb10488209db3745e913ef0f1c615e0735ee44b',
  productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false,rawCpuProfilePersisted:false,setupIncludedInCpuProfile:false,
  profiledOrdinals:Array.from({length:17},(_,i)=>i+1),maxPreparations:17,sourceHealthRows:160,users:1,addedLatencyMs:0,diagnosticLegs:Array.from({length:17},(_,i)=>fakeLeg(i+1)),
  preparationTransactions:{begun:1,committed:1,rolledBack:0,open:0,unknownTerminal:0,atOrAbove5s:1,sumDurationUpperBoundMs:6000,maxDurationUpperBoundMs:6000}});
@@ -79,5 +79,19 @@ test('exact-source returned CPU is emitted before replay, worker and setup check
   const fn=new Function('i','result','profiled','diagnosticLegs','diagnosticAt','globalThis','progress','performance','started','assert','console',code);
   assert.throws(()=>fn(0,result,{profile},observations,0,{__stage6CPUStats:{finish:()=>({})}},{},{now:()=>change.now},0,assert,{log:x=>lines.push(x)}));
   assert.equal(observations.length,1);assert.equal(lines.length,1);assert.equal(observations[0].cpu,profile);assert.equal(observations[0].postconditionsNotYetChecked,true);assert.equal(observations[0].kind,'RETURNED_CANONICAL_PREPARATION');
+ }
+});
+
+test('all CPU samples have closed self-source totals before top20 truncation',()=>{
+ const frames=[node(1,'file:///test/stage6-native-diagnostic-observer.mjs','PRIVATE_CANARY',1),node(2,'file:///test/stage6-native-attribution.mjs','PRIVATE_CANARY',2),node(3,'file:///src/processingTransaction.js','execute',3),node(4,'node:internal/deps/undici/undici','parse',4),node(5,'','(garbage collector)'),node(6,'','(idle)'),node(7,'file:///PRIVATE_CANARY.js','PRIVATE_CANARY',99)];
+ const r=summarizeCpuProfile({nodes:frames,samples:[1,2,3,4,5,6,7],timeDeltas:[1000,2000,3000,4000,5000,6000,7000]});
+ assert.deepEqual(r.sourceTotalsMs,{OBSERVER_SELF:1,ATTRIBUTION_SELF:2,ALLOWLISTED_APP_SELF:3,OTHER_ALLOWLISTED_SELF:4,GC:5,IDLE:6,UNKNOWN_OR_OTHER_SELF:7});
+ assert.equal(Object.values(r.sourceTotalsMs).reduce((a,b)=>a+b,0),r.sampledMs);assert.ok(!JSON.stringify(r).includes('PRIVATE_CANARY'));
+ const many=Array.from({length:30},(_,i)=>node(i+1,'file:///test/stage6-native-diagnostic-observer.mjs','OTHER',i));
+ const full=summarizeCpuProfile({nodes:many,samples:many.map(x=>x.id),timeDeltas:many.map(()=>1000)});assert.equal(full.top20.length,20);assert.equal(full.sourceTotalsMs.OBSERVER_SELF,30);
+});
+test('source totals reject missing/unknown fields, nonfinite, negative and unmatched sums',()=>{
+ const packet=fakePacket();for(const totals of [null,{}, {...packet.diagnosticLegs[0].cpu.sourceTotalsMs,PRIVATE_CANARY:1},{...packet.diagnosticLegs[0].cpu.sourceTotalsMs,GC:NaN},{...packet.diagnosticLegs[0].cpu.sourceTotalsMs,GC:-1},{...packet.diagnosticLegs[0].cpu.sourceTotalsMs,GC:1}]){
+  const leg=fakeLeg(1);leg.cpu.sourceTotalsMs=totals;assert.throws(()=>validateLeg(leg,0));
  }
 });

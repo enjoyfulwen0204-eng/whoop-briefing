@@ -1,7 +1,22 @@
+import {processingContextLeaseDataEligible} from './processingTransaction.js';
+import {CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
 import {executeCoordination} from './phase4Coordination.js';
 import { fail } from './phase4Core.js';
 
 const LIFETIME=15*60*1000;
+// Only canonical ASCII ISO TEXT has the same ordering in SQLite BINARY and
+// JavaScript. Unsupported rows keep the exact original SQL/clock predicate.
+const canonicalLeaseTime=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+ &&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+export function projectContextLeaseData(row,at){
+ if(row===undefined)return {supported:true,owner:undefined};
+ if(!row||typeof row!=='object'||![Object.prototype,null].includes(Object.getPrototypeOf(row)))return {supported:false};
+ const d=Object.getOwnPropertyDescriptors(row),owner=d.owner,expiry=d.expires_at;
+ if(!owner||!expiry||!Object.hasOwn(owner,'value')||!Object.hasOwn(expiry,'value')||typeof owner.value!=='string'
+   ||!canonicalLeaseTime(expiry.value)||!canonicalLeaseTime(at))return {supported:false};
+ return {supported:true,owner:expiry.value>at?owner.value:undefined};
+}
+
 /** Non-health leases reuse resource_locks. No cache payload is persisted.
  * Consumers must release a context after dropping its transient health bytes.
  * A revoked context is never reusable, including after the purge completes. */
@@ -18,8 +33,13 @@ export function createPhase4ContextRegistry({client,keys,now,timestamp,newId}) {
   async function assertLease(context) {
     const entry=state(context);
     if(timestamp()>=entry.expires) { entry.values.clear();fail('PHASE4_CONTEXT_EXPIRED'); }
-    const row=(await client.execute({sql:'SELECT owner FROM resource_locks WHERE name=? AND expires_at>?',args:[entry.name,timestamp()]})).rows[0];
-    if(row?.owner!==entry.owner) {entry.values.clear();fail('PHASE4_CONTEXT_REVOKED');}
+    const at=timestamp();let owner;
+    if(processingContextLeaseDataEligible(client,context,entry.name)){
+      const raw=(await client.execute({sql:CONTEXT_LEASE_DATA_SQL,args:[entry.name]})).rows[0],projected=projectContextLeaseData(raw,at);
+      if(projected.supported)owner=projected.owner;
+      else owner=(await client.execute({sql:'SELECT owner FROM resource_locks WHERE name=? AND expires_at>?',args:[entry.name,at]})).rows[0]?.owner;
+    }else owner=(await client.execute({sql:'SELECT owner FROM resource_locks WHERE name=? AND expires_at>?',args:[entry.name,at]})).rows[0]?.owner;
+    if(owner!==entry.owner) {entry.values.clear();fail('PHASE4_CONTEXT_REVOKED');}
   }
   async function release(context) {
     const entry=local.get(context);if(!entry)fail('PHASE4_SERVER_CONTEXT_REQUIRED');

@@ -10,7 +10,7 @@ class Gate(unittest.TestCase):
     e=self.env.copy();del e[k]
     with self.assertRaises(AssertionError):self.call(e)
  def test_old_runs_or_other_identity_or_private_refused(self):
-  for k,v in [('GITHUB_REF','refs/heads/diagnostic/stage6-native-appcause-20261023'),('FIRST20_DIAGNOSTIC_INTENT','one-original-first20-appcause-diagnostic-v1'),('GITHUB_REF',m.h.REF),('GITHUB_REF','refs/heads/main'),('QUALIFICATION_MODE',m.h.MODE),('FIRST20_DIAGNOSTIC_INTENT',m.h.INTENT),('GITHUB_RUN_ATTEMPT','2'),('GITHUB_SHA','d'*40),('QUALIFICATION_WORKFLOW_SHA','d'*40),('QUALIFICATION_REPOSITORY_PRIVATE','true'),('GITHUB_RUN_ID','1;bad')]:
+  for k,v in [('GITHUB_REF','refs/heads/fix/stage6-live-exact-real-20261024'),('FIRST20_DIAGNOSTIC_INTENT','one-original-first20-live-exact-real-repair-v1'),('GITHUB_REF','refs/heads/diagnostic/stage6-native-appcause-20261023'),('FIRST20_DIAGNOSTIC_INTENT','one-original-first20-appcause-diagnostic-v1'),('GITHUB_REF',m.h.REF),('GITHUB_REF','refs/heads/main'),('QUALIFICATION_MODE',m.h.MODE),('FIRST20_DIAGNOSTIC_INTENT',m.h.INTENT),('GITHUB_RUN_ATTEMPT','2'),('GITHUB_SHA','d'*40),('QUALIFICATION_WORKFLOW_SHA','d'*40),('QUALIFICATION_REPOSITORY_PRIVATE','true'),('GITHUB_RUN_ID','1;bad')]:
    with self.subTest(key=k,value=v):
     with self.assertRaises(AssertionError):self.call({**self.env,k:v})
  def test_non_native_root_refused(self):

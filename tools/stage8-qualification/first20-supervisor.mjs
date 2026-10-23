@@ -1,3 +1,4 @@
+import {parseEarlySlowRoot} from '../../test/stage6-native-slow-root.mjs';
 import {spawn,execFileSync} from 'node:child_process';
 import {readFile,stat,open,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -7,7 +8,7 @@ const candidateSha=process.env.EXPECTED_CANDIDATE_SHA,read=async n=>(await readF
 assert.match(candidateSha??'',/^[a-f0-9]{40}$/);assert.equal(execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),candidateSha);
 assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');assert.equal(process.version,'v22.23.2');assert.deepEqual(Object.keys(networkInterfaces()).sort(),['lo']);assert.equal(await read('memory.max'),'536870912');assert.equal(await read('memory.swap.max'),'0');assert.equal(await read('cpu.max'),'50000 100000');
 const path='/tmp/native-first20-diagnostic.log',fd=await open(path,'wx',0o600),started=performance.now();
-const child=spawn(process.execPath,['--experimental-loader','./test/stage6-finite-failure-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first20-diagnostic.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
+const child=spawn(process.execPath,['--experimental-loader','./test/stage6-finite-failure-loader.mjs','--experimental-loader','./test/stage6-root-phase-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first20-diagnostic.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
 let spawnError=false;child.on('error',()=>{spawnError=true;});const timer=setTimeout(()=>child.kill('SIGTERM'),360000);const terminal=await new Promise(r=>child.once('close',(code,signal)=>r({code,signal})));clearTimeout(timer);await fd.close();
 const size=(await stat(path)).size;assert.ok(size<16*1024*1024);const raw=await readFile(path,'utf8'),memoryEvents=Object.fromEntries((await read('memory.events')).split('\n').map(l=>l.split(/\s+/)).map(([k,v])=>[k,Number(v)])),memoryPeakBytes=Number(await read('memory.peak'));
 
@@ -28,6 +29,7 @@ function validateObservation(v){
  for(const field of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified'])assert.equal(v[field],false);
  return true;
 }
+const earlySlowRoot=parseEarlySlowRoot(raw);
 let failure=null,observed=null,status='DIAGNOSTIC_FAILED_OR_UNKNOWN';
 const originalApplicationFailures=raw.split('\n').filter(l=>l.startsWith('STAGE6_NATIVE_APPCAUSE_ORIGINAL_FAILURE ')).slice(0,32).map(l=>JSON.parse(l.split('STAGE6_NATIVE_APPCAUSE_ORIGINAL_FAILURE ')[1]));
 const workerReturned=raw.split('\n').filter(l=>l.startsWith('STAGE6_NATIVE_APPCAUSE_WORKER_RETURNED ')).slice(0,20).map(l=>JSON.parse(l.split('STAGE6_NATIVE_APPCAUSE_WORKER_RETURNED ')[1]));
@@ -42,4 +44,4 @@ try{
  validateObservation(observed);
  assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<360000);status='DIAGNOSTIC_COMPLETED_NO_QUALIFICATION';
 }catch{observed=null;}
-await rm(path);console.log('STAGE6_NATIVE_APPCAUSE_SUPERVISOR '+JSON.stringify({contract:'one-native-first20-appcause-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,originalApplicationFailures:observed||diagnosticObservation?[]:originalApplicationFailures,workerReturned:observed||diagnosticObservation?[]:workerReturned,diagnosticObservation:observed?null:diagnosticObservation,settledPartial:observed||diagnosticObservation?[]:settledPartial,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,capacityQualified:false}));process.exitCode=status==='DIAGNOSTIC_COMPLETED_NO_QUALIFICATION'?0:2;
+await rm(path);console.log('STAGE6_NATIVE_APPCAUSE_SUPERVISOR '+JSON.stringify({contract:'one-native-first20-appcause-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,originalApplicationFailures:observed||diagnosticObservation?[]:originalApplicationFailures,workerReturned:observed||diagnosticObservation?[]:workerReturned,diagnosticObservation:observed?null:diagnosticObservation,settledPartial:observed||diagnosticObservation?[]:settledPartial,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,earlySlowRoot:observed?null:earlySlowRoot,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,capacityQualified:false}));process.exitCode=status==='DIAGNOSTIC_COMPLETED_NO_QUALIFICATION'?0:2;

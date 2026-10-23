@@ -9,7 +9,7 @@ export function memoizedSqlSyntax(parse,sql){
  const size=Buffer.byteLength(sql,'utf8');if(size>SQL_SYNTAX_MEMO_LIMITS.keyBytes)return parse(sql);
  let state=parsers.get(parse);if(state?.values.has(sql))return state.values.get(sql);
  const result=parse(sql);
- // The two closed lexical parsers return booleans or enum0..3. Shared mutable
+ // Closed lexical parsers return booleans or enum0..3. Shared mutable
  // objects, arbitrary values and throws are never retained by this helper.
  if(typeof result!=='boolean'&&!(Number.isInteger(result)&&result>=0&&result<=3))return result;
  if(!state){state={values:new Map(),bytes:0};parsers.set(parse,state);}

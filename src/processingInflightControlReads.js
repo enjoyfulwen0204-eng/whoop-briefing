@@ -4,6 +4,7 @@ const ownership=`SELECT state,lease_owner,lease_expires_at,requested_generation,
  claimed_auth_generation FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?`;
 const tenant='SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?';
 const contextLease='SELECT owner FROM resource_locks WHERE name=? AND expires_at>?';
+export const CONTEXT_LEASE_DATA_SQL='SELECT owner,expires_at FROM resource_locks WHERE name=?';
 const normalized=s=>s.replace(/\s+/g,' ').trim();
 // Raw non-health DATA only. Every original clock/ownership/authority predicate
 // still runs. Keep the entire original query and every clock argument in key.
@@ -19,7 +20,8 @@ export function inflightControlReadKey(statement,context){
  // genuine context brand/WeakMap and every original expiry/owner predicate
  // remain in phase4Cache; the pool also keys the exact context object.
  const lease=shape===contextLease&&args.length===2&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
- if(!own&&!lock&&!lease)return null;
+ const leaseData=shape===CONTEXT_LEASE_DATA_SQL&&args.length===1&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
+ if(!own&&!lock&&!lease&&!leaseData)return null;
  const key=JSON.stringify([sql,args]);return Buffer.byteLength(key)<=8192?key:null;
 }
 // The one clock-free ownership projection may retain raw ROW DATA. No lock,
@@ -27,6 +29,10 @@ export function inflightControlReadKey(statement,context){
 export function ownershipControlReadKey(statement,context){
  const key=inflightControlReadKey(statement,context);
  return key&&normalized(statement.sql)===normalized(ownership)?key:null;
+}
+export function contextLeaseDataReadKey(statement,context){
+ const key=inflightControlReadKey(statement,context);
+ return key&&normalized(statement.sql)===CONTEXT_LEASE_DATA_SQL?key:null;
 }
 // No serializer or user method is invoked to admit a retained row. The
 // installed ownership ResultSet contains only one row of primitive columns.
@@ -77,6 +83,7 @@ export function createInflightControlReads(){
  const clear=()=>{contexts.clear();entries=0;scopes.clear();scopeCount=0;data.clear();revision++;};
  const pool={
   clear,
+  isOpen:()=>!closed,
   close(){closed=true;clear();data.close();},
   async ownership(context,marker,key,observedEpoch,read){
    if(closed||!key||!marker)return read();

@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {setImmediate} from 'node:timers/promises';
 import {createPhase4ContextRegistry} from '../src/phase4Cache.js';
 import {processingTransactions,readOnlyProcessingCheck} from '../src/processingTransaction.js';
-import {inflightControlReadKey,createInflightControlReads} from '../src/processingInflightControlReads.js';
+import {inflightControlReadKey,createInflightControlReads,CONTEXT_LEASE_DATA_SQL} from '../src/processingInflightControlReads.js';
 import {withDurableExecution} from '../src/phase4ExecutionContext.js';import {withExecutionBudget} from '../src/executionBudget.js';
 const SQL='SELECT owner FROM resource_locks WHERE name=? AND expires_at>?',NAME='p4ctx:'+ 'a'.repeat(64)+':00000000-0000-4000-8000-000000000001';
 const context=()=>Object.freeze({userId:'synthetic-context-owner',executionMode:'LIVE',providerRequired:true,purgeGeneration:0});
@@ -20,6 +20,7 @@ function harness(){
  const h={now:Date.parse('2026-10-24T00:00:00Z'),phase:'BODY',ownerReads:[],timestamps:0,logical:0,commits:0,rollbacks:0,rows:new Map()};
  const execute=async q=>{const sql=typeof q==='string'?q:q.sql,args=typeof q==='string'?[]:q.args;
   if(sql==='SELECT 1')return result([{owner:'ACK'}]);
+  if(sql===CONTEXT_LEASE_DATA_SQL){h.ownerReads.push({phase:h.phase,at:null,dataOnly:true});await setImmediate();const row=h.rows.get(args[0]);return {...result(row?[{...row}]:[]),columns:['owner','expires_at'],columnTypes:['TEXT','TEXT']};}
   if(sql===SQL){h.ownerReads.push({phase:h.phase,at:args[1]});await setImmediate();const row=h.rows.get(args[0]);return result(row&&row.expires_at>args[1]?[{owner:row.owner}]:[]);}
   if(sql.startsWith('INSERT INTO resource_locks')){h.rows.set(args[0],{owner:args[1],expires_at:args[3]});return {...result([]),rowsAffected:1};}
   if(sql.startsWith('DELETE FROM resource_locks')){h.rows.delete(args[0]);return {...result([]),rowsAffected:1};}

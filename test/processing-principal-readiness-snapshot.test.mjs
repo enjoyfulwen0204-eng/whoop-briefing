@@ -180,7 +180,8 @@ test('no readiness memo outside owned HTTP LIVE roots or before original BEGIN a
 
 test('producer predicates and explicit terminal barriers remain present',()=>{
  const tx=readFileSync(fileURLToPath(TX),'utf8'),producer=readFileSync(join(APP,'src/stage8LiveProducer.js'),'utf8');
- assert.equal(tx.split('if(state.principalReadinessMemoEnabled)readMemo.close();').length-1,2);
+ assert.equal(tx.split('if(state.principalReadinessMemoEnabled)readMemo.close();').length-1,3);
+ assert.ok(tx.indexOf('state.replaying=true;if(state.principalReadinessMemoEnabled)readMemo.close();')<tx.indexOf('const result=replay?'));
  assert.ok(tx.indexOf('if(state.principalReadinessMemoEnabled)readMemo.close();')<tx.indexOf('await runChecks([...state.checks'));
  assert.match(producer,/async function ready\(id\)\{\s*liveProducerConfiguration\(capability,db.raw,keys,id\);/);
  const actualReady=/const row=\(await db\.raw\.execute\(\{sql:`([\s\S]*?)`,args:\[id\]\}\)\)\.rows\[0\]/.exec(producer)?.[1];assert.ok(actualReady);assert.equal(normalized(READY),normalized(actualReady));

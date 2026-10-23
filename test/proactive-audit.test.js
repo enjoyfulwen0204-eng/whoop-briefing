@@ -14,9 +14,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from './localDb.js';
+import {createDb} from './proactiveJournalUnitFixture.js';
 import { localDate } from '../src/time.js';
-import { checkAndAct } from '../src/proactiveAgent.js';
+import {checkAndAct,seedRetainedLegacyQuestion} from './proactiveJournalUnitFixture.js';
 import { reanalyzeAfterAnswer } from '../src/proactiveReanalysis.js';
 import { guardProactiveMessage } from '../src/proactiveMessages.js';
 import { createRouter } from '../src/bot/router.js';
@@ -506,6 +506,7 @@ test('★★ 稽核 #8: 主動問題開著時，使用者明顯在問問題不�
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
+    await seedRetainedLegacyQuestion({db,userId:user.id,chatId,now:new Date('2026-02-06T08:00:00Z'),healthDate:'2026-02-06',signals:asked.signals});
     assert.equal(asked.decision, PROACTIVE_DECISION.ASK_CONTEXT, '測試前提：要先有一個開著的主動問題');
 
     const coachFor = () => ({ json: async () => null, ask: async () => null });
@@ -802,6 +803,8 @@ test('★★ 稽核 #15: 由主動問題產生的 Journal 必須可以回溯到�
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
+
+    await seedRetainedLegacyQuestion({db,userId:user.id,chatId,now:new Date('2026-02-06T08:00:00Z'),healthDate:'2026-02-06'});
 
     const coachFor = () => ({
       json: async () => ({

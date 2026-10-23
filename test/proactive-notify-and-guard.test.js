@@ -9,8 +9,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from './localDb.js';
-import { checkAndAct } from '../src/proactiveAgent.js';
+import {createDb} from './proactiveJournalUnitFixture.js';
+import {checkAndAct,seedRetainedLegacyQuestion} from './proactiveJournalUnitFixture.js';
 import { decide } from '../src/attention.js';
 import { PROACTIVE_DECISION } from '../src/schema.js';
 import {

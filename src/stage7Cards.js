@@ -38,9 +38,10 @@ export function journalCard(row,{locale,displayName=null,preferences=null}={}){
    text=`${heading}\n${row.selected_choice==='YES'?c.yes:c.no}${row.note?`\n${row.note}`:''}`;
    buttons.push([button(`✅ ${c.confirm}`,'confirm'),button(`✏️ ${c.note}`,'note')],[button(`⬅️ ${c.back}`,'back'),button(`❌ ${c.cancel}`,'cancel')]);
   }else{
-   text=`${heading}\n${c.questions[index]}`;
+   text=`${heading}\n${c.questions[index]}${row.note?`\n${row.note}`:''}`;
    buttons.push([button(`🙅 ${c.no}`,'NO'),button(`${TOPIC_ICONS[row.category]} ${c.yes}`,'YES')]);
    buttons.push([button(`🤔 ${c.unsure}`,'NOT_SURE'),button(`⏭ ${c.skip}`,'SKIPPED')]);
+   buttons.push([button(`✏️ ${c.note}`,'note')]);
    buttons.push([button(`⬅️ ${c.back}`,'back'),button(`❌ ${c.cancel}`,'cancel')]);
   }
  }

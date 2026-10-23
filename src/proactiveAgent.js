@@ -1,3 +1,4 @@
+import {journalCard} from './stage7Cards.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {prepareReadOnly,settledReadPreparation} from './readOnlyPreparation.js';
 /**
@@ -7,7 +8,7 @@ import {prepareReadOnly,settledReadPreparation} from './readOnlyPreparation.js';
  *
  *   新 WHOOP 資料 → readiness → 訊號 → Attention Engine
  *     → （ASK_CONTEXT 時）Information-Gain 問題引擎 → 認領冪等鍵
- *     → Telegram → 開 pending question（如果是 ASK_CONTEXT）
+ *     → trusted Stage 7 keyboard / callback (ASK_CONTEXT)
  *
  * ## 只在「真的有新資料」時跑——日期 **加上** 內容指紋
  *
@@ -46,7 +47,7 @@ import { selectQuestion } from './questionEngine.js';
 import {
   buildNotifyMessage, guardProactiveMessage, deriveColdStartStage, stageAllowsMessaging,
 } from './proactiveMessages.js';
-import { PROACTIVE_DECISION, PROACTIVE_QUESTION_INTENT } from './schema.js';
+import { PROACTIVE_DECISION } from './schema.js';
 import { POLICY_VERSION, ANTI_SPAM_POLICY, SIGNAL_POLICY } from './proactivePolicy.js';
 import { READINESS_HEURISTICS } from './config.js';
 import { INSIGHT_STATUS } from './healthMemory.js';
@@ -93,7 +94,7 @@ export function fingerprintOf(anchorRow, metrics = MONITORED_METRICS) {
  *   `runForUser({ deps })` 的可注入慣例，開發/測試絕不打真的 Telegram）。
  */
 export async function checkAndAct({
-  db, userId, timezone, locale = 'zh-TW', telegram, chatId, expectedLifecycleGeneration, now = new Date(),
+  db, userId, timezone, locale = 'zh-TW', telegram, chatId, expectedLifecycleGeneration, now = new Date(), proactiveJournal = null,
 }) {
   const uid = requireUserId(userId, 'checkAndAct');
   db = lifecycleOutputDb(db, { userId: uid, expectedLifecycleGeneration, writers: [
@@ -345,6 +346,9 @@ export async function checkAndAct({
         return [];
       }),
     ]);
+    // Vague recent stress/illness prompts have no registered completed-day
+    // exposure contract. Do not reinterpret them as a specific-day fact.
+    excludeCategories.add('sickness');excludeCategories.add('stress');
     const selection = journalHistoryReadable
       ? selectQuestion({
         signal: topSignal, journalEvents: journalHistory, metricSeries: fullMetricSeries, excludeCategories, locale,
@@ -361,10 +365,13 @@ export async function checkAndAct({
     } else {
       questionCategory = selection.category;
       questionTargetDate = selection.targetDate ?? null;
-      messageText = selection.question;
+      messageText = journalCard({category:selection.category,target_date:selection.targetDate,state:'ISSUED'},{locale}).text;
     }
   }
 
+  if(decision.decision===PROACTIVE_DECISION.ASK_CONTEXT&&typeof proactiveJournal!=='function'){
+    decision={...decision,decision:PROACTIVE_DECISION.LOG_ONLY,reason:'interactive_journal_unavailable'};messageText=null;
+  }
   if (decision.decision === PROACTIVE_DECISION.NOTIFY) {
     messageText = buildNotifyMessage(decision.evaluatedSignal ?? signals[0], locale);
   }
@@ -382,7 +389,7 @@ export async function checkAndAct({
     idempotencyKey,
     signals,
     decision: decision.decision,
-    reason: { ...decision, question_category: questionCategory },
+    reason: { ...decision, question_category: questionCategory, question_target_date:questionTargetDate },
     policyVersion: POLICY_VERSION,
     messageText,
   }, owned);
@@ -404,56 +411,28 @@ export async function checkAndAct({
 
   let messageSent = false;
   if (messageText && telegram && isMessagingDecision(decision.decision)) {
-    const sent = await telegram.send(messageText);
-    // ---- ★ R3 / R2-PROACTIVE-01：被啟用授權擋下 = **使用者沒有看到** ------
-    //
-    // withDeliveryAuthorization 在帳號停用／換過啟用期時回一個標記結果而不是
-    // 拋錯。舊版把它當成送出成功，於是：開一個使用者永遠不會回答的待答
-    // 問題（他的下一則訊息會被誤判成在回答它）、把事件標成已送、推進游標
-    // 宣稱他收到了。全部都是一則不存在的訊息留下的耐久痕跡。
-    //
-    // 正確處置：不記已送、不開待答、不標事件、**不推游標**。
-    // Transport proved no send occurred: release this exact unsent event so a
-    // fresh lifecycle can retry without consuming the cursor or question budget.
-    if (isSuppressedDelivery(sent)) {
-      await db.releaseSuppressedProactiveEvent(uid, claim.id);
-      log.info('proactive_delivery_suppressed_lifecycle', {
-        user_id: uid, health_date: anchorDate, decision: decision.decision, stage,
-      });
-      return {
-        triggered: true, stage, decision: decision.decision, reason: decision.reason,
-        signals, messageSent: false, suppressed: 'stale_lifecycle',
-      };
-    }
-    messageSent = true;
-    await db.transaction(async () => {
-      let pendingQuestionId = null;
-      if (decision.decision === PROACTIVE_DECISION.ASK_CONTEXT && chatId) {
-        pendingQuestionId = await db.openPendingQuestion(uid, {
-          chatId,
-          question: messageText,
-          intent: PROACTIVE_QUESTION_INTENT,
-          contextJson: {
-            health_date: anchorDate,
-            // ★ R2-M-02：**明確**記下這一題在問哪一天的行為。
-            // 「昨天有喝酒嗎？」問的是 anchorDate 的前一天；把它跟訊號日
-            // 分開存，回答時就不需要靠 parser 的預設值去猜。
-            question_target_date: questionTargetDate ?? anchorDate,
-            signal: decision.evaluatedSignal ?? signals[0],
-            category: questionCategory,
-            proactive_event_id: claim.id,
-            lifecycle_generation: expectedLifecycleGeneration,
-          },
-          // 主動問題有**自己的** TTL（見 ANTI_SPAM_POLICY.QUESTION_TTL_MS）。
-          // 以前借用 TELEGRAM_BOT.PENDING_TTL_MS——那個常數的語義是「使用者
-          // 自己問完之後的對話延續視窗」，跟「系統不請自來問一句話」完全
-          // 是兩回事，不該共用一個數字。
-          ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
-        }, { now });
+    if(decision.decision===PROACTIVE_DECISION.ASK_CONTEXT){
+      const result=typeof proactiveJournal==='function'&&chatId
+        ?await proactiveJournal({userId:uid,chatId,eventId:claim.id}):{status:'INTERACTIVE_JOURNAL_UNAVAILABLE'};
+      messageSent=result?.status==='DELIVERED';
+      if(messageSent)await db.transaction(async()=>{
+        await db.markProactiveEventSent(uid,claim.id,{}, {now});
+        await db.setProactiveState(uid,{lastCheckedHealthDate:anchorDate,lastFingerprint:fingerprint},owned);
+      },{...workStepOptions('proactive.delivery-settle',[uid,claim.id,anchorDate],{discardResult:true}),before:check,after:check});
+      // The durable Stage 7 delivery owns unknown acceptance and callback
+      // recovery. Never send a plain-text fallback or a second legacy question.
+    }else{
+      const sent=await telegram.send(messageText);
+      if(isSuppressedDelivery(sent)){
+        await db.releaseSuppressedProactiveEvent(uid,claim.id);
+        return {triggered:true,stage,decision:decision.decision,reason:decision.reason,signals,messageSent:false,suppressed:'stale_lifecycle'};
       }
-      await db.markProactiveEventSent(uid, claim.id, { pendingQuestionId }, { now });
-      await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, owned);
-    }, {...workStepOptions('proactive.delivery-settle',[uid,claim.id,anchorDate],{discardResult:true}), before: check, after: check });
+      messageSent=true;
+      await db.transaction(async()=>{
+        await db.markProactiveEventSent(uid,claim.id,{}, {now});
+        await db.setProactiveState(uid,{lastCheckedHealthDate:anchorDate,lastFingerprint:fingerprint},owned);
+      },{...workStepOptions('proactive.delivery-settle',[uid,claim.id,anchorDate],{discardResult:true}),before:check,after:check});
+    }
   }
 
   // 事件已經 claim 成功（不管有沒有真的送出訊息），這個 health_date 就算

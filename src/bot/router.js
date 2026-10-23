@@ -45,8 +45,8 @@ import {
 import * as experimentFlow from './experimentFlow.js';
 import { LANGUAGE_SELECTOR, t as translate } from '../localization.js';
 import {
-  shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion,
-  mentionsLoggableEvent, isExplicitLogCommand, isSelfRecallQuestion, followUpQuestion,
+  shouldFollowUp, isNegativeAnswer, looksLikeQuestion,
+  mentionsLoggableEvent, isExplicitLogCommand, isSelfRecallQuestion,
 } from './conversation.js';
 
 export const JOURNAL_SYSTEM_PROMPT = `你要把使用者用自然語言講的一件事，轉成一個 JSON 物件。
@@ -406,7 +406,7 @@ export function unavailableReply(result, locale = 'zh-TW') {
 }
 
 export function createRouter({
-  db, coachFor,bodyEnergy,stage8,phase4Reader, now = () => new Date(), lookbackDays = 120,
+  db, coachFor,bodyEnergy,stage8,phase4Reader,journalFollowUp=null, now = () => new Date(), lookbackDays = 120,
 }) {
   /**
    * 處理一則訊息，回傳要送出去的文字。
@@ -939,8 +939,12 @@ export function createRouter({
           from: result.health_date, to: result.health_date,
         });
         if (shouldFollowUp({ result, journalCountForDay: events.length })) {
-          await openFollowUp({ db, userId, chatId, originalMessage: text, result, now: t, locale });
-          return `${answer}\n\n———\n${followUpQuestion(locale)}`;
+          // A broad multi-topic NO cannot authorize an exposure fact. Offer
+          // the established topic menu, then its exact dated question instead.
+          if(journalFollowUp){const interactive=await journalFollowUp({userId,chatId,healthDate:result.health_date,answer});if(interactive)return interactive;}
+          // Without the trusted UI, retain the answer and ask no plain-text
+          // selection question. Existing unanswered legacy rows still route.
+          return answer;
         }
       }
     } catch (err) {

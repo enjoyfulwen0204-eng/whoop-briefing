@@ -151,6 +151,9 @@ export function createProactiveStore(client) {
    * 通知，24 小時後都會變成一筆永久的假警報，每 12 小時響一次，
    * 而且沒有任何辦法讓它消失。實測確認。
    *
+   * Stage 7 Journal owns its own interaction/answer records without a legacy
+   * pending mirror. DELIVERED here proves transport only, never an answer,
+   * accepted Journal fact, health conclusion or completed analysis.
    * 所以這裡在送出的同一步就寫上 DELIVERED。`outcome IS NULL` 的條件讓
    * 它天然冪等，也不會覆寫任何已經有結論的事件。
    */

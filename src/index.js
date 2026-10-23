@@ -47,6 +47,7 @@ import { LANGUAGE_SELECTOR, t } from './localization.js';
 import { runWeekly } from './weekly.js';
 import { checkRepoFreshness } from './maintenance.js';
 import { createSync, isSyncDue } from './sync.js';
+import {createStage7Runtime} from './stage7Runtime.js';
 import { checkAndAct } from './proactiveAgent.js';
 import { reapExpiredProactiveQuestions } from './proactiveReaper.js';
 import { runGuardian } from './guardian.js';
@@ -538,7 +539,7 @@ async function runForUserOwned({
   // 他的日報/週報已經送出的結果，也不影響其他使用者。
   try {
     if (locale) out.proactive = await traceExecutionOperation('PROACTIVE',()=>proactive({
-      db, userId: uid, timezone: tz, locale, telegram, chatId, expectedLifecycleGeneration, now,
+      db, userId: uid, timezone: tz, locale, telegram, chatId, expectedLifecycleGeneration, now, proactiveJournal:deps.stage7ProactiveJournal,
     }));
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
@@ -699,6 +700,10 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
       deps={...deps,bodyEnergy:bodyRuntime.bodyEnergy};
     }
     if(!deps.morning&&db.raw&&process.env.STAGE8_MORNING_BRIEF==='on')deps={...deps,morning:await createStage8MorningRuntime({db,keys:authorityKeys,environment:process.env,env,admission:deps.runtimeAdmission,now:deps.presentationClock})};
+    if(!deps.stage7ProactiveJournal&&db.raw&&process.env.STAGE7_COMPANION==='on'){
+      const companion=await createStage7Runtime({db,keys:authorityKeys,environment:process.env,env,admission:deps.runtimeAdmission});
+      deps={...deps,stage7ProactiveJournal:companion.sendProactiveJournal};
+    }
     // In-memory injected runners have no database schema or migration path.
 
     // ---- V1.2 production activation：scheduler-owned webhook drain -------

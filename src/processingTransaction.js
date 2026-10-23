@@ -1,3 +1,4 @@
+import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 import {createInflightControlReads,inflightControlReadKey} from './processingInflightControlReads.js';
 import {exactRealStatement} from './exactRealStatement.js';
 import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
@@ -58,6 +59,9 @@ function missingStep(){const execution=currentDurableExecution(),error=Object.as
 // must be SELECT. Quoted text/comments and nested expressions are not verbs.
 export function readOnlyStatement(statement){
  const sql=typeof statement==='string'?statement:Array.isArray(statement)?statement[0]:statement?.sql??'';
+ return memoizedSqlSyntax(parseReadOnlySql,sql);
+}
+function parseReadOnlySql(sql){
  const tokens=[];let depth=0,ended=false;
  for(let i=0;i<sql.length;){const c=sql[i];
   if(/\s/.test(c)){i++;continue;}

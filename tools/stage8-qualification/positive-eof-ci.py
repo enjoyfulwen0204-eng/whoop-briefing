@@ -1,13 +1,13 @@
-"""One new native SQLD HTTP EOF regression for the reviewed clock-free context-lease DATA repair.
+"""One new native SQLD HTTP EOF regression for the reviewed bounded pure SQL-shape CPU repair.
 No old run/attempt is resumed. Importing performs no action.
 """
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='de262df36aea6199db41405963fb7cf45a0453f4'
-REF='refs/heads/diagnostic/stage6-native-lease-data-eof-20261024'
+BASE='8cb10488209db3745e913ef0f1c615e0735ee44b'
+REF='refs/heads/diagnostic/stage6-native-sql-shape-eof-20261024'
 MODE='native-positive-hybrid-eof'
-INTENT='one-original-context-lease-data-positive-eof-and-replay-v1'
+INTENT='one-original-sql-shape-positive-eof-and-replay-v1'
 CONTROL='tools/stage8-qualification/positive-eof-ci.py';WRAPPER='tools/stage8-qualification/positive-eof-supervisor.mjs';UNIT='tools/stage8-qualification/positive-eof-ci.test.py';TEST='test/stage6-native-positive-eof-hrana.mjs';WORKFLOW=h.WORKFLOW
 
 def validate(e,system,machine,uid,gid):

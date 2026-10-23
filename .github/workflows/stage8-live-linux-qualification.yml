@@ -711,14 +711,14 @@ jobs:
             python3 "$control" --cleanup-only
           fi
 
-  native-lease-data-positive-eof:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-native-lease-data-eof-20261024' && inputs.mode == 'native-positive-hybrid-eof' && inputs.positive_hybrid_eof_intent == 'one-original-context-lease-data-positive-eof-and-replay-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+  native-first17-cpu-diagnostic:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-native-first17-cpu-20261024' && inputs.mode == 'native-first20-appcause' && inputs.first20_diagnostic_intent == 'one-original-current-first17-cpu-diagnostic-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       QUALIFICATION_MODE: ${{ inputs.mode }}
-      POSITIVE_HYBRID_EOF_INTENT: ${{ inputs.positive_hybrid_eof_intent }}
+      FIRST20_DIAGNOSTIC_INTENT: ${{ inputs.first20_diagnostic_intent }}
       QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
       QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
       PYTHONDONTWRITEBYTECODE: '1'
@@ -735,18 +735,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/positive-eof-ci.test.py"
-      - name: One native SQLD EOF and exact original replay; no dense campaign
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first17-cpu-ci.test.py"
+      - name: One bounded17 canonical CPU diagnostic; no EOF or capacity qualification
         shell: bash
         run: |
           set -euo pipefail
-          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/positive-eof-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first17-cpu-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
       - name: Remove only an exited captured native EOF container
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/positive-eof-ci.py"
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first17-cpu-ci.py"
           if test -f "$control"; then
             python3 "$control" --cleanup-only
           fi

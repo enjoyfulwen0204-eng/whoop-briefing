@@ -1,3 +1,4 @@
+import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 // Reuse only deterministic, tenant-bound data reads inside one original
 // processing write transaction and one server context. This is not authority:
 // callers still execute their original lease/clock/hash/privacy checks.
@@ -19,14 +20,19 @@ const principalReadiness=`SELECT u.status,o.state,COALESCE(t.auth_generation,0) 
 const predicate="(?:[a-z_][a-z0-9_]*\\s*(?:(?:=|<>|>=|<=|>|<)\\s*(?:\\?|'[a-z0-9_:-]*'|\\d+)|IS\\s+(?:NOT\\s+)?NULL|IN\\s*\\('[a-z0-9_:-]*'(?:\\s*,\\s*'[a-z0-9_:-]*')*\\)))";
 const select=new RegExp('^SELECT\\s+(?:\\*|1|[a-z_][a-z0-9_]*(?:\\s*,\\s*[a-z_][a-z0-9_]*)*)\\s+FROM\\s+([a-z_][a-z0-9_]*)\\s+(?:INDEXED\\s+BY\\s+[a-z_][a-z0-9_]*\\s+)?WHERE\\s+user_id\\s*=\\s*\\?(?:\\s+AND\\s+'+predicate+')*(?:\\s+ORDER\\s+BY\\s+[a-z_][a-z0-9_]*(?:\\s+(?:ASC|DESC))?(?:\\s*,\\s*[a-z_][a-z0-9_]*(?:\\s+(?:ASC|DESC))?)*)?(?:\\s+LIMIT\\s+(?:\\?|\\d+))?\\s*;?$','i');
 export const READ_SNAPSHOT_LIMITS=Object.freeze({entries:256,bytes:4*1024*1024,resultBytes:256*1024,rows:128,keyBytes:8192});
+function snapshotSqlShape(sql){
+ const normalized=sql.replace(/\s+/g,' ').trim(),match=select.exec(normalized);
+ if(/\b(?:CURRENT_TIME|CURRENT_DATE|CURRENT_TIMESTAMP)\b|['"]now['"]/i.test(normalized))return 0;
+ if(normalized===userState)return 1;
+ if(normalized===principalReadiness)return 2;
+ return match&&tables.has(match[1].toLowerCase())?3:0;
+}
 export function readSnapshotKey(statement,context,{allowPrincipalReadiness=false}={}){
  if(!context||typeof context.userId!=='string'||!statement||typeof statement!=='object'||Array.isArray(statement))return null;
  const {sql,args}=statement;
  if(typeof sql!=='string'||!Array.isArray(args)||args[0]!==context.userId)return null;
- const normalized=sql.replace(/\s+/g,' ').trim(),match=select.exec(normalized);
- if(/\b(?:CURRENT_TIME|CURRENT_DATE|CURRENT_TIMESTAMP)\b|['"]now['"]/i.test(normalized))return null;
- const principal=allowPrincipalReadiness===true&&normalized===principalReadiness&&args.length===1;
- if(normalized!==userState&&!principal&&(!match||!tables.has(match[1].toLowerCase())))return null;
+ const shape=memoizedSqlSyntax(snapshotSqlShape,sql);
+ if(shape===0||shape===2&&!(allowPrincipalReadiness===true&&args.length===1))return null;
  if(args.some(value=>value!==null&&!['string','number','bigint','boolean'].includes(typeof value)||typeof value==='number'&&!Number.isFinite(value)))return null;
  const key=JSON.stringify([sql,args.map(value=>[value===null?'null':typeof value,String(value)])]);
  return Buffer.byteLength(key,'utf8')<=READ_SNAPSHOT_LIMITS.keyBytes?key:null;
@@ -37,7 +43,9 @@ export function cloneResult(result){
  const object=value=>{const copy=Object.create(Object.getPrototypeOf(value)),descriptors=Object.getOwnPropertyDescriptors(value);
   for(const descriptor of Object.values(descriptors)){
    if(!Object.hasOwn(descriptor,'value'))throw Error('UNSUPPORTED_RESULT_DESCRIPTOR');
-   descriptor.value=structuredClone(descriptor.value);
+   const value=descriptor.value,type=typeof value;
+   descriptor.value=value===null||type==='undefined'||type==='string'||type==='number'||type==='boolean'||type==='bigint'
+     ?value:structuredClone(value);
   }
   return Object.defineProperties(copy,descriptors);
  };

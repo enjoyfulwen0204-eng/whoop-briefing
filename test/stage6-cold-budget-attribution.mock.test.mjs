@@ -72,3 +72,39 @@ test('request hooks are synchronous source additions without an extra await or a
  const source=readFileSync(new URL('./stage6-cold-three-observer.proposal.mjs',import.meta.url),'utf8');assert.ok(source.indexOf('budgetToken=onFetchEntry()')<source.indexOf('await request.clone().text()'));assert.ok(source.includes('onFetchSettled(budgetToken,diagnosticFailed,diagnosticError)'));assert.ok(!source.includes('await onFetch'));
  const native=readFileSync(new URL('./stage6-native-cold-progress.mjs',import.meta.url),'utf8');assert.ok(native.includes('getBudget:currentExecutionBudget'));assert.ok(native.includes('onFetchEntry:fetchBudgets.captureEntry,onFetchSettled:fetchBudgets.settle'));assert.ok(native.includes('Math.floor(workDeadlineMs-now())'));
 });
+test('first failed45s entry survives more than8 cleanup entries, later failure and mutable snapshot callers',()=>{
+ const f=fixture(),error=new ExecutionBudgetError(),budget=createExecutionBudget({budgetMs:45000,nowMs:()=>0,startedAtMs:0});
+ try{
+  const first=withExecutionBudget(budget,()=>f.probe.captureEntry());f.probe.settle(first,true,error);
+  const pinned=f.probe.snapshot().firstFailedEntry;assert.equal(pinned.widthMs,45000);assert.equal(pinned.requestError,true);
+  const originalFrames=structuredClone(pinned.fetchEntryFrames);pinned.widthMs=1;pinned.fetchEntryFrames.push({sourceBasename:'db.js',line:1});
+  const cleanup=createExecutionBudget({budgetMs:5000,nowMs:()=>0,startedAtMs:0});try{for(let i=0;i<40;i++){const token=withExecutionBudget(cleanup,()=>f.probe.captureEntry());f.probe.settle(token,i===39,Error(CANARY));}}finally{cleanup.cancel();cleanup.close();}
+  const after=f.probe.snapshot();assert.equal(after.recentEntries.length,8);assert.equal(after.recentEvictions,33);assert.equal(after.firstFailedEntry.widthMs,45000);assert.equal(after.firstFailedEntry.typedErrorCode,'SYNC_TIMEOUT');assert.equal(after.recentEntries.at(-1).typedErrorCode,'OTHER');assert.equal(after.recentEntries.at(-1).widthMs,5000);assert.deepEqual(after.firstFailedEntry.fetchEntryFrames,originalFrames);assert.ok(!JSON.stringify(after).includes(CANARY));
+ }finally{budget.cancel();budget.close();}
+});
+test('native Node22 lazy stack and arbitrary stack/formatter getters are never evaluated for fetch entry frames',()=>{
+ const f=fixture(),error=new ExecutionBudgetError(),stack=Object.getOwnPropertyDescriptor(error,'stack');
+ assert.equal(typeof stack.get,'function','pinned Node22 canonical error has native lazy stack');assert.equal(Object.hasOwn(stack,'value'),false);
+ let getters=0;const original=Object.getOwnPropertyDescriptor(Error,'prepareStackTrace');
+ try{
+  Object.defineProperty(Error,'prepareStackTrace',{configurable:true,get(){getters++;throw Error(CANARY);}});
+  const token=vm.runInNewContext('capture()', {capture:f.probe.captureEntry},{filename:new URL('../src/db.js',import.meta.url).href,lineOffset:99});
+  f.probe.settle(token,true,error);const entry=f.probe.snapshot().firstFailedEntry;
+  assert.equal(getters,0);assert.equal(entry.callsiteTag,'DB_HTTP');assert.ok(entry.fetchEntryFrames.some(frame=>frame.sourceBasename==='db.js'&&frame.line===100));
+  Object.defineProperty(error,'stack',{configurable:true,get(){getters++;throw Error(CANARY);}});
+  const output=budgetAttributionRecord({error,budgetObservations:f.probe.snapshot()});assert.equal(getters,0);assert.deepEqual(output.safeFrames,[]);assert.equal(output.fetchBudgets.firstFailedEntry.callsiteTag,'DB_HTTP');assert.ok(!JSON.stringify(output).includes(CANARY));
+ }finally{Object.defineProperty(Error,'prepareStackTrace',original);}
+});
+test('only exact root native app URLs produce closed tags; same basename elsewhere and source maps stay unknown',()=>{
+ for(const filename of ['file:///synthetic/SYNTHETIC_PRIVATE_CANARY/src/stage8LiveProducer.js','/synthetic/src/db.js']){
+  const f=fixture(),token=vm.runInNewContext('capture()', {capture:f.probe.captureEntry},{filename});f.probe.settle(token,true,new ExecutionBudgetError());const entry=f.probe.snapshot().firstFailedEntry;
+  assert.equal(entry.callsiteTag,'UNKNOWN');assert.deepEqual(entry.fetchEntryFrames,[]);assert.ok(!JSON.stringify(entry).includes('synthetic'));
+ }
+ const f=fixture(),token=vm.runInNewContext('capture()', {capture:f.probe.captureEntry},{filename:new URL('../src/stage8LiveProducer.js',import.meta.url).href,lineOffset:72});f.probe.settle(token,true,new ExecutionBudgetError());assert.equal(f.probe.snapshot().firstFailedEntry.callsiteTag,'LIVE_PRODUCER');
+});
+test('diagnostic delta uses native synchronous callsite capture and no extra awaits, timers, SQL or budget authority',()=>{
+ const source=readFileSync(new URL('./stage6-cold-budget-attribution.proposal.mjs',import.meta.url),'utf8');
+ const start=source.indexOf('function fetchEntryCallsites()'),end=source.indexOf('\nfunction budgetObservation',start),body=source.slice(start,end);
+ assert.ok(body.includes('getCallSites(40,{sourceMap:false})'));for(const token of ['await ','setTimeout','setInterval','.execute(','.assert(','.cancel(','.stack','prepareStackTrace('])assert.ok(!body.includes(token));
+ assert.equal(fixture().probe.snapshot().firstFailedEntry,null);
+});

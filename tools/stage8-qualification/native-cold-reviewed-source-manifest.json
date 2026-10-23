@@ -3,7 +3,7 @@
   "applicationBaselineSha": "ca01f63d2bd948f24a3a0400decdaca898811f39",
   "profile": "three-original-calls-two-os-300s-v1",
   "files": {
-    ".github/workflows/stage8-live-linux-qualification.yml": "6f87b54ddfa7435a4f523831d92122a2eed5a7e2449023028ad6d6a36ecd737e",
+    ".github/workflows/stage8-live-linux-qualification.yml": "f6f8975953096bfe1640c0e6710c12a373c22cc916485ecd9e767061c021daba",
     "test/stage6-ca01-application-source-manifest.json": "142cd5420b2a2b0341b901e42f325da9bbf563a4592d5d74f19e41bbba5a7812",
     "test/stage6-cold-diagnostic-metadata.mock.test.mjs": "e862eb7333dc45d920a235a8a1995b1f90860467abad5855d6a2e224cacb2542",
     "test/stage6-cold-diagnostic-metadata.proposal.mjs": "68cf1a6fe9131c601a2a2583e57aaf89396f2f8732bc64a026c7a1e3a777de8d",
@@ -15,10 +15,10 @@
     "test/stage6-native-cold-entry.proposal.mjs": "b4a16e916abadb8c454ff50c0b52d57ae1516cb164e04ca7ef3fa70f2e2ebce6",
     "test/stage6-native-cold-progress.mjs": "014cc5aacff58f61217a6d26602f90d386e89f02aa66205d4e4dbad405bed676",
     "test/stage6-native-cold-progress.sh": "fa48f55fd8dfd465cd30b37b23fc4996af86b1ad7f2d3b15e6eae4ea257d0888",
-    "tools/stage8-qualification/native-cold-progress-ci.mock.test.py": "5f9f6041082b7a16a70cb58858969ff0fbdc11d4af837ab6920d6d81d2eb5dcf",
-    "tools/stage8-qualification/native-cold-progress-ci.py": "b3b995f587bf6727bff79a79e91bccc9ac93ccac1dd7eb1e79336a04ec64b211",
+    "tools/stage8-qualification/native-cold-progress-ci.mock.test.py": "d2468c9e2bb45b688049dec640fc3e31d4dcfa5cf1cb5f62aafca7947008009e",
+    "tools/stage8-qualification/native-cold-progress-ci.py": "b8524b7a95f89a8f3b3c1458cb81cd508fb7ed062101016932c072c7158573a5",
     "test/stage6-native-cold-integer-timeout.mock.test.mjs": "9a486e06cfb6780fbd016fd1cc60f4ec85c8119b8a044771297d9e0d17d54bf1",
-    "test/stage6-cold-budget-attribution.proposal.mjs": "5025abaa416e943411c3284092f00a42911f61f6d4076d6844c5b09894c7f4c8",
-    "test/stage6-cold-budget-attribution.mock.test.mjs": "97f7ea1f5e28725fdc6aba1f368ae3e6a87c49766186fbc20196b018012c4e48"
+    "test/stage6-cold-budget-attribution.proposal.mjs": "1527b0fd915d6cee3bf89c4138442b0ff9edcd3934ba5f3d44597e82c81e7217",
+    "test/stage6-cold-budget-attribution.mock.test.mjs": "bb9020da7ecb9b7f82c35f3ba9e8f41cd712b26fdb49d8b31305e2b2317dc3f5"
   }
 }

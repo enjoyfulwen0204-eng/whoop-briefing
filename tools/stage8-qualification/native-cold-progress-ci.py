@@ -9,7 +9,7 @@ import base64,hashlib,itertools,json,math,os,pathlib,platform,re,shutil,subproce
 
 APP_BASE='ca01f63d2bd948f24a3a0400decdaca898811f39'
 REPOSITORY='enjoyfulwen0204-eng/whoop-briefing'
-REF='refs/heads/diagnostic/native-cold-budget-attribution-20261020'
+REF='refs/heads/diagnostic/native-cold-first-failure-20261020'
 MODE='native-empty-cold-progress'
 PROFILE='three-original-calls-two-os-300s-v1'
 REQUESTS=['native-cold-progress-original-1','native-cold-progress-original-2','native-cold-progress-original-3']
@@ -279,6 +279,7 @@ ATTR_CATEGORIES=['TX_BEGIN','TX_COMMIT','TX_ROLLBACK','DDL','PRAGMA','SCHEMA_CAT
 ATTR_UNITS=['CREATE_DB','MIGRATE','SEED_EMPTY_FIXTURE','RUNTIME_ADMISSION','BUILD_LIVE_PRODUCER','ORIGINAL_PRODUCER_RUN','READBACK','ORIGINAL_REQUEST_REPLAY','CLEANUP','UNKNOWN']
 FRAME_BASENAMES=['stage8LiveProducer.js','stage8LiveExecution.js','phase4Cache.js','executionBudget.js','processingTransaction.js','db.js','phase4Reanalysis.js','phase4Core.js','phase4QueueStore.js','phase4ExecutionContext.js','phase4Coordination.js']
 ATTR_CODES=['NONE','OTHER','UNKNOWN','SYNC_TIMEOUT','SYNC_CANCELLED','PHASE4_DRAIN_DEADLINE_REACHED','COMMIT_INDETERMINATE','RUNTIME_REPLACEMENT_REQUIRED','SQLITE_BUSY','SQLITE_LOCKED','PHASE4_LIVE_NOT_AUTHORIZED','STAGE8_LIVE_PRINCIPAL_FENCED']
+FETCH_CALLSITE_TAGS=['LIVE_PRODUCER','LIVE_EXECUTION','PROCESSING_TRANSACTION','CORE_CONTEXT','DB_HTTP','KNOWN_APP_SOURCE','UNKNOWN']
 BUDGET_WIDTHS=['MS_5000','MS_10000','MS_15000','MS_45000','MS_50000','MS_70000','OTHER','NONE','UNKNOWN']
 ATTR_COUNTS=['requests','submittedStatements','observedExecutedStatements','requestErrors','responseErrors','unknownReplies']
 ATTR_TIMES=['sumRequestDurationMs','maxRequestDurationMs','sumInjectedDelayMs','phaseWallMs']
@@ -296,7 +297,7 @@ def budget_attribution_projection(record):
  # request data, identity, free message or arbitrary string can pass this shape.
  exact_keys(record,['contract','productionEvidence','actualNativeQualified','wholeJobCompletionQualified','capacityQualified','candidateSha','phase','stage','callIntents','elapsedMs','failureCode','errorMessageSha256','typedFailureCode','safeFrames','coverage','adapter','phaseBins','fetchBudgets'])
  for field in ['productionEvidence','actualNativeQualified','wholeJobCompletionQualified','capacityQualified']:require(record[field] is False,'DIAGNOSTICS_CANNOT_QUALIFY_NATIVE_OR_PRODUCTION')
- require(record['contract']=='stage6-native-cold-budget-attribution-v1' and type(record['candidateSha']) is str and HEX40.fullmatch(record['candidateSha']),'BOUND_BUDGET_ATTRIBUTION_REQUIRED')
+ require(record['contract']=='stage6-native-cold-budget-attribution-v2' and type(record['candidateSha']) is str and HEX40.fullmatch(record['candidateSha']),'BOUND_BUDGET_ATTRIBUTION_REQUIRED')
  finite_enum(record['phase'],['A','B']);finite_enum(record['stage'],['LEG_METADATA_READY','APP_FAILURE']);checked_numbers(record,['callIntents'],4,True);checked_numbers(record,['elapsedMs'])
  require(record['failureCode'] is None or record['failureCode'] in ['ERR_ASSERTION','NATIVE_COLD_PROOF_REFUSED','UNKNOWN'],'CLOSED_ATTRIBUTION_FAILURE_CODE_REQUIRED');require(record['errorMessageSha256'] is None or type(record['errorMessageSha256']) is str and HEX64.fullmatch(record['errorMessageSha256']),'HASH_ONLY_ATTRIBUTION_FAILURE_REQUIRED')
  finite_enum(record['typedFailureCode'],ATTR_CODES);frames=record['safeFrames'];require(type(frames) is list and len(frames)<=8,'FINITE_SAFE_FRAME_BOUND_REQUIRED')
@@ -312,13 +313,21 @@ def budget_attribution_projection(record):
   for item in categories:
    exact_keys(item,['category','submitted','executed']);finite_enum(item['category'],ATTR_CATEGORIES);require(item['category'] not in seen_categories,'DISTINCT_CATEGORY_BINS_REQUIRED');seen_categories.add(item['category']);checked_numbers(item,['submitted','executed'],1e9,True)
   tx=row['transactions'];exact_keys(tx,TX_COUNTS+TX_TIMES);checked_numbers(tx,TX_COUNTS,1e9,True);checked_numbers(tx,TX_TIMES)
- budget=record['fetchBudgets'];exact_keys(budget,['captures','droppedCaptures','inflight','recentEvictions','widthBins','recentEntries']);checked_numbers(budget,['captures','droppedCaptures','inflight','recentEvictions'],1e9,True)
+ budget=record['fetchBudgets'];exact_keys(budget,['captures','droppedCaptures','inflight','recentEvictions','widthBins','recentEntries','firstFailedEntry']);checked_numbers(budget,['captures','droppedCaptures','inflight','recentEvictions'],1e9,True)
  widths=budget['widthBins'];require(type(widths) is list and len(widths)==len(BUDGET_WIDTHS),'COMPLETE_FINITE_WIDTH_BINS_REQUIRED');seen_widths=set()
  for row in widths:
   fields=['captures','settled','requestErrors','abortedAtEntry','abortedAtSettlement'];exact_keys(row,['widthBucket',*fields,'lastTypedErrorCode']);finite_enum(row['widthBucket'],BUDGET_WIDTHS);require(row['widthBucket'] not in seen_widths,'DISTINCT_WIDTH_BINS_REQUIRED');seen_widths.add(row['widthBucket']);checked_numbers(row,fields,1e9,True);finite_enum(row['lastTypedErrorCode'],ATTR_CODES)
  entries=budget['recentEntries'];require(type(entries) is list and len(entries)<=8,'FINITE_RECENT_BUDGET_BOUND_REQUIRED')
- for row in entries:
-  number_fields=['widthMs','remainingMs','remainingMsAtSettlement'];clock_fields=['workRemainingMs','outerRemainingMs','workRemainingMsAtSettlement','outerRemainingMsAtSettlement'];flags=['signalAborted','settled','requestError','signalAbortedAtSettlement'];exact_keys(row,['phase','callOrdinal','widthBucket',*number_fields,*clock_fields,'elapsedMs',*flags,'typedErrorCode']);finite_enum(row['phase'],PHASES);finite_enum(row['widthBucket'],BUDGET_WIDTHS);finite_enum(row['typedErrorCode'],ATTR_CODES);checked_numbers(row,['callOrdinal'],4,True);checked_numbers(row,number_fields,225001);checked_numbers(row,clock_fields,300001);checked_numbers(row,['elapsedMs']);checked_bools(row,flags)
+ first=budget['firstFailedEntry'];require(first is None or type(first) is dict,'FIRST_FAILED_ENTRY_OR_UNKNOWN_REQUIRED')
+ for row in entries+([] if first is None else [first]):
+  number_fields=['widthMs','remainingMs','remainingMsAtSettlement'];clock_fields=['workRemainingMs','outerRemainingMs','workRemainingMsAtSettlement','outerRemainingMsAtSettlement'];flags=['signalAborted','settled','requestError','signalAbortedAtSettlement'];exact_keys(row,['phase','callOrdinal','widthBucket',*number_fields,*clock_fields,'elapsedMs',*flags,'typedErrorCode','callsiteTag','fetchEntryFrames']);finite_enum(row['phase'],PHASES);finite_enum(row['widthBucket'],BUDGET_WIDTHS);finite_enum(row['typedErrorCode'],ATTR_CODES);checked_numbers(row,['callOrdinal'],4,True);checked_numbers(row,number_fields,225001);checked_numbers(row,clock_fields,300001);checked_numbers(row,['elapsedMs']);checked_bools(row,flags)
+  finite_enum(row['callsiteTag'],FETCH_CALLSITE_TAGS);frames=row['fetchEntryFrames'];require(type(frames) is list and len(frames)<=8,'FINITE_FETCH_ENTRY_FRAME_BOUND_REQUIRED');seen_frames=set()
+  for frame in frames:
+   exact_keys(frame,['sourceBasename','line']);finite_enum(frame['sourceBasename'],FRAME_BASENAMES);require(type(frame['line']) is int and 1<=frame['line']<=1000000,'FINITE_FETCH_ENTRY_FRAME_LINE_REQUIRED');identity=(frame['sourceBasename'],frame['line']);require(identity not in seen_frames,'DISTINCT_FETCH_ENTRY_FRAMES_REQUIRED');seen_frames.add(identity)
+  tags={'stage8LiveProducer.js':'LIVE_PRODUCER','stage8LiveExecution.js':'LIVE_EXECUTION','processingTransaction.js':'PROCESSING_TRANSACTION','phase4Core.js':'CORE_CONTEXT','db.js':'DB_HTTP'}
+  selected=next((frame for frame in frames if frame['sourceBasename'] in ['stage8LiveProducer.js','stage8LiveExecution.js']),frames[0] if frames else None)
+  require(row['callsiteTag']==(tags.get(selected['sourceBasename'],'KNOWN_APP_SOURCE') if selected else 'UNKNOWN'),'FETCH_TAG_MUST_MATCH_NATIVE_FRAME_PROJECTION')
+ if first is not None:require(first['settled'] is True and first['requestError'] is True,'FIRST_ENTRY_MUST_BE_OBSERVED_FAILED_SETTLEMENT')
  return {key:value for key,value in record.items() if key!='contract'}
 class DiagnosticCollector:
  def __init__(self,output,binding):self.output=output;self.binding=binding;self.seen=set();self.faults=set();self.reports={};self.budgetAttributions={};self.emitted=0

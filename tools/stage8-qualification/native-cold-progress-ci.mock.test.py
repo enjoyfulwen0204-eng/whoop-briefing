@@ -223,6 +223,21 @@ class DiagnosticObservation(unittest.TestCase):
  def record(self,**changes):
   return {'contract':'stage6-native-cold-diagnostic-record-v1','phase':'A','stage':'APP_FAILURE','callIntents':2,'elapsedMs':100,'failureCode':'ERR_ASSERTION','errorMessageSha256':H(123),'terminalComplete':False,'activeFetches':1,'unresolvedStreams':1,'unknownProtocolReplies':0,**changes}
  def collector(self,tmp):return c.DiagnosticCollector(pathlib.Path(tmp),binding())
+ def test_shell_progress_filename_14_15_16_closed_range(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   collector=self.collector(tmp);output=pathlib.Path(tmp);text=io.StringIO()
+   accepted={'14':'OWNER_EXIT_UNCONFIRMED','15':'A_FAILED_TRANSPORT_SETTLED','16':'B_FAILED_TRANSPORT_SETTLED'}
+   for number,stage in accepted.items():c.once(output/('shell-progress-'+number+'.private.json'),self.record(phase='SHELL',stage=stage,callIntents=None))
+   for name in ['shell-progress-17.private.json','shell-progress-00.private.json','shell-progress-016.private.json','shell-progress-SYNTHETIC_PRIVATE_CANARY.private.json']:
+    c.once(output/name,self.record(phase='SHELL',stage='GRACEFUL_OWNER_STOP_REQUESTED',callIntents=None))
+   with contextlib.redirect_stdout(text),patch.object(c,'validate_reports',side_effect=AssertionError('COLLECTOR_IS_NOT_ACCEPTANCE')):collector.collect();collector.collect()
+   records=[json.loads(line.split(' ',1)[1]) for line in text.getvalue().splitlines()];progress=[r for r in records if r['event']=='PROGRESS']
+   self.assertEqual([r['metadata']['stage'] for r in progress],list(accepted.values()))
+   self.assertEqual(collector.seen,{'shell-progress-'+n+'.private.json' for n in accepted});self.assertEqual(sum(r['event']=='METADATA_UNREADABLE' for r in records),1)
+   self.assertNotIn('SYNTHETIC_PRIVATE_CANARY',text.getvalue());self.assertEqual(collector.reports,{})
+   for record in records:
+    self.assertEqual(record['sqlOwnerSettlement'],'UNKNOWN')
+    for field in ['productionEvidence','actualNativeQualified','wholeJobCompletionQualified','capacityQualified']:self.assertIs(record[field],False)
  def test_failure_progress_published_before_wait_even_when_owner_never_settles(self):
   with tempfile.TemporaryDirectory() as tmp:
    out=io.StringIO();collector=self.collector(tmp);c.once(pathlib.Path(tmp)/'A-progress-01.private.json',self.record());clock=[0]

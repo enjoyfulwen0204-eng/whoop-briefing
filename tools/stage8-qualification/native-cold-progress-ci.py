@@ -345,7 +345,7 @@ class DiagnosticCollector:
   if len(paths)>64:self.unreadable('LIMIT');self.emit('RECORD_LIMIT');paths=paths[:64]
   for path in sorted(paths):
    if path.name in self.seen:continue
-   if not re.fullmatch(r'(?:[AB]-progress-(?:0[0-9]|1[0-9]|2[0-4])|shell-progress-(?:0[1-9]|1[0-4]))\.private\.json',path.name):self.unreadable('NAME');continue
+   if not re.fullmatch(r'(?:[AB]-progress-(?:0[0-9]|1[0-9]|2[0-4])|shell-progress-(?:0[1-9]|1[0-6]))\.private\.json',path.name):self.unreadable('NAME');continue
    try:
     _,record=private_json(path,4096);projected=diagnostic_projection(record);self.seen.add(path.name);self.emit('PROGRESS',projected)
    except Exception:self.unreadable(path.name)

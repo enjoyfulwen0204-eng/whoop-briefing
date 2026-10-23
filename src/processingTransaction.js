@@ -1,3 +1,4 @@
+import {exactRealStatement} from './exactRealStatement.js';
 import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
 import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
@@ -100,6 +101,15 @@ async function retryContention(call,{afterBusy,deadlineAt=Date.now()+15000}={}) 
  * database side effect, even writes hidden behind a store/helper function. */
 export function processingTransactions(base,{privateRuntime=false}={}) {
   const scope = new AsyncLocalStorage();
+  // Keep original statements for guards, metadata and read-snapshot identity.
+  // Reuse the accepted exact binary64 transport only at physical dispatch in
+  // the private LIVE Stage6 HTTP execution; this grants no work authority.
+  const transportArguments=(method,args)=>{
+    const execution=currentDurableExecution(),request=execution?.claim?.request,state=scope.getStore();
+    if(!privateRuntime||base.protocol!=='http'||request?.phase!=='STAGE6_DRAIN'||request.executionMode!=='LIVE'
+      ||state&&state.readExecution!==execution)return args;
+    return [method==='batch'?args[0].map(exactRealStatement):exactRealStatement(args[0]),...args.slice(1)];
+  };
   const readScope=new AsyncLocalStorage(),activeReadMemos=new Set();
   const invalidateReadMemos=()=>{for(const memo of activeReadMemos)memo.close();};
   const readOnlyWork=new AsyncLocalStorage(),preparationScope=new AsyncLocalStorage();
@@ -170,7 +180,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           const sql=query;
           if(!/^\s*(SELECT|PRAGMA)\b/i.test(sql))requireSettledOperation();
           if(!/^\s*(SELECT\b|PRAGMA\s+(foreign_keys|ignore_check_constraints)\b)/i.test(sql))throw Error('RUNTIME_READMISSION_READ_ONLY');
-          return method(...args);
+          return method(...transportArguments(key,args));
         }
         const guarded = fences().length > 0 && !metadata;
         const context=readScope.getStore(),execution=currentDurableExecution(),checks=fenceScope.getStore()??[];
@@ -191,7 +201,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               // overlaps; mutations and unmarked fences remain serial.
               const values=await Promise.allSettled([
                 Promise.resolve().then(()=>checkFences(client)),
-                Promise.resolve().then(()=>state.tx.execute(...args)),
+                Promise.resolve().then(()=>state.tx.execute(...transportArguments('execute',args))),
               ]);
               for(const value of values)if(value.status==='rejected')throw value.reason;
               if(state.failure)throw state.failure;
@@ -236,9 +246,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               if(key!=='execute'||typeof query!=='string'||!firstAdmissionReads.has(normalizedSql(query))){
                 try{await state.tx.execute('SELECT 1');}
                 catch(error){state.admissionBeginFailure=error;throw error;}
-                return state.tx[key](...args);
+                return state.tx[key](...transportArguments(key,args));
               }
-              try{const results=await state.tx.batch(['SELECT 1',...statements]);
+              try{const results=await state.tx.batch(...transportArguments('batch',[['SELECT 1',...statements]]));
                 return key==='execute'?results[1]:results.slice(1);
               }catch(error){state.admissionFirstFailure=error;throw error;}
             }
@@ -251,8 +261,8 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               if(snapshotKey){const cached=memo.get(context,snapshotKey);if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
               const immutableGuard=mutations.length?state.syncSnapshot?.guard(mutations):null;
               const epoch=memo.epoch(),result=immutableGuard
-                ?await state.tx.batch([...statements,immutableGuard]).then(values=>key==='execute'?values[0]:values.slice(0,-1))
-                :await state.tx[key](...args);currentExecutionBudget()?.assert();
+                ?await state.tx.batch(...transportArguments('batch',[[...statements,immutableGuard]])).then(values=>key==='execute'?values[0]:values.slice(0,-1))
+                :await state.tx[key](...transportArguments(key,args));currentExecutionBudget()?.assert();
               if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
             }finally{if(mutations.length)memo.clear();}}
           const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
@@ -260,7 +270,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           // Foundation/schema reads can overlap another process's writer even
           // before a request lease exists. Retry only these read-only statements.
           const readOnly=/^\s*(SELECT\b|PRAGMA\s+(table_info|database_list|index_list|index_info|foreign_key_list|integrity_check|foreign_key_check)\b)/i.test(sql);
-          return await (readOnly&&!metadata?retryContention(()=>method(...args),{afterBusy:refreshIdleConnection}):method(...args));
+          return await (readOnly&&!metadata?retryContention(()=>method(...transportArguments(key,args)),{afterBusy:refreshIdleConnection}):method(...transportArguments(key,args)));
         }
         catch (error) { if (state) state.failure = error; throw error; }
         finally {release?.();}

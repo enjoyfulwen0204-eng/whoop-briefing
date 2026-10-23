@@ -10,7 +10,7 @@ class Gate(unittest.TestCase):
     e=self.env.copy();del e[k]
     with self.assertRaises(AssertionError):self.call(e)
  def test_old_runs_or_other_identity_or_private_refused(self):
-  for k,v in [('GITHUB_REF',m.h.REF),('GITHUB_REF','refs/heads/main'),('QUALIFICATION_MODE',m.h.MODE),('POSITIVE_HYBRID_EOF_INTENT',m.h.INTENT),('GITHUB_RUN_ATTEMPT','2'),('GITHUB_SHA','d'*40),('QUALIFICATION_WORKFLOW_SHA','d'*40),('QUALIFICATION_REPOSITORY_PRIVATE','true'),('GITHUB_RUN_ID','1;bad')]:
+  for k,v in [('GITHUB_REF','refs/heads/diagnostic/stage6-native-context-eof-20261024'),('POSITIVE_HYBRID_EOF_INTENT','one-original-context-lease-positive-eof-and-replay-v1'),('GITHUB_REF',m.h.REF),('GITHUB_REF','refs/heads/main'),('QUALIFICATION_MODE',m.h.MODE),('POSITIVE_HYBRID_EOF_INTENT',m.h.INTENT),('GITHUB_RUN_ATTEMPT','2'),('GITHUB_SHA','d'*40),('QUALIFICATION_WORKFLOW_SHA','d'*40),('QUALIFICATION_REPOSITORY_PRIVATE','true'),('GITHUB_RUN_ID','1;bad')]:
    with self.subTest(key=k,value=v):
     with self.assertRaises(AssertionError):self.call({**self.env,k:v})
  def test_non_native_root_refused(self):

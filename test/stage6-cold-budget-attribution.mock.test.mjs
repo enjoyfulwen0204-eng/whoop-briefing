@@ -69,7 +69,7 @@ test('source-derived writer captures A metadata-ready and B failure before clean
  context.openSync=()=>{throw Error(CANARY);};const refused=vm.runInNewContext('('+body+')',context);assert.doesNotThrow(()=>refused('APP_FAILURE',report.failure,Object.assign(Error(CANARY),{code:'SYNC_TIMEOUT'})));assert.equal(report.failure.messageSha256,HASH);
 });
 test('request hooks are synchronous source additions without an extra await or altered core observer statements',()=>{
- const source=readFileSync(new URL('./stage6-cold-three-observer.proposal.mjs',import.meta.url),'utf8');assert.ok(source.indexOf('budgetToken=onFetchEntry()')<source.indexOf('await request.clone().text()'));assert.ok(source.includes('onFetchSettled(budgetToken,diagnosticFailed,diagnosticError)'));assert.ok(!source.includes('await onFetch'));
+ const source=readFileSync(new URL('./stage6-cold-three-observer.proposal.mjs',import.meta.url),'utf8');assert.ok(source.indexOf('budgetToken=onFetchEntry()')<source.indexOf('await request.clone().text()'));assert.ok(source.includes('onFetchSettled(budgetToken,diagnosticFailed,diagnosticError,deliveryClass)'));assert.ok(!source.includes('await onFetch'));
  const native=readFileSync(new URL('./stage6-native-cold-progress.mjs',import.meta.url),'utf8');assert.ok(native.includes('getBudget:currentExecutionBudget'));assert.ok(native.includes('onFetchEntry:fetchBudgets.captureEntry,onFetchSettled:fetchBudgets.settle'));assert.ok(native.includes('Math.floor(workDeadlineMs-now())'));
 });
 test('first failed45s entry survives more than8 cleanup entries, later failure and mutable snapshot callers',()=>{

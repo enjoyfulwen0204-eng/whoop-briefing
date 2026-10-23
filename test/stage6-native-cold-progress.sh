@@ -4,7 +4,7 @@ set -eu
 umask 077
 shell_progress() {
  case "$1:$2" in
-  SHELL_ENTERED:01|BOOTSTRAP_REFUSED:02|SQLD_STARTED:03|SQLD_READY:04|SQLD_READINESS_FAILED_WAIT_UNKNOWN:05|A_STARTED:06|A_FAILED_WAIT_UNKNOWN:07|A_RETURNED:08|B_STARTED:09|B_FAILED_WAIT_UNKNOWN:10|B_RETURNED:11|GRACEFUL_OWNER_STOP_REQUESTED:12|SQLD_PROCESS_EXIT_OBSERVED:13|OWNER_EXIT_UNCONFIRMED:14) ;;
+  SHELL_ENTERED:01|BOOTSTRAP_REFUSED:02|SQLD_STARTED:03|SQLD_READY:04|SQLD_READINESS_FAILED_WAIT_UNKNOWN:05|A_STARTED:06|A_FAILED_WAIT_UNKNOWN:07|A_RETURNED:08|B_STARTED:09|B_FAILED_WAIT_UNKNOWN:10|B_RETURNED:11|GRACEFUL_OWNER_STOP_REQUESTED:12|SQLD_PROCESS_EXIT_OBSERVED:13|OWNER_EXIT_UNCONFIRMED:14|A_FAILED_TRANSPORT_SETTLED:15|B_FAILED_TRANSPORT_SETTLED:16) ;;
   *) return 0 ;;
  esac
  # Exclusive finite diagnostic only. Failure cannot abandon an unsettled owner.
@@ -29,14 +29,28 @@ retain_unknown() {
 }
 node --input-type=module -e 'for(let n=0;n<30;n++){try{const r=await fetch("http://127.0.0.1:18080/v2/pipeline",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({requests:[{type:"execute",stmt:{sql:"SELECT 1",want_rows:false}},{type:"close"}]}),signal:AbortSignal.timeout(250)});if(r.ok&&(await r.json()).results?.[0]?.type==="ok")process.exit(0);}catch{}await new Promise(r=>setTimeout(r,100));}throw Error("FRESH_SQLD_NOT_READY");' || retain_unknown SQLD_READINESS_FAILED_WAIT_UNKNOWN 05
 shell_progress SQLD_READY 04
-shell_progress A_STARTED 06
-node --max-old-space-size=96 --max-semi-space-size=2 test/stage6-native-cold-entry.proposal.mjs A || retain_unknown A_FAILED_WAIT_UNKNOWN 07
-shell_progress A_RETURNED 08
-shell_progress B_STARTED 09
-node --max-old-space-size=96 --max-semi-space-size=2 test/stage6-native-cold-entry.proposal.mjs B || retain_unknown B_FAILED_WAIT_UNKNOWN 10
-shell_progress B_RETURNED 11
-# Only both normal terminal application legs reach graceful owner stop. No
-# failure/progress record or elapsed reserve is permission to stop an unknown.
+failed_leg=0
+for leg in A B; do
+ case "$leg" in
+  A) shell_progress A_STARTED 06 ;;
+  B) shell_progress B_STARTED 09 ;;
+ esac
+ if node --max-old-space-size=96 --max-semi-space-size=2 test/stage6-native-cold-entry.proposal.mjs "$leg"; then
+  case "$leg" in A) shell_progress A_RETURNED 08 ;; B) shell_progress B_RETURNED 11 ;; esac
+ else
+  leg_status=$?
+  # Only the original child's reserved NONZERO status carries the owned
+  # transport proof. Reports/counts/progress/absence are never this authority.
+  if test "$leg_status" -eq 3; then
+   case "$leg" in A) shell_progress A_FAILED_TRANSPORT_SETTLED 15 ;; B) shell_progress B_FAILED_TRANSPORT_SETTLED 16 ;; esac
+   failed_leg=1
+   break
+  fi
+  case "$leg" in A) retain_unknown A_FAILED_WAIT_UNKNOWN 07 ;; B) retain_unknown B_FAILED_WAIT_UNKNOWN 10 ;; esac
+ fi
+done
+# Both normal legs or a positively proved failed-child transport settlement may
+# request graceful owner shutdown. An unknown child still retains ownership.
 shell_progress GRACEFUL_OWNER_STOP_REQUESTED 12
 kill -TERM "$server_pid"
 if wait "$server_pid"; then :
@@ -44,3 +58,4 @@ else settled_status=$?; if test "$settled_status" -eq 143; then :
  else shell_progress OWNER_EXIT_UNCONFIRMED 14; exit 2; fi
 fi
 shell_progress SQLD_PROCESS_EXIT_OBSERVED 13
+if test "$failed_leg" -eq 1; then exit 2; fi

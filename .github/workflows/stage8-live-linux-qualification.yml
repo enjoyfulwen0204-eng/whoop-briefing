@@ -255,7 +255,7 @@ jobs:
 
 
   native-empty-cold-progress:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/native-cold-first-failure-20261020' && inputs.mode == 'native-empty-cold-progress' && inputs.cold_progress_run_intent == 'three-original-calls-two-os-300s-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/native-cold-owned-delivery-20261023' && inputs.mode == 'native-empty-cold-progress' && inputs.cold_progress_run_intent == 'three-original-calls-two-os-300s-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:

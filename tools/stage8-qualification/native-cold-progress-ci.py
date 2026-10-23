@@ -9,7 +9,7 @@ import base64,hashlib,itertools,json,math,os,pathlib,platform,re,shutil,subproce
 
 APP_BASE='ca01f63d2bd948f24a3a0400decdaca898811f39'
 REPOSITORY='enjoyfulwen0204-eng/whoop-briefing'
-REF='refs/heads/diagnostic/native-cold-first-failure-20261020'
+REF='refs/heads/diagnostic/native-cold-owned-delivery-20261023'
 MODE='native-empty-cold-progress'
 PROFILE='three-original-calls-two-os-300s-v1'
 REQUESTS=['native-cold-progress-original-1','native-cold-progress-original-2','native-cold-progress-original-3']
@@ -95,7 +95,7 @@ def validate_source(root,binding):
  require(digest(raw)==binding['choice']['sourceManifestSha256'],'REVIEWED_SOURCE_MANIFEST_BYTES_REQUIRED')
  exact_keys(manifest,['contract','applicationBaselineSha','profile','files'])
  require(manifest['contract']=='stage6-native-cold-reviewed-source-manifest-v1' and manifest['applicationBaselineSha']==APP_BASE and manifest['profile']==PROFILE,'EXACT_SOURCE_MANIFEST_SCOPE_REQUIRED')
- required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs','test/stage6-cold-diagnostic-metadata.mock.test.mjs','test/stage6-native-cold-integer-timeout.mock.test.mjs','test/stage6-cold-budget-attribution.mock.test.mjs'])
+ required=set(RUNTIME_PATHS+[BASELINE_PATH,CONTROLLER_PATH,WORKFLOW_PATH,'tools/stage8-qualification/native-cold-progress-ci.mock.test.py','test/stage6-cold-progress-contract.mock.test.mjs','test/stage6-cold-three-observer.mock.test.mjs','test/stage6-cold-diagnostic-metadata.mock.test.mjs','test/stage6-native-cold-integer-timeout.mock.test.mjs','test/stage6-cold-budget-attribution.mock.test.mjs','test/stage6-owned-delivery.mock.test.mjs'])
  require(type(manifest['files']) is dict and set(manifest['files'])==required,'EXACT_FINITE_REVIEWED_SOURCE_SET_REQUIRED')
  for name,pin in manifest['files'].items():require(bool(HEX64.fullmatch(str(pin))) and sha(root/name)==pin,'APPROVED_SOURCE_BYTES_REQUIRED')
  baseline_raw=(root/BASELINE_PATH).read_bytes();baseline=json.loads(baseline_raw)
@@ -257,7 +257,7 @@ def validate_call_intents(records,binding,activation_sha,a,b):
 # permission. Unknown counts stay None; arbitrary messages/keys/paths never print.
 DIAGNOSTIC_FIELDS=['contract','phase','stage','callIntents','elapsedMs','failureCode','errorMessageSha256','terminalComplete','activeFetches','unresolvedStreams','unknownProtocolReplies']
 NATIVE_DIAGNOSTIC_STAGES=['APP_IMPORT_ENTER','APP_BOOTSTRAP_FAILURE','APP_ENTER','SETUP_ENTER','SETUP_RETURNED','ADMISSION_ENTER','ADMISSION_RETURNED','COLD_BOUNDARY_ENTER','COLD_BOUNDARY_RETURNED','CALL_INTENT_DURABLE','CALL_RETURNED','LEG_METADATA_READY','APP_FAILURE','DB_CLOSE_ENTER','DB_CLOSE_RETURNED','TRANSPORT_IDLE_ENTER','TRANSPORT_IDLE_RETURNED','REPORT_WRITTEN','WORK_BOUND_REACHED']
-SHELL_DIAGNOSTIC_STAGES=['SHELL_ENTERED','BOOTSTRAP_REFUSED','SQLD_STARTED','SQLD_READY','SQLD_READINESS_FAILED_WAIT_UNKNOWN','A_STARTED','A_FAILED_WAIT_UNKNOWN','A_RETURNED','B_STARTED','B_FAILED_WAIT_UNKNOWN','B_RETURNED','GRACEFUL_OWNER_STOP_REQUESTED','SQLD_PROCESS_EXIT_OBSERVED','OWNER_EXIT_UNCONFIRMED']
+SHELL_DIAGNOSTIC_STAGES=['SHELL_ENTERED','BOOTSTRAP_REFUSED','SQLD_STARTED','SQLD_READY','SQLD_READINESS_FAILED_WAIT_UNKNOWN','A_STARTED','A_FAILED_WAIT_UNKNOWN','A_RETURNED','B_STARTED','B_FAILED_WAIT_UNKNOWN','B_RETURNED','GRACEFUL_OWNER_STOP_REQUESTED','SQLD_PROCESS_EXIT_OBSERVED','OWNER_EXIT_UNCONFIRMED','A_FAILED_TRANSPORT_SETTLED','B_FAILED_TRANSPORT_SETTLED']
 def mapping(value):return value if type(value) is dict else {}
 def known_count(value,maximum):return value if type(value) is int and 0<=value<=maximum else None
 def diagnostic_projection(record):
@@ -297,14 +297,15 @@ def budget_attribution_projection(record):
  # request data, identity, free message or arbitrary string can pass this shape.
  exact_keys(record,['contract','productionEvidence','actualNativeQualified','wholeJobCompletionQualified','capacityQualified','candidateSha','phase','stage','callIntents','elapsedMs','failureCode','errorMessageSha256','typedFailureCode','safeFrames','coverage','adapter','phaseBins','fetchBudgets'])
  for field in ['productionEvidence','actualNativeQualified','wholeJobCompletionQualified','capacityQualified']:require(record[field] is False,'DIAGNOSTICS_CANNOT_QUALIFY_NATIVE_OR_PRODUCTION')
- require(record['contract']=='stage6-native-cold-budget-attribution-v2' and type(record['candidateSha']) is str and HEX40.fullmatch(record['candidateSha']),'BOUND_BUDGET_ATTRIBUTION_REQUIRED')
+ require(record['contract']=='stage6-native-cold-budget-attribution-v3' and type(record['candidateSha']) is str and HEX40.fullmatch(record['candidateSha']),'BOUND_BUDGET_ATTRIBUTION_REQUIRED')
  finite_enum(record['phase'],['A','B']);finite_enum(record['stage'],['LEG_METADATA_READY','APP_FAILURE']);checked_numbers(record,['callIntents'],4,True);checked_numbers(record,['elapsedMs'])
  require(record['failureCode'] is None or record['failureCode'] in ['ERR_ASSERTION','NATIVE_COLD_PROOF_REFUSED','UNKNOWN'],'CLOSED_ATTRIBUTION_FAILURE_CODE_REQUIRED');require(record['errorMessageSha256'] is None or type(record['errorMessageSha256']) is str and HEX64.fullmatch(record['errorMessageSha256']),'HASH_ONLY_ATTRIBUTION_FAILURE_REQUIRED')
  finite_enum(record['typedFailureCode'],ATTR_CODES);frames=record['safeFrames'];require(type(frames) is list and len(frames)<=8,'FINITE_SAFE_FRAME_BOUND_REQUIRED')
  for frame in frames:
   exact_keys(frame,['sourceBasename','line']);finite_enum(frame['sourceBasename'],FRAME_BASENAMES);require(type(frame['line']) is int and 1<=frame['line']<=1000000,'FINITE_SAFE_FRAME_LINE_REQUIRED')
  coverage=record['coverage'];coverage_counts=['inflightRequests','pendingAcknowledgedBegins','unsettledTransactions','droppedObservations','droppedTransactionSamples'];coverage_flags=['physicalTerminalObservationComplete','observationCoverageComplete','allRequestsSettled','allAcknowledgedBeginsLinked','allTransactionsSettled','allRepliesKnown','allTransactionTerminalsKnown','transactionSampleCoverageComplete'];exact_keys(coverage,coverage_counts+coverage_flags);checked_numbers(coverage,coverage_counts,1e9,True);checked_bools(coverage,coverage_flags)
- adapter=record['adapter'];counts=['activeFetches','transportInvocations','responsesObserved','unresolvedStreams','droppedObservations','unknownProtocolReplies'];flags=['terminalComplete','coverageComplete'];exact_keys(adapter,counts+flags);checked_numbers(adapter,counts,1e9,True);checked_bools(adapter,flags)
+ adapter=record['adapter'];counts=['activeFetches','transportInvocations','responsesObserved','unresolvedStreams','droppedObservations','unknownProtocolReplies'];flags=['terminalComplete','coverageComplete'];exact_keys(adapter,counts+flags+['delivery']);checked_numbers(adapter,counts,1e9,True);checked_bools(adapter,flags)
+ delivery=adapter['delivery'];exact_keys(delivery,['contract','startedRequests','notSent','sentReply','unknown','pending','coverageComplete']);require(delivery['contract']=='owned-native-request-delivery-v1','OWNED_DELIVERY_CONTRACT_REQUIRED');checked_numbers(delivery,['startedRequests','notSent','sentReply','unknown','pending'],1e9,True);checked_bools(delivery,['coverageComplete'])
  bins=record['phaseBins'];require(type(bins) is list and len(bins)<=len(PHASES),'FINITE_PHASE_BIN_BOUND_REQUIRED');seen=set()
  for row in bins:
   exact_keys(row,['phase',*ATTR_COUNTS,*ATTR_TIMES,'lastKnownOuterWorkUnit','lastStorageCategory','lastTypedCode','categories','transactions']);finite_enum(row['phase'],PHASES);require(row['phase'] not in seen,'DISTINCT_PHASE_BINS_REQUIRED');seen.add(row['phase']);checked_numbers(row,ATTR_COUNTS,1e9,True);checked_numbers(row,ATTR_TIMES)
@@ -320,8 +321,8 @@ def budget_attribution_projection(record):
  entries=budget['recentEntries'];require(type(entries) is list and len(entries)<=8,'FINITE_RECENT_BUDGET_BOUND_REQUIRED')
  first=budget['firstFailedEntry'];require(first is None or type(first) is dict,'FIRST_FAILED_ENTRY_OR_UNKNOWN_REQUIRED')
  for row in entries+([] if first is None else [first]):
-  number_fields=['widthMs','remainingMs','remainingMsAtSettlement'];clock_fields=['workRemainingMs','outerRemainingMs','workRemainingMsAtSettlement','outerRemainingMsAtSettlement'];flags=['signalAborted','settled','requestError','signalAbortedAtSettlement'];exact_keys(row,['phase','callOrdinal','widthBucket',*number_fields,*clock_fields,'elapsedMs',*flags,'typedErrorCode','callsiteTag','fetchEntryFrames']);finite_enum(row['phase'],PHASES);finite_enum(row['widthBucket'],BUDGET_WIDTHS);finite_enum(row['typedErrorCode'],ATTR_CODES);checked_numbers(row,['callOrdinal'],4,True);checked_numbers(row,number_fields,225001);checked_numbers(row,clock_fields,300001);checked_numbers(row,['elapsedMs']);checked_bools(row,flags)
-  finite_enum(row['callsiteTag'],FETCH_CALLSITE_TAGS);frames=row['fetchEntryFrames'];require(type(frames) is list and len(frames)<=8,'FINITE_FETCH_ENTRY_FRAME_BOUND_REQUIRED');seen_frames=set()
+  number_fields=['widthMs','remainingMs','remainingMsAtSettlement'];clock_fields=['workRemainingMs','outerRemainingMs','workRemainingMsAtSettlement','outerRemainingMsAtSettlement'];flags=['signalAborted','settled','requestError','signalAbortedAtSettlement'];exact_keys(row,['phase','callOrdinal','widthBucket',*number_fields,*clock_fields,'elapsedMs',*flags,'typedErrorCode','callsiteTag','fetchEntryFrames','deliveryClass']);finite_enum(row['phase'],PHASES);finite_enum(row['widthBucket'],BUDGET_WIDTHS);finite_enum(row['typedErrorCode'],ATTR_CODES);checked_numbers(row,['callOrdinal'],4,True);checked_numbers(row,number_fields,225001);checked_numbers(row,clock_fields,300001);checked_numbers(row,['elapsedMs']);checked_bools(row,flags)
+  finite_enum(row['deliveryClass'],['NOT_SENT','SENT_REPLY','UNKNOWN']);finite_enum(row['callsiteTag'],FETCH_CALLSITE_TAGS);frames=row['fetchEntryFrames'];require(type(frames) is list and len(frames)<=8,'FINITE_FETCH_ENTRY_FRAME_BOUND_REQUIRED');seen_frames=set()
   for frame in frames:
    exact_keys(frame,['sourceBasename','line']);finite_enum(frame['sourceBasename'],FRAME_BASENAMES);require(type(frame['line']) is int and 1<=frame['line']<=1000000,'FINITE_FETCH_ENTRY_FRAME_LINE_REQUIRED');identity=(frame['sourceBasename'],frame['line']);require(identity not in seen_frames,'DISTINCT_FETCH_ENTRY_FRAMES_REQUIRED');seen_frames.add(identity)
   tags={'stage8LiveProducer.js':'LIVE_PRODUCER','stage8LiveExecution.js':'LIVE_EXECUTION','processingTransaction.js':'PROCESSING_TRANSACTION','phase4Core.js':'CORE_CONTEXT','db.js':'DB_HTTP'}

@@ -1,10 +1,11 @@
 /** Pure bounded diagnostics; no app/DB/provider/I/O import or execution authority. */
 import {PHASES,UNITS,CATEGORIES,safeFailureFrames} from './stage6-cold-three-attribution.proposal.mjs';
 import {getCallSites} from 'node:util';
-export const BUDGET_ATTRIBUTION_CONTRACT='stage6-native-cold-budget-attribution-v2';
+export const BUDGET_ATTRIBUTION_CONTRACT='stage6-native-cold-budget-attribution-v3';
 export const BUDGET_ATTRIBUTION_MAX_BYTES=32768;
 export const BUDGET_WIDTHS=Object.freeze(['MS_5000','MS_10000','MS_15000','MS_45000','MS_50000','MS_70000','OTHER','NONE','UNKNOWN']);
 export const FRAME_BASENAMES=Object.freeze(['stage8LiveProducer.js','stage8LiveExecution.js','phase4Cache.js','executionBudget.js','processingTransaction.js','db.js','phase4Reanalysis.js','phase4Core.js','phase4QueueStore.js','phase4ExecutionContext.js','phase4Coordination.js']);
+export const DELIVERY_CLASSES=Object.freeze(['NOT_SENT','SENT_REPLY','UNKNOWN']);
 export const FETCH_CALLSITE_TAGS=Object.freeze(['LIVE_PRODUCER','LIVE_EXECUTION','PROCESSING_TRANSACTION','CORE_CONTEXT','DB_HTTP','KNOWN_APP_SOURCE','UNKNOWN']);
 const sourceUrls=new Map(FRAME_BASENAMES.map(name=>[new URL('../src/'+name,import.meta.url).href,name]));
 export const TYPED_CODES=Object.freeze(['NONE','OTHER','UNKNOWN','SYNC_TIMEOUT','SYNC_CANCELLED','PHASE4_DRAIN_DEADLINE_REACHED','COMMIT_INDETERMINATE','RUNTIME_REPLACEMENT_REQUIRED','SQLITE_BUSY','SQLITE_LOCKED','PHASE4_LIVE_NOT_AUTHORIZED','STAGE8_LIVE_PRINCIPAL_FENCED']);
@@ -48,7 +49,7 @@ function budgetObservation(api){
  return {widthBucket:exact==='UNKNOWN'?'UNKNOWN':member(BUDGET_WIDTHS,exact,'OTHER'),widthMs:width!==null&&width>=1?width:null,remainingMs:remaining,signalAborted};
 }
 function budgetEntry(value){
- const out={phase:member(PHASES,own(value,'phase')),callOrdinal:count(own(value,'callOrdinal')),widthBucket:member(BUDGET_WIDTHS,own(value,'widthBucket')),widthMs:number(own(value,'widthMs'),225001),remainingMs:number(own(value,'remainingMs'),225001),signalAborted:bool(own(value,'signalAborted')),workRemainingMs:number(own(value,'workRemainingMs'),300001),outerRemainingMs:number(own(value,'outerRemainingMs'),300001),elapsedMs:number(own(value,'elapsedMs')),settled:bool(own(value,'settled')),requestError:bool(own(value,'requestError')),typedErrorCode:member(TYPED_CODES,own(value,'typedErrorCode')),remainingMsAtSettlement:number(own(value,'remainingMsAtSettlement'),225001),signalAbortedAtSettlement:bool(own(value,'signalAbortedAtSettlement')),workRemainingMsAtSettlement:number(own(value,'workRemainingMsAtSettlement'),300001),outerRemainingMsAtSettlement:number(own(value,'outerRemainingMsAtSettlement'),300001),callsiteTag:member(FETCH_CALLSITE_TAGS,own(value,'callsiteTag')),fetchEntryFrames:frames(own(value,'fetchEntryFrames'))};
+ const out={phase:member(PHASES,own(value,'phase')),callOrdinal:count(own(value,'callOrdinal')),widthBucket:member(BUDGET_WIDTHS,own(value,'widthBucket')),widthMs:number(own(value,'widthMs'),225001),remainingMs:number(own(value,'remainingMs'),225001),signalAborted:bool(own(value,'signalAborted')),workRemainingMs:number(own(value,'workRemainingMs'),300001),outerRemainingMs:number(own(value,'outerRemainingMs'),300001),elapsedMs:number(own(value,'elapsedMs')),settled:bool(own(value,'settled')),requestError:bool(own(value,'requestError')),typedErrorCode:member(TYPED_CODES,own(value,'typedErrorCode')),remainingMsAtSettlement:number(own(value,'remainingMsAtSettlement'),225001),signalAbortedAtSettlement:bool(own(value,'signalAbortedAtSettlement')),workRemainingMsAtSettlement:number(own(value,'workRemainingMsAtSettlement'),300001),outerRemainingMsAtSettlement:number(own(value,'outerRemainingMsAtSettlement'),300001),callsiteTag:member(FETCH_CALLSITE_TAGS,own(value,'callsiteTag')),fetchEntryFrames:frames(own(value,'fetchEntryFrames')),deliveryClass:member(DELIVERY_CLASSES,own(value,'deliveryClass'))};
  if(out.callOrdinal===null||out.callOrdinal>3)out.callOrdinal=null;
  return out;
 }
@@ -72,10 +73,10 @@ export function createFetchBudgetProbe({getBudget,elapsedMs,clocks}={}){
    const token=Object.freeze({});pending.set(token,{api,record});recent.push(record);if(recent.length>8){recent.shift();recentEvictions=Math.min(999999999,recentEvictions+1);}
    const bin=bins[record.widthBucket];inc(bin,'captures');if(record.signalAborted===true)inc(bin,'abortedAtEntry');return token;
   },
-  settle(token,requestError,error){
+  settle(token,requestError,error,deliveryClass='UNKNOWN'){
    const held=pending.get(token);if(!held){if(token!==null)droppedCaptures=Math.min(999999999,droppedCaptures+1);return;}
    pending.delete(token);const {record}=held,observation=budgetObservation(held.api),at=clock();
-   Object.assign(record,{settled:true,requestError:requestError===true,typedErrorCode:requestError===true?typedDiagnosticCode(error):'NONE',remainingMsAtSettlement:observation.remainingMs,signalAbortedAtSettlement:observation.signalAborted,workRemainingMsAtSettlement:at.workRemainingMs,outerRemainingMsAtSettlement:at.outerRemainingMs});
+   Object.assign(record,{deliveryClass:member(DELIVERY_CLASSES,deliveryClass),settled:true,requestError:requestError===true,typedErrorCode:requestError===true?typedDiagnosticCode(error):'NONE',remainingMsAtSettlement:observation.remainingMs,signalAbortedAtSettlement:observation.signalAborted,workRemainingMsAtSettlement:at.workRemainingMs,outerRemainingMsAtSettlement:at.outerRemainingMs});
     // First observed failed settlement is write-once and independent of the
     // recent ring. Snapshot callers receive copies, never this retained owner.
     if(requestError===true&&firstFailedEntry===null)firstFailedEntry=Object.freeze({...record,fetchEntryFrames:Object.freeze(record.fetchEntryFrames.map(frame=>Object.freeze({...frame})))});
@@ -101,6 +102,7 @@ export function budgetAttributionRecord({candidateSha,phase,stage,callIntents,el
  }
  const adapter={};for(const key of ['activeFetches','transportInvocations','responsesObserved','unresolvedStreams','droppedObservations','unknownProtocolReplies'])adapter[key]=count(own(own(attribution,'adapter'),key));
  for(const key of ['terminalComplete','coverageComplete'])adapter[key]=bool(own(own(attribution,'adapter'),key));
+ const delivery=own(own(attribution,'adapter'),'delivery');adapter.delivery={contract:'owned-native-request-delivery-v1'};for(const key of ['startedRequests','notSent','sentReply','unknown','pending'])adapter.delivery[key]=count(own(delivery,key));adapter.delivery.coverageComplete=bool(own(delivery,'coverageComplete'));
  const coverage={};for(const key of ['inflightRequests','pendingAcknowledgedBegins','unsettledTransactions','droppedObservations','droppedTransactionSamples'])coverage[key]=count(own(attribution,key));
  for(const key of ['physicalTerminalObservationComplete','observationCoverageComplete','allRequestsSettled','allAcknowledgedBeginsLinked','allTransactionsSettled','allRepliesKnown','allTransactionTerminalsKnown','transactionSampleCoverageComplete'])coverage[key]=bool(own(attribution,key));
  // Read data stack only; caller-defined getters are never invoked. Existing

@@ -57,7 +57,7 @@ const observedLog=createHash('sha256');let logBytes=0;const originalPrint=consol
 for(const name of ['log','info','warn','error'])console[name]=(...v)=>{let b;try{b=Buffer.from(JSON.stringify(v));}catch{b=Buffer.from('[UNSERIALIZABLE_APPLICATION_LOG]');}observedLog.update(b);logBytes+=b.length;};
 let db,latency=false,callCount=phase==='A'?0:2,producer;const networkFetch=globalThis.fetch.bind(globalThis);
 const fetchBudgets=createFetchBudgetProbe({getBudget:currentExecutionBudget,elapsedMs:()=>Math.max(0,now()-started),clocks:()=>({workRemainingMs:Math.max(0,workDeadlineMs-now()),outerRemainingMs:Math.max(0,deadlineMs-now())})});
-const transport=createDiagnosticFetch({fetch:(input,init)=>{guard();const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.ok(!url.username&&!url.password);return networkFetch(r,{signal:AbortSignal.any([r.signal,abort.signal,AbortSignal.timeout(Math.max(1,Math.floor(workDeadlineMs-now())))])});},decodePipelineReply:PipelineRespBody,latencyEnabled:()=>latency,onFetchEntry:fetchBudgets.captureEntry,onFetchSettled:fetchBudgets.settle});
+const transport=createDiagnosticFetch({fetch:(input,init)=>{guard();const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.ok(!url.username&&!url.password);return networkFetch(r,{signal:AbortSignal.any([r.signal,abort.signal,AbortSignal.timeout(Math.max(1,Math.floor(workDeadlineMs-now())))])});},decodePipelineReply:PipelineRespBody,latencyEnabled:()=>latency,onFetchEntry:fetchBudgets.captureEntry,onFetchSettled:fetchBudgets.settle,onFailureSettlementRevoked:()=>{if(process.exitCode===3)process.exitCode=2;}});
 globalThis.fetch=(input,init)=>transport.fetch(input,init);
 function setDiagnosticPhase(phase,unit,ordinal){transport.observer.setPhase(phase,unit,ordinal);fetchBudgets.notePhase(phase,ordinal);}
 function attributionSnapshot(stage,failure=null,error=null){
@@ -129,6 +129,9 @@ finally{
  const attribution=transport.snapshot();report.attribution=attribution;report.resources=resources();report.elapsedMs=now()-started;try{assertNativeResources(report.resources);}catch{report.status='FINAL_RESOURCE_CONTRACT_UNQUALIFIED';process.exitCode=2;}
  if(!attribution.adapter.terminalComplete||report.elapsedMs>=PROFILE.proposedOuterMs){report.status='CLEANUP_OR_GLOBAL_DEADLINE_UNKNOWN';process.exitCode=2;}
  clearTimeout(wallTimer);report.safeApplicationLog={bytes:logBytes,sha256:observedLog.digest('hex'),rawPersisted:false};
+ // Reserved nonzero exit3 is only the original failed child's owned transport proof.
+ // Later fetch entry synchronously revokes it; failure/report/acceptance stay unchanged.
+ if(report.failure&&process.exitCode===2&&report.elapsedMs<PROFILE.proposedOuterMs){const proof=transport.proveFailedTransportSettlement();if(proof&&transport.consumeFailedTransportSettlement(proof))process.exitCode=3;}
  // Terminal diagnostics survive a deadline refusal; they never create execution authority.
  const bytes=Buffer.from(JSON.stringify(report,null,2)+'\n'),fd=openSync(OUT+'/'+phase+'-result.private.json','wx',0o600);try{writeSync(fd,bytes);fsyncSync(fd);}finally{closeSync(fd);}const dir=openSync(OUT,'r');try{fsyncSync(dir);}finally{closeSync(dir);}
  progress('REPORT_WRITTEN',report.failure);originalPrint(JSON.stringify({status:report.status,phase,callsStarted:callCount,capacityQualified:false,wholeJobCompletionQualified:false,productionEvidence:false,outputSha256:digest(bytes)}));

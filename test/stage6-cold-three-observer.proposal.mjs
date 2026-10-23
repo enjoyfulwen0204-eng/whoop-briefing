@@ -8,9 +8,24 @@ const delay=(ms,signal)=>new Promise((resolve,reject)=>{
  const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);
  if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});
 });
-export function createDiagnosticFetch({fetch,decodePipelineReply,observer=createAttribution(),now=()=>performance.now(),latencyEnabled=()=>false,wait=delay,onFetchEntry=()=>null,onFetchSettled=()=>{}}={}){
+export function createDiagnosticFetch({fetch,decodePipelineReply,observer,now=()=>performance.now(),latencyEnabled=()=>false,wait=delay,onFetchEntry=()=>null,onFetchSettled=()=>{},onFailureSettlementRevoked=null}={}){
  if(typeof fetch!=='function'||typeof decodePipelineReply!=='function')throw failure('DIAGNOSTIC_ADAPTER_REQUIRED');
+ const ownedObserver=observer===undefined;if(ownedObserver)observer=createAttribution();
  const streams=new Map(),unresolved=new Set(),idleWaiters=[];let active=0,dropped=0,unknownProtocolReplies=0,transportInvocations=0,responsesObserved=0;
+ const deliveries=new Map(),proofs=new WeakMap();let epoch=0,consumed=false,deliveryLost=false,startedRequests=0;
+ const deliveryCounts={NOT_SENT:0,SENT_REPLY:0,UNKNOWN:0};
+ const signalOf=Object.getOwnPropertyDescriptor(Request.prototype,'signal').get,aborted=Object.getOwnPropertyDescriptor(AbortSignal.prototype,'aborted').get,reason=Object.getOwnPropertyDescriptor(AbortSignal.prototype,'reason').get;
+ function cancelledBeforeCall(request,error){try{const signal=signalOf.call(request);return aborted.call(signal)&&reason.call(signal)===error;}catch{return false;}}
+ function deliverySnapshot(){return {contract:'owned-native-request-delivery-v1',startedRequests,notSent:deliveryCounts.NOT_SENT,sentReply:deliveryCounts.SENT_REPLY,unknown:deliveryCounts.UNKNOWN,pending:deliveries.size,coverageComplete:!deliveryLost};}
+ function canSettleFailure(){
+  if(!ownedObserver||typeof onFailureSettlementRevoked!=='function'||wait!==delay)return false;
+  const a=observer.snapshot(),unknownReplies=Object.values(a.bins).reduce((n,bin)=>n+bin.unknownReplies,0),requestErrors=Object.values(a.bins).reduce((n,bin)=>n+bin.requestErrors,0);
+  return ownedObserver&&typeof onFailureSettlementRevoked==='function'&&wait===delay&&!deliveryLost&&deliveries.size===0&&active===0&&startedRequests>0
+   &&deliveryCounts.UNKNOWN===0&&startedRequests===deliveryCounts.NOT_SENT+deliveryCounts.SENT_REPLY
+   &&dropped===0&&unknownProtocolReplies===0&&streams.size===0&&unresolved.size===0
+   &&a.observationCoverageComplete&&a.allRequestsSettled&&a.allAcknowledgedBeginsLinked&&a.allTransactionsSettled&&a.allTransactionTerminalsKnown&&a.transactionSampleCoverageComplete
+   &&unknownReplies===deliveryCounts.NOT_SENT&&requestErrors===deliveryCounts.NOT_SENT;
+ }
  function terminal(stream,outcome,finished){
   if(!stream?.transaction)return;
   observer.finishTransaction(stream.transaction.token,{outcome,durationUpperBoundMs:Math.max(0,finished-stream.transaction.started)});stream.transaction=null;
@@ -21,10 +36,12 @@ export function createDiagnosticFetch({fetch,decodePipelineReply,observer=create
  }
  function orphan(stream){if(!stream?.transaction)return;if(unresolved.size+streams.size<bound)unresolved.add(stream);else dropped++;}
  async function observedFetch(input,init){
+  epoch++;if(consumed){consumed=false;try{onFailureSettlementRevoked();}catch{/* owner must conservatively revoke its reserved failure-only exit */}}
+  startedRequests=Math.min(999999999,startedRequests+1);if(startedRequests===999999999)deliveryLost=true;const deliveryOwner=deliveries.size<bound?Object.freeze({}):null;if(deliveryOwner)deliveries.set(deliveryOwner,'BEFORE_CALL');else deliveryLost=true;
   // The request owner is captured before Request creation, body decoding, latency or transport awaits.
   let budgetToken=null,diagnosticFailed=false,diagnosticError=null;try{budgetToken=onFetchEntry();}catch{}
   const requestOwner=observer.startRequest(),started=now();active++;
-  let request,body,stream,entries=[],requestFinished=false,injectedDelayMs=0,protocolKnown=true;
+  let request,body,stream,entries=[],requestFinished=false,injectedDelayMs=0,protocolKnown=true,callStage='BEFORE_CALL',waitRejected=false,deliveryClass='UNKNOWN';
   try{
    request=new Request(input,init);
    try{
@@ -52,8 +69,11 @@ export function createDiagnosticFetch({fetch,decodePipelineReply,observer=create
     observer.bindRequestStatements(requestOwner,sqls);
    }catch{protocolKnown=false;dropped++;}
    if(latencyEnabled()){
-    const began=now();try{await wait(115,request.signal);}finally{injectedDelayMs=Math.max(0,now()-began);}
+    const began=now();try{await wait(115,request.signal);}catch(error){waitRejected=true;throw error;}finally{injectedDelayMs=Math.max(0,now()-began);}
    }
+   // Owned monotonic transition immediately BEFORE invoking the passed fetch.
+   // Any synchronous throw/thenable rejection after here remains UNKNOWN.
+   callStage='CALLED';if(deliveryOwner)deliveries.set(deliveryOwner,'CALLED');
    transportInvocations++;const response=await fetch(request);responsesObserved++;let decoded,mask=[],responseError=!response.ok;
    if(protocolKnown&&response.ok){
     try{
@@ -102,17 +122,25 @@ export function createDiagnosticFetch({fetch,decodePipelineReply,observer=create
     // No terminal result is promoted after malformed/lost reply. The stream remains visibly unresolved.
     if(body?.baton)streams.delete(body.baton);orphan(stream);
    }
+   if(decoded&&protocolKnown)deliveryClass='SENT_REPLY';
    return response;
   }catch(error){
    diagnosticFailed=true;diagnosticError=error;
+   if(deliveryOwner&&deliveries.get(deliveryOwner)==='BEFORE_CALL'&&callStage==='BEFORE_CALL'&&wait===delay&&waitRejected&&protocolKnown&&cancelledBeforeCall(request,error))deliveryClass='NOT_SENT';
    if(!requestFinished)observer.finishRequest(requestOwner,{durationMs:Math.max(0,now()-started),injectedDelayMs,requestError:true,successMask:[]});
    if(stream?.transaction){if(body?.baton)streams.delete(body.baton);orphan(stream);}
    throw error;
-  }finally{try{onFetchSettled(budgetToken,diagnosticFailed,diagnosticError);}catch{}active--;if(active===0)for(const resolve of idleWaiters.splice(0))resolve();}
+  }finally{
+   if(deliveryOwner&&deliveries.has(deliveryOwner)){deliveries.delete(deliveryOwner);deliveryCounts[deliveryClass]=Math.min(999999999,deliveryCounts[deliveryClass]+1);if(deliveryCounts[deliveryClass]===999999999)deliveryLost=true;}else deliveryLost=true;
+   try{onFetchSettled(budgetToken,diagnosticFailed,diagnosticError,deliveryClass);}catch{}active--;if(active===0)for(const resolve of idleWaiters.splice(0))resolve();
+  }
  }
- return Object.freeze({fetch:observedFetch,observer,awaitIdle:()=>active===0?Promise.resolve():new Promise(resolve=>idleWaiters.push(resolve)),snapshot(){
+ return Object.freeze({fetch:observedFetch,observer,
+  proveFailedTransportSettlement(){if(!canSettleFailure())return null;const token=Object.freeze({});proofs.set(token,epoch);return token;},
+  consumeFailedTransportSettlement(token){const original=proofs.get(token);proofs.delete(token);if(original===undefined||original!==epoch||!canSettleFailure())return false;consumed=true;return true;},
+  awaitIdle:()=>active===0?Promise.resolve():new Promise(resolve=>idleWaiters.push(resolve)),snapshot(){
   const attribution=observer.snapshot();
   const terminalComplete=dropped===0&&unknownProtocolReplies===0&&active===0&&unresolved.size===0&&attribution.physicalTerminalObservationComplete;
-  return {...attribution,adapter:{activeFetches:active,transportInvocations,responsesObserved,retainedStreams:streams.size,unresolvedStreams:unresolved.size,droppedObservations:dropped,unknownProtocolReplies,coverageComplete:dropped===0,terminalComplete,attributionComplete:terminalComplete&&attribution.attributionComplete}};
+  return {...attribution,adapter:{activeFetches:active,transportInvocations,responsesObserved,retainedStreams:streams.size,unresolvedStreams:unresolved.size,droppedObservations:dropped,unknownProtocolReplies,coverageComplete:dropped===0,terminalComplete,attributionComplete:terminalComplete&&attribution.attributionComplete,delivery:deliverySnapshot()}};
  }});
 }

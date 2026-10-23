@@ -3,6 +3,7 @@ const ownership=`SELECT state,lease_owner,lease_expires_at,requested_generation,
  claimed_generation,scope_revision,claimed_scope_revision,claimed_purge_generation,claimed_lifecycle_generation,
  claimed_auth_generation FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?`;
 const tenant='SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?';
+const contextLease='SELECT owner FROM resource_locks WHERE name=? AND expires_at>?';
 const normalized=s=>s.replace(/\s+/g,' ').trim();
 // Raw non-health DATA only. Every original clock/ownership/authority predicate
 // still runs. Keep the entire original query and every clock argument in key.
@@ -14,7 +15,11 @@ export function inflightControlReadKey(statement,context){
  const shape=normalized(sql);
  const own=shape===normalized(ownership)&&args.length===3&&args[0]===context.userId&&args[1]==='LIVE';
  const lock=shape===tenant&&args.length===4&&args[0]===`phase4-stage6-pass:${JSON.stringify([context.userId,'LIVE'])}`;
- if(!own&&!lock)return null;
+ // Name shape is an eligibility filter, never HMAC/tenant authority. The
+ // genuine context brand/WeakMap and every original expiry/owner predicate
+ // remain in phase4Cache; the pool also keys the exact context object.
+ const lease=shape===contextLease&&args.length===2&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
+ if(!own&&!lock&&!lease)return null;
  const key=JSON.stringify([sql,args]);return Buffer.byteLength(key)<=8192?key:null;
 }
 // Pending promises only: no completed observation or successful guard is kept.

@@ -4,15 +4,15 @@ No old run/attempt is resumed. Importing performs no action.
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='d75fae8534e2601a6f8cb2fa6a6c0cae4aedd5af'
-REF='refs/heads/diagnostic/stage6-native-positive-eof-20261023'
-MODE='native-positive-eof-hrana'
-INTENT='one-original-positive-eof-and-replay-v1'
+BASE='3f4c8e11c860fed7cf284054baa6090e33954c2a'
+REF='refs/heads/diagnostic/stage6-native-positive-hybrid-20261023'
+MODE='native-positive-hybrid-eof'
+INTENT='one-original-positive-hybrid-eof-and-replay-v1'
 CONTROL='tools/stage8-qualification/positive-eof-ci.py';WRAPPER='tools/stage8-qualification/positive-eof-supervisor.mjs';UNIT='tools/stage8-qualification/positive-eof-ci.test.py';TEST='test/stage6-native-positive-eof-hrana.mjs';WORKFLOW=h.WORKFLOW
 
 def validate(e,system,machine,uid,gid):
  assert e.get('GITHUB_REPOSITORY')==h.REPOSITORY and e.get('GITHUB_EVENT_NAME')=='workflow_dispatch'
- assert e.get('GITHUB_REF')==REF and e.get('QUALIFICATION_MODE')==MODE and e.get('POSITIVE_EOF_INTENT')==INTENT
+ assert e.get('GITHUB_REF')==REF and e.get('QUALIFICATION_MODE')==MODE and e.get('POSITIVE_HYBRID_EOF_INTENT')==INTENT
  assert e.get('QUALIFICATION_REPOSITORY_PRIVATE')=='false'
  expected=e.get('CANDIDATE_SHA','');assert h.HEX40.fullmatch(expected)
  assert expected==e.get('GITHUB_SHA')==e.get('QUALIFICATION_WORKFLOW_SHA')
@@ -25,7 +25,7 @@ def source_gate(source,expected):
  assert h.run(['git','-C',str(source),'rev-parse','HEAD'])==expected
  assert not h.run(['git','-C',str(source),'status','--porcelain=v1','--untracked-files=all'])
  assert h.run(['git','-C',str(source),'rev-parse','HEAD^'])==BASE
- allowed={'M\t'+WORKFLOW,*['A\t'+p for p in [CONTROL,WRAPPER,UNIT,TEST]]};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
+ allowed={'M\t'+WORKFLOW,*['M\t'+p for p in [CONTROL,WRAPPER,UNIT,TEST]]};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
  assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci'])
  h.public_lock(source/'package-lock.json')
 
@@ -38,7 +38,7 @@ def main():
  sandbox.mkdir(mode=0o700);context=sandbox/'context';context.mkdir(mode=0o700)
  for f in ['package.json','package-lock.json']:shutil.copyfile(source/f,context/f)
  shutil.copyfile(source/'tools/stage8-qualification/Dockerfile.native-empty-ci',context/'Dockerfile')
- result={'contract':'one-native-hrana-positive-eof-ci-v1','candidateSha':expected,'applicationParent':BASE,'runId':os.environ['GITHUB_RUN_ID'],'attempt':1,'status':'NOT_STARTED','productionEvidence':False,'denseCapacityQualified':False,'cleanupConfirmed':False}
+ result={'contract':'one-native-hrana-positive-hybrid-eof-ci-v1','candidateSha':expected,'applicationParent':BASE,'runId':os.environ['GITHUB_RUN_ID'],'attempt':1,'status':'NOT_STARTED','productionEvidence':False,'denseCapacityQualified':False,'cleanupConfirmed':False}
  try:
   h.run(['docker','build','--platform','linux/amd64','--build-arg','QUALIFICATION_ROOT=/candidate','--build-arg','QUALIFICATION_UID='+str(os.getuid()),'--build-arg','QUALIFICATION_GID='+str(os.getgid()),'-t',name+':one',str(context)],420)
   image=json.loads(h.run(['docker','image','inspect',name+':one']))[0];assert image['Architecture']=='amd64' and image['Os']=='linux'

@@ -22,6 +22,7 @@ on:
           - native-finalization-six-empty
           - native-eof-hrana
           - native-positive-eof-hrana
+          - native-positive-hybrid-eof
       diagnostic_run_intent:
         description: Only for native-empty-attribution; explicit one-original-empty-120s-v1
         required: false
@@ -54,6 +55,12 @@ on:
 
       positive_eof_intent:
         description: Only native-positive-eof-hrana; one-original-positive-eof-and-replay-v1
+        required: false
+        default: ""
+        type: string
+
+      positive_hybrid_eof_intent:
+        description: Only native-positive-hybrid-eof; one-original-positive-hybrid-eof-and-replay-v1
         required: false
         default: ""
         type: string
@@ -342,6 +349,46 @@ jobs:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       QUALIFICATION_MODE: ${{ inputs.mode }}
       POSITIVE_EOF_INTENT: ${{ inputs.positive_eof_intent }}
+      QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact reviewed native EOF source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate-repository
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Validate distinct EOF regression gates without native work
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/positive-eof-ci.test.py"
+      - name: One native SQLD EOF and exact original replay; no dense campaign
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/positive-eof-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
+      - name: Remove only an exited captured native EOF container
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/positive-eof-ci.py"
+          if test -f "$control"; then
+            python3 "$control" --cleanup-only
+          fi
+
+  native-positive-hybrid-eof-regression:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-native-positive-hybrid-20261023' && inputs.mode == 'native-positive-hybrid-eof' && inputs.positive_hybrid_eof_intent == 'one-original-positive-hybrid-eof-and-replay-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      QUALIFICATION_MODE: ${{ inputs.mode }}
+      POSITIVE_HYBRID_EOF_INTENT: ${{ inputs.positive_hybrid_eof_intent }}
       QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
       QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
       PYTHONDONTWRITEBYTECODE: '1'

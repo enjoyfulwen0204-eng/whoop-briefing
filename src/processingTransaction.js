@@ -1,3 +1,4 @@
+import {createInflightControlReads,inflightControlReadKey} from './processingInflightControlReads.js';
 import {exactRealStatement} from './exactRealStatement.js';
 import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
 import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
@@ -260,8 +261,11 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               currentExecutionBudget()?.assert();
               if(snapshotKey){const cached=memo.get(context,snapshotKey);if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
               const immutableGuard=mutations.length?state.syncSnapshot?.guard(mutations):null;
+              const inflightKey=state.principalReadinessMemoEnabled&&!state.replaying&&state.readBudget&&sameScope&&checking.getStore()?.readOnly
+                &&key==='execute'&&!mutations.length&&!metadata?inflightControlReadKey(args[0],context):null;
               const epoch=memo.epoch(),result=immutableGuard
                 ?await state.tx.batch(...transportArguments('batch',[[...statements,immutableGuard]])).then(values=>key==='execute'?values[0]:values.slice(0,-1))
+                :inflightKey?await state.controlReads.run(context,currentExecutionReceiptTransactionMarker(),inflightKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
                 :await state.tx[key](...transportArguments(key,args));currentExecutionBudget()?.assert();
               if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
             }finally{if(mutations.length)memo.clear();}}
@@ -339,9 +343,11 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     for (let attempt = 0; attempt < 12; attempt++) {
       const releaseRoot=await acquireRoot();
       let tx,commitSubmitted=false,commitGuardRejected=false;
-      const readMemo=createReadSnapshotMemo(),readBudget=currentExecutionBudget(),closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
+      const readMemo=createReadSnapshotMemo(),controlReads=createInflightControlReads(),readBudget=currentExecutionBudget();
+      const originalClose=readMemo.close.bind(readMemo);readMemo.close=()=>{controlReads.close();originalClose();};
+      const closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
       if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});
-      const state = { tx:null, cache,readMemo,readBudget,readExecution:execution, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
+      const state = { tx:null, cache,readMemo,controlReads,readBudget,readExecution:execution, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
         commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,principalReadinessMemoEnabled:false,failure: null, deferred: null, committed: [], completed: [] };
       state.syncSnapshot=createSyncCommitSnapshot(syncBinding);const syncStarted=performance.now();
       let receipt,admissionChecked=false,admissionFailure;
@@ -411,7 +417,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             state.workStep=prepared;
           }
           if(state.workStep!==undefined){if(!fixedReceipt)await observeReceipt();if(receipt){
-            state.replaying=true;
+            state.replaying=true;if(state.principalReadinessMemoEnabled)readMemo.close();
             const result=replay?await replay():receipt.result_json===null?null:JSON.parse(receipt.result_json);
             for(const check of state.checks)await check(client);currentExecutionBudget()?.assert();
             readMemo.close();await tx.rollback();return result;

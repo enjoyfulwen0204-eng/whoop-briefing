@@ -1,3 +1,4 @@
+import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 import {cloneResult} from './processingReadSnapshot.js';
 const ownership=`SELECT state,lease_owner,lease_expires_at,requested_generation,
  claimed_generation,scope_revision,claimed_scope_revision,claimed_purge_generation,claimed_lifecycle_generation,
@@ -6,6 +7,16 @@ const tenant='SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_
 const contextLease='SELECT owner FROM resource_locks WHERE name=? AND expires_at>?';
 export const CONTEXT_LEASE_DATA_SQL='SELECT owner,expires_at FROM resource_locks WHERE name=?';
 const normalized=s=>s.replace(/\s+/g,' ').trim();
+// SQL text only: no tenant, argument, row, clock or authority is memoized.
+// Keep the existing bounded parser contract enum0..3; the legacy time-filtered
+// context query is a separate boolean parser. Dynamic checks stay below.
+const ownershipSql=normalized(ownership);
+function controlSqlShape(sql){
+ const shape=normalized(sql);
+ return shape===ownershipSql?1:shape===tenant?2:shape===CONTEXT_LEASE_DATA_SQL?3:0;
+}
+const legacyLeaseSqlShape=sql=>normalized(sql)===contextLease;
+
 // Raw non-health DATA only. Every original clock/ownership/authority predicate
 // still runs. Keep the entire original query and every clock argument in key.
 export function inflightControlReadKey(statement,context){
@@ -13,14 +24,14 @@ export function inflightControlReadKey(statement,context){
    ||!statement||typeof statement!=='object'||Array.isArray(statement))return null;
  const {sql,args}=statement;if(typeof sql!=='string'||!Array.isArray(args)
    ||args.some(value=>typeof value!=='string'||value.length>4096))return null;
- const shape=normalized(sql);
- const own=shape===normalized(ownership)&&args.length===3&&args[0]===context.userId&&args[1]==='LIVE';
- const lock=shape===tenant&&args.length===4&&args[0]===`phase4-stage6-pass:${JSON.stringify([context.userId,'LIVE'])}`;
+ const shape=memoizedSqlSyntax(controlSqlShape,sql);
+ const own=shape===1&&args.length===3&&args[0]===context.userId&&args[1]==='LIVE';
+ const lock=shape===2&&args.length===4&&args[0]===`phase4-stage6-pass:${JSON.stringify([context.userId,'LIVE'])}`;
  // Name shape is an eligibility filter, never HMAC/tenant authority. The
  // genuine context brand/WeakMap and every original expiry/owner predicate
  // remain in phase4Cache; the pool also keys the exact context object.
- const lease=shape===contextLease&&args.length===2&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
- const leaseData=shape===CONTEXT_LEASE_DATA_SQL&&args.length===1&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
+ const lease=shape===0&&memoizedSqlSyntax(legacyLeaseSqlShape,sql)&&args.length===2&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
+ const leaseData=shape===3&&args.length===1&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
  if(!own&&!lock&&!lease&&!leaseData)return null;
  const key=JSON.stringify([sql,args]);return Buffer.byteLength(key)<=8192?key:null;
 }
@@ -28,11 +39,11 @@ export function inflightControlReadKey(statement,context){
 // time-filtered query, authority predicate or successful guard is retained.
 export function ownershipControlReadKey(statement,context){
  const key=inflightControlReadKey(statement,context);
- return key&&normalized(statement.sql)===normalized(ownership)?key:null;
+ return key&&memoizedSqlSyntax(controlSqlShape,statement.sql)===1?key:null;
 }
 export function contextLeaseDataReadKey(statement,context){
  const key=inflightControlReadKey(statement,context);
- return key&&normalized(statement.sql)===CONTEXT_LEASE_DATA_SQL?key:null;
+ return key&&memoizedSqlSyntax(controlSqlShape,statement.sql)===3?key:null;
 }
 // No serializer or user method is invoked to admit a retained row. The
 // installed ownership ResultSet contains only one row of primitive columns.

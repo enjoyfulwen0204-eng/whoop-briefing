@@ -1,3 +1,4 @@
+import {joinIssuedTransport,transportIsJoined,waitIssuedIdleBefore} from './stage6-native-join-barrier.mjs';
 // One fresh synthetic nonempty SQLD database. Bounded canonical preparations,
 // one original115ms final EOF and exact identity replay. No Production data or authority.
 import assert from 'node:assert/strict';
@@ -41,7 +42,44 @@ function capturePreparationProgress(terminal=false){
 }
 const nativeFetch=async(input,init)=>{const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.equal(url.username,'');assert.equal(url.password,'');return networkFetch(r,{signal:AbortSignal.any([r.signal,AbortSignal.timeout(10000)])});};
 const observer=()=>{const o=createAttribution();return createDiagnosticFetch({fetch:nativeFetch,decodePipelineReply:PipelineRespBody,observer:o,latencyEnabled:()=>latency});};
-async function closeClient(transport){if(db){await db.close();db=null;}for(let i=0;i<3;i++){await new Promise(r=>setImmediate(r));await transport.awaitIdle();}const s=transport.snapshot();assert.equal(s.adapter.terminalComplete,true);assert.equal(s.adapter.retainedStreams,0);assert.equal(s.physicalTerminalObservationComplete,true);return s;}
+const joinWindows=new WeakMap();
+function observeEOFCounters(snapshot,terminal){
+ if(!b||!snapshot)return;
+ try{
+  const packet=snapshot.bins.GENUINE_ORIGINAL_PRODUCER_CALL,t=packet.transactions;
+  const values={eofRequests:packet.requests,eofRequestErrors:packet.requestErrors,eofResponseErrors:packet.responseErrors,eofUnknownReplies:packet.unknownReplies,eofTransactions:t.begun,eofMaxUpperMs:t.maxDurationUpperBoundMs,eofAtOrAbove5s:t.atOrAbove5s,eofOpen:t.open,eofUnknownTerminal:t.unknownTerminal};
+  if(!Object.values(values).every(v=>Number.isFinite(v)&&v>=0))throw Error('UNKNOWN_EOF_COUNTER');
+  Object.assign(progress,values);progress.eofSnapshotState=terminal?'TERMINAL':'PROVISIONAL';
+ }catch{progress.eofSnapshotState='UNKNOWN';}
+}
+async function closeClient(transport,{finalObservation=false}={}){
+ let window=joinWindows.get(transport);if(!window){const at=performance.now();window={startedAt:at,deadlineAt:at+5000};joinWindows.set(transport,window);}
+ if(db){await db.close();db=null;}
+ // Preserve the original first three-turn observation separately. Driver
+ // decode/flush may still be pending after observer awaitIdle returned.
+ if(!finalObservation)progress.joinInitialIdleWithinBudget=1;
+ for(let i=0;i<3;i++){
+  await new Promise(r=>setImmediate(r));
+  if(finalObservation)await transport.awaitIdle();
+  else{progress.check='JOIN_INITIAL_IDLE';if(!await waitIssuedIdleBefore(transport,window)){progress.joinInitialIdleWithinBudget=0;break;}}
+ }
+ let s=transport.snapshot();
+ if(!finalObservation){
+  progress.joinTransport=transport===b?'EOF':'PREPARATION';
+  progress.joinInitialActive=s.adapter.activeFetches;progress.joinInitialRetained=s.adapter.retainedStreams;
+  progress.joinInitialAdapterTerminal=s.adapter.terminalComplete?1:0;progress.joinInitialPhysicalTerminal=s.physicalTerminalObservationComplete?1:0;
+  if(transport===b)observeEOFCounters(s,false);
+  const joined=await joinIssuedTransport(transport,window);s=joined.lastSnapshot??s;
+  progress.joinElapsedMs=joined.elapsedMs;progress.joinProbes=joined.probes;progress.joinWithinBudget=joined.settled?1:0;
+  if(transport===b)observeEOFCounters(s,joined.settled);
+  progress.check='JOIN_PHYSICAL_DEADLINE';assert.equal(joined.settled,true);
+ }
+ // Final failure cleanup observes physical state only; it never creates a
+ // fresh join window or clears the original qualification failure.
+ progress.check='JOIN_ADAPTER_TERMINAL';assert.equal(s.adapter.terminalComplete,true);
+ progress.check='JOIN_RETAINED_STREAMS';assert.equal(s.adapter.retainedStreams,0);
+ progress.check='JOIN_PHYSICAL_TERMINAL';assert.equal(s.physicalTerminalObservationComplete,true);return s;
+}
 const allRows=async table=>(await db.raw.execute('SELECT * FROM '+table+' ORDER BY 1,2')).rows;
 function preparationBudgetFor(pending,catalog){
  if(!Array.isArray(catalog)||catalog.length<1||catalog.length>512||new Set(catalog).size!==catalog.length)throw Error('SYNTHETIC_PROGRESS_CATALOG_INVALID');
@@ -130,12 +168,13 @@ try{
  let sourceRows=0;for(const table of Object.values(OFFLINE_LIVE_TABLES))sourceRows+=Number((await db.raw.execute('SELECT count(*) n FROM '+table)).rows[0].n);assert.equal(sourceRows,160);assert.equal((await allRows('outbound_messages')).length,0);
  stage='EXACT_ORIGINAL_IDENTITY_REPLAY';latency=true;b.observer.setPhase('EXACT_ORIGINAL_REPLAY','ORIGINAL_REQUEST_REPLAY');const replay=await producer.run({userId:'a',requestId:'synthetic-native-positive-hybrid-eof-original'});latency=false;assert.equal(replay.replayed,true);assert.deepEqual(replay.result,result.result);assert.deepEqual(await allRows('stage8_live_executions'),final);assert.deepEqual(await allRows('stage8_live_execution_work_receipts'),receipts);
  stage='JOINED_CLIENT_CLEANUP';b.observer.setPhase('CLEANUP','CLEANUP');const bFinal=await closeClient(b),eof=bFinal.bins.GENUINE_ORIGINAL_PRODUCER_CALL;
- assert.equal(eof.requestErrors,0);assert.equal(eof.responseErrors,0);assert.equal(eof.unknownReplies,0);assert.equal(eof.transactions.open,0);assert.equal(eof.transactions.unknownTerminal,0);assert.equal(eof.transactions.atOrAbove5s,0);assert.ok(eof.transactions.begun>0&&eof.transactions.maxDurationUpperBoundMs<5000);
+ observeEOFCounters(bFinal,true);
+ progress.check='EOF_REQUEST_ERRORS';assert.equal(eof.requestErrors,0);progress.check='EOF_RESPONSE_ERRORS';assert.equal(eof.responseErrors,0);progress.check='EOF_UNKNOWN_REPLIES';assert.equal(eof.unknownReplies,0);progress.check='EOF_TX_OPEN';assert.equal(eof.transactions.open,0);progress.check='EOF_TX_UNKNOWN';assert.equal(eof.transactions.unknownTerminal,0);progress.check='EOF_TX_5S_COUNT';assert.equal(eof.transactions.atOrAbove5s,0);progress.check='EOF_TX_BEGIN_AND_MAX';assert.ok(eof.transactions.begun>0&&eof.transactions.maxDurationUpperBoundMs<5000);
  report={contract:'one-native-hrana-positive-hybrid-eof-regression-v1',status:'PASS_NATIVE_SQLD_POSITIVE_EOF_ONE_USER_ONLY',sourceHealthRows:sourceRows,positiveEpisodeRows,users:1,jobsCompleted:2,setupProducerCalls:setupCalls,setupProgress:{...progress},preparationTransactions,preparationAddedLatencyMs:0,original115msCalls:1,exactOriginalReplays:1,exactReplayLatencyMs:115,eofMs,httpRequests:eof.requests,statementCount:eof.submittedStatements,transactions:eof.transactions.begun,maxObservedTransactionUpperBoundMs:eof.transactions.maxDurationUpperBoundMs,originalReceiptCount:beforeReceipts.length,allOriginalExecutionsAndReceiptsPreserved:true,exactReplayVerified:true,priorClientTerminalComplete:aFinal.adapter.terminalComplete,finalClientTerminalComplete:bFinal.adapter.terminalComplete,finalRetainedStreams:bFinal.adapter.retainedStreams,physicalTerminalObservationComplete:bFinal.physicalTerminalObservationComplete,optionalTransactionSamplesComplete:bFinal.transactionSampleCoverageComplete,addedLatencyMs:115,absoluteServerDeadline:'UNKNOWN',productionEvidence:false,denseCapacityQualified:false,representativeWholePipelineQualified:false,realUserInteraction:false};
 }catch(error){capturePreparationProgress(progress.preparationSnapshotState==='TERMINAL');failure={stage,type:error.name,code:/^[A-Z0-9_]{1,80}$/.test(error.code??'')?error.code:'OTHER',classification:failureClassification(error),progress:{...progress},elapsedMs:performance.now()-started};console.log('STAGE6_NATIVE_POSITIVE_EOF_FAILURE '+JSON.stringify(failure));}
 finally{
  latency=false;
- try{if(db)await closeClient(b??a);closed=(!a||a.snapshot().adapter.terminalComplete)&&(!b||b.snapshot().adapter.terminalComplete);}
+ try{if(db)await closeClient(b??a,{finalObservation:true});closed=(!a||transportIsJoined(a.snapshot()))&&(!b||transportIsJoined(b.snapshot()));}
  catch{closed=false;}
  if(closed&&server.exitCode===null&&!serverError){const exit=once(server,'exit');server.kill('SIGTERM');const terminal=await exit;assert.ok(terminal[0]===0||terminal[1]==='SIGTERM');await log.close();await rm(directory,{recursive:true,force:true});}
  else if(server.exitCode!==null){closed=false;await log.close();}

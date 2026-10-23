@@ -589,3 +589,44 @@ jobs:
           if test -f "$control"; then
             python3 "$control" --cleanup-only
           fi
+
+  native-inflight-control-first20:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-native-inflight-control-20261024' && inputs.mode == 'native-first20-appcause' && inputs.first20_diagnostic_intent == 'one-original-first20-inflight-control-repair-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      QUALIFICATION_MODE: ${{ inputs.mode }}
+      FIRST20_DIAGNOSTIC_INTENT: ${{ inputs.first20_diagnostic_intent }}
+      QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact reviewed native EOF source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate-repository
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Validate distinct EOF regression gates without native work
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first20-ci.test.py"
+          node --test "$GITHUB_WORKSPACE/candidate-repository/test/stage6-native-slow-root.test.mjs"
+      - name: At most20 canonical preparations; pending-control repair contrast with original root observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first20-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
+      - name: Remove only an exited captured native EOF container
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first20-ci.py"
+          if test -f "$control"; then
+            python3 "$control" --cleanup-only
+          fi

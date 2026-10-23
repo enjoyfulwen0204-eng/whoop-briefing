@@ -1,5 +1,5 @@
 import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
-import {createInflightControlReads,inflightControlReadKey} from './processingInflightControlReads.js';
+import {createInflightControlReads,inflightControlReadKey,ownershipControlReadKey} from './processingInflightControlReads.js';
 import {exactRealStatement} from './exactRealStatement.js';
 import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
 import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
@@ -267,9 +267,10 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               const immutableGuard=mutations.length?state.syncSnapshot?.guard(mutations):null;
               const inflightKey=state.principalReadinessMemoEnabled&&!state.replaying&&state.readBudget&&sameScope&&checking.getStore()?.readOnly
                 &&key==='execute'&&!mutations.length&&!metadata?inflightControlReadKey(args[0],context):null;
+              const ownershipKey=inflightKey?ownershipControlReadKey(args[0],context):null;
               const epoch=memo.epoch(),result=immutableGuard
                 ?await state.tx.batch(...transportArguments('batch',[[...statements,immutableGuard]])).then(values=>key==='execute'?values[0]:values.slice(0,-1))
-                :inflightKey?await state.controlReads.run(context,currentExecutionReceiptTransactionMarker(),inflightKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
+                :inflightKey?await state.controlReads[ownershipKey?'ownership':'run'](context,currentExecutionReceiptTransactionMarker(),inflightKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
                 :await state.tx[key](...transportArguments(key,args));currentExecutionBudget()?.assert();
               if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
             }finally{if(mutations.length)memo.clear();}}
@@ -348,6 +349,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       const releaseRoot=await acquireRoot();
       let tx,commitSubmitted=false,commitGuardRejected=false;
       const readMemo=createReadSnapshotMemo(),controlReads=createInflightControlReads(),readBudget=currentExecutionBudget();
+      const originalClear=readMemo.clear.bind(readMemo);readMemo.clear=()=>{controlReads.clear();originalClear();};
       const originalClose=readMemo.close.bind(readMemo);readMemo.close=()=>{controlReads.close();originalClose();};
       const closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
       if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});

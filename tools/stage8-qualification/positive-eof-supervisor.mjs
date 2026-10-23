@@ -3,6 +3,13 @@ import {readFile,stat,open,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {networkInterfaces} from 'node:os';
 import assert from 'node:assert/strict';
+function validatePreparationTransactions(t){
+ assert.ok(t&&typeof t==='object'&&!Array.isArray(t));assert.deepEqual(Object.keys(t).sort(),['begun','committed','rolledBack','unknownTerminal','open','sumDurationUpperBoundMs','maxDurationUpperBoundMs','atOrAbove5s'].sort());
+ for(const k of ['begun','committed','rolledBack','unknownTerminal','open','atOrAbove5s'])assert.ok(Number.isSafeInteger(t[k])&&t[k]>=0);
+ for(const k of ['sumDurationUpperBoundMs','maxDurationUpperBoundMs'])assert.ok(Number.isFinite(t[k])&&t[k]>=0);
+ assert.ok(t.begun>0);assert.equal(t.open,0);assert.equal(t.unknownTerminal,0);assert.equal(t.begun,t.committed+t.rolledBack);assert.equal(t.atOrAbove5s,0);assert.ok(t.maxDurationUpperBoundMs>0&&t.maxDurationUpperBoundMs<5000);assert.ok(t.sumDurationUpperBoundMs>=t.maxDurationUpperBoundMs);
+ return true;
+}
 const candidateSha=process.env.EXPECTED_CANDIDATE_SHA,read=async n=>(await readFile('/sys/fs/cgroup/'+n,'utf8')).trim();
 assert.match(candidateSha??'',/^[a-f0-9]{40}$/);assert.equal(execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),candidateSha);
 assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');assert.equal(process.version,'v22.23.2');assert.deepEqual(Object.keys(networkInterfaces()).sort(),['lo']);assert.equal(await read('memory.max'),'536870912');assert.equal(await read('memory.swap.max'),'0');assert.equal(await read('cpu.max'),'50000 100000');
@@ -17,6 +24,7 @@ if(failures.length===1){const f=JSON.parse(failures[0].split('STAGE6_NATIVE_POSI
 const terminalLines=raw.split('\n').filter(l=>l.startsWith('STAGE6_NATIVE_POSITIVE_EOF_TERMINAL '));let fixtureTerminal=null;if(terminalLines.length===1){const x=JSON.parse(terminalLines[0].split('STAGE6_NATIVE_POSITIVE_EOF_TERMINAL ')[1]);fixtureTerminal={closed:x.closed===true,ownedServerExited:x.ownedServerExited===true,clientTerminalComplete:x.clientTerminalComplete===true,retainedStreams:Number.isSafeInteger(x.retainedStreams)?x.retainedStreams:null,physicalTerminalObservationComplete:x.physicalTerminalObservationComplete===true};}
 try{
  assert.ok(fixtureTerminal&&fixtureTerminal.closed&&fixtureTerminal.ownedServerExited&&fixtureTerminal.clientTerminalComplete&&fixtureTerminal.physicalTerminalObservationComplete&&fixtureTerminal.retainedStreams===0);assert.equal(spawnError,false);assert.deepEqual(terminal,{code:0,signal:null});assert.equal(matches.length,1);observed=JSON.parse(matches[0].split('STAGE6_NATIVE_POSITIVE_EOF_RESULT ')[1]);
+ validatePreparationTransactions(observed.preparationTransactions);assert.equal(observed.preparationAddedLatencyMs,0);
  assert.equal(observed.status,'PASS_NATIVE_SQLD_POSITIVE_EOF_ONE_USER_ONLY');assert.equal(observed.sourceHealthRows,160);assert.ok(observed.positiveEpisodeRows>=1);assert.equal(observed.users,1);assert.equal(observed.jobsCompleted,2);assert.ok(Number.isSafeInteger(observed.setupProducerCalls)&&observed.setupProducerCalls>=1&&observed.setupProducerCalls<=512);assert.equal(observed.original115msCalls,1);assert.equal(observed.exactOriginalReplays,1);assert.equal(observed.exactReplayLatencyMs,115);assert.equal(observed.addedLatencyMs,115);assert.ok(Number.isSafeInteger(observed.originalReceiptCount)&&observed.originalReceiptCount>0);assert.ok(observed.eofMs>0&&observed.eofMs<45000);assert.ok(observed.maxObservedTransactionUpperBoundMs>0&&observed.maxObservedTransactionUpperBoundMs<5000);
  for(const k of ['allOriginalExecutionsAndReceiptsPreserved','exactReplayVerified','priorClientTerminalComplete','finalClientTerminalComplete','physicalTerminalObservationComplete','ownedServerExited'])assert.equal(observed[k],true);assert.equal(observed.finalRetainedStreams,0);assert.equal(observed.absoluteServerDeadline,'UNKNOWN');assert.equal(observed.productionEvidence,false);assert.equal(observed.denseCapacityQualified,false);assert.equal(observed.representativeWholePipelineQualified,false);
  assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<500000);status='PASS_NATIVE_SQLD_POSITIVE_EOF_ONE_USER_ONLY';

@@ -28,7 +28,17 @@ const directory=await mkdtemp(join(tmpdir(),'stage6-real-positive-hrana-eof-')),
 const server=spawn('/usr/local/bin/isolated-sqld',['-d',join(directory,'physical'),'--http-listen-addr','127.0.0.1:18080','--no-welcome'],{stdio:['ignore',log.fd,log.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8'}});
 let serverError=false;server.on('error',()=>{serverError=true;});
 const networkFetch=globalThis.fetch.bind(globalThis);let latency=false,db,a,b,stage='SERVER_START',failure=null,report=null,closed=false;
-const progress={startedPreparations:0,completedPreparations:0,sourceAcknowledgments:0,unitsCommitted:0,lastPendingJobs:null,lastBudgetPerTenant:null,check:'NOT_STARTED'};
+const progress={startedPreparations:0,completedPreparations:0,sourceAcknowledgments:0,unitsCommitted:0,lastPendingJobs:null,lastBudgetPerTenant:null,check:'NOT_STARTED',preparationSnapshotState:'NOT_STARTED'};
+function capturePreparationProgress(terminal=false){
+ if(progress.preparationSnapshotState==='NOT_STARTED')return;
+ try{
+  const t=a.snapshot().bins.GENUINE_ORIGINAL_PRODUCER_CALL.transactions;
+  const fields={preparationTransactionCount:'begun',preparationMaxUpperMs:'maxDurationUpperBoundMs',preparationAtOrAbove5s:'atOrAbove5s',preparationUnknown:'unknownTerminal',preparationOpen:'open'};
+  const values=Object.entries(fields).map(([key,name])=>[key,t[name]]);
+  if(!values.every(([,v])=>typeof v==='number'&&Number.isFinite(v)&&v>=0))throw Error('UNSAFE_PROVISIONAL_METRIC');
+  Object.assign(progress,Object.fromEntries(values));progress.preparationSnapshotState=terminal?'TERMINAL':'PROVISIONAL';
+ }catch{progress.preparationSnapshotState='UNKNOWN';}
+}
 const nativeFetch=async(input,init)=>{const r=new Request(input,init),url=new URL(r.url);assert.equal(url.origin,'http://127.0.0.1:18080');assert.equal(url.username,'');assert.equal(url.password,'');return networkFetch(r,{signal:AbortSignal.any([r.signal,AbortSignal.timeout(10000)])});};
 const observer=()=>{const o=createAttribution();return createDiagnosticFetch({fetch:nativeFetch,decodePipelineReply:PipelineRespBody,observer:o,latencyEnabled:()=>latency});};
 async function closeClient(transport){if(db){await db.close();db=null;}for(let i=0;i<3;i++){await new Promise(r=>setImmediate(r));await transport.awaitIdle();}const s=transport.snapshot();assert.equal(s.adapter.terminalComplete,true);assert.equal(s.adapter.retainedStreams,0);assert.equal(s.physicalTerminalObservationComplete,true);return s;}
@@ -55,8 +65,9 @@ try{
  assert.equal((await db.raw.execute("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")).rows[0].n,0);
  await db.migrate({targetVersion:35});const foundation=await createPhase4Foundation({db,keys,admission:await db.admitRuntime()});
  await db.createUser({id:'a',displayName:'Synthetic native EOF',timezone:'Asia/Taipei',status:'ACTIVE'});await db.ensureOnboarding('a',{state:'READY'});await foundation.initializeTenant('a','SHADOW');const input=offlineLiveFixtureInput({profile:'dense',userId:'a',asOf:Date.now()-3600000});for(let i=0;i<input.sources.recovery.length;i++)input.sources.recovery[i].recovery_score=i===0?15:40+(i%5)*5;await db.transaction(()=>seedBodyInput(db,input));
+ stage='BOUNDED_CANONICAL_NONEMPTY_PREPARATIONS';progress.preparationSnapshotState='PROVISIONAL';a.observer.setPhase('GENUINE_ORIGINAL_PRODUCER_CALL','ORIGINAL_PRODUCER_RUN',1);
  let producer=await createStage8LiveProducer({db,keys,admission:await db.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a'});
- stage='BOUNDED_CANONICAL_NONEMPTY_PREPARATIONS';let setupCalls=0,ready=false;const last=JSON.stringify(['workout','workout-39']);
+ let setupCalls=0,ready=false;const last=JSON.stringify(['workout','workout-39']);
  const admission=await db.admitRuntime(),releaseSha=runningReleaseSha({}),configProof=keys.lookup(['stage8-live-server-config-v1',releaseSha,35,['a'],'phase4-stage5-canonical-v1']);
  const capability=await authorizeStage8LiveProducer({db,keys,admission,releaseSha,configProof,enabled:()=>true,eligible:id=>id==='a'});
  const core=await buildPhase4Core({keys,admission,liveProducingAuthority:capability,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},authorizeMode(mode,client,id){assert.equal(mode,'LIVE');assert.equal(client,db.raw);assert.equal(id,'a');}});
@@ -97,13 +108,17 @@ try{
   if(pending.length===0)break;
   preparationBudget=preparationBudgetFor(pending,sourceCatalog);progress.lastPendingJobs=pending.length;progress.lastBudgetPerTenant=preparationBudget.maxItemsPerTenant;progress.startedPreparations++;progress.check='CANONICAL_WORK';
   const result=await runPreparation({userId:'a',requestId:'synthetic-native-positive-hybrid-eof-prepare-'+i});setupCalls++;progress.completedPreparations=setupCalls;progress.sourceAcknowledgments+=result.result.itemsProcessed;progress.unitsCommitted+=result.result.unitsCommitted;
+  capturePreparationProgress();
   progress.check='NOT_REPLAYED';assert.equal(result.replayed,false);progress.check='NO_FAILED_JOBS';assert.equal(result.result.jobsFailed,0);progress.check='SETUP_TIME';assert.ok(performance.now()-started<320000,'BOUNDED_SETUP_AND_RECOVERY_RESERVE_REQUIRED');
  }
+ a.observer.setPhase('READBACK','READBACK');
  assert.equal(ready,true,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');
  assert.equal((await db.raw.execute("SELECT count(*) n FROM phase4_jobs WHERE state='COMPLETED' AND execution_mode='LIVE'")).rows[0].n,1);
  const positiveEpisodeRows=Number((await db.raw.execute("SELECT count(*) n FROM observation_episodes WHERE user_id='a' AND execution_mode='LIVE' AND subject_key='recovery_score'")).rows[0].n);assert.ok(positiveEpisodeRows>=1,'REAL_SYNTHETIC_POSITIVE_FAMILY_REQUIRED');
  const before=await allRows('stage8_live_executions'),beforeReceipts=await allRows('stage8_live_execution_work_receipts');assert.equal(before.length,setupCalls);assert.ok(beforeReceipts.length>0);for(const r of before){assert.equal(r.state,'FINALIZED_SUCCESS');verifyLiveExecutionResult(keys,r);}
- const aFinal=await closeClient(a);
+ const aFinal=await closeClient(a),preparation=aFinal.bins.GENUINE_ORIGINAL_PRODUCER_CALL,preparationTransactions=preparation.transactions;
+ progress.check='PREPARATION_TRANSACTION_BOUND';capturePreparationProgress(true);assert.equal(progress.preparationSnapshotState,'TERMINAL');
+ assert.equal(preparation.requestErrors,0);assert.equal(preparation.responseErrors,0);assert.equal(preparation.unknownReplies,0);assert.ok(preparationTransactions.begun>0);assert.equal(preparationTransactions.open,0);assert.equal(preparationTransactions.unknownTerminal,0);assert.equal(preparationTransactions.begun,preparationTransactions.committed+preparationTransactions.rolledBack);assert.equal(preparationTransactions.atOrAbove5s,0);assert.ok(preparationTransactions.maxDurationUpperBoundMs>0&&preparationTransactions.maxDurationUpperBoundMs<5000);
  stage='GENUINE_NATIVE_EOF';b=observer();db=createDb({url:'http://127.0.0.1:18080',phase4Keys:keys,fetch:b.fetch});producer=await createStage8LiveProducer({db,keys,admission:await db.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a'});
  assert.ok(performance.now()-started<350000,'ORIGINAL_CALL_AND_RECOVERY_RESERVE_REQUIRED');b.observer.setPhase('GENUINE_ORIGINAL_PRODUCER_CALL','ORIGINAL_PRODUCER_RUN',1);latency=true;const at=performance.now();
  const result=await producer.run({userId:'a',requestId:'synthetic-native-positive-hybrid-eof-original'}),eofMs=performance.now()-at;latency=false;
@@ -116,8 +131,8 @@ try{
  stage='EXACT_ORIGINAL_IDENTITY_REPLAY';latency=true;b.observer.setPhase('EXACT_ORIGINAL_REPLAY','ORIGINAL_REQUEST_REPLAY');const replay=await producer.run({userId:'a',requestId:'synthetic-native-positive-hybrid-eof-original'});latency=false;assert.equal(replay.replayed,true);assert.deepEqual(replay.result,result.result);assert.deepEqual(await allRows('stage8_live_executions'),final);assert.deepEqual(await allRows('stage8_live_execution_work_receipts'),receipts);
  stage='JOINED_CLIENT_CLEANUP';b.observer.setPhase('CLEANUP','CLEANUP');const bFinal=await closeClient(b),eof=bFinal.bins.GENUINE_ORIGINAL_PRODUCER_CALL;
  assert.equal(eof.requestErrors,0);assert.equal(eof.responseErrors,0);assert.equal(eof.unknownReplies,0);assert.equal(eof.transactions.open,0);assert.equal(eof.transactions.unknownTerminal,0);assert.equal(eof.transactions.atOrAbove5s,0);assert.ok(eof.transactions.begun>0&&eof.transactions.maxDurationUpperBoundMs<5000);
- report={contract:'one-native-hrana-positive-hybrid-eof-regression-v1',status:'PASS_NATIVE_SQLD_POSITIVE_EOF_ONE_USER_ONLY',sourceHealthRows:sourceRows,positiveEpisodeRows,users:1,jobsCompleted:2,setupProducerCalls:setupCalls,setupProgress:{...progress},original115msCalls:1,exactOriginalReplays:1,exactReplayLatencyMs:115,eofMs,httpRequests:eof.requests,statementCount:eof.submittedStatements,transactions:eof.transactions.begun,maxObservedTransactionUpperBoundMs:eof.transactions.maxDurationUpperBoundMs,originalReceiptCount:beforeReceipts.length,allOriginalExecutionsAndReceiptsPreserved:true,exactReplayVerified:true,priorClientTerminalComplete:aFinal.adapter.terminalComplete,finalClientTerminalComplete:bFinal.adapter.terminalComplete,finalRetainedStreams:bFinal.adapter.retainedStreams,physicalTerminalObservationComplete:bFinal.physicalTerminalObservationComplete,optionalTransactionSamplesComplete:bFinal.transactionSampleCoverageComplete,addedLatencyMs:115,absoluteServerDeadline:'UNKNOWN',productionEvidence:false,denseCapacityQualified:false,representativeWholePipelineQualified:false,realUserInteraction:false};
-}catch(error){failure={stage,type:error.name,code:/^[A-Z0-9_]{1,80}$/.test(error.code??'')?error.code:'OTHER',classification:failureClassification(error),progress:{...progress},elapsedMs:performance.now()-started};console.log('STAGE6_NATIVE_POSITIVE_EOF_FAILURE '+JSON.stringify(failure));}
+ report={contract:'one-native-hrana-positive-hybrid-eof-regression-v1',status:'PASS_NATIVE_SQLD_POSITIVE_EOF_ONE_USER_ONLY',sourceHealthRows:sourceRows,positiveEpisodeRows,users:1,jobsCompleted:2,setupProducerCalls:setupCalls,setupProgress:{...progress},preparationTransactions,preparationAddedLatencyMs:0,original115msCalls:1,exactOriginalReplays:1,exactReplayLatencyMs:115,eofMs,httpRequests:eof.requests,statementCount:eof.submittedStatements,transactions:eof.transactions.begun,maxObservedTransactionUpperBoundMs:eof.transactions.maxDurationUpperBoundMs,originalReceiptCount:beforeReceipts.length,allOriginalExecutionsAndReceiptsPreserved:true,exactReplayVerified:true,priorClientTerminalComplete:aFinal.adapter.terminalComplete,finalClientTerminalComplete:bFinal.adapter.terminalComplete,finalRetainedStreams:bFinal.adapter.retainedStreams,physicalTerminalObservationComplete:bFinal.physicalTerminalObservationComplete,optionalTransactionSamplesComplete:bFinal.transactionSampleCoverageComplete,addedLatencyMs:115,absoluteServerDeadline:'UNKNOWN',productionEvidence:false,denseCapacityQualified:false,representativeWholePipelineQualified:false,realUserInteraction:false};
+}catch(error){capturePreparationProgress(progress.preparationSnapshotState==='TERMINAL');failure={stage,type:error.name,code:/^[A-Z0-9_]{1,80}$/.test(error.code??'')?error.code:'OTHER',classification:failureClassification(error),progress:{...progress},elapsedMs:performance.now()-started};console.log('STAGE6_NATIVE_POSITIVE_EOF_FAILURE '+JSON.stringify(failure));}
 finally{
  latency=false;
  try{if(db)await closeClient(b??a);closed=(!a||a.snapshot().adapter.terminalComplete)&&(!b||b.snapshot().adapter.terminalComplete);}

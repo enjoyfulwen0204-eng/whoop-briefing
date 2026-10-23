@@ -4,10 +4,10 @@ No old run/attempt is resumed. Importing performs no action.
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='3f4c8e11c860fed7cf284054baa6090e33954c2a'
-REF='refs/heads/diagnostic/stage6-native-positive-hybrid-20261023'
+BASE='785eae80135e1bd00d4c9eacbc6be1e2dd4e38e6'
+REF='refs/heads/diagnostic/stage6-native-context-eof-20261024'
 MODE='native-positive-hybrid-eof'
-INTENT='one-original-positive-hybrid-eof-and-replay-v1'
+INTENT='one-original-context-lease-positive-eof-and-replay-v1'
 CONTROL='tools/stage8-qualification/positive-eof-ci.py';WRAPPER='tools/stage8-qualification/positive-eof-supervisor.mjs';UNIT='tools/stage8-qualification/positive-eof-ci.test.py';TEST='test/stage6-native-positive-eof-hrana.mjs';WORKFLOW=h.WORKFLOW
 
 def validate(e,system,machine,uid,gid):

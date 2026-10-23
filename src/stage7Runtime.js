@@ -1,3 +1,4 @@
+import {createStage7ProactiveJournal,isProactiveJournalDelivery} from './stage7ProactiveJournal.js';
 import {captureStage7Enrollment,assertStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {isApprovedStage7Three} from './stage7Cohort.js';
@@ -35,22 +36,25 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
  if(![33,34,35].includes(core.schemaVersion))fail('STAGE7_V33_CONFIG_REQUIRED');
  const stores=composePhase4Stores(core),companion=await createStage7Composition({core,stores,db}),coach=createCompanionCoach({core,stores,db,companion,coachContext}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
+ const proactiveJournal=createStage7ProactiveJournal({core,db,companion});
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
  const replies=createStage7ReplyAuthority({core,db,companion});
  const beforeSend=async authority=>core.transaction(async()=>{
   const user=await db.getUser(authority.userId),currentConfig=stage7Configuration(environment);
-  if(!eligible(user)||!currentConfig.automatic||!currentConfig.userIds.includes(user.id))fail('STAGE7_ROLLOUT_FENCED');
+  if(currentConfig.mode!=='on'||!eligible(user)||!currentConfig.userIds.includes(user.id))fail('STAGE7_ROLLOUT_FENCED');
   const actor=await companion.interactions.authenticate({user,chatId:authority.chatId});
   if(actor.state.lifecycle_generation!==authority.actor.state.lifecycle_generation||actor.state.auth_generation!==authority.actor.state.auth_generation||actor.profileRevision!==authority.actor.profileRevision)fail('STAGE7_ACTOR_FENCED');
   const row=(await core.client.execute({sql:'SELECT * FROM journal_prompt_deliveries WHERE user_id=? AND delivery_id=?',args:[user.id,authority.deliveryId]})).rows[0],prefs=await companion.preferences(actor);
   const paused=(await core.client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[user.id]})).rows[0];
+  const legacy=isProactiveJournalDelivery(row),interaction=row?.interaction_id?await companion.interactions.read(user.id,row.interaction_id):null;
+  if(legacy?!await proactiveJournal.authorized(actor,row,interaction,prefs):!currentConfig.automatic)fail('STAGE7_ROLLOUT_FENCED');
   await assertStage7Enrollment({core,db,actor,row});
   if(!await companion.weekly.optionalSlotAvailable(actor,row))fail('STAGE7_DELIVERY_FENCED');
   if(!readableRow(row)||row.state!=='DELIVERY_STARTED'||row.preference_revision!==prefs.revision||row.expires_at<=core.timestamp()||paused?.notifications_paused
    ||inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end)
-   ||row.kind==='DAILY'&&!prefs.daily_enabled||row.kind==='COACH'&&!prefs.coach_enabled||row.kind==='WEEKLY'&&!prefs.weekly_enabled
+   ||row.kind==='DAILY'&&!legacy&&!prefs.daily_enabled||row.kind==='COACH'&&!prefs.coach_enabled||row.kind==='WEEKLY'&&!prefs.weekly_enabled
    ||await companionEngagementBusy({core,db,actor,excludeInteractionId:authority.interactionId}))fail('STAGE7_DELIVERY_FENCED');
-  if(row.kind==='DAILY'){
+  if(row.kind==='DAILY'&&!legacy){
    const proof=await confirmedMorningReceipt({core,actor,day:localDate(core.now(),actor.state.timezone)});
    const linked=proof&&(await core.client.execute({sql:"SELECT 1 FROM phase4_source_links WHERE user_id=? AND artifact_type='journal_prompt_deliveries' AND artifact_id=? AND source_type=? AND source_id=? AND unlinked_at IS NULL LIMIT 1",args:[user.id,row.privacy_artifact_id,proof.reportType,proof.reportSource]})).rows.length;
    if(!linked)fail('STAGE7_DELIVERY_FENCED');
@@ -61,7 +65,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    if(current.status!=='READY'||current.projectionDigest!==authority.weeklyProjectionDigest)fail('STAGE7_DELIVERY_FENCED');
   }
  });
- const provider=createStage7ProductionProvider({db,core,keys,admission,env,userIds:config.userIds,beforeSend}),dispatcher=createStage7Dispatcher({core,db,companion,provider,invitations});
+ const provider=createStage7ProductionProvider({db,core,keys,admission,env,userIds:config.userIds,beforeSend}),dispatcher=createStage7Dispatcher({core,db,companion,provider,invitations,proactiveJournal});
  async function stage7Inbound(input){
   if(!eligible(input.user))return null;
   const request={...input,requestKey:String(input.updateId)},reply=await coach.handle({...request,deferQuery:true})??await companion.handle(request)??await companion.handleNote(input);
@@ -94,7 +98,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   return replies.seal(actor,reply);
  }
  async function decorate({user,chatId,text,reply}){
-  if(!eligible(user)||!reply||typeof reply!=='string'&&(reply.bodyEnergyReplyGuard||reply.stage8ReplyGuard||reply.stage5PresentationGuard))return reply;
+  if(!eligible(user)||!reply||typeof reply!=='string'&&(reply.stage7ReplyGuard||reply.bodyEnergyReplyGuard||reply.stage8ReplyGuard||reply.stage5PresentationGuard))return reply;
   const settings=typeof text==='string'&&/^\/settings(?:@[A-Za-z0-9_]+)?\s*$/i.test(text.trim());
   const natural=typeof text==='string'&&!text.trim().startsWith('/')&&/[?？]|睡|恢復|運動|sleep|recovery|exercise|ngủ|phục hồi|vận động|tập luyện/i.test(text);
   if(!settings&&!natural)return reply;
@@ -132,5 +136,17 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   const invitation=weeklyResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId}),coachResult=invitation.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
   return {daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
- return Object.freeze({stage7Inbound,stage7Reply,decorate,sendReply,tick,config,companion,coach,invitations,dispatcher});
+ async function contextJournal({userId,chatId,healthDate,answer}){
+  const user=await db.getUser(userId);if(!eligible(user))return null;
+  const card=await companion.prepareContextQuestion({user,chatId,healthDate});if(!card)return null;
+  const actor=await companion.interactions.authenticate({user,chatId});
+  return replies.seal(actor,{...card,text:`${answer}\n\n${card.text}`});
+ }
+ async function sendProactiveJournal({userId,chatId,eventId}){
+  const user=await db.getUser(userId);
+  if(!eligible(user)||env.dryRun)return {status:'NOT_AUTHORIZED'};
+  const prepared=await proactiveJournal.prepare({user,chatId,eventId});
+  return prepared.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:prepared.deliveryId}):prepared;
+ }
+ return Object.freeze({contextJournal,sendProactiveJournal,stage7Inbound,stage7Reply,decorate,sendReply,tick,config,companion,coach,invitations,dispatcher});
 }

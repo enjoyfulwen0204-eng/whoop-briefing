@@ -1,3 +1,4 @@
+import {looksLikeQuestion} from './bot/conversation.js';
 import {captureStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
@@ -142,7 +143,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
     if(row.logical_fact_id){const fact=await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>(await stores.journal.read(context,row.logical_fact_id)).row);await interactions.link('quick_action_interactions',row,'JOURNAL_FACT',fact.privacy_artifact_id);}
     else await interactions.link('quick_action_interactions',row,'quick_action_interactions',resolved.row.privacy_artifact_id);
    }
-   else if(action==='note'&&row.state==='CONFIRM')row=await interactions.update(actor,row,{state:'NOTE'});
+   else if(action==='note'&&row.category!==null&&['ISSUED','EDITING','CONFIRM'].includes(row.state))row=await interactions.update(actor,row,{state:'NOTE'});
    else if(action==='confirm'&&row.state==='CONFIRM'){
     if(!onAccept)fail('STAGE7_ACCEPT_ADAPTER_REQUIRED');
     await onAccept(actor,row,resolved.receipt);row=await interactions.read(user.id,row.interaction_id);
@@ -150,7 +151,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
     if(row.logical_fact_id&&!onUndo)fail('STAGE7_UNDO_ADAPTER_REQUIRED');
     if(onUndo)await onUndo(actor,row,resolved.receipt);row=await interactions.update(actor,await interactions.read(user.id,row.interaction_id),{state:'UNDONE',selected_choice:null,detail_choice:null,note:null});
    }else if(action==='back'){
-    row=await interactions.update(actor,row,{state:row.state==='NOTE'?'CONFIRM':'ISSUED',selected_choice:row.state==='NOTE'?row.selected_choice:null,detail_choice:null});
+    row=await interactions.update(actor,row,{state:row.state==='NOTE'&&['YES','NO'].includes(row.selected_choice)?'CONFIRM':'ISSUED',selected_choice:row.state==='NOTE'?row.selected_choice:null,detail_choice:null});
    }else if(action==='cancel')row=await interactions.update(actor,row,{state:'CANCELLED',selected_choice:null,detail_choice:null,note:null});
    else if(row.kind!=='PREFERENCES')return interactions.expired(actor);
    if(['CANCELLED','UNDONE'].includes(row.state))return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))][row.state==='UNDONE'?'removed':'cancelled'],editMessageId:row.message_id,replyMarkup:{inline_keyboard:[]}};
@@ -167,11 +168,29 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId});
    if((await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length)return null;
-   const rows=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND chat_id=? AND state='NOTE' AND expires_at>? ORDER BY created_at DESC LIMIT 2",args:[user.id,String(chatId),timestamp()]})).rows;
+   const rows=(await client.execute({sql:`SELECT q.* FROM quick_action_interactions q WHERE q.user_id=? AND q.chat_id=? AND q.expires_at>?
+    AND (q.state='NOTE' OR q.state='ISSUED' AND q.selected_choice IS NULL AND q.message_id IS NOT NULL
+      AND EXISTS(SELECT 1 FROM journal_prompt_deliveries d WHERE d.user_id=q.user_id AND d.interaction_id=q.interaction_id AND d.state='DELIVERED'
+        AND json_valid(d.schedule_json) AND json_extract(d.schedule_json,'$.source')='legacy-proactive-journal-v1'))
+    ORDER BY q.created_at DESC LIMIT 2`,args:[user.id,String(chatId),timestamp()]})).rows;
    if(rows.length!==1)return null;const row=rows[0];
+   // A direct answer may add context to the original dated question, but is
+   // never parsed as a YES/NO fact. Unrelated questions keep normal routing.
+   if(row.state==='ISSUED'&&(looksLikeQuestion(text)||/^(why|how|what|when|where|which|can|could|should|is|are|do|does)\b|^(tại sao|vì sao|thế nào|làm sao|khi nào|có phải)\b/iu.test(text.trim())))return null;
    if(!readableRow(row)||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation||row.timezone!==actor.state.timezone||JSON.parse(row.diagnostics_json??'null')?.profileRevision!==actor.profileRevision)return null;
    let note;try{note=normalizeJournalNote(text);}catch{return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))].invalidNote};}
-   return card(actor,await interactions.update(actor,row,{note,state:'CONFIRM'}));
+   return card(actor,await interactions.update(actor,row,{note,state:['YES','NO'].includes(row.selected_choice)?'CONFIRM':'ISSUED'}));
+  });
+ }
+ async function prepareContextQuestion({user,chatId,healthDate}){
+  return transaction(async()=>{
+   const actor=await interactions.authenticate({user,chatId});
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(healthDate??''))return null;
+   const targetDate=addDays(healthDate,-1);
+   if(localMidnightUtc(addDays(targetDate,1),actor.state.timezone)>core.now())return null;
+   if(await companionEngagementBusy({core,db,actor,includeConversation:false}))return null;
+   const issued=await interactions.issue(actor,{targetDate,semanticKey:core.keys.lookup(['reactive-context-journal-v1',user.id,healthDate,localDate(core.now(),actor.state.timezone),actor.state.lifecycle_generation,actor.state.auth_generation,actor.profileRevision])});
+   return card(actor,issued.row);
   });
  }
  async function prepareAfterBrief({user,chatId,healthDay,signal=null,metricSeries=[]}){
@@ -229,5 +248,5 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    return {status:'PROPOSED',deliveryId:delivery.delivery_id,interactionId:issued.row.interaction_id,selection:selected};
   });
  }
- return {handle,handleNote,prepareAfterBrief,preferences,changePreferences,interactions,ownFacts,card};
+ return {handle,handleNote,prepareContextQuestion,prepareAfterBrief,preferences,changePreferences,interactions,ownFacts,card};
 }

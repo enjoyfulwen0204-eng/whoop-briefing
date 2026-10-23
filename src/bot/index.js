@@ -137,7 +137,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env,coachContext});
   stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
   const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8,phase4Reader });
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8,phase4Reader,journalFollowUp:stage7?.contextJournal });
   const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);

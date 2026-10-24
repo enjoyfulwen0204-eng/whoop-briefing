@@ -18,7 +18,7 @@ export function validateLeg(x,i){
 export function validateDiagnostic(v){
  exactKeys(v,['contract','status','applicationSource','diagnosticLegs','preparationTransactions','httpRequests','statementCount','maxPreparations','sourceHealthRows','users','addedLatencyMs','cpuProfilerUsed','productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','elapsedMs','ownedServerExited','originalPostconditionsPassed']);
  assert.equal(v.contract,'one-native-first17-work-diagnostic-v1');assert.equal(v.status,'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION');
- assert.equal(v.applicationSource,'8cb10488209db3745e913ef0f1c615e0735ee44b');
+ assert.equal(v.applicationSource,'d1c0f5f7b0b8b9ea6e4b392f832a8a7507dc59b7');
  for(const k of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','cpuProfilerUsed'])assert.equal(v[k],false);
 assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.equal(v.users,1);assert.equal(v.addedLatencyMs,0);
  assert.ok(Array.isArray(v.diagnosticLegs));assert.equal(v.diagnosticLegs.length,17);

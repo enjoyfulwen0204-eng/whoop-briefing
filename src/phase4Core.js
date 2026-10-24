@@ -5,7 +5,7 @@ import {LIVE_HEALTH_FIELDS} from './stage8LiveAllocation.js';
 import {allowsStage8LiveAuthority} from './stage8LiveAuthority.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
-import {readOnlyProcessingCheck} from './processingTransaction.js';
+import {readOnlyProcessingCheck,processingSourceControlStatement} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {coalescibleControlProcessingCheck,controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
 import { compareExact } from './phase4CanonicalOrder.js';
@@ -291,14 +291,14 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       // runtime fence, and source/access/capability/tombstone priority remains.
       const calls=[()=>client.execute({sql:`SELECT * FROM ${table} WHERE ${owner}=? AND ${key}=?`,args:[context.userId,id]})];
       if(whoop&&context.authGeneration>=1)calls.push(
-          ()=>client.execute({sql:`SELECT status FROM whoop_resource_access
+          ()=>client.execute(processingSourceControlStatement(client,context,{sql:`SELECT status FROM whoop_resource_access
           WHERE user_id=? AND resource=? AND auth_generation=? AND lifecycle_generation=?`,
-            args:[context.userId,type,context.authGeneration,context.lifecycleGeneration]}),
-          ()=>client.execute({sql:`SELECT 1 FROM whoop_capabilities
+            args:[context.userId,type,context.authGeneration,context.lifecycleGeneration]})),
+          ()=>client.execute(processingSourceControlStatement(client,context,{sql:`SELECT 1 FROM whoop_capabilities
             WHERE user_id=? AND key=? AND lifecycle_generation=? AND status IN ('UNSUPPORTED','UNAVAILABLE')`,
-            args:[context.userId,type,context.lifecycleGeneration]}),
-          ()=>client.execute({sql:`SELECT 1 FROM whoop_resource_tombstones
-            WHERE user_id=? AND resource_type=? AND resource_id=? AND state='ACTIVE'`,args:[context.userId,type,String(id)]}),
+            args:[context.userId,type,context.lifecycleGeneration]})),
+          ()=>client.execute(processingSourceControlStatement(client,context,{sql:`SELECT 1 FROM whoop_resource_tombstones
+            WHERE user_id=? AND resource_type=? AND resource_id=? AND state='ACTIVE'`,args:[context.userId,type,String(id)]})),
       );
       const values=await Promise.allSettled(calls.map(call=>Promise.resolve().then(call)));
       if(values[0].status==='rejected')throw values[0].reason;

@@ -48,6 +48,40 @@ export function inflightControlReadKey(statement,context){
  if(!own&&!lock&&!lease&&!leaseData&&!principal)return null;
  const key=JSON.stringify([sql,args]);return Buffer.byteLength(key)<=8192?key:null;
 }
+// Exact source-control DATA only, separate from control-check eligibility.
+// Descriptors avoid evaluating getters, proxies, coercions or serializers.
+const sourceAccessSql=normalized(`SELECT status FROM whoop_resource_access
+ WHERE user_id=? AND resource=? AND auth_generation=? AND lifecycle_generation=?`);
+const sourceCapabilitySql=normalized(`SELECT 1 FROM whoop_capabilities
+ WHERE user_id=? AND key=? AND lifecycle_generation=? AND status IN ('UNSUPPORTED','UNAVAILABLE')`);
+const sourceTombstoneSql=normalized(`SELECT 1 FROM whoop_resource_tombstones
+ WHERE user_id=? AND resource_type=? AND resource_id=? AND state='ACTIVE'`);
+const sourceControlSqlShape=sql=>{const shape=normalized(sql);
+ return shape===sourceAccessSql?1:shape===sourceCapabilitySql?2:shape===sourceTombstoneSql?3:0;};
+const plainData=value=>value&&typeof value==='object'&&!isProxy(value)
+ &&[Object.prototype,null].includes(Object.getPrototypeOf(value));
+const ownData=(value,key)=>{const d=Object.getOwnPropertyDescriptor(value,key);return d&&Object.hasOwn(d,'value')?d.value:undefined;};
+export function inflightSourceControlReadKey(statement,context){
+ if(!plainData(context)||ownData(context,'executionMode')!=='LIVE'||ownData(context,'providerRequired')!==true
+  ||!plainData(statement)||Reflect.ownKeys(statement).length!==2)return null;
+ const uid=ownData(context,'userId'),sql=ownData(statement,'sql'),args=ownData(statement,'args');
+ if(typeof uid!=='string'||!uid||uid.length>4096||typeof sql!=='string'||sql.length>4096
+  ||isProxy(args)||!Array.isArray(args)||Object.getPrototypeOf(args)!==Array.prototype
+  ||args.length<3||args.length>4||Reflect.ownKeys(args).length!==args.length+1)return null;
+ const values=[];for(let i=0;i<args.length;i++){
+  const value=ownData(args,String(i));
+  if(!(typeof value==='string'&&value.length<=4096||Number.isSafeInteger(value)&&value>=0))return null;
+  values.push(value);
+ }
+ if(values[0]!==uid||!['sleep','recovery','cycle','workout'].includes(values[1]))return null;
+ const shape=memoizedSqlSyntax(sourceControlSqlShape,sql),auth=ownData(context,'authGeneration'),life=ownData(context,'lifecycleGeneration');
+ if(shape===1){if(values.length!==4||!Number.isSafeInteger(auth)||auth<1||!Number.isSafeInteger(life)||life<0
+   ||values[2]!==auth||values[3]!==life)return null;}
+ else if(shape===2){if(values.length!==3||!Number.isSafeInteger(life)||life<0||values[2]!==life)return null;}
+ else if(shape===3){if(values.length!==3||typeof values[2]!=='string'||!values[2])return null;}
+ else return null;
+ const key=JSON.stringify(['source-control',sql,values]);return Buffer.byteLength(key)<=8192?key:null;
+}
 // The one clock-free ownership projection may retain raw ROW DATA. No lock,
 // time-filtered query, authority predicate or successful guard is retained.
 export function ownershipControlReadKey(statement,context){

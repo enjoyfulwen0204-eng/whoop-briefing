@@ -1,5 +1,5 @@
 import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
-import {createInflightControlReads,inflightControlReadKey,ownershipControlReadKey,contextLeaseDataReadKey,tenantLeaseDataReadKey,CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
+import {createInflightControlReads,inflightControlReadKey,ownershipControlReadKey,contextLeaseDataReadKey,tenantLeaseDataReadKey,inflightSourceControlReadKey,CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
 import {exactRealStatement} from './exactRealStatement.js';
 import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
 import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
@@ -22,7 +22,12 @@ export function readObservationProcessingCheck(check,localCheck){
  readObservationChecks.set(check,localCheck);return check;
 }
 const observationEpochs=new WeakMap(),prefixDataReaders=new WeakMap();
-const contextLeaseDataEligibility=new WeakMap();
+const contextLeaseDataEligibility=new WeakMap(),sourceControlStatements=new WeakMap();
+// Mark a server-selected DATA statement, never an accepted guard. A mark is
+// scoped to its original root and consumed at execute entry before any await.
+export const processingSourceControlStatement=(client,context,statement)=>{
+ sourceControlStatements.get(client)?.(context,statement);return statement;
+};
 // DATA selection only; the registry's original context brand and fresh lease
 // predicates remain authoritative. Unknown/terminal scopes use original SQL.
 export const processingContextLeaseDataEligible=(client,context,name)=>contextLeaseDataEligibility.get(client)?.(context,name)===true;
@@ -177,6 +182,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         if(executorOverrides.has(key))return executorOverrides.get(key);
         const method = target[key].bind(target);
         return async (...args) => {
+        const markedState=key==='execute'?scope.getStore():null;
+        const sourceMark=markedState?.sourceControlStatements?.get(args[0]);
+        if(sourceMark)markedState.sourceControlStatements.delete(args[0]);
         const query=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
         const metadata=inRuntimeMetadata(query);
         if((checking.getStore()?.readOnly||readOnlyWork.getStore())&&(key==='batch'?args[0]:[args[0]]).some(statement=>!readOnlyStatement(statement))){
@@ -273,9 +281,18 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               const inflightKey=state.principalReadinessMemoEnabled&&!state.replaying&&state.readBudget&&sameScope&&checking.getStore()?.readOnly
                 &&key==='execute'&&!mutations.length&&!metadata?inflightControlReadKey(args[0],context):null;
               const ownershipKey=inflightKey?(ownershipControlReadKey(args[0],context)??contextLeaseDataReadKey(args[0],context)??tenantLeaseDataReadKey(args[0],context)):null;
+              // Revalidate a consumed mark after every original fence, at the
+              // original physical dispatch. Never retain source-control DATA.
+              const sourceKey=sourceMark&&sourceMark.state===state&&state.principalReadinessMemoEnabled
+                &&state.tx&&!state.tx.closed&&!state.failure&&!state.replaying&&state.controlReads.isOpen()
+                &&state.readBudget&&sameScope&&sourceMark.context===context&&sourceMark.budget===state.readBudget
+                &&sourceMark.execution===state.readExecution&&sourceMark.marker===currentExecutionReceiptTransactionMarker()
+                &&sourceMark.epoch===memo.epoch()&&key==='execute'&&!mutations.length&&!metadata
+                &&inflightSourceControlReadKey(args[0],context)===sourceMark.key?sourceMark.key:null;
+              const pendingKey=inflightKey??sourceKey;
               const epoch=memo.epoch(),result=immutableGuard
                 ?await state.tx.batch(...transportArguments('batch',[[...statements,immutableGuard]])).then(values=>key==='execute'?values[0]:values.slice(0,-1))
-                :inflightKey?await state.controlReads[ownershipKey?'ownership':'run'](context,currentExecutionReceiptTransactionMarker(),inflightKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
+                :pendingKey?await state.controlReads[ownershipKey?'ownership':'run'](context,currentExecutionReceiptTransactionMarker(),pendingKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
                 :await state.tx[key](...transportArguments(key,args));currentExecutionBudget()?.assert();
               if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
             }finally{if(mutations.length)memo.clear();}}
@@ -359,7 +376,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       const closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
       if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});
       const state = { tx:null, cache,readMemo,controlReads,readBudget,readExecution:execution, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
-        commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,principalReadinessMemoEnabled:false,failure: null, deferred: null, committed: [], completed: [] };
+        commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,principalReadinessMemoEnabled:false,sourceControlStatements:null,failure: null, deferred: null, committed: [], completed: [] };
       state.syncSnapshot=createSyncCommitSnapshot(syncBinding);const syncStarted=performance.now();
       let receipt,admissionChecked=false,admissionFailure;
       const observeReceipt=readOnlyProcessingCheck(async()=>{receipt=await readWorkStep(client,['named',state.workStep]);});
@@ -414,6 +431,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         // Never opt in outside this owned LIVE Stage6 root or before that ACK.
         state.principalReadinessMemoEnabled=privateRuntime&&base.protocol==='http'
           &&execution?.claim?.request?.phase==='STAGE6_DRAIN'&&execution.claim.request.executionMode==='LIVE';
+        if(state.principalReadinessMemoEnabled)state.sourceControlStatements=new WeakMap();
         // Metadata failure after acknowledged BEGIN follows the original
         // failure/rollback path. It is never an admission retry or callback run.
         if(admissionFailure)throw admissionFailure;
@@ -536,6 +554,14 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
+  if(privateRuntime&&base.protocol==='http')sourceControlStatements.set(client,(context,statement)=>{
+    const state=scope.getStore(),execution=currentDurableExecution(),budget=currentExecutionBudget(),marker=currentExecutionReceiptTransactionMarker();
+    if(!state?.principalReadinessMemoEnabled||!state.tx||state.tx.closed||state.failure||state.replaying
+      ||!state.controlReads.isOpen()||!state.readBudget||state.readBudget!==budget||state.readExecution!==execution
+      ||readScope.getStore()!==context||!marker)return;
+    const key=inflightSourceControlReadKey(statement,context);if(!key)return;
+    state.sourceControlStatements.set(statement,{state,context,budget,execution,marker,epoch:state.readMemo.epoch(),key});
+  });
   contextLeaseDataEligibility.set(client,(context,name,tenantPass=false)=>{
     const state=scope.getStore(),execution=currentDurableExecution(),budget=currentExecutionBudget();
     return !!(state?.principalReadinessMemoEnabled&&state.tx&&!state.tx.closed&&!state.failure&&!state.replaying

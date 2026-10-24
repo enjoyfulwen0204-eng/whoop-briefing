@@ -16,9 +16,13 @@ export function validateLeg(x,i){
 
 }
 export function validateDiagnostic(v){
- exactKeys(v,['contract','status','applicationSource','diagnosticLegs','preparationTransactions','httpRequests','statementCount','maxPreparations','sourceHealthRows','users','addedLatencyMs','cpuProfilerUsed','productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','elapsedMs','ownedServerExited','originalPostconditionsPassed']);
+ exactKeys(v,['contract','status','applicationSource','diagnosticLegs','heapControls','preparationTransactions','httpRequests','statementCount','maxPreparations','sourceHealthRows','users','addedLatencyMs','cpuProfilerUsed','productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','elapsedMs','ownedServerExited','originalPostconditionsPassed']);
  assert.equal(v.contract,'one-native-first17-work-diagnostic-v1');assert.equal(v.status,'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION');
  assert.equal(v.applicationSource,'8a4d3765a55c52ffd160431395c066d9564e35bd');
+ exactKeys(v.heapControls,['oldSpaceMiB','semiSpaceMiB','execArgv','heapSizeLimitBytes']);
+ assert.equal(v.heapControls.oldSpaceMiB,128);assert.equal(v.heapControls.semiSpaceMiB,2);
+ assert.deepEqual(v.heapControls.execArgv,['--max-old-space-size=128','--max-semi-space-size=2']);
+ assert.ok(Number.isSafeInteger(v.heapControls.heapSizeLimitBytes)&&v.heapControls.heapSizeLimitBytes>=128*1048576&&v.heapControls.heapSizeLimitBytes<=144*1048576);
  for(const k of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','cpuProfilerUsed'])assert.equal(v[k],false);
 assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.equal(v.users,1);assert.equal(v.addedLatencyMs,0);
  assert.ok(Array.isArray(v.diagnosticLegs));assert.equal(v.diagnosticLegs.length,17);
@@ -47,7 +51,7 @@ async function main(){
  assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');assert.equal(process.version,'v22.23.2');assert.deepEqual(Object.keys(networkInterfaces()).sort(),['lo']);
  assert.equal(await read('memory.max'),'536870912');assert.equal(await read('memory.swap.max'),'0');assert.equal(await read('cpu.max'),'50000 100000');
  const path='/tmp/native-first17-work.log',fd=await open(path,'wx',0o600),started=performance.now();
- const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-work-join-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
+ const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-work-join-loader.mjs','--max-old-space-size=128','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
  let spawnError=false;child.on('error',()=>{spawnError=true;});const timer=setTimeout(()=>child.kill('SIGTERM'),300000);
  const terminal=await new Promise(r=>child.once('close',(code,signal)=>r({code,signal})));clearTimeout(timer);await fd.close();
  assert.ok((await stat(path)).size<16*1024*1024);const raw=await readFile(path,'utf8');

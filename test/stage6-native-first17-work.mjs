@@ -1,4 +1,9 @@
+import {getHeapStatistics} from 'node:v8';
 import {createWorkCorrelation} from './stage6-native-work-join.mjs';
+const controlledHeapArgs=process.execArgv.filter(x=>/^--max-(?:old|semi)-space-size(?:=|$)/.test(x));
+assert.deepEqual(controlledHeapArgs,['--max-old-space-size=128','--max-semi-space-size=2']);
+assert.equal(process.env.NODE_OPTIONS,undefined);
+const heapControls={oldSpaceMiB:128,semiSpaceMiB:2,execArgv:controlledHeapArgs,heapSizeLimitBytes:getHeapStatistics().heap_size_limit};
 const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=correlation;
 import {joinIssuedTransport,transportIsJoined,waitIssuedIdleBefore} from './stage6-native-join-barrier.mjs';
 // One fresh synthetic nonempty SQLD database. Bounded canonical preparations,
@@ -155,7 +160,7 @@ try{
  }
  a.observer.setPhase('READBACK','READBACK');stage='FIRST17_WORK_DIAGNOSTIC_CLEANUP';assert.equal(setupCalls,17);assert.equal(diagnosticLegs.length,17);
  const final=await closeClient(a),packet=final.bins.GENUINE_ORIGINAL_PRODUCER_CALL;assert.equal(packet.requestErrors,0);assert.equal(packet.responseErrors,0);assert.equal(packet.unknownReplies,0);
- report={contract:'one-native-first17-work-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',originalPostconditionsPassed:true,applicationSource:'8a4d3765a55c52ffd160431395c066d9564e35bd',diagnosticLegs,preparationTransactions:packet.transactions,httpRequests:packet.requests,statementCount:packet.submittedStatements,maxPreparations:17,sourceHealthRows:160,users:1,addedLatencyMs:0,cpuProfilerUsed:false,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
+ report={contract:'one-native-first17-work-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',originalPostconditionsPassed:true,applicationSource:'8a4d3765a55c52ffd160431395c066d9564e35bd',diagnosticLegs,heapControls,preparationTransactions:packet.transactions,httpRequests:packet.requests,statementCount:packet.submittedStatements,maxPreparations:17,sourceHealthRows:160,users:1,addedLatencyMs:0,cpuProfilerUsed:false,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
 }catch(error){emitWorkJoin();capturePreparationProgress(progress.preparationSnapshotState==='TERMINAL');failure={stage,type:error.name,code:/^[A-Z0-9_]{1,80}$/.test(error.code??'')?error.code:'OTHER',classification:failureClassification(error),progress:{...progress},elapsedMs:performance.now()-started};console.log('STAGE6_NATIVE_POSITIVE_EOF_FAILURE '+JSON.stringify(failure));}
 finally{
  latency=false;

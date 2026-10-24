@@ -70,5 +70,5 @@ export function createWorkCorrelation({emit=()=>{}}={}){
   }
   return Object.freeze({...base,startRequest,finishRequest,startTransaction,transactionStorage,finishTransaction,snapshot});
  }
- return Object.freeze({preparation,owned,decorate});
+ return Object.freeze({preparation,owned,decorate,workScope:()=>scope.getStore()??outside});
 }

@@ -19,7 +19,7 @@ class Gate(unittest.TestCase):
     with self.assertRaises(AssertionError):self.call(None,*args)
  def test_pure_cpu_and_closed_source_transforms(self):
   root=pathlib.Path(__file__).resolve().parents[2]
-  r=subprocess.run(['node','--test',str(root/'test/stage6-native-work-join.test.mjs')],capture_output=True,text=True,timeout=30)
+  r=subprocess.run(['node','--test',str(root/'test/stage6-native-work-join.test.mjs'),str(root/'test/stage6-native-memo-probe.test.mjs')],capture_output=True,text=True,timeout=30)
   self.assertEqual(r.returncode,0,r.stdout+r.stderr);self.assertIn('# fail 0',r.stdout)
  def test_fixture_contains_only17_cpu_work_and_no_eof_result_claim(self):
   root=pathlib.Path(__file__).resolve().parents[2];source=(root/'test/stage6-native-first17-work.mjs').read_text()

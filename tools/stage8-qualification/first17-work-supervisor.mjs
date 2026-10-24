@@ -3,6 +3,7 @@ import {readFile,stat,open,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {networkInterfaces} from 'node:os';
 import assert from 'node:assert/strict';
+import {validateMemoProbe} from '../../test/stage6-native-memo-probe.mjs';
 import {validateWorkJoin} from '../../test/stage6-native-work-join.mjs';
 export function exactKeys(value,names){
  assert.ok(value&&typeof value==='object'&&!Array.isArray(value));
@@ -47,7 +48,7 @@ async function main(){
  assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');assert.equal(process.version,'v22.23.2');assert.deepEqual(Object.keys(networkInterfaces()).sort(),['lo']);
  assert.equal(await read('memory.max'),'536870912');assert.equal(await read('memory.swap.max'),'0');assert.equal(await read('cpu.max'),'50000 100000');
  const path='/tmp/native-first17-work.log',fd=await open(path,'wx',0o600),started=performance.now();
- const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-work-join-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
+ const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-memo-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
  let spawnError=false;child.on('error',()=>{spawnError=true;});const timer=setTimeout(()=>child.kill('SIGTERM'),300000);
  const terminal=await new Promise(r=>child.once('close',(code,signal)=>r({code,signal})));clearTimeout(timer);await fd.close();
  assert.ok((await stat(path)).size<16*1024*1024);const raw=await readFile(path,'utf8');
@@ -55,6 +56,7 @@ async function main(){
  const lines=prefix=>raw.split('\n').filter(l=>l.startsWith(prefix)).map(l=>JSON.parse(l.slice(prefix.length)));
  let failure=null,observed=null,fixtureTerminal=null,status='DIAGNOSTIC_FAILED_OR_UNKNOWN';
  let workJoin=null;try{const joins=lines('STAGE6_NATIVE_WORK_JOIN ');assert.ok(joins.length>0&&joins.length<=84);let prior=0;for(const value of joins){validateWorkJoin(value);assert.ok(value.allPhysicalTransactions>=prior);prior=value.allPhysicalTransactions;}workJoin=joins.at(-1);}catch{}
+ let readMemoProbe=null;try{const packets=lines('STAGE6_MEMO_PROBE ');assert.ok(packets.length>0&&packets.length<=84);let prior=0;for(const v of packets){validateMemoProbe(v);assert.ok(v.observations>=prior);prior=v.observations;}readMemoProbe=packets.at(-1);}catch{}
  let partialLegs=null;try{const legs=lines('STAGE6_FIRST17_WORK_RETURNED ');assert.ok(legs.length<=17);for(const [i,x]of legs.entries())validateLeg(x,i);partialLegs=legs;}catch{}
  const failures=lines('STAGE6_NATIVE_POSITIVE_EOF_FAILURE ');if(failures.length===1)failure=projectFailure(failures[0]);
  const terminals=lines('STAGE6_NATIVE_POSITIVE_EOF_TERMINAL ');if(terminals.length===1)fixtureTerminal=projectTerminal(terminals[0]);
@@ -62,9 +64,9 @@ async function main(){
   assert.equal(spawnError,false);assert.deepEqual(terminal,{code:0,signal:null});const values=lines('STAGE6_NATIVE_POSITIVE_EOF_RESULT ');assert.equal(values.length,1);validateDiagnostic(values[0]);
   assert.ok(fixtureTerminal?.closed&&fixtureTerminal.ownedServerExited&&fixtureTerminal.clientTerminalComplete&&fixtureTerminal.physicalTerminalObservationComplete);assert.equal(fixtureTerminal.retainedStreams,0);
   assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<300000);
-  assert.equal(workJoin?.terminalJoinComplete,true);observed=values[0];status='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION';
+  assert.equal(workJoin?.terminalJoinComplete,true);assert.ok(readMemoProbe&&readMemoProbe.observations>0);assert.equal(readMemoProbe.droppedObservations,0);observed=values[0];status='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION';
  }catch{}
- await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-work-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,partialLegs:observed?null:partialLegs,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
+ await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-work-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,readMemoProbe,partialLegs:observed?null:partialLegs,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
  process.exitCode=status==='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION'?0:2;
 }
 if(process.argv[1]&&new URL(import.meta.url).pathname===process.argv[1])main();

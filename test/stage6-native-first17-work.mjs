@@ -1,5 +1,8 @@
 import {createWorkCorrelation} from './stage6-native-work-join.mjs';
-const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=correlation;
+import {createMemoProbe} from './stage6-native-memo-probe.mjs';
+function emitMemoProbe(){try{if(memoProbe)console.log('STAGE6_MEMO_PROBE '+JSON.stringify(memoProbe.snapshot()));}catch{}}
+const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>{console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value));emitMemoProbe();}});globalThis.__stage6WorkJoin=correlation;
+const memoProbe=createMemoProbe(correlation.workScope);globalThis.__stage6MemoProbe=memoProbe;
 import {joinIssuedTransport,transportIsJoined,waitIssuedIdleBefore} from './stage6-native-join-barrier.mjs';
 // One fresh synthetic nonempty SQLD database. Bounded canonical preparations,
 // one original115ms final EOF and exact identity replay. No Production data or authority.
@@ -32,7 +35,7 @@ const server=spawn('/usr/local/bin/isolated-sqld',['-d',join(directory,'physical
 let serverError=false;server.on('error',()=>{serverError=true;});
 const networkFetch=globalThis.fetch.bind(globalThis);let latency=false,db,a,b,stage='SERVER_START',failure=null,report=null,closed=false;
 const progress={startedPreparations:0,completedPreparations:0,sourceAcknowledgments:0,unitsCommitted:0,lastPendingJobs:null,lastBudgetPerTenant:null,check:'NOT_STARTED',preparationSnapshotState:'NOT_STARTED'};
-function emitWorkJoin(){try{const value=a?.observer.snapshot().namedWorkJoin;if(value)console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value));}catch{}}
+function emitWorkJoin(){emitMemoProbe();try{const value=a?.observer.snapshot().namedWorkJoin;if(value)console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value));}catch{}}
 function capturePreparationProgress(terminal=false){
  if(progress.preparationSnapshotState==='NOT_STARTED')return;
  try{

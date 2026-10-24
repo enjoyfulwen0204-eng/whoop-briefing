@@ -5,7 +5,7 @@ import {LIVE_HEALTH_FIELDS} from './stage8LiveAllocation.js';
 import {allowsStage8LiveAuthority} from './stage8LiveAuthority.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
-import {readOnlyProcessingCheck,processingSourceControlStatement} from './processingTransaction.js';
+import {readOnlyProcessingCheck,processingSourceControlStatement,processingRawSourceStatement} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {coalescibleControlProcessingCheck,controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
 import { compareExact } from './phase4CanonicalOrder.js';
@@ -289,7 +289,8 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       // this health callback. Observe the canonical row and its independent
       // resource controls together; every execute keeps its original fresh
       // runtime fence, and source/access/capability/tombstone priority remains.
-      const calls=[()=>client.execute({sql:`SELECT * FROM ${table} WHERE ${owner}=? AND ${key}=?`,args:[context.userId,id]})];
+      const calls=[()=>{const statement={sql:`SELECT * FROM ${table} WHERE ${owner}=? AND ${key}=?`,args:[context.userId,id]};
+        return client.execute(whoop?processingRawSourceStatement(client,context,statement):statement);}];
       if(whoop&&context.authGeneration>=1)calls.push(
           ()=>client.execute(processingSourceControlStatement(client,context,{sql:`SELECT status FROM whoop_resource_access
           WHERE user_id=? AND resource=? AND auth_generation=? AND lifecycle_generation=?`,

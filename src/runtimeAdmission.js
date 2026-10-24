@@ -9,6 +9,8 @@ import {currentExecutionBudget} from './executionBudget.js';
 import {currentDurableExecution} from './phase4ExecutionContext.js';
 import {requireSchemaTransitionRuntimeProfile,bindSchemaTransitionRuntimeProfile} from './schemaTransitionProfile.js';
 import {requireSupervisorRuntimeEpochCatalog} from './runtimeEpochScope.js';
+import {createHash} from 'node:crypto';
+import {RAW_EFFECT_CATALOG_DIGEST,closedRawReadRelations} from './processingRawSourceEffects.js';
 
 const connections = new WeakMap(), capabilities = new WeakMap();
 const fail = (code, object) => { throw new Phase4SchemaError(code, object); };
@@ -259,5 +261,121 @@ async function admitChecked(client, keys,stats) {
   if(state.runtimeEpoch!==undefined&&requireSupervisorRuntimeEpochCatalog(state.runtimeEpoch,keys).schema!==version)fail('RUNTIME_EPOCH_SCHEMA_ADMISSION_MISMATCH');
   state.admitted=true;
   const capability = Object.freeze({}); capabilities.set(capability, { client, lifetime, keys, version });
+  state.rawEffectAdmission=capability;
   return capability;
+}
+
+// PRIVATE UNQUALIFIED PROPOSAL. The optional raw-row DATA lifetime still needs
+// its own original owned BEGIN, complete main/temp/attachment observations,
+// statement effects, failure invalidation and all unchanged executor fences.
+// This verifier grants none of the original runtime or execution authority.
+let rawEffectCatalogDigest,rawEffectNoDeclaredCollation=false;
+function canonicalRawEffectDigest(){
+ if(rawEffectCatalogDigest!==undefined)return rawEffectCatalogDigest;
+ const c=contracts.get(35),compare=(a,b)=>a<b?-1:a>b?1:0;
+ const rows=[...c.objects.values()].sort((a,b)=>compare(a.name,b.name)),retired=[...c.retired].sort(compare),
+  retained=Object.entries(RETAINED_LEGACY_TABLE_DDL).sort(([a],[b])=>compare(a,b));
+ rawEffectNoDeclaredCollation=rows.every(o=>!/\bCOLLATE\b/i.test(o.ddl)
+  &&(o.variants??[]).every(v=>!/\bCOLLATE\b/i.test(v.definition)))&&retained.every(([_name,ddl])=>!/\bCOLLATE\b/i.test(ddl));
+ return rawEffectCatalogDigest=createHash('sha256').update(JSON.stringify({rows,retired,retained})).digest('hex');
+}
+// Additional effect check ONLY for the exact genuine authenticated compiled
+// epoch rows below. This never admits a caller-supplied trigger or prefix.
+function compiledEpochHasNoRawWrite(row,canonicalTables){
+ // This exact compiled bounded trace-character predicate is a pure local
+ // VALUES CTE, not an ordinary table or an eponymous module. Mask only these
+ // exact bytes before relation closure; arbitrary CHARS relations still fail.
+ const fixedCharsPredicate="(WITH RECURSIVE chars(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM chars WHERE n<length(NEW.trace_id)) SELECT sum(CASE WHEN unicode(substr(NEW.trace_id,n,1))>65535 THEN 2 ELSE 1 END)<=128 AND max(CASE WHEN unicode(substr(NEW.trace_id,n,1)) BETWEEN 0 AND 31 OR unicode(substr(NEW.trace_id,n,1))=127 THEN 1 ELSE 0 END)=0 FROM chars)";
+ const sql=row.sql.replaceAll(fixedCharsPredicate,'(1)'),tokens=[];let i=0;
+ while(i<sql.length){
+  const c=sql[i];if(/\s/.test(c)){i++;continue;}
+  if(sql.startsWith('--',i)||sql.startsWith('/*',i))return false;
+  if(["'",'"','`','['].includes(c)){
+   const end=c==='['?']':c;let closed=false,text='';i++;
+   while(i<sql.length){const next=sql[i++];if(next===end){if(sql[i]===end){text+=end;i++;continue;}closed=true;break;}text+=next;}
+   if(!closed)return false;
+   tokens.push(c==="'"?{quoted:true}:{word:text.toUpperCase()});continue;
+  }
+  const word=/^[a-z_][a-z0-9_]*/i.exec(sql.slice(i));
+  if(word){tokens.push({word:word[0].toUpperCase()});i+=word[0].length;continue;}
+  tokens.push({punct:c});i++;
+ }
+ const begin=tokens.findIndex(t=>t.word==='BEGIN');if(begin<0)return false;
+ const when=tokens.slice(0,begin).findIndex(t=>t.word==='WHEN');
+ const body=tokens.slice(when>=0?when:begin+1);
+ if(!closedRawReadRelations(body.map(t=>({kind:t.word?'word':t.quoted?'atom':'punct',value:t.word??t.punct})),canonicalTables))return false;
+ const functions=new Set(['ABS','CAST','CHAR','COALESCE','INSTR','JSON_EXTRACT','JSON_VALID',
+  'JULIANDAY','LENGTH','MAX','RAISE','REPLACE','STRFTIME','SUBSTR','SUM','TYPEOF','UNICODE',
+  'IN','EXISTS','AS','WHEN','AND','OR','NOT','VALUES']);
+ for(let n=0;n<body.length;n++){
+  const word=body[n].word;if(!word)continue;
+  if(['INSERT','UPDATE','DELETE','CREATE','ALTER','DROP','ATTACH','DETACH','PRAGMA','VACUUM','COLLATE',
+   'REINDEX','ANALYZE','SAVEPOINT','RELEASE','ROLLBACK','COMMIT','LOAD_EXTENSION'].includes(word))return false;
+  if(word==='REPLACE'&&body[n+1]?.punct!=='(')return false;
+  if(body[n+1]?.punct==='('&&!functions.has(word))return false;
+ }
+ return true;
+}
+// New DATA proof only: generic historical column compatibility alone does not
+// prove an ordinary relation. Reject virtual modules and mismatched headers.
+function ordinaryRawEffectTableHeader(sql,name){
+ const match=/^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"([a-z_][a-z0-9_]*)"|`([a-z_][a-z0-9_]*)`|'([a-z_][a-z0-9_]*)'|\[([a-z_][a-z0-9_]*)\]|([a-z_][a-z0-9_]*))\s*\(/i.exec(sql);
+ return !!match&&match.slice(1).find(Boolean).toLowerCase()===name.toLowerCase();
+}
+export function ownedRawSourceEffectVerifier(client){
+ const connection=connections.get(client),capability=connection?.rawEffectAdmission,issued=capabilities.get(capability);
+ if(!issued||issued.client!==client||canonicalRawEffectDigest()!==RAW_EFFECT_CATALOG_DIGEST||!rawEffectNoDeclaredCollation)return null;
+ if(requireRuntimeAdmission(client,capability,issued.keys)!==35)return null;
+ const contract=contracts.get(35),epoch=connection.runtimeEpoch===undefined?undefined:
+  requireSupervisorRuntimeEpochCatalog(connection.runtimeEpoch,issued.keys);
+ if(epoch&&epoch.schema!==35)return null;
+ const extras=new Map();
+ for(const row of epoch?.rows??[]){
+  if(row.type!=='trigger'||typeof row.name!=='string'||typeof row.tbl_name!=='string'
+   ||typeof row.sql!=='string'||contract.objects.has(row.name)||extras.has(row.name)
+   ||!compiledEpochHasNoRawWrite(row,new Set([...contract.objects.values()].filter(o=>o.type==='table').map(o=>o.name))))return null;
+  extras.set(row.name,row);
+ }
+ return Object.freeze({
+  // A fresh set, never the runtime's private mutable canonical Map.
+  tables:new Set([...contract.objects.values()].filter(o=>o.type==='table').map(o=>o.name)),
+  assert(){requireRuntimeAdmission(client,capability,issued.keys);},
+  matches(rows){
+   requireRuntimeAdmission(client,capability,issued.keys);
+   if(!Array.isArray(rows))return false;
+   const seen=new Set(),seenCanonical=new Set(),seenExtras=new Set();
+   for(const row of rows){
+    if(!row||typeof row.type!=='string'||typeof row.name!=='string'||typeof row.tbl_name!=='string')return false;
+    const identity=row.type+'\0'+row.name;if(seen.has(identity))return false;seen.add(identity);
+    const expected=contract.objects.get(row.name);
+    if(expected){
+     const expectedTable=expected.type==='table'?expected.name:/\bON\s+(\w+)/i.exec(expected.ddl)?.[1];
+     if(seenCanonical.has(row.name)||row.type!==expected.type||typeof row.sql!=='string'
+      ||!expectedTable||row.tbl_name.toLowerCase()!==expectedTable.toLowerCase()
+      ||(expected.type==='table'?!ordinaryRawEffectTableHeader(row.sql,expected.name)||!tableMatches(row.sql,expected):normalizeSql(row.sql)!==normalizeSql(expected.ddl)))return false;
+     seenCanonical.add(row.name);continue;
+    }
+    const extra=extras.get(row.name);
+    if(extra){
+     if(seenExtras.has(row.name)||row.type!==extra.type||row.tbl_name!==extra.tbl_name
+      ||typeof row.sql!=='string'||normalizeSql(row.sql)!==normalizeSql(extra.sql))return false;
+     seenExtras.add(row.name);continue;
+    }
+    if(Object.hasOwn(RETAINED_LEGACY_TABLE_DDL,row.name)){
+     if(row.type!=='table'||typeof row.sql!=='string'||normalizeSql(row.sql)!==normalizeSql(RETAINED_LEGACY_TABLE_DDL[row.name]))return false;
+     continue;
+    }
+    // SQLite-owned objects have no custom trigger/expression body. A normal
+    // CREATE cannot mint sqlite_* objects. No arbitrary extra object is used.
+    if(row.type==='table'&&row.name==='sqlite_sequence'&&row.tbl_name==='sqlite_sequence'
+     &&typeof row.sql==='string'&&normalizeSql(row.sql)==='CREATE TABLE sqlite_sequence(name,seq)')continue;
+    if(row.type==='index'&&row.sql===null&&(contract.objects.get(row.tbl_name)?.type==='table'
+      ||Object.hasOwn(RETAINED_LEGACY_TABLE_DDL,row.tbl_name))
+      &&row.name.startsWith('sqlite_autoindex_'+row.tbl_name+'_')
+      &&/^[1-9][0-9]*$/.test(row.name.slice(('sqlite_autoindex_'+row.tbl_name+'_').length)))continue;
+    return false;
+   }
+   return seenCanonical.size===contract.objects.size&&seenExtras.size===extras.size;
+  },
+ });
 }

@@ -1,3 +1,4 @@
+import {types as nativeTypes} from 'node:util';
 import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 // Reuse only deterministic, tenant-bound data reads inside one original
 // processing write transaction and one server context. This is not authority:
@@ -54,12 +55,12 @@ export function cloneResult(result){
   rowsAffected:result.rowsAffected,lastInsertRowid:result.lastInsertRowid});return copy;
 }
 export function createReadSnapshotMemo(){
- let contexts=new Map(),entries=0,bytes=0,epoch=0,closed=false;
+ let contexts=new Map(),rawContexts=new Map(),rawEntries=0,rawBytes=0,rawEpoch=0,entries=0,bytes=0,epoch=0,closed=false;
  return {
   epoch:()=>epoch,
   get(context,key){const result=contexts.get(context)?.get(key);return !closed&&result?cloneResult(result):undefined;},
   put(context,key,result,observedEpoch){
-   if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(result?.rows)
+   if(closed||epoch!==observedEpoch||entries+rawEntries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(result?.rows)
     ||result.rows.length>READ_SNAPSHOT_LIMITS.rows||!Array.isArray(result.columns)||!Array.isArray(result.columnTypes))return;
    try{
     // One original epoch and context: first stored DATA already wins. Avoid
@@ -69,7 +70,7 @@ export function createReadSnapshotMemo(){
     const binaryBytes=result.rows.reduce((total,row)=>total+Object.values(Object.getOwnPropertyDescriptors(row))
      .reduce((sum,descriptor)=>sum+(descriptor.value instanceof ArrayBuffer||ArrayBuffer.isView(descriptor.value)?descriptor.value.byteLength:0),0),0);
     const size=binaryBytes+Buffer.byteLength(JSON.stringify(result,(_key,value)=>typeof value==='bigint'?String(value):value),'utf8')+Buffer.byteLength(key,'utf8');
-    if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
+    if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+rawBytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
     const snapshot=cloneResult(result),rows=contexts.get(context)??new Map();
     if(rows.has(key))return;
     rows.set(key,snapshot);contexts.set(context,rows);entries++;bytes+=size;
@@ -77,17 +78,58 @@ export function createReadSnapshotMemo(){
   },
   getData(context,key){const data=contexts.get(context)?.get('data:'+key)?.prefixData;return !closed&&data?structuredClone(data):undefined;},
   putData(context,key,data,observedEpoch){
-   if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(data?.rows)
+   if(closed||epoch!==observedEpoch||entries+rawEntries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(data?.rows)
     ||data.rows.length>READ_SNAPSHOT_LIMITS.rows||Buffer.byteLength(key)>READ_SNAPSHOT_LIMITS.keyBytes)return;
    try{
     if(typeof key==='string'&&contexts.get(context)?.has('data:'+key))return;
     const size=Buffer.byteLength(JSON.stringify(data),'utf8')+Buffer.byteLength(key,'utf8');
-    if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
+    if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+rawBytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
     const rows=contexts.get(context)??new Map(),dataKey='data:'+key;if(rows.has(dataKey))return;
     rows.set(dataKey,{prefixData:structuredClone(data)});contexts.set(context,rows);entries++;bytes+=size;
    }catch{/* Non-canonical or oversize DATA is not reused. */}
   },
-  clear(){contexts.clear();entries=0;bytes=0;epoch++;},
+  // PRIVATE UNQUALIFIED DATA-only extension. It shares the ORIGINAL total
+  // entry/byte budget. It stores no ResultSet metadata, reference or guard.
+  rawEpoch:()=>rawEpoch,
+  getRawRows(context,key){
+   const rows=rawContexts.get(context)?.get(key)?.rows;
+   return !closed&&rows?{rows:structuredClone(rows)}:undefined;
+  },
+  putRawRows(context,key,result,observedEpoch){
+   try{
+    if(closed||rawEpoch!==observedEpoch||entries+rawEntries>=READ_SNAPSHOT_LIMITS.entries
+     ||typeof key!=='string'||Buffer.byteLength(key)>READ_SNAPSHOT_LIMITS.keyBytes
+     ||!result||typeof result!=='object'||nativeTypes.isProxy(result))return;
+    const descriptor=Object.getOwnPropertyDescriptor(result,'rows');
+    if(!descriptor||!Object.hasOwn(descriptor,'value'))return;
+    const source=descriptor.value;
+    if(nativeTypes.isProxy(source)||!Array.isArray(source)||Object.getPrototypeOf(source)!==Array.prototype||source.length>READ_SNAPSHOT_LIMITS.rows)return;
+    const rowDescriptors=Object.getOwnPropertyDescriptors(source);
+    if(Reflect.ownKeys(rowDescriptors).length!==source.length+1)return;
+    if(rawContexts.get(context)?.has(key))return;
+    const rows=Array.from({length:source.length},(_unused,index)=>{
+     const d=rowDescriptors[index];if(!d||!Object.hasOwn(d,'value'))throw Error('RAW_DATA_ROW_ACCESSOR');
+     const row=d.value;
+     if(!row||typeof row!=='object'||nativeTypes.isProxy(row)||![Object.prototype,null].includes(Object.getPrototypeOf(row)))throw Error('RAW_DATA_ROW_SHAPE');
+     const descriptors=Object.getOwnPropertyDescriptors(row),copy=Object.create(null);
+     if(Reflect.ownKeys(descriptors).some(key=>typeof key!=='string'))throw Error('RAW_DATA_SYMBOL');
+     for(const [name,d] of Object.entries(descriptors)){
+      if(!d.enumerable)continue;
+      if(!Object.hasOwn(d,'value')||d.value!==null&&!['undefined','string','number','bigint','boolean'].includes(typeof d.value)
+       ||typeof d.value==='number'&&!Number.isFinite(d.value))throw Error('RAW_DATA_SCALAR_REQUIRED');
+      Object.defineProperty(copy,name,{value:d.value,enumerable:true,writable:true,configurable:true});
+     }
+     return copy;
+    });
+    const size=Buffer.byteLength(JSON.stringify(rows,(_key,v)=>typeof v==='bigint'?String(v):v),'utf8')+Buffer.byteLength(key);
+    if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+rawBytes+size>READ_SNAPSHOT_LIMITS.bytes
+     ||closed||rawEpoch!==observedEpoch||entries+rawEntries>=READ_SNAPSHOT_LIMITS.entries)return;
+    const values=rawContexts.get(context)??new Map();if(values.has(key))return;
+    values.set(key,{rows,size});rawContexts.set(context,values);rawEntries++;rawBytes+=size;
+   }catch{/* Unsupported/late/oversize raw DATA follows the original SQL path. */}
+  },
+  clearRawRows(){rawContexts.clear();rawEntries=0;rawBytes=0;rawEpoch++;},
+  clear({retainRawData=false}={}){contexts.clear();entries=0;bytes=0;epoch++;if(!retainRawData)this.clearRawRows();},
   close(){this.clear();closed=true;},
  };
 }

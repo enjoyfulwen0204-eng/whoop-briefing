@@ -16,10 +16,11 @@ export function validateLeg(x,i){
   for(const k of ['processedItems','unitsCommitted','failedJobs'])assert.ok(Number.isSafeInteger(x[k])&&x[k]>=0);
 
 }
-export function validateDiagnostic(v){
+export function validateDiagnostic(v,candidateSha){
+ assert.match(candidateSha??'',/^[a-f0-9]{40}$/);
  exactKeys(v,['contract','status','applicationSource','diagnosticLegs','preparationTransactions','httpRequests','statementCount','maxPreparations','sourceHealthRows','users','addedLatencyMs','cpuProfilerUsed','productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','elapsedMs','ownedServerExited','originalPostconditionsPassed']);
  assert.equal(v.contract,'one-native-first17-work-diagnostic-v1');assert.equal(v.status,'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION');
- assert.equal(v.applicationSource,'a22fd560877c015baef0bc20b9310732ca2baf47');
+ assert.equal(v.applicationSource,candidateSha);
  for(const k of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','cpuProfilerUsed'])assert.equal(v[k],false);
 assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.equal(v.users,1);assert.equal(v.addedLatencyMs,0);
  assert.ok(Array.isArray(v.diagnosticLegs));assert.equal(v.diagnosticLegs.length,17);
@@ -61,7 +62,7 @@ async function main(){
  assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');assert.equal(process.version,'v22.23.2');assert.deepEqual(Object.keys(networkInterfaces()).sort(),['lo']);
  assert.equal(await read('memory.max'),'536870912');assert.equal(await read('memory.swap.max'),'0');assert.equal(await read('cpu.max'),'50000 100000');
  const path='/tmp/native-first17-work.log',fd=await open(path,'wx',0o600),started=performance.now();
- const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-work-join-loader.mjs','--experimental-loader','./test/stage6-native-family-phase-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
+ const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-work-join-loader.mjs','--experimental-loader','./test/stage6-native-family-phase-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test',EXPECTED_CANDIDATE_SHA:candidateSha}});
  let spawnError=false;child.on('error',()=>{spawnError=true;});const timer=setTimeout(()=>child.kill('SIGTERM'),300000);
  const terminal=await new Promise(r=>child.once('close',(code,signal)=>r({code,signal})));clearTimeout(timer);await fd.close();
  assert.ok((await stat(path)).size<16*1024*1024);const raw=await readFile(path,'utf8');
@@ -74,7 +75,7 @@ async function main(){
  const failures=lines('STAGE6_NATIVE_POSITIVE_EOF_FAILURE ');if(failures.length===1)failure=projectFailure(failures[0]);
  const terminals=lines('STAGE6_NATIVE_POSITIVE_EOF_TERMINAL ');if(terminals.length===1)fixtureTerminal=projectTerminal(terminals[0]);
  try{
-  assert.equal(spawnError,false);assert.deepEqual(terminal,{code:0,signal:null});const values=lines('STAGE6_NATIVE_POSITIVE_EOF_RESULT ');assert.equal(values.length,1);validateDiagnostic(values[0]);
+  assert.equal(spawnError,false);assert.deepEqual(terminal,{code:0,signal:null});const values=lines('STAGE6_NATIVE_POSITIVE_EOF_RESULT ');assert.equal(values.length,1);validateDiagnostic(values[0],candidateSha);
   assert.ok(fixtureTerminal?.closed&&fixtureTerminal.ownedServerExited&&fixtureTerminal.clientTerminalComplete&&fixtureTerminal.physicalTerminalObservationComplete);assert.equal(fixtureTerminal.retainedStreams,0);
   assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<300000);
   assert.equal(workJoin?.terminalJoinComplete,true);validateFamilyTarget(familyPhaseJoin,workJoin);observed=values[0];status='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION';

@@ -791,8 +791,8 @@ jobs:
             python3 "$control" --cleanup-only
           fi
 
-  native-recovery-family-phase-diagnostic:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-native-family-phases-20261024' && inputs.mode == 'native-first20-appcause' && inputs.first20_diagnostic_intent == 'one-original-recovery-family-phase-observation-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+  native-raw-data-lifetime-first17-diagnostic:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-raw-data-first17-20261025' && inputs.mode == 'native-first20-appcause' && inputs.first20_diagnostic_intent == 'one-original-raw-data-lifetime-first17-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:

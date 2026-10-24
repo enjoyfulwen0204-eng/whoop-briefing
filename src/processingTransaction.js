@@ -1,3 +1,4 @@
+import {captureRawSourceEffectCatalog,supportedRawDisjointSql,rawEffectSubmissionArguments} from './processingRawSourceEffects.js';
 import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 import {createInflightControlReads,inflightControlReadKey,ownershipControlReadKey,contextLeaseDataReadKey,tenantLeaseDataReadKey,inflightSourceControlReadKey,CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
 import {exactRealStatement} from './exactRealStatement.js';
@@ -22,6 +23,15 @@ export function readObservationProcessingCheck(check,localCheck){
  readObservationChecks.set(check,localCheck);return check;
 }
 const observationEpochs=new WeakMap(),prefixDataReaders=new WeakMap();
+// PRIVATE UNQUALIFIED extension: only the original Core's four point reads.
+// A mark chooses DATA; every original executor/context/source fence still runs.
+const rawSourceStatements=new WeakMap();
+export const processingRawSourceStatement=(client,context,statement)=>{
+ rawSourceStatements.get(client)?.(context,statement);return statement;
+};
+const rawPointSql=new Set(['whoop_sleeps:id','whoop_recoveries:sleep_id','whoop_cycles:id','whoop_workouts:id']
+ .map(value=>{const [table,key]=value.split(':');return `SELECT * FROM ${table} WHERE user_id=? AND ${key}=?`;}));
+
 const contextLeaseDataEligibility=new WeakMap(),sourceControlStatements=new WeakMap();
 // Mark a server-selected DATA statement, never an accepted guard. A mark is
 // scoped to its original root and consumed at execute entry before any await.
@@ -182,13 +192,28 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         if(executorOverrides.has(key))return executorOverrides.get(key);
         const method = target[key].bind(target);
         return async (...args) => {
-        const markedState=key==='execute'?scope.getStore():null;
+        const entryState=scope.getStore();
+        const markedState=key==='execute'?entryState:null;
+        const rawMark=markedState?.rawData?.marks.get(args[0]);
+        if(rawMark)markedState.rawData.marks.delete(args[0]);
         const sourceMark=markedState?.sourceControlStatements?.get(args[0]);
         if(sourceMark)markedState.sourceControlStatements.delete(args[0]);
+        if(entryState?.rawData){
+          const data=entryState.rawData;data.revision++;
+          // Capture-in-progress is not an established snapshot. Every facade
+          // entry invalidates it, even a same-owner reentrant readonly call.
+          if(!data.enabled)data.disable();
+          else{
+            const submitted=rawEffectSubmissionArguments(key,args);
+            if(!submitted)data.disable();
+            else{args=submitted;const statements=key==='batch'?args[0]:[args[0]];
+              if(statements.some(statement=>!supportedRawDisjointSql(typeof statement==='string'?statement:statement.sql,data.proof.tables)))data.disable();}
+          }
+        }
         const query=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
         const metadata=inRuntimeMetadata(query);
         if((checking.getStore()?.readOnly||readOnlyWork.getStore())&&(key==='batch'?args[0]:[args[0]]).some(statement=>!readOnlyStatement(statement))){
-          const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');const reader=readOnlyWork.getStore();if(reader&&scope.getStore())scope.getStore().failure=error;if(reader&&typeof reader==='object')reader.failure=error;if(preparationScope.getStore())preparationScope.getStore().failure=error;throw error;
+          const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');const reader=readOnlyWork.getStore();if(reader&&scope.getStore())scope.getStore().failure=error;if(reader&&typeof reader==='object')reader.failure=error;if(preparationScope.getStore())preparationScope.getStore().failure=error;entryState?.rawData?.disable();throw error;
         }
         return traceExecutionOperation(metadata?'DB_METADATA':'DB_QUERY',async()=>{
         countExecutionTelemetry('query_count',key==='batch'&&Array.isArray(args[0])?args[0].length:1);
@@ -276,12 +301,37 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               }catch(error){state.admissionFirstFailure=error;throw error;}
             }
             const memo=state.readMemo,context=readScope.getStore(),sameScope=state.readBudget===currentExecutionBudget()&&state.readExecution===currentDurableExecution();
+            const classifySubmission=(method,values)=>{
+              if(!state.rawData?.enabled)return values;
+              const submitted=rawEffectSubmissionArguments(method,values);
+              if(!submitted){state.rawData.disable();return values;}
+              const statements=method==='batch'?submitted[0]:[submitted[0]];
+              if(statements.some(statement=>!supportedRawDisjointSql(typeof statement==='string'?statement:statement.sql,state.rawData.proof.tables)))state.rawData.disable();
+              return submitted;
+            };
+            // All fences have finished. Keep cache decisions and actual SDK
+            // dispatch bound to the same inert submission, never caller objects.
+            args=classifySubmission(key,args);
+            const dispatch=(method,values)=>{
+              const submitted=classifySubmission(method,transportArguments(method,values));
+              return state.tx[method](...submitted);
+            };
             if(!mutations.length&&sameScope){const observed=key==='execute'?state.syncSnapshot?.get(args[0]):state.syncSnapshot?.getBatch(args[0]);if(observed!==undefined){currentExecutionBudget()?.assert();return observed;}}
             const snapshotKey=key==='execute'&&!mutations.length&&!metadata&&sameScope?readSnapshotKey(args[0],context,{allowPrincipalReadiness:state.principalReadinessMemoEnabled&&context?.executionMode==='LIVE'}):null;
-            if(mutations.length)memo.clear();
+            // Every original memo/guard observation still clears before and
+            // after mutations. Only proven raw row DATA may survive this clear.
+            const retainRawData=state.rawData?.enabled===true;
+            if(mutations.length)memo.clear({retainRawData});
             try{
               currentExecutionBudget()?.assert();
-              if(snapshotKey){const cached=memo.get(context,snapshotKey);if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
+              const rawKey=rawMark&&state.rawData?.enabled&&sameScope&&key==='execute'&&!mutations.length&&!metadata
+                &&rawMark.state===state&&rawMark.context===context&&rawMark.budget===state.readBudget
+                &&rawMark.execution===state.readExecution&&rawMark.marker===currentExecutionReceiptTransactionMarker()
+                &&rawMark.epoch===memo.epoch()&&rawMark.key===readSnapshotKey(args[0],context)
+                &&state.tx&&!state.tx.closed&&!state.failure&&!state.replaying?rawMark.scopedKey:null;
+              if(rawKey){state.rawData.proof.assert();const cached=memo.getRawRows(context,rawKey);
+                if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
+              if(!rawKey&&snapshotKey){const cached=memo.get(context,snapshotKey);if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
               const immutableGuard=mutations.length?state.syncSnapshot?.guard(mutations):null;
               const inflightKey=state.principalReadinessMemoEnabled&&!state.replaying&&state.readBudget&&sameScope&&checking.getStore()?.readOnly
                 &&key==='execute'&&!mutations.length&&!metadata?inflightControlReadKey(args[0],context):null;
@@ -295,12 +345,13 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
                 &&sourceMark.epoch===memo.epoch()&&key==='execute'&&!mutations.length&&!metadata
                 &&inflightSourceControlReadKey(args[0],context)===sourceMark.key?sourceMark.key:null;
               const pendingKey=inflightKey??sourceKey;
-              const epoch=memo.epoch(),result=immutableGuard
-                ?await state.tx.batch(...transportArguments('batch',[[...statements,immutableGuard]])).then(values=>key==='execute'?values[0]:values.slice(0,-1))
-                :pendingKey?await state.controlReads[ownershipKey?'ownership':'run'](context,currentExecutionReceiptTransactionMarker(),pendingKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
-                :await state.tx[key](...transportArguments(key,args));currentExecutionBudget()?.assert();
-              if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
-            }finally{if(mutations.length)memo.clear();}}
+              const rawEpoch=memo.rawEpoch(),epoch=memo.epoch(),result=immutableGuard
+                ?await dispatch('batch',[[...statements,immutableGuard]]).then(values=>key==='execute'?values[0]:values.slice(0,-1))
+                :pendingKey?await state.controlReads[ownershipKey?'ownership':'run'](context,currentExecutionReceiptTransactionMarker(),pendingKey,epoch,()=>dispatch(key,args))
+                :await dispatch(key,args);currentExecutionBudget()?.assert();
+              if(rawKey&&state.rawData?.enabled){state.rawData.proof.assert();memo.putRawRows(context,rawKey,result,rawEpoch);}
+              else if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
+            }finally{if(mutations.length)memo.clear({retainRawData:state.rawData?.enabled===true});}}
           const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
           if(rootAdmission&&!metadata)await traceExecutionOperation('RUNTIME_READMISSION',()=>{countExecutionTelemetry('runtime_readmissions');return checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));});
           // Foundation/schema reads can overlap another process's writer even
@@ -308,7 +359,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           const readOnly=/^\s*(SELECT\b|PRAGMA\s+(table_info|database_list|index_list|index_info|foreign_key_list|integrity_check|foreign_key_check)\b)/i.test(sql);
           return await (readOnly&&!metadata?retryContention(()=>method(...transportArguments(key,args)),{afterBusy:refreshIdleConnection}):method(...transportArguments(key,args)));
         }
-        catch (error) { if (state) state.failure = error; throw error; }
+        catch (error) { if (state){state.rawData?.disable();state.failure = error;} throw error; }
         finally {release?.();}
         });
         };
@@ -376,7 +427,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       const releaseRoot=await acquireRoot();
       let tx,commitSubmitted=false,commitGuardRejected=false;
       const readMemo=createReadSnapshotMemo(),controlReads=createInflightControlReads(),readBudget=currentExecutionBudget();
-      const originalClear=readMemo.clear.bind(readMemo);readMemo.clear=()=>{controlReads.clear();originalClear();};
+      const originalClear=readMemo.clear.bind(readMemo);readMemo.clear=(...args)=>{controlReads.clear();originalClear(...args);};
       const originalClose=readMemo.close.bind(readMemo);readMemo.close=()=>{controlReads.close();originalClose();};
       const closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
       if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});
@@ -456,6 +507,19 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             for(const check of state.checks)await check(client);currentExecutionBudget()?.assert();
             readMemo.close();await tx.rollback();return result;
           }}
+          // Only after original admission, owned BEGIN ACK and receipt replay
+          // checks: establish fresh metadata on this exact original transaction.
+          if(state.principalReadinessMemoEnabled&&state.readBudget&&state.readExecution===currentDurableExecution()){
+            const marker=currentExecutionReceiptTransactionMarker(),rawData={enabled:false,closed:false,revision:0,marks:new WeakMap(),
+              disable(){this.enabled=false;this.closed=true;readMemo.clearRawRows();this.marks=new WeakMap();}};
+            state.rawData=rawData;
+            const assertCurrent=()=>{currentExecutionBudget()?.assert();execution.authority.assert();requireSettledOperation();
+              if(state.failure)throw state.failure;
+              if(state.tx!==tx||tx.closed||state.readBudget!==currentExecutionBudget()||state.readExecution!==currentDurableExecution()
+                ||!marker||marker!==currentExecutionReceiptTransactionMarker()||state.replaying)throw Error('RAW_DATA_OWNED_ROOT_CHANGED');};
+            const proof=await captureRawSourceEffectCatalog({client,transaction:tx,assertCurrent,revision:()=>rawData.revision});
+            if(proof&&!rawData.closed&&rawData.revision===0){rawData.proof=proof;rawData.enabled=true;rawData.marker=marker;}
+          }
           const callbackAt=performance.now(),result = await fn();
           state.syncSnapshot?.note('callbackMs',performance.now()-callbackAt);
           if (state.failure) throw state.failure;
@@ -566,6 +630,16 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       ||readScope.getStore()!==context||!marker)return;
     const key=inflightSourceControlReadKey(statement,context);if(!key)return;
     state.sourceControlStatements.set(statement,{state,context,budget,execution,marker,epoch:state.readMemo.epoch(),key});
+  });
+  if(privateRuntime&&base.protocol==='http')rawSourceStatements.set(client,(context,statement)=>{
+    const state=scope.getStore(),execution=currentDurableExecution(),budget=currentExecutionBudget(),marker=currentExecutionReceiptTransactionMarker();
+    if(!state?.rawData?.enabled||!state.principalReadinessMemoEnabled||!state.tx||state.tx.closed||state.failure||state.replaying
+      ||!state.readBudget||state.readBudget!==budget||state.readExecution!==execution||readScope.getStore()!==context
+      ||!marker||marker!==state.rawData.marker)return;
+    const submitted=rawEffectSubmissionArguments('execute',[statement])?.[0];
+    if(!submitted||typeof submitted==='string'||!rawPointSql.has(submitted.sql)||submitted.args?.length!==2)return;
+    const key=readSnapshotKey(submitted,context);if(!key)return;
+    state.rawData.marks.set(statement,{state,context,budget,execution,marker,epoch:state.readMemo.epoch(),key,scopedKey:key});
   });
   contextLeaseDataEligibility.set(client,(context,name,tenantPass=false)=>{
     const state=scope.getStore(),execution=currentDurableExecution(),budget=currentExecutionBudget();

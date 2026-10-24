@@ -1,0 +1,61 @@
+/** REAL local HTTP fixed listener + connected managed main + native SQLite
+ * graph tests. No provider/credential/health/production use. */
+import test from 'node:test';import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';import http from 'node:http';import {EventEmitter} from 'node:events';import {Readable} from 'node:stream';
+import {mkdtemp,realpath,chmod,copyFile,rm,readFile} from 'node:fs/promises';import {join} from 'node:path';import {tmpdir} from 'node:os';import {createHash} from 'node:crypto';
+const fastUrl=new URL('../src/productionFastControl.js',import.meta.url).href,currentUrl=new URL('../src/currentTerminalRuntime.js',import.meta.url).href,revocationUrl=new URL('../src/productionInitializationRevocation.js',import.meta.url).href;
+const controllerUrl=new URL('../src/productionSupervisorController.js',import.meta.url).href,bootstrapUrl=new URL('../src/productionEpochBootstrap.js',import.meta.url).href,dbUrl=new URL('../src/db.js',import.meta.url).href;
+registerHooks({resolve(specifier,context,nextResolve){if(specifier==='@libsql/client'&&[controllerUrl,bootstrapUrl,dbUrl,fastUrl,currentUrl,revocationUrl].includes(context.parentURL))return {url:'data:text/javascript,'+encodeURIComponent('export function createClient(options){return globalThis.__productionBootstrapSyntheticSdk(options,'+JSON.stringify(context.parentURL)+');}'),shortCircuit:true};return nextResolve(specifier,context);}});
+const {createClient}=await import('@libsql/client'),{createOwnedDb}=await import('./stage5OwnedDb.js'),{fixtureKeys:keys}=await import('./localDb.js'),{runningReleaseSha}=await import('../src/phase4Release.js'),{runMigrations}=await import('../src/migrations.js'),{computeWhoopSignature}=await import('../src/whoopWebhookAuth.js');
+const {sealProductionTransitionWindow,qualifyProductionEpochOperator,createProductionEpochBootstrap,requireProductionEpochBootstrap,advanceProductionSupervisorBoot,initializeProductionEpochIngress,PRODUCTION_EPOCH_TARGET:P}=await import(bootstrapUrl);
+const {createProductionSupervisorRuntime,sealProductionSupervisorCommand}=await import(controllerUrl);
+const {captureProductionSupervisorEpochAdmission}=await import('../src/epochPermitClient.js'),{createSupervisorRuntimeEpochScope,revokeSupervisorRuntimeEpochScope}=await import('../src/runtimeEpochScope.js'),{createDb}=await import(dbUrl);
+const {schemaTransitionRuntimeProfileFor}=await import('../src/schemaTransitionProfile.js');
+const S=Math.floor(Date.now()/1000)*1000-10000,IDS=['91801','91802','91803'],RELEASE=runningReleaseSha({}),hash=x=>createHash('sha256').update(x).digest('hex');let seedDir,seed,realNetwork=0,sequence=0;
+const connect=p=>createClient({url:'file:'+p,intMode:'number'});
+test.before(async t=>{t.mock.method(globalThis,'fetch',()=>{realNetwork++;throw Error('REAL_NETWORK_FORBIDDEN');});seedDir=await realpath(await mkdtemp(join(tmpdir(),'production-bridge-seed-')));await chmod(seedDir,0o700);seed=join(seedDir,'seed.sqlite');const db=createOwnedDb({url:'file:'+seed});try{await db.migrate({targetVersion:33});const at=new Date(S).toISOString();for(let i=0;i<3;i++){
+ await db.raw.execute({sql:"INSERT INTO users(id,display_name,timezone,status,created_at,updated_at) VALUES(?,?,'Asia/Taipei','ACTIVE',?,?)",args:['SYNTHETIC-CONTROL-'+i,'Synthetic',at,at]});await db.raw.execute({sql:"INSERT INTO user_whoop_tokens(user_id,whoop_user_id,access_token,refresh_token,access_token_expires_at,updated_at) VALUES(?,?,'SYNTHETIC','SYNTHETIC',?,?)",args:['SYNTHETIC-CONTROL-'+i,IDS[i],at,at]});await db.raw.execute({sql:'INSERT INTO phase4_user_state(user_id,source_generation,purge_generation,pending_purge_count,created_at,updated_at) VALUES(?,0,0,0,?,?)',args:['SYNTHETIC-CONTROL-'+i,at,at]});
+ }await db.raw.execute({sql:"INSERT INTO telegram_state VALUES('telegram_offset','0',?)",args:[at]});}finally{db.close();}await chmod(seed,0o600);});
+test.after(async()=>{assert.equal(realNetwork,0);delete globalThis.__productionBootstrapSyntheticSdk;await rm(seedDir,{recursive:true,force:true});});
+function environment(){return {PHASE4_BETA_PILOT_USER_ID:'SYNTHETIC-CONTROL-0',OPENROUTER_API_KEY:'SYNTHETIC-OPENROUTER',PORT:'0',TURSO_DATABASE_URL:P.databaseUrl,TURSO_AUTH_TOKEN:'SYNTHETIC-TURSO',PHASE4_LOOKUP_KEY:'47'.repeat(32),PHASE4_AUDIT_KEY:'53'.repeat(32),PHASE4_EXECUTION_PROFILE:'STAGE8_SCHEMA_TRANSITION',PHASE4_RELEASE_SHA:RELEASE,RENDER_GIT_COMMIT:RELEASE,WHOOP_WEBHOOK_ENABLED:'on',WHOOP_CLIENT_SECRET:'SYNTHETIC-WHOOP',TELEGRAM_BOT_TOKEN:'SYNTHETIC-TG',TELEGRAM_WEBHOOK_SECRET:'SYNTHETIC-TG-SECRET',BRIEFING_TRIGGER_SECRET:'SYNTHETIC-BRIEFING',STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'SYNTHETIC-CONTROL-0',STAGE7_AUTOMATIC:'off'};}
+function window(patch={}){return {contract:'production-transition-r3-original-window-v1',approvalId:'owner-SYNTHETIC-PRODUCTION-BOOTSTRAP',originalWindowId:'SYNTHETIC-PRODUCTION-BOOTSTRAP-WINDOW',originalWindowStartMs:S,originalWindowEndMs:S+3600000,attemptNonce:hash('SYNTHETIC-NONCE'),startIdentity:hash('SYNTHETIC-START'),source33RuntimeSha:RELEASE,targetRuntimeSha:RELEASE,historicalCa4BaselineSha:'ca4bff7b711737527ca6c4e306d4a3ef555c9f3b',origin:P.origin,databaseUrl:P.databaseUrl,resourceApiVersion:'v2',acceptFromMs:S,acceptUntilMs:S+3600000,tenants:IDS.map((whoopUserId,i)=>({userId:'SYNTHETIC-CONTROL-'+i,whoopUserId,lifecycleGeneration:1,authGeneration:1,sourceGeneration:0,purgeGeneration:0})),...patch};}
+async function fixture(t,{patch={},sdkFault}={}){const dir=await realpath(await mkdtemp(join(tmpdir(),'production-bootstrap-')));await chmod(dir,0o700);const path=join(dir,'actual.sqlite');await copyFile(seed,path);await chmod(path,0o600);const operator=connect(path),env=environment(),w=window(patch),sdk=[],controllers=[];
+ globalThis.__productionBootstrapSyntheticSdk=(options,parent)=>{assert.equal(options.url,P.databaseUrl);assert.equal(options.authToken,'SYNTHETIC-TURSO');assert.ok(options.intMode===undefined||options.intMode==='number');assert.equal(typeof options.fetch,'function');const client=connect(path);sdk.push(client);return sdkFault?sdkFault(client,parent):client;};
+ const service={id:P.service,ownerId:P.owner,repo:P.repo,autoDeploy:'no',suspended:'not_suspended',type:'web_service',serviceDetails:{maintenanceMode:{enabled:false},envSpecificDetails:{startCommand:'npm run bot:webhook'}}},raw={service,deploys:[{deploy:{id:'SYNTHETIC-LIVE',status:'live',commit:{id:w.source33RuntimeSha}}}],variables:Object.entries(env).filter(([k])=>k!=='RENDER_GIT_COMMIT').map(([key,value])=>({envVar:{key,value}}))};
+ t.mock.method(globalThis,'fetch',async(input,init)=>{const u=new URL(input);assert.equal(u.origin,'https://api.render.com');assert.equal(init.headers.Authorization,'Bearer SYNTHETIC-LOCAL-RENDER');assert.equal(init.method,undefined);const value=u.pathname.endsWith('/deploys')?raw.deploys:u.pathname.endsWith('/env-vars')?raw.variables:raw.service;return new Response(JSON.stringify(value),{status:200,headers:{date:new Date(Date.now()).toUTCString(),'content-type':'application/json'}});});
+ const processBoot=await advanceProductionSupervisorBoot({environment:env});const qualification=await qualifyProductionEpochOperator({operatorEnvironment:{...env,RENDER_API_KEY:'SYNTHETIC-LOCAL-RENDER'},signedWindow:sealProductionTransitionWindow({keys,window:w})});
+ t.after(async()=>{for(const runtime of controllers)await runtime.close();operator.close();for(const c of sdk)try{c.close();}catch{}await rm(dir,{recursive:true,force:true});});const f={env,w,path,operator,qualification,processBoot,sdk,raw,controllers};f.open=()=>createProductionEpochBootstrap({environment:f.env,operatorQualification:f.qualification,...(f.processBoot?{processBoot:f.processBoot}:{})});f.qualify=()=>qualifyProductionEpochOperator({operatorEnvironment:{...f.env,RENDER_API_KEY:'SYNTHETIC-LOCAL-RENDER'},signedWindow:sealProductionTransitionWindow({keys,window:f.w})});return f;
+}
+const phase=async(f,s,label)=>{const from=label==='B_INGRESS_ONLY'?s.records[0]:s.records[1],to=s.records.find(r=>r.label===label);return f.operator.execute({sql:'UPDATE telegram_state SET value=?,updated_at=? WHERE key=? AND value=? AND updated_at=?',args:[to.value,to.updated_at,s.registryKey,from.value,from.updated_at]});};
+async function migrateToC(f,s){await phase(f,s,'B_INGRESS_ONLY');const tx=await f.operator.transaction('write');try{for(const q of s.sourceTriggers)await tx.execute('DROP TRIGGER '+/^CREATE TRIGGER ("[^"]+")/.exec(q.sql)[1]);await runMigrations(tx,{allowRebuild:false,targetVersion:35,privacyKeys:keys});for(const q of s.targetTriggers)await tx.execute(q);await tx.commit();}catch(e){await tx.rollback();throw e;}finally{tx.close();}await phase(f,s,'C_BUSINESS35');}
+
+
+function request(runtime,path,{body,headers={},method='POST'}={}){return new Promise((resolve,reject)=>{const data=body===undefined?null:typeof body==='string'?body:JSON.stringify(body),req=http.request({host:'127.0.0.1',port:runtime.server.address().port,path,method,headers:{...(data?{'content-length':Buffer.byteLength(data)}:{}),...headers}},res=>{const chunks=[];res.on('data',c=>chunks.push(c));res.on('end',()=>{let json;const text=Buffer.concat(chunks).toString();try{json=JSON.parse(text);}catch{}resolve({status:res.statusCode,json,text});});});req.on('error',reject);if(data)req.write(data);req.end();});}
+const CONTROL='/internal/production-transition-control';
+function sealed(f,action,ttl=120000){const command={contract:'production-supervisor-owner-command-v2',action,originalWindowId:f.w.originalWindowId,commandId:hash('SYNTHETIC-COMMAND-'+sequence++),issuedAtMs:Date.now(),expiresAtMs:Date.now()+ttl,...(action==='prepare'?{operatorQualification:f.qualification}:{})};return sealProductionSupervisorCommand({keys,command});}
+async function control(runtime,f,action,ttl){return request(runtime,CONTROL,{body:sealed(f,action,ttl)});}
+function whoop(runtime,trace='SYNTHETIC-NATIVE',whoopUserId=IDS[0]){const body=JSON.stringify({user_id:whoopUserId,id:'12345678-1234-4234-8234-123456789abc',type:'sleep.updated',trace_id:trace}),at=String(Date.now());return request(runtime,'/whoop/webhook',{body,headers:{'x-whoop-signature-timestamp':at,'x-whoop-signature':computeWhoopSignature(at,body,'SYNTHETIC-WHOOP')}});}
+async function runtimeFor(t,f){const r=await createProductionSupervisorRuntime({environment:f.env});f.controllers.push(r);if(r.status().phase==='PREFENCE33'){f.qualification=await f.qualify();f.processBoot=undefined;}return r;}
+async function settleD(f){const b=f.open(),o=await b.observeRestart(),s=requireProductionEpochBootstrap(o,keys).s;await phase(f,s,'B_INGRESS_ONLY');await phase(f,s,'D_ABORT33');b.close();return s;}
+
+
+const {captureRawSourceEffectCatalog}=await import('../src/processingRawSourceEffects.js');
+test('new DATA-effect proof accepts genuine original opaque C35 compiled fences only in isolated fixture',async t=>{
+ const f=await fixture(t),b=f.open();let scope,db;
+ try{
+  const a=await b.initializeBusiness33(),s=requireProductionEpochBootstrap(a,keys).s;
+  await migrateToC(f,s);
+  const observation=await b.observeRestart();
+  scope=createSupervisorRuntimeEpochScope({epochAdmission:captureProductionSupervisorEpochAdmission({observation,keys}),keys});
+  db=createDb({url:P.databaseUrl,authToken:f.env.TURSO_AUTH_TOKEN,phase4Keys:keys,
+   runtimeProfile:schemaTransitionRuntimeProfileFor({environment:f.env,keys}),runtimeEpoch:scope});
+  await db.admitRuntime();
+  await db.transaction(async()=>{
+   const effects=await captureRawSourceEffectCatalog({client:db.raw,
+    transaction:{execute:q=>db.raw.execute(q),batch:q=>db.raw.batch(q)},
+    assertCurrent:()=>assert.equal(db.processingTransactionActive(),true),revision:()=>0});
+   assert.ok(effects,'GENUINE_COMPILED_C35_FENCES_MUST_NOT_BE_GENERIC_EXTRA_TRIGGER_EXEMPTION');
+   effects.assert();assert.ok(effects.tables.has('whoop_sleeps'));
+  });
+ }finally{if(scope)revokeSupervisorRuntimeEpochScope(scope,keys);db?.close();b.close();}
+});

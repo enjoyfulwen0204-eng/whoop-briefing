@@ -202,7 +202,12 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         }
         const guarded = fences().length > 0 && !metadata;
         const context=readScope.getStore(),execution=currentDurableExecution(),checks=fenceScope.getStore()??[];
-        const observationKey=key==='execute'?readSnapshotKey(args[0],context):null;
+        // This first key is used only by the SHADOW overlap below. In the
+        // original acknowledged owned LIVE root it would be discarded; the
+        // ordinary dispatch still builds its fresh key after every fence.
+        const unusedLiveKey=state?.principalReadinessMemoEnabled&&state.readExecution===execution
+          &&execution?.claim?.request?.phase==='STAGE6_DRAIN'&&execution.claim.request.executionMode==='LIVE';
+        const observationKey=key==='execute'&&!unusedLiveKey?readSnapshotKey(args[0],context):null;
         if(privateRuntime&&guarded&&state&&!state.failure&&key==='execute'&&context
           &&readOnlyStatement(args[0])
           &&state.readBudget===currentExecutionBudget()&&state.readExecution===execution

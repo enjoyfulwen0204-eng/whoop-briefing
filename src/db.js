@@ -95,7 +95,14 @@ export function createDb({ url, authToken, phase4Keys,fetch,runtimeProfile,runti
     // Permit ONLY protocol close of that already issued baton, never SQL.
     if(closeOnlyPayload(payload))return closeHranaStream(providerFetch,original,payload.baton,pendingFor(payload.baton));
     if(!budget)return providerFetch(original);
-    budget.assert();
+    try{budget.assert();}
+    catch(error){
+      // Cancellation before physical dispatch can reject the installed SDK's
+      // combined ROLLBACK+close packet. Release only that original baton after
+      // its already-submitted commands settle; grant no cleanup SQL authority.
+      if(payload?.baton)try{await closeHranaStream(providerFetch,original,payload.baton,pendingFor(payload.baton));}catch{/* Unknown cleanup still requires provider expiry. */}
+      throw error;
+    }
     const request=new Request(original,{signal:AbortSignal.any([budget.signal,...[input?.signal,init?.signal].filter(Boolean)])});
     const work=Promise.resolve().then(()=>{budget.assert();return traceExecutionOperation('DB_HTTP',()=>{budget.assert();countExecutionTelemetry('db_http_requests');return providerFetch(request);});});
     if(payload?.baton){

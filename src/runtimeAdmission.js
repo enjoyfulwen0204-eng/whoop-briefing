@@ -322,6 +322,37 @@ function ordinaryRawEffectTableHeader(sql,name){
  const match=/^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"([a-z_][a-z0-9_]*)"|`([a-z_][a-z0-9_]*)`|'([a-z_][a-z0-9_]*)'|\[([a-z_][a-z0-9_]*)\]|([a-z_][a-z0-9_]*))\s*\(/i.exec(sql);
  return !!match&&match.slice(1).find(Boolean).toLowerCase()===name.toLowerCase();
 }
+// Only immutable compiled EXPECTED DDL is preprocessed. No actual catalog row,
+// successful match, admission, connection, guard or schema observation is cached.
+// Every original fresh metadata read and identity/currentness check still runs.
+const rawEffectExpectedTableParts=new WeakMap();
+function rawEffectTableMatches(actual,expected){
+ let compiled=rawEffectExpectedTableParts.get(expected);
+ if(!compiled){
+  const suffix=normalizeSql(expected.ddl.slice(expected.ddl.lastIndexOf(')')+1));
+  const wanted=elements(expected.ddl).map(normalizeSql).map(part=>{
+   const name=columnName(part);
+   return Object.freeze({part,variants:Object.freeze(expected.variants.filter(c=>c.column===name)
+    .map(c=>normalizeSql(`${c.column} ${c.definition}`)))});
+  });
+  compiled=Object.freeze({canonical:normalizeSql(expected.ddl),suffix,wanted:Object.freeze(wanted)});rawEffectExpectedTableParts.set(expected,compiled);
+ }
+ // Fresh complete text equality is a pure sufficient condition for the same
+ // canonical element match; variants/order histories retain the original fallback.
+ if(normalizeSql(actual)===compiled.canonical)return true;
+ if(normalizeSql(actual.slice(actual.lastIndexOf(')')+1))!==compiled.suffix)return false;
+ const parts=elements(actual).map(normalizeSql).sort();
+ if(parts.length!==compiled.wanted.length)return false;
+ return compiled.wanted.every(({part,variants})=>parts.includes(part)||variants.some(value=>parts.includes(value)));
+}
+// Fixed private compiled index/trigger definitions only. Fresh actual SQL
+// continues to be normalized and compared on every complete catalog read.
+const rawEffectExpectedObjectText=new WeakMap();
+function rawEffectExpectedObjectSql(expected){
+ let text=rawEffectExpectedObjectText.get(expected);
+ if(text===undefined){text=normalizeSql(expected.ddl);rawEffectExpectedObjectText.set(expected,text);}
+ return text;
+}
 export function ownedRawSourceEffectVerifier(client){
  const connection=connections.get(client),capability=connection?.rawEffectAdmission,issued=capabilities.get(capability);
  if(!issued||issued.client!==client||canonicalRawEffectDigest()!==RAW_EFFECT_CATALOG_DIGEST||!rawEffectNoDeclaredCollation)return null;
@@ -352,7 +383,7 @@ export function ownedRawSourceEffectVerifier(client){
      const expectedTable=expected.type==='table'?expected.name:/\bON\s+(\w+)/i.exec(expected.ddl)?.[1];
      if(seenCanonical.has(row.name)||row.type!==expected.type||typeof row.sql!=='string'
       ||!expectedTable||row.tbl_name.toLowerCase()!==expectedTable.toLowerCase()
-      ||(expected.type==='table'?!ordinaryRawEffectTableHeader(row.sql,expected.name)||!tableMatches(row.sql,expected):normalizeSql(row.sql)!==normalizeSql(expected.ddl)))return false;
+      ||(expected.type==='table'?!ordinaryRawEffectTableHeader(row.sql,expected.name)||!rawEffectTableMatches(row.sql,expected):normalizeSql(row.sql)!==rawEffectExpectedObjectSql(expected)))return false;
      seenCanonical.add(row.name);continue;
     }
     const extra=extras.get(row.name);

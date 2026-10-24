@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createWorkCorrelation} from './stage6-native-work-join.mjs';import {createAttribution} from './stage6-native-attribution.mjs';import {FAMILY_PHASES} from './stage6-native-family-phases.mjs';import {validateFamilyTarget} from '../tools/stage8-qualification/first17-work-supervisor.mjs';
+async function packet(){const c=createWorkCorrelation(),o=c.decorate(createAttribution());await c.preparation(17,()=>c.owned({workKind:'stage6.family',workFacts:['recovery_score']},async()=>{const r=o.startRequest(['BEGIN']),b=o.finishRequest(r,{successMask:[true]}),t=o.startTransaction(b[0].owner,r,1);for(const p of FAMILY_PHASES)await c.phase(p,()=>1);o.finishTransaction(t,{outcome:'COMMITTED',durationUpperBoundMs:100});}));const s=o.snapshot();return {f:s.familyPhaseJoin,w:s.namedWorkJoin};}
+test('supervisor accepts only the exact original committed Recovery physical token with observed required phases',async()=>{const {f,w}=await packet();assert.equal(validateFamilyTarget(f,w),true);});
+for(const mode of ['wrong_invocation','wrong_metric','wrong_duration','unknown_terminal','missing_replay','unsettled','lost','outside_windows','private_field'])test('supervisor rejects unsafe or invented target '+mode,async()=>{const {f,w}=await packet();const r=f.slowest8[0];if(mode==='wrong_invocation')r.workInvocationOrdinal++;if(mode==='wrong_metric')r.workLabel='stage6.family:hrv';if(mode==='wrong_duration')r.durationUpperBoundMs++;if(mode==='unknown_terminal')r.outcome='UNKNOWN';if(mode==='missing_replay')r.phases.PREPARATION_REPLAY={calls:0,completed:0,failed:0,sumInclusiveMs:0,maxInclusiveMs:0};if(mode==='unsettled')f.activeRoots=1;if(mode==='lost')f.lostObservations=1;if(mode==='outside_windows')r.phaseWindowsWithinClientUpper=false;if(mode==='private_field')f.privateSQL='PRIVATE';assert.throws(()=>validateFamilyTarget(f,w));});
+
+test('longer legitimate rollback cannot shadow later committed target in same original work invocation',async()=>{
+ const c=createWorkCorrelation(),o=c.decorate(createAttribution());
+ await c.preparation(17,()=>c.owned({workKind:'stage6.family',workFacts:['recovery_score']},async()=>{
+  const begin=()=>{const r=o.startRequest(['BEGIN']),b=o.finishRequest(r,{successMask:[true]});return o.startTransaction(b[0].owner,r,1);};
+  o.finishTransaction(begin(),{outcome:'ROLLED_BACK',durationUpperBoundMs:7000});const t=begin();for(const p of FAMILY_PHASES)await c.phase(p,()=>1);o.finishTransaction(t,{outcome:'COMMITTED',durationUpperBoundMs:6000});
+ }));
+ const s=o.snapshot();assert.equal(s.namedWorkJoin.slowest8[0].outcome,'ROLLED_BACK');assert.equal(s.familyPhaseJoin.rootsWithoutPhaseWindows,1);assert.equal(s.familyPhaseJoin.coverageComplete,false);assert.equal(validateFamilyTarget(s.familyPhaseJoin,s.namedWorkJoin),true);
+});

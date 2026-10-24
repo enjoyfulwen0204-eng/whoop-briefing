@@ -1,6 +1,7 @@
 // Test-only, bounded semantic ownership joined to original native ACK tokens.
 // Does not execute SQL, grant authority, retry, adjust clocks or qualify capacity.
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {createFamilyPhaseCorrelation} from './stage6-native-family-phases.mjs';
 import {isProxy} from 'node:util/types';
 import assert from 'node:assert/strict';
 import {CATEGORIES} from './stage6-native-attribution.mjs';
@@ -24,8 +25,9 @@ export function validateWorkJoin(v){
  if(v.terminalJoinComplete){assert.equal(v.allPhysicalTransactions,v.linkedTransactionCount);for(const k of ['unsettledJoinedTransactions','retainedRequestOwners','retainedBeginOwners','lostJoins'])assert.equal(v[k],0);assert.equal(total,v.allPhysicalTransactions);}
  return true;
 }
-export function createWorkCorrelation({emit=()=>{}}={}){
- assert.equal(typeof emit,'function');
+export function createWorkCorrelation({emit=()=>{},emitPhases=()=>{}}={}){
+ assert.equal(typeof emit,'function');assert.equal(typeof emitPhases,'function');
+ const familyPhases=createFamilyPhaseCorrelation();
  const scope=new AsyncLocalStorage(),ordinals=new Uint32Array(18),outside=Object.freeze({preparationOrdinal:0,workInvocationOrdinal:0,workLabel:'OUTSIDE'});let scopeLoss=0;
  const data=(o,k)=>{if(!o||typeof o!=='object'||isProxy(o))return undefined;const d=Object.getOwnPropertyDescriptor(o,k);return d&&Object.hasOwn(d,'value')?d.value:undefined;};
  function preparation(ordinal,call){assert.ok(Number.isSafeInteger(ordinal)&&ordinal>=1&&ordinal<=17);return scope.run(Object.freeze({preparationOrdinal:ordinal,workInvocationOrdinal:0,workLabel:'READ_ONLY_OR_OTHER'}),call);}
@@ -49,11 +51,11 @@ export function createWorkCorrelation({emit=()=>{}}={}){
    for(const begin of observed)keep(begins,begin.owner,owner??outside);return observed;
   }
   function startTransaction(owner,...args){const captured=begins.get(owner),token=base.startTransaction(owner,...args);if(token)begins.delete(owner);if(!captured)lost++;
-   if(token&&keep(transactions,token,{...(captured??outside),categories:{...blankCategories(),TX_BEGIN:1}}))linked++;return token;
+   if(token&&keep(transactions,token,{...(captured??outside),categories:{...blankCategories(),TX_BEGIN:1}})){linked++;familyPhases.enter(token,captured,captured);}return token;
   }
   function transactionStorage(token,category){base.transactionStorage(token,category);const t=transactions.get(token);if(t&&CATEGORIES.includes(category))t.categories[category]++;else lost++;}
   function finishTransaction(token,options={}){base.finishTransaction(token,options);const t=transactions.get(token);if(!t){lost++;return;}transactions.delete(token);
-   const ms=options.durationUpperBoundMs;if(!finite(ms)){lost++;return;}
+   const ms=options.durationUpperBoundMs;familyPhases.finish(token,options);if(!finite(ms)){lost++;return;}
    const outcome=['COMMITTED','ROLLED_BACK'].includes(options.outcome)?options.outcome:'UNKNOWN';if(outcome==='COMMITTED')t.categories.TX_COMMIT++;if(outcome==='ROLLED_BACK')t.categories.TX_ROLLBACK++;
    const key=t.preparationOrdinal+':'+t.workLabel;let c=counts.get(key);if(!c){if(counts.size>=18*WORK_LABELS.length){lost++;return;}c={preparationOrdinal:t.preparationOrdinal,workLabel:t.workLabel,transactions:0,committed:0,rolledBack:0,unknownTerminal:0,atOrAbove5s:0,sumUpperMs:0,maxUpperMs:0};counts.set(key,c);}
    c.transactions++;c[outcome==='COMMITTED'?'committed':outcome==='ROLLED_BACK'?'rolledBack':'unknownTerminal']++;if(ms>=5000)c.atOrAbove5s++;c.sumUpperMs+=ms;c.maxUpperMs=Math.max(c.maxUpperMs,ms);
@@ -61,14 +63,16 @@ export function createWorkCorrelation({emit=()=>{}}={}){
    slowest.push({preparationOrdinal:t.preparationOrdinal,workInvocationOrdinal:t.workInvocationOrdinal,workLabel:t.workLabel,outcome,durationUpperBoundMs:ms,categories:t.categories});slowest.sort((a,b)=>b.durationUpperBoundMs-a.durationUpperBoundMs);if(slowest.length>8)slowest.pop();
    // Preserve a completed slow transaction before any subsequent work or
    // cleanup can hang. Fixed-count sink, finite snapshot, no outcome changes.
-   if(newSlowest&&emissions<64){emissions++;try{emit(snapshot().namedWorkJoin);}catch{lost++;}}
+   if(newSlowest&&emissions<64){emissions++;let packet;try{packet=snapshot();}catch{lost++;}
+    if(packet){try{emit(packet.namedWorkJoin);}catch{lost++;}try{emitPhases(packet.familyPhaseJoin);}catch{lost++;}}
+   }
   }
   function snapshot(){const s=base.snapshot(),allPhysicalTransactions=Object.values(s.bins).reduce((a,b)=>a+b.transactions.begun,0);
    const work={contract:'native-request-start-work-join-v1',diagnosticOnly:true,productionEvidence:false,capacityQualified:false,requestStartOwnership:true,allPhysicalTransactions,linkedTransactionCount:linked,unsettledJoinedTransactions:transactions.size,retainedRequestOwners:requests.size,retainedBeginOwners:begins.size,lostJoins:lost+scopeLoss,
     terminalJoinComplete:s.physicalTerminalObservationComplete&&lost===0&&scopeLoss===0&&requests.size===0&&begins.size===0&&transactions.size===0&&allPhysicalTransactions===linked,byWork:structuredClone([...counts.values()]),slowest8:structuredClone(slowest)};
-   validateWorkJoin(work);return {...s,namedWorkJoin:work};
+   validateWorkJoin(work);return {...s,namedWorkJoin:work,familyPhaseJoin:familyPhases.snapshot()};
   }
   return Object.freeze({...base,startRequest,finishRequest,startTransaction,transactionStorage,finishTransaction,snapshot});
  }
- return Object.freeze({preparation,owned,decorate});
+ return Object.freeze({preparation,owned,decorate,phase:(name,call)=>familyPhases.phase(scope.getStore(),name,call)});
 }

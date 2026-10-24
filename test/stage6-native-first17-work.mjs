@@ -1,5 +1,5 @@
 import {createWorkCorrelation} from './stage6-native-work-join.mjs';
-const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=correlation;
+const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value)),emitPhases:value=>console.log('STAGE6_NATIVE_FAMILY_PHASE_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=correlation;
 import {joinIssuedTransport,transportIsJoined,waitIssuedIdleBefore} from './stage6-native-join-barrier.mjs';
 // One fresh synthetic nonempty SQLD database. Bounded canonical preparations,
 // one original115ms final EOF and exact identity replay. No Production data or authority.
@@ -32,7 +32,7 @@ const server=spawn('/usr/local/bin/isolated-sqld',['-d',join(directory,'physical
 let serverError=false;server.on('error',()=>{serverError=true;});
 const networkFetch=globalThis.fetch.bind(globalThis);let latency=false,db,a,b,stage='SERVER_START',failure=null,report=null,closed=false;
 const progress={startedPreparations:0,completedPreparations:0,sourceAcknowledgments:0,unitsCommitted:0,lastPendingJobs:null,lastBudgetPerTenant:null,check:'NOT_STARTED',preparationSnapshotState:'NOT_STARTED'};
-function emitWorkJoin(){try{const value=a?.observer.snapshot().namedWorkJoin;if(value)console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value));}catch{}}
+function emitWorkJoin(){try{const snapshot=a?.observer.snapshot(),value=snapshot?.namedWorkJoin;if(value)console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value));if(snapshot?.familyPhaseJoin)console.log('STAGE6_NATIVE_FAMILY_PHASE_JOIN '+JSON.stringify(snapshot.familyPhaseJoin));}catch{}}
 function capturePreparationProgress(terminal=false){
  if(progress.preparationSnapshotState==='NOT_STARTED')return;
  try{
@@ -155,7 +155,7 @@ try{
  }
  a.observer.setPhase('READBACK','READBACK');stage='FIRST17_WORK_DIAGNOSTIC_CLEANUP';assert.equal(setupCalls,17);assert.equal(diagnosticLegs.length,17);
  const final=await closeClient(a),packet=final.bins.GENUINE_ORIGINAL_PRODUCER_CALL;assert.equal(packet.requestErrors,0);assert.equal(packet.responseErrors,0);assert.equal(packet.unknownReplies,0);
- report={contract:'one-native-first17-work-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',originalPostconditionsPassed:true,applicationSource:'8cb10488209db3745e913ef0f1c615e0735ee44b',diagnosticLegs,preparationTransactions:packet.transactions,httpRequests:packet.requests,statementCount:packet.submittedStatements,maxPreparations:17,sourceHealthRows:160,users:1,addedLatencyMs:0,cpuProfilerUsed:false,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
+ report={contract:'one-native-first17-work-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',originalPostconditionsPassed:true,applicationSource:'a22fd560877c015baef0bc20b9310732ca2baf47',diagnosticLegs,preparationTransactions:packet.transactions,httpRequests:packet.requests,statementCount:packet.submittedStatements,maxPreparations:17,sourceHealthRows:160,users:1,addedLatencyMs:0,cpuProfilerUsed:false,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
 }catch(error){emitWorkJoin();capturePreparationProgress(progress.preparationSnapshotState==='TERMINAL');failure={stage,type:error.name,code:/^[A-Z0-9_]{1,80}$/.test(error.code??'')?error.code:'OTHER',classification:failureClassification(error),progress:{...progress},elapsedMs:performance.now()-started};console.log('STAGE6_NATIVE_POSITIVE_EOF_FAILURE '+JSON.stringify(failure));}
 finally{
  latency=false;

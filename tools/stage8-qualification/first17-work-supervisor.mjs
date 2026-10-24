@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {networkInterfaces} from 'node:os';
 import assert from 'node:assert/strict';
 import {validateWorkJoin} from '../../test/stage6-native-work-join.mjs';
+import {validateFamilyPhaseJoin} from '../../test/stage6-native-family-phases.mjs';
 export function exactKeys(value,names){
  assert.ok(value&&typeof value==='object'&&!Array.isArray(value));
  assert.deepEqual(Reflect.ownKeys(value).sort(),[...names].sort());
@@ -18,7 +19,7 @@ export function validateLeg(x,i){
 export function validateDiagnostic(v){
  exactKeys(v,['contract','status','applicationSource','diagnosticLegs','preparationTransactions','httpRequests','statementCount','maxPreparations','sourceHealthRows','users','addedLatencyMs','cpuProfilerUsed','productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','elapsedMs','ownedServerExited','originalPostconditionsPassed']);
  assert.equal(v.contract,'one-native-first17-work-diagnostic-v1');assert.equal(v.status,'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION');
- assert.equal(v.applicationSource,'8cb10488209db3745e913ef0f1c615e0735ee44b');
+ assert.equal(v.applicationSource,'a22fd560877c015baef0bc20b9310732ca2baf47');
  for(const k of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','cpuProfilerUsed'])assert.equal(v[k],false);
 assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.equal(v.users,1);assert.equal(v.addedLatencyMs,0);
  assert.ok(Array.isArray(v.diagnosticLegs));assert.equal(v.diagnosticLegs.length,17);
@@ -30,6 +31,19 @@ assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.e
  for(const k of ['sumDurationUpperBoundMs','maxDurationUpperBoundMs'])assert.ok(Number.isFinite(t[k])&&t[k]>=0);
  assert.ok(t.begun>0);assert.equal(t.open,0);assert.equal(t.unknownTerminal,0);assert.equal(t.begun,t.committed+t.rolledBack);assert.ok(t.sumDurationUpperBoundMs>=t.maxDurationUpperBoundMs);
  // A >=5s metric is diagnostic evidence, never waived EOF qualification.
+ return true;
+}
+export function validateFamilyTarget(f,w){
+ validateFamilyPhaseJoin(f);validateWorkJoin(w);
+ for(const k of ['activeRoots','retainedOwners','lostObservations','unknownFamilyTerminals'])assert.equal(f[k],0);
+ assert.ok(f.completedFamilyRoots>0);
+ const needed=['INITIAL_INVENTORY','RECURRENCE','PREPARATION_REPLAY','METRIC_LIFECYCLE','FINAL_INVENTORY','TIP_COMPLETION','TIP_VERIFY'];
+ const target=f.slowest8.find(r=>r.preparationOrdinal===17&&r.workLabel==='stage6.family:recovery_score'&&r.outcome==='COMMITTED'&&needed.every(p=>r.phases[p].calls>0));
+ assert.ok(target);assert.equal(target.phaseWindowsWithinClientUpper,true);
+ const original=w.slowest8.find(r=>r.preparationOrdinal===target.preparationOrdinal&&r.workInvocationOrdinal===target.workInvocationOrdinal&&r.workLabel===target.workLabel&&r.outcome===target.outcome&&r.durationUpperBoundMs===target.durationUpperBoundMs);
+ assert.ok(original);assert.equal(original.outcome,target.outcome);assert.equal(original.durationUpperBoundMs,target.durationUpperBoundMs);
+ // A legitimate receipt short-circuit can have zero business phase calls.
+ // Keep its count explicit; only this exact joined target proves phase coverage.
  return true;
 }
 export function projectFailure(f){
@@ -47,7 +61,7 @@ async function main(){
  assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');assert.equal(process.version,'v22.23.2');assert.deepEqual(Object.keys(networkInterfaces()).sort(),['lo']);
  assert.equal(await read('memory.max'),'536870912');assert.equal(await read('memory.swap.max'),'0');assert.equal(await read('cpu.max'),'50000 100000');
  const path='/tmp/native-first17-work.log',fd=await open(path,'wx',0o600),started=performance.now();
- const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-work-join-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
+ const child=spawn(process.execPath,['--experimental-loader','./test/stage6-native-work-join-loader.mjs','--experimental-loader','./test/stage6-native-family-phase-loader.mjs','--max-old-space-size=96','--max-semi-space-size=2','test/stage6-native-first17-work.mjs'],{stdio:['ignore',fd.fd,fd.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8',NODE_ENV:'test'}});
  let spawnError=false;child.on('error',()=>{spawnError=true;});const timer=setTimeout(()=>child.kill('SIGTERM'),300000);
  const terminal=await new Promise(r=>child.once('close',(code,signal)=>r({code,signal})));clearTimeout(timer);await fd.close();
  assert.ok((await stat(path)).size<16*1024*1024);const raw=await readFile(path,'utf8');
@@ -55,6 +69,7 @@ async function main(){
  const lines=prefix=>raw.split('\n').filter(l=>l.startsWith(prefix)).map(l=>JSON.parse(l.slice(prefix.length)));
  let failure=null,observed=null,fixtureTerminal=null,status='DIAGNOSTIC_FAILED_OR_UNKNOWN';
  let workJoin=null;try{const joins=lines('STAGE6_NATIVE_WORK_JOIN ');assert.ok(joins.length>0&&joins.length<=84);let prior=0;for(const value of joins){validateWorkJoin(value);assert.ok(value.allPhysicalTransactions>=prior);prior=value.allPhysicalTransactions;}workJoin=joins.at(-1);}catch{}
+ let familyPhaseJoin=null;try{const packets=lines('STAGE6_NATIVE_FAMILY_PHASE_JOIN ');assert.ok(packets.length>0&&packets.length<=84);let prior=0;for(const value of packets){validateFamilyPhaseJoin(value);assert.ok(value.completedFamilyRoots>=prior);prior=value.completedFamilyRoots;}familyPhaseJoin=packets.at(-1);}catch{}
  let partialLegs=null;try{const legs=lines('STAGE6_FIRST17_WORK_RETURNED ');assert.ok(legs.length<=17);for(const [i,x]of legs.entries())validateLeg(x,i);partialLegs=legs;}catch{}
  const failures=lines('STAGE6_NATIVE_POSITIVE_EOF_FAILURE ');if(failures.length===1)failure=projectFailure(failures[0]);
  const terminals=lines('STAGE6_NATIVE_POSITIVE_EOF_TERMINAL ');if(terminals.length===1)fixtureTerminal=projectTerminal(terminals[0]);
@@ -62,9 +77,9 @@ async function main(){
   assert.equal(spawnError,false);assert.deepEqual(terminal,{code:0,signal:null});const values=lines('STAGE6_NATIVE_POSITIVE_EOF_RESULT ');assert.equal(values.length,1);validateDiagnostic(values[0]);
   assert.ok(fixtureTerminal?.closed&&fixtureTerminal.ownedServerExited&&fixtureTerminal.clientTerminalComplete&&fixtureTerminal.physicalTerminalObservationComplete);assert.equal(fixtureTerminal.retainedStreams,0);
   assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<300000);
-  assert.equal(workJoin?.terminalJoinComplete,true);observed=values[0];status='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION';
+  assert.equal(workJoin?.terminalJoinComplete,true);validateFamilyTarget(familyPhaseJoin,workJoin);observed=values[0];status='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION';
  }catch{}
- await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-work-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,partialLegs:observed?null:partialLegs,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
+ await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-work-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,familyPhaseJoin,partialLegs:observed?null:partialLegs,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
  process.exitCode=status==='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION'?0:2;
 }
 if(process.argv[1]&&new URL(import.meta.url).pathname===process.argv[1])main();

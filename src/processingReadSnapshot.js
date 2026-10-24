@@ -1,3 +1,4 @@
+import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 // Reuse only deterministic, tenant-bound data reads inside one original
 // processing write transaction and one server context. This is not authority:
 // callers still execute their original lease/clock/hash/privacy checks.
@@ -10,16 +11,28 @@ const userState=`SELECT u.id,u.status,u.timezone,u.lifecycle_generation,
  COALESCE(t.auth_generation,0) auth_generation,p.source_generation,p.purge_generation,p.pending_purge_count
  FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id
  LEFT JOIN phase4_user_state p ON p.user_id=u.id WHERE u.id=?`.replace(/\s+/g,' ').trim();
+// Exact non-health principal row only; the owned executor opts in after its
+// HTTP BEGIN IMMEDIATE ACK, inside one LIVE Stage6 write snapshot. Predicates,
+// capability/configuration/eligibility/clock checks still execute every time.
+const principalReadiness=`SELECT u.status,o.state,COALESCE(t.auth_generation,0) auth_generation,p.pending_purge_count
+ FROM users u JOIN phase4_user_state p ON p.user_id=u.id JOIN user_onboarding o ON o.user_id=u.id
+ LEFT JOIN user_whoop_tokens t ON t.user_id=u.id WHERE u.id=?`.replace(/\s+/g,' ').trim();
 const predicate="(?:[a-z_][a-z0-9_]*\\s*(?:(?:=|<>|>=|<=|>|<)\\s*(?:\\?|'[a-z0-9_:-]*'|\\d+)|IS\\s+(?:NOT\\s+)?NULL|IN\\s*\\('[a-z0-9_:-]*'(?:\\s*,\\s*'[a-z0-9_:-]*')*\\)))";
 const select=new RegExp('^SELECT\\s+(?:\\*|1|[a-z_][a-z0-9_]*(?:\\s*,\\s*[a-z_][a-z0-9_]*)*)\\s+FROM\\s+([a-z_][a-z0-9_]*)\\s+(?:INDEXED\\s+BY\\s+[a-z_][a-z0-9_]*\\s+)?WHERE\\s+user_id\\s*=\\s*\\?(?:\\s+AND\\s+'+predicate+')*(?:\\s+ORDER\\s+BY\\s+[a-z_][a-z0-9_]*(?:\\s+(?:ASC|DESC))?(?:\\s*,\\s*[a-z_][a-z0-9_]*(?:\\s+(?:ASC|DESC))?)*)?(?:\\s+LIMIT\\s+(?:\\?|\\d+))?\\s*;?$','i');
 export const READ_SNAPSHOT_LIMITS=Object.freeze({entries:256,bytes:4*1024*1024,resultBytes:256*1024,rows:128,keyBytes:8192});
-export function readSnapshotKey(statement,context){
+function snapshotSqlShape(sql){
+ const normalized=sql.replace(/\s+/g,' ').trim(),match=select.exec(normalized);
+ if(/\b(?:CURRENT_TIME|CURRENT_DATE|CURRENT_TIMESTAMP)\b|['"]now['"]/i.test(normalized))return 0;
+ if(normalized===userState)return 1;
+ if(normalized===principalReadiness)return 2;
+ return match&&tables.has(match[1].toLowerCase())?3:0;
+}
+export function readSnapshotKey(statement,context,{allowPrincipalReadiness=false}={}){
  if(!context||typeof context.userId!=='string'||!statement||typeof statement!=='object'||Array.isArray(statement))return null;
  const {sql,args}=statement;
  if(typeof sql!=='string'||!Array.isArray(args)||args[0]!==context.userId)return null;
- const normalized=sql.replace(/\s+/g,' ').trim(),match=select.exec(normalized);
- if(/\b(?:CURRENT_TIME|CURRENT_DATE|CURRENT_TIMESTAMP)\b|['"]now['"]/i.test(normalized))return null;
- if(normalized!==userState&&(!match||!tables.has(match[1].toLowerCase())))return null;
+ const shape=memoizedSqlSyntax(snapshotSqlShape,sql);
+ if(shape===0||shape===2&&!(allowPrincipalReadiness===true&&args.length===1))return null;
  if(args.some(value=>value!==null&&!['string','number','bigint','boolean'].includes(typeof value)||typeof value==='number'&&!Number.isFinite(value)))return null;
  const key=JSON.stringify([sql,args.map(value=>[value===null?'null':typeof value,String(value)])]);
  return Buffer.byteLength(key,'utf8')<=READ_SNAPSHOT_LIMITS.keyBytes?key:null;
@@ -30,7 +43,9 @@ export function cloneResult(result){
  const object=value=>{const copy=Object.create(Object.getPrototypeOf(value)),descriptors=Object.getOwnPropertyDescriptors(value);
   for(const descriptor of Object.values(descriptors)){
    if(!Object.hasOwn(descriptor,'value'))throw Error('UNSUPPORTED_RESULT_DESCRIPTOR');
-   descriptor.value=structuredClone(descriptor.value);
+   const value=descriptor.value,type=typeof value;
+   descriptor.value=value===null||type==='undefined'||type==='string'||type==='number'||type==='boolean'||type==='bigint'
+     ?value:structuredClone(value);
   }
   return Object.defineProperties(copy,descriptors);
  };
@@ -47,6 +62,10 @@ export function createReadSnapshotMemo(){
    if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(result?.rows)
     ||result.rows.length>READ_SNAPSHOT_LIMITS.rows||!Array.isArray(result.columns)||!Array.isArray(result.columnTypes))return;
    try{
+    // One original epoch and context: first stored DATA already wins. Avoid
+    // cloning/serializing an in-flight duplicate that cannot replace it.
+    // Keep the original final check below for reentrant result evaluation.
+    if(contexts.get(context)?.has(key))return;
     const binaryBytes=result.rows.reduce((total,row)=>total+Object.values(Object.getOwnPropertyDescriptors(row))
      .reduce((sum,descriptor)=>sum+(descriptor.value instanceof ArrayBuffer||ArrayBuffer.isView(descriptor.value)?descriptor.value.byteLength:0),0),0);
     const size=binaryBytes+Buffer.byteLength(JSON.stringify(result,(_key,value)=>typeof value==='bigint'?String(value):value),'utf8')+Buffer.byteLength(key,'utf8');
@@ -60,7 +79,9 @@ export function createReadSnapshotMemo(){
   putData(context,key,data,observedEpoch){
    if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(data?.rows)
     ||data.rows.length>READ_SNAPSHOT_LIMITS.rows||Buffer.byteLength(key)>READ_SNAPSHOT_LIMITS.keyBytes)return;
-   try{const size=Buffer.byteLength(JSON.stringify(data),'utf8')+Buffer.byteLength(key,'utf8');
+   try{
+    if(typeof key==='string'&&contexts.get(context)?.has('data:'+key))return;
+    const size=Buffer.byteLength(JSON.stringify(data),'utf8')+Buffer.byteLength(key,'utf8');
     if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
     const rows=contexts.get(context)??new Map(),dataKey='data:'+key;if(rows.has(dataKey))return;
     rows.set(dataKey,{prefixData:structuredClone(data)});contexts.set(context,rows);entries++;bytes+=size;

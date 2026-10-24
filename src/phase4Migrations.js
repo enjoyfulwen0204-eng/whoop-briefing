@@ -289,28 +289,68 @@ async function backfillV30(client,keys) {
     throw new Phase4SchemaError('v30_foreign_key_check_failed');
 }
 
+/** One invocation only. Cache schema metadata, never business/data queries.
+ * The uncached schema-cookie reads bracket every existing validation; any
+ * observed DDL change refuses this result instead of accepting mixed metadata.
+ */
+async function schemaVerificationMetadata(client) {
+  // Fixed table-valued PRAGMA stays read-only under the existing SQL guard.
+  const readCookie = async () => {
+    const rows = (await client.execute('SELECT schema_version FROM pragma_schema_version')).rows;
+    if (rows.length !== 1 || !Number.isSafeInteger(rows[0].schema_version))
+      throw new Phase4SchemaError('phase4_schema_cookie_unavailable');
+    return rows[0].schema_version;
+  };
+  const before = await readCookie();
+  const rows = (await client.execute('SELECT name, type, sql FROM sqlite_master')).rows;
+  const catalog = new Map(), tableInfo = new Map();
+  for (const row of rows) {
+    const named = catalog.get(row.name) ?? [];
+    named.push(row); catalog.set(row.name, named);
+  }
+  const metadataClient = { execute: async statement => {
+    const sql = typeof statement === 'string' ? statement : statement.sql;
+    const named = catalog.get(statement.args?.[0]) ?? [];
+    if (sql === 'SELECT type, sql FROM sqlite_master WHERE name = ?')
+      return { rows: named.map(({type,sql}) => ({type,sql})) };
+    if (sql === "SELECT sql FROM sqlite_master WHERE type='table' AND name=?")
+      return { rows: named.filter(row => row.type === 'table').map(({sql}) => ({sql})) };
+    if (sql === 'SELECT 1 FROM sqlite_master WHERE name=?')
+      return { rows: named.map(() => ({1:1})) };
+    const table = /^PRAGMA table_info\((\w+)\)$/.exec(sql)?.[1];
+    if (!table) throw new Phase4SchemaError('phase4_schema_metadata_query_unsupported');
+    if (!tableInfo.has(table)) tableInfo.set(table, client.execute(sql));
+    return tableInfo.get(table);
+  }};
+  return { client: metadataClient, assertUnchanged: async () => {
+    if (await readCookie() !== before)
+      throw new Phase4SchemaError('phase4_schema_changed_during_verification');
+  }};
+}
+
 export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSION, options = {}) {
+  const metadata = await schemaVerificationMetadata(client);
   const migrations = PHASE4_MIGRATIONS.filter(m => m.version <= version);
   const replacements = migrations.flatMap(m=>m.replacements ?? []);
   const nextReplacements = options.resuming ? PHASE4_MIGRATIONS.find(m=>m.version === version + 1)?.replacements ?? [] : [];
   const additions=migrations.flatMap(m=>m.columns??[]);
   if(options.resuming)for(const column of PHASE4_MIGRATIONS.find(m=>m.version===version+1)?.columns??[]) {
-    if((await client.execute(`PRAGMA table_info(${column.table})`)).rows.some(row=>row.name===column.column))additions.push(column);
+    if((await metadata.client.execute(`PRAGMA table_info(${column.table})`)).rows.some(row=>row.name===column.column))additions.push(column);
   }
   for (const migration of migrations) {
-    for (const ddl of migration.ddl) await verifyPhase4Definition(client, ddl,additions);
-    for (const column of migration.columns ?? []) await verifyColumn(client, column);
+    for (const ddl of migration.ddl) await verifyPhase4Definition(metadata.client, ddl,additions);
+    for (const column of migration.columns ?? []) await verifyColumn(metadata.client, column);
     for (const ddl of [...(migration.indexes ?? []), ...(migration.triggers ?? [])]) {
       const name = ddl.match(/^CREATE (?:UNIQUE )?(?:INDEX|TRIGGER) IF NOT EXISTS (\w+)/)?.[1];
       if (replacements.some(r=>r.oldName === name)) continue;
       const pending = nextReplacements.find(r=>r.oldName === name);
-      const exists = pending && (await client.execute({sql:'SELECT 1 FROM sqlite_master WHERE name=?',args:[name]})).rows.length;
-      await verifyPhase4Definition(client,pending && !exists ? pending.ddl : ddl);
+      const exists = pending && (await metadata.client.execute({sql:'SELECT 1 FROM sqlite_master WHERE name=?',args:[name]})).rows.length;
+      await verifyPhase4Definition(metadata.client,pending && !exists ? pending.ddl : ddl);
     }
   }
   for (const {oldName,ddl} of replacements) {
-    await verifyPhase4Definition(client,ddl);
-    if ((await client.execute({sql:'SELECT 1 FROM sqlite_master WHERE name=?',args:[oldName]})).rows.length) {
+    await verifyPhase4Definition(metadata.client,ddl);
+    if ((await metadata.client.execute({sql:'SELECT 1 FROM sqlite_master WHERE name=?',args:[oldName]})).rows.length) {
       throw new Phase4SchemaError('phase4_retired_index_present',oldName);
     }
   }
@@ -365,6 +405,7 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
       ON m.user_id=e.user_id AND m.execution_mode=e.execution_mode AND m.subject_kind=e.subject_kind
       AND m.subject_token=e.subject_token WHERE m.subject_token IS NULL LIMIT 1`,'v29_orphan_route_manifest');
   }
+  await metadata.assertUnchanged();
 }
 
 export async function assertPhase4Schema(client, expected = EXPECTED_SCHEMA_VERSION) {

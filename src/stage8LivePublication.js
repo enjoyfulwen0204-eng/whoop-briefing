@@ -48,49 +48,72 @@ async function manifests(core,ctx){
   const result=verifyLiveExecutionResult(keys,p);
   if(result.outcome==='FAILED'||result.alertSourceDigest!==undefined&&!await verifySubjectAlertExecution(core,ctx))fail();
  }
- const hashes=[];let count=0,bytes=0;
- for(const table of ARTIFACTS){
-  const info=(await client.execute(`PRAGMA table_info(${table})`)).rows,columns=info.map(r=>r.name);
+ // Fixed schema metadata and bounded count queries share one physical batch
+ // each. They remain fresh in this caller's transaction, with no persistent
+ // cache. Admit every table and the original cumulative row/escaped-byte
+ // ceilings BEFORE transferring any artifact health rows.
+ const infos=await client.batch(ARTIFACTS.map(table=>`PRAGMA table_info(${table})`));
+ if(infos.length!==ARTIFACTS.length)fail();
+ const specs=ARTIFACTS.map((table,index)=>{
+  const info=infos[index].rows,columns=info.map(r=>r.name);
   if(!columns.includes('user_id')||!columns.includes('execution_mode'))fail();
   const current=columns.includes('input_generation'),where=`user_id=? AND execution_mode='LIVE'${current?' AND input_generation=?':''}`,
    args=[ctx.userId,...(current?[ctx.inputGeneration]:[])];
-  // Count and worst-case escaped JSON bytes before transferring health rows.
-  // Schema-owned names only. Six bytes cover each escaped input byte; fixed
-  // per-column overhead also bounds numbers, keys, separators and nulls.
-  const bound=(await client.execute({sql:`SELECT count(*) n,COALESCE(sum(${columns.map(c=>`6*COALESCE(length(CAST("${c}" AS BLOB)),0)+${128+Buffer.byteLength(c)*6}`).join('+')}),0) bytes FROM ${table} WHERE ${where}`,args})).rows[0];
-  count+=bound.n;bytes+=bound.bytes;if(count>10000||bytes>64*1024*1024)fail();
+  return {table,info,columns,where,args};
+ });
+ const boundsByTable=await client.batch(specs.map(({table,columns,where,args})=>({
+  sql:`SELECT count(*) n,COALESCE(sum(${columns.map(c=>`6*COALESCE(length(CAST("${c}" AS BLOB)),0)+${128+Buffer.byteLength(c)*6}`).join('+')}),0) bytes FROM ${table} WHERE ${where}`,args})));
+ if(boundsByTable.length!==specs.length)fail();
+ let count=0,bytes=0;
+ for(const result of boundsByTable){const bound=result.rows[0];count+=bound.n;bytes+=bound.bytes;if(count>10000||bytes>64*1024*1024)fail();}
+ const entries=specs.map(()=>[]),pages=[];
+ for(let index=0;index<specs.length;index++){
+  const {table,info,where,args}=specs[index],bound=boundsByTable[index].rows[0];
   const order=info.filter(c=>c.pk).sort((a,b)=>a.pk-b.pk).map(c=>`"${c.name}"`).join(',');if(!order)fail();
-  const entries=[];
-  for(let offset=0;offset<bound.n;offset+=64){
-   const rows=(await client.execute({sql:`SELECT * FROM ${table} WHERE ${where} ORDER BY ${order} LIMIT 64 OFFSET ?`,args:[...args,offset]})).rows;
-   if(rows.length!==Math.min(64,bound.n-offset))fail();
-   for(const row of rows)entries.push(keys.lookup(['stage8-live-artifact-row-v1',table,canonicalJson(row)]));
-  }
-  hashes.push([table,entries.sort()]);
+  for(let offset=0;offset<bound.n;offset+=64)pages.push({index,table,expected:Math.min(64,bound.n-offset),statement:{sql:`SELECT * FROM ${table} WHERE ${where} ORDER BY ${order} LIMIT 64 OFFSET ?`,args:[...args,offset]}});
  }
+ // At most four original 64-row pages per batch, inside the already-verified
+ // cumulative limits. Preserve each table/page/PK mapping and cardinality.
+ for(let start=0;start<pages.length;start+=4){
+  const selected=pages.slice(start,start+4),results=await client.batch(selected.map(p=>p.statement));
+  if(results.length!==selected.length)fail();
+  for(let index=0;index<selected.length;index++){
+   const page=selected[index],rows=results[index].rows;if(rows.length!==page.expected)fail();
+   for(const row of rows)entries[page.index].push(keys.lookup(['stage8-live-artifact-row-v1',page.table,canonicalJson(row)]));
+  }
+ }
+ const hashes=specs.map(({table},index)=>[table,entries[index].sort()]);
  return {producer_hash:keys.lookup(['stage8-live-producer-manifest-v1',canonicalJson(producers)]),artifact_hash:keys.lookup(['stage8-live-artifact-manifest-v1',hashes])};
 }
 async function completionProofs(core,ctx){
  const keys=core.keys,client=core.client,{computation}=await core.assertContext(ctx);
  if(!ctx.providerRequired||computation.last_completed_generation!==ctx.inputGeneration)fail();
  if((await client.execute({sql:"SELECT 1 FROM phase4_invalidations WHERE user_id=? AND execution_mode='LIVE' AND scope_kind<>'NONE' LIMIT 1",args:[ctx.userId]})).rows.length)fail();
- const proofs=[];
- for(const kind of JOBS){
-  const job=(await client.execute({sql:"SELECT * FROM phase4_jobs WHERE user_id=? AND execution_mode='LIVE' AND job_kind=?",args:[ctx.userId,kind]})).rows[0];
+ const jobs=await client.batch(JOBS.map(kind=>({sql:"SELECT * FROM phase4_jobs WHERE user_id=? AND execution_mode='LIVE' AND job_kind=?",args:[ctx.userId,kind]})));
+ if(jobs.length!==JOBS.length)fail();
+ for(const result of jobs){const job=result.rows[0];
   if(!job||job.state!=='COMPLETED'||job.scope_kind!=='NONE'||job.requested_generation!==ctx.inputGeneration||job.completed_generation!==ctx.inputGeneration||job.lease_owner!==null)fail();
-  const row=(await client.execute({sql:"SELECT * FROM stage8_live_job_completions WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND job_kind=? AND scope_revision=?",args:[ctx.userId,ctx.inputGeneration,kind,job.scope_revision]})).rows[0];
-  if(!row)fail();const {completion_hmac,...payload}=row;
-  if(completion_hmac!==signCompletion(keys,payload)||row.scope_hash!==liveScopeDigest(keys,ctx))fail();
-  const e=(await client.execute({sql:'SELECT * FROM stage8_live_executions WHERE execution_id=?',args:[row.execution_id]})).rows[0],
-   r=(await client.execute({sql:'SELECT * FROM stage8_live_execution_work_receipts WHERE receipt_key=?',args:[row.receipt_key]})).rows[0];
+ }
+ const completions=await client.batch(JOBS.map((kind,index)=>({sql:"SELECT * FROM stage8_live_job_completions WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND job_kind=? AND scope_revision=?",args:[ctx.userId,ctx.inputGeneration,kind,jobs[index].rows[0].scope_revision]})));
+ if(completions.length!==JOBS.length)fail();
+ const rows=completions.map(result=>result.rows[0]);
+ for(const row of rows){if(!row)fail();const {completion_hmac,...payload}=row;if(completion_hmac!==signCompletion(keys,payload)||row.scope_hash!==liveScopeDigest(keys,ctx))fail();}
+ const originals=await client.batch(rows.flatMap(row=>[
+  {sql:'SELECT * FROM stage8_live_executions WHERE execution_id=?',args:[row.execution_id]},
+  {sql:'SELECT * FROM stage8_live_execution_work_receipts WHERE receipt_key=?',args:[row.receipt_key]},
+  {sql:`SELECT * FROM stage8_live_execution_producers WHERE user_id=? AND execution_mode='LIVE'
+    AND input_generation=? AND producing_execution_id=?`,args:[ctx.userId,ctx.inputGeneration,row.execution_id]},
+ ]));
+ if(originals.length!==JOBS.length*3)fail();
+ const proofs=[];
+ for(let index=0;index<JOBS.length;index++){
+  const kind=JOBS[index],row=rows[index],completion_hmac=row.completion_hmac,e=originals[index*3].rows[0],r=originals[index*3+1].rows[0],producer=originals[index*3+2].rows[0];
   if(!e||!r||e.state!=='FINALIZED_SUCCESS'||e.phase!=='STAGE6_DRAIN'||e.execution_mode!=='LIVE'
    ||e.generation!==1||e.created_at+45000!==row.original_deadline_at||e.finalized_at>row.original_deadline_at
    ||JSON.parse(e.canonical_request_json).tenantScope!==row.scope_hash
    ||r.execution_id!==row.execution_id||r.generation!==row.producing_generation||r.generation!==1
    ||r.request_digest!==e.identity_digest||r.scope_key!==e.scope_key||r.step_key!==row.receipt_key
    ||r.committed_at<row.completed_at||r.committed_at>e.finalized_at)fail();
-  const producer=(await client.execute({sql:`SELECT * FROM stage8_live_execution_producers WHERE user_id=? AND execution_mode='LIVE'
-   AND input_generation=? AND producing_execution_id=?`,args:[ctx.userId,ctx.inputGeneration,e.execution_id]})).rows[0];
   const logical=keys.lookup(['phase4-logical-work-v1','stage6.complete',[ctx.userId,kind,ctx.inputGeneration,row.scope_revision,row.cursor_hash]]);
   const expected=keys.lookup(['execution-work-step-v2',e.identity_digest,e.scope_key,['named',logical]]);
   if(row.receipt_key!==expected||!producer||producer.producing_generation!==row.producing_generation||producer.execution_seq!==e.execution_seq

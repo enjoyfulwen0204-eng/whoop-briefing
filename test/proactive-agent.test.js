@@ -22,10 +22,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from './localDb.js';
+import {createDb} from './proactiveJournalUnitFixture.js';
 import { loadDailyMetrics } from '../src/dailyMetrics.js';
 import { localDate } from '../src/time.js';
-import { checkAndAct } from '../src/proactiveAgent.js';
+import {checkAndAct,seedRetainedLegacyQuestion} from './proactiveJournalUnitFixture.js';
 import { createRouter } from '../src/bot/router.js';
 import { PROACTIVE_DECISION, PROACTIVE_QUESTION_INTENT } from '../src/schema.js';
 import { ANTI_SPAM_POLICY } from '../src/proactivePolicy.js';
@@ -191,13 +191,8 @@ test('★★ PA5/PA7/PA8: 連續兩天同一個訊號（持續性）→ ASK_CONT
     });
     assert.equal(day2.decision, PROACTIVE_DECISION.ASK_CONTEXT);
     assert.equal(telegram.sent.length, 1, '應該恰好送出一則訊息');
-    assert.match(telegram.sent[0], /HRV/);
-
-    const openQuestion = await db.getOpenPendingQuestion(user.id, { now: new Date('2026-02-07T08:05:00Z') });
-    assert.ok(openQuestion, '應該開了一個 pending question');
-    assert.equal(openQuestion.intent, PROACTIVE_QUESTION_INTENT);
-    assert.ok(openQuestion.context.category, '問題要綁定一個候選類別');
-    assert.equal(openQuestion.context.signal.metric, 'hrv');
+    assert.match(telegram.sent[0], /2026-02-06/);
+    assert.equal(await db.getOpenPendingQuestion(user.id,{now:new Date('2026-02-07T08:05:00Z')}),null,'new bridge has no legacy pending mirror');
   } finally {
     db.close();
     cleanup();
@@ -346,6 +341,7 @@ async function seedPersistentHrvSignal(db, user, telegram, chatId) {
     db, userId: user.id, timezone: user.timezone, telegram, chatId,
     now: new Date('2026-02-07T08:00:00Z'),
   });
+  await seedRetainedLegacyQuestion({db,userId:user.id,chatId,now:new Date('2026-02-07T08:00:00Z'),healthDate:'2026-02-07',signals:day2.signals});
   assert.equal(day2.decision, PROACTIVE_DECISION.ASK_CONTEXT, '測試前提：第二天應該進到 ASK_CONTEXT');
 }
 
@@ -493,7 +489,7 @@ test('★★★ PA19: Alice 的持續性訊號、pending question 完全不影�
 
     const aliceQuestion = await db.getOpenPendingQuestion(ALICE.id, { now: new Date('2026-02-07T08:05:00Z') });
     const bobQuestion = await db.getOpenPendingQuestion(BOB.id, { now: new Date('2026-02-07T08:05:00Z') });
-    assert.ok(aliceQuestion);
+    assert.equal(aliceQuestion,null,'new bridge creates no legacy mirror');
     assert.equal(bobQuestion, null, 'Alice 的 pending question 絕不能出現在 Bob 名下');
 
     const bobEvents = await db.getRecentProactiveEvents(BOB.id, { sinceIso: '2026-01-01T00:00:00.000Z' });
@@ -530,17 +526,14 @@ test('R3-13 suppressed proactive question creates no pending question, sent even
       return Boolean(await db.getActiveChatIdForUser(user.id, { expectedLifecycleGeneration: life }));
     });
     const now = new Date('2026-02-07T08:00:00Z');
-    const result = await checkAndAct({ expectedLifecycleGeneration: 1, ...ctx, telegram: guarded, now });
-    assert.equal(attempts, 1);
-    assert.equal(result.decision, PROACTIVE_DECISION.ASK_CONTEXT);
-    assert.equal(result.messageSent, false);
-    assert.equal(result.suppressed, 'stale_lifecycle');
+    await assert.rejects(checkAndAct({expectedLifecycleGeneration:1,...ctx,telegram:guarded,now}),error=>['STALE_ACCOUNT_LIFECYCLE','ACCOUNT_INACTIVE'].includes(error.code));
+    assert.equal(attempts,1);
     assert.equal(telegram.sent.length, 0);
     assert.equal(await db.getOpenPendingQuestion(user.id, { now }), null);
     assert.deepEqual(await db.getProactiveState(user.id), before);
     assert.equal(Number((await db.raw.execute('SELECT COUNT(*) n FROM proactive_events WHERE sent_at IS NOT NULL')).rows[0].n), 0);
     const fresh = await checkAndAct({ expectedLifecycleGeneration: 3, ...ctx, telegram, now });
     assert.equal(fresh.messageSent, true);
-    assert.ok(await db.getOpenPendingQuestion(user.id, { now }));
+    assert.equal(await db.getOpenPendingQuestion(user.id,{now}),null);
   } finally { db.close(); cleanup(); }
 });

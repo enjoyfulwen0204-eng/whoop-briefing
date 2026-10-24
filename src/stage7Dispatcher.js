@@ -1,3 +1,4 @@
+import {isProactiveJournalDelivery} from './stage7ProactiveJournal.js';
 import {inCompanionQuietHours} from './companionTimingPolicy.js';
 import {isStage7ProductionProvider} from './stage7TransportAuthority.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
@@ -16,7 +17,7 @@ export function createSyntheticJournalTelegram({outcomes=[]}={}){
   return {messageId:card.editMessageId??String(++sequence)};
  }});synthetic.add(provider);return provider;
 }
-export function createStage7Dispatcher({core,db,companion,provider,invitations=null}){
+export function createStage7Dispatcher({core,db,companion,provider,invitations=null,proactiveJournal=null}){
  if(!synthetic.has(provider)&&!isStage7ProductionProvider(provider))fail('STAGE7_FAKE_PROVIDER_REQUIRED');
  const {client,transaction,timestamp}=core;
  async function dispatch({user,chatId,deliveryId}){
@@ -24,6 +25,7 @@ export function createStage7Dispatcher({core,db,companion,provider,invitations=n
    const actor=await companion.interactions.authenticate({user,chatId}),row=(await client.execute({sql:'SELECT * FROM journal_prompt_deliveries WHERE user_id=? AND delivery_id=?',args:[user.id,deliveryId]})).rows[0];
    if(!row)return {status:'NOT_FOUND'};
    if(['DELIVERED','AMBIGUOUS','DELIVERY_STARTED','SUPPRESSED'].includes(row.state))return {status:row.state};
+   if(isProactiveJournalDelivery(row)&&row.attempt_count>0)return {status:row.state};
    if(row.attempt_count>=3)return {status:'RETRY_EXHAUSTED'};
    const prefs=await companion.preferences(actor);
    if(['DAILY','WEEKLY'].includes(row.kind)&&inCompanionQuietHours(core.now(),actor.state.timezone,prefs.quiet_start,prefs.quiet_end))return {status:'QUIET_HOURS'};
@@ -34,9 +36,10 @@ export function createStage7Dispatcher({core,db,companion,provider,invitations=n
    if(row.kind==='COACH'&&invitations){invitation=await invitations.due(actor,row);if(invitation.status==='NOT_DUE')return invitation;if(invitation.interaction)interaction=invitation.interaction;}
    const weekly=row.kind==='WEEKLY'?await companion.weekly.due(actor,row):null;
    if(weekly&&!['READY','FENCED'].includes(weekly.status))return {status:weekly.status};
+   const legacy=isProactiveJournalDelivery(row),dailyAllowed=legacy?Boolean(proactiveJournal)&&await proactiveJournal.authorized(actor,row,interaction,prefs):Boolean(prefs.daily_enabled);
    const valid=readableRow(row)&&row.lifecycle_generation===actor.state.lifecycle_generation&&row.auth_generation===actor.state.auth_generation
     &&row.chat_id===actor.chat&&row.expires_at>timestamp()&&prefs.revision===row.preference_revision&&!paused?.notifications_paused
-    &&(row.kind==='DAILY'?prefs.daily_enabled&&readableRow(interaction)&&interaction.state==='ISSUED'&&interaction.selected_choice===null&&interaction.timezone===actor.state.timezone&&JSON.parse(interaction.diagnostics_json??'null')?.profileRevision===actor.profileRevision:row.kind==='WEEKLY'?prefs.weekly_enabled&&weekly?.status==='READY':row.kind==='COACH'&&invitation?.status==='READY');
+    &&(row.kind==='DAILY'?dailyAllowed&&readableRow(interaction)&&interaction.state==='ISSUED'&&interaction.selected_choice===null&&interaction.timezone===actor.state.timezone&&JSON.parse(interaction.diagnostics_json??'null')?.profileRevision===actor.profileRevision:row.kind==='WEEKLY'?prefs.weekly_enabled&&weekly?.status==='READY':row.kind==='COACH'&&invitation?.status==='READY');
    const occupied=await companionEngagementBusy({core,db,actor,excludeInteractionId:interaction?.interaction_id});
    if(!valid||occupied){await client.execute({sql:"UPDATE journal_prompt_deliveries SET state='SUPPRESSED',revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=?",args:[timestamp(),user.id,deliveryId]});return {status:'SUPPRESSED'};}
    const at=timestamp(),attemptId=core.newId(),attemptNumber=row.attempt_count+1;

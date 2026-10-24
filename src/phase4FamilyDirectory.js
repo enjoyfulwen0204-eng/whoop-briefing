@@ -259,8 +259,9 @@ export function createFamilyDirectory(client,keys,{live=false}={}) {
       completed_json:canonicalJson(state.wanted),family_manifest_json:canonicalJson(state.currentTip)};
     await putTip(row);
   }
-  async function allComplete(context,metricKey) {
-    const directory=await inventory(context,metricKey);
+  async function allComplete(context,metricKey,{create=true}={}) {
+    const directory=await inventory(context,metricKey,{create});
+    if(!directory)return false;
     if(directory.unknownEntries.length)unknown();
     for(const entry of directory.entries)if((await work(context,entry)).due)return false;
     return true;

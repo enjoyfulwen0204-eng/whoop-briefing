@@ -1,3 +1,5 @@
+import {processingTenantLeaseDataEligible} from './processingTransaction.js';
+import {CONTEXT_LEASE_DATA_SQL,projectTenantLeaseData} from './processingInflightControlReads.js';
 import {recordLiveJobCompletion,liveCompletionWork,liveCompletionCursorHash} from './stage8LivePublication.js';
 import { randomUUID } from 'node:crypto';
 import { fail } from './phase4Core.js';
@@ -81,9 +83,17 @@ export function createReanalysisQueue(core) {
     },workStepOptions('stage6.claim',[context.userId,context.executionMode,kind,context.inputGeneration],{discardResult:true}));
   }
   async function checkTenant(lease) {
-    const b=lease.binding;
-    if(!(await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
-      args:[b.tenantPass,b.owner,b.expiresAt,timestamp()]})).rows.length)fail('PHASE4_LEASE_CAS_LOST');
+    const b=lease.binding,context=leases.get(lease)?.context,at=timestamp();let owned;
+    if(context&&processingTenantLeaseDataEligible(client,context,b.tenantPass)){
+      const rows=(await client.execute({sql:CONTEXT_LEASE_DATA_SQL,args:[b.tenantPass]})).rows,
+        projected=rows.length<=1?projectTenantLeaseData(rows[0],b.owner,b.expiresAt,at):{supported:false};
+      if(projected.supported)owned=projected.owned;
+    }
+    // Preserve the original SQL and this invocation's original single clock
+    // outside the narrow owned scope, including every terminal observation.
+    if(owned===undefined)owned=Boolean((await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
+      args:[b.tenantPass,b.owner,b.expiresAt,at]})).rows.length);
+    if(!owned)fail('PHASE4_LEASE_CAS_LOST');
   }
   const releaseTenant=lease=>executeCoordination(client,'release',[lease.binding.tenantPass,lease.binding.owner]);
   async function abandon(lease) {
@@ -150,12 +160,23 @@ export function createReanalysisQueue(core) {
         ||row.completed_generation!==b.requestedGeneration||row.scope_kind!=='NONE'||row.lease_owner!==null)
         fail('PHASE4_LEASE_CAS_LOST');
     };
-    await transaction(async()=>{
+    const completeWork=()=>transaction(async()=>{
       assertBudget();
       const row=await check(context,lease);
       if(row.full_scan_cursor!==pass.cursor)fail('PHASE4_FULL_PASS_INCOMPLETE');
-      if(familyDirectory)for(const metricKey of Object.keys(PHASE4_METRICS))
-        if(!(await familyDirectory.allComplete(context,metricKey)))fail('PHASE4_FULL_PASS_INCOMPLETE');
+      if(familyDirectory){
+        if(core.liveAllocation){
+          // LIVE EOF already commits missing directories as original named
+          // units. These nine finite checks are read-only in this same owned
+          // write snapshot; all original HMAC, route-tip and work-tip checks
+          // still run. Settle every read before the completion mutation, and
+          // preserve registered metric failure order. No cross-call cache.
+          const checked=await Promise.allSettled(Object.keys(PHASE4_METRICS).map(metricKey=>
+            Promise.resolve().then(()=>familyDirectory.allComplete(context,metricKey,{create:false}))));
+          for(const result of checked){if(result.status==='rejected')throw result.reason;if(!result.value)fail('PHASE4_FULL_PASS_INCOMPLETE');}
+        }else for(const metricKey of Object.keys(PHASE4_METRICS))
+          if(!(await familyDirectory.allComplete(context,metricKey)))fail('PHASE4_FULL_PASS_INCOMPLETE');
+      }
       await client.execute({sql:`UPDATE phase4_jobs SET completed_generation=requested_generation,scope_kind='NONE',state='COMPLETED',
         affected_from=NULL,affected_to=NULL,subject_key=NULL,full_scan_cursor=NULL,unresolved_since=NULL,attempt=0,next_attempt_at=NULL,
         last_error_code=NULL,lease_owner=NULL,lease_expires_at=NULL,updated_at=?
@@ -174,6 +195,11 @@ export function createReanalysisQueue(core) {
           last_ok_at=excluded.last_ok_at,last_detail=NULL,updated_at=excluded.updated_at`,args:[`user:${context.userId}`,at,at]});
       }
     },{...(core.liveAllocation?liveCompletionWork(context,b,liveCompletionCursorHash(core.keys,pass.cursor)):workStepOptions('stage6.complete',[context.userId,b.jobKind,b.requestedGeneration,b.scopeRevision,pass.cursor],{discardResult:true})),before:()=>core.assertContext(context),after:settled,commitFence:settled});
+    // Apply the existing per-transaction LIVE readiness snapshot to this
+    // original named completion unit too. Terminal/COMMIT checks close the
+    // memo and remain fresh in processingTransactions.
+    if(core.liveAllocation&&core.processing.withReadSnapshot)await core.processing.withReadSnapshot(context,completeWork);
+    else await completeWork();
     await releaseTenant(lease);
     proofs.delete(proof);leases.delete(lease);
   }

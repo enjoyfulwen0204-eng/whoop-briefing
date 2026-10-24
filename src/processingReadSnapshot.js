@@ -62,6 +62,10 @@ export function createReadSnapshotMemo(){
    if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(result?.rows)
     ||result.rows.length>READ_SNAPSHOT_LIMITS.rows||!Array.isArray(result.columns)||!Array.isArray(result.columnTypes))return;
    try{
+    // One original epoch and context: first stored DATA already wins. Avoid
+    // cloning/serializing an in-flight duplicate that cannot replace it.
+    // Keep the original final check below for reentrant result evaluation.
+    if(contexts.get(context)?.has(key))return;
     const binaryBytes=result.rows.reduce((total,row)=>total+Object.values(Object.getOwnPropertyDescriptors(row))
      .reduce((sum,descriptor)=>sum+(descriptor.value instanceof ArrayBuffer||ArrayBuffer.isView(descriptor.value)?descriptor.value.byteLength:0),0),0);
     const size=binaryBytes+Buffer.byteLength(JSON.stringify(result,(_key,value)=>typeof value==='bigint'?String(value):value),'utf8')+Buffer.byteLength(key,'utf8');
@@ -75,7 +79,9 @@ export function createReadSnapshotMemo(){
   putData(context,key,data,observedEpoch){
    if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(data?.rows)
     ||data.rows.length>READ_SNAPSHOT_LIMITS.rows||Buffer.byteLength(key)>READ_SNAPSHOT_LIMITS.keyBytes)return;
-   try{const size=Buffer.byteLength(JSON.stringify(data),'utf8')+Buffer.byteLength(key,'utf8');
+   try{
+    if(typeof key==='string'&&contexts.get(context)?.has('data:'+key))return;
+    const size=Buffer.byteLength(JSON.stringify(data),'utf8')+Buffer.byteLength(key,'utf8');
     if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
     const rows=contexts.get(context)??new Map(),dataKey='data:'+key;if(rows.has(dataKey))return;
     rows.set(dataKey,{prefixData:structuredClone(data)});contexts.set(context,rows);entries++;bytes+=size;

@@ -1,5 +1,5 @@
 import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
-import {createInflightControlReads,inflightControlReadKey,ownershipControlReadKey,contextLeaseDataReadKey,CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
+import {createInflightControlReads,inflightControlReadKey,ownershipControlReadKey,contextLeaseDataReadKey,tenantLeaseDataReadKey,CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
 import {exactRealStatement} from './exactRealStatement.js';
 import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
 import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
@@ -26,6 +26,7 @@ const contextLeaseDataEligibility=new WeakMap();
 // DATA selection only; the registry's original context brand and fresh lease
 // predicates remain authoritative. Unknown/terminal scopes use original SQL.
 export const processingContextLeaseDataEligible=(client,context,name)=>contextLeaseDataEligibility.get(client)?.(context,name)===true;
+export const processingTenantLeaseDataEligible=(client,context,name)=>contextLeaseDataEligibility.get(client)?.(context,name,true)===true;
 export const processingPrefixReadData=(client,context,key,read,grant)=>prefixDataReaders.get(client)?.(context,key,read,grant)??read();
 // Data lifetime only, never a permit or successful guard observation. Closed
 // typed readers reject their raw union if an intervening business write clears
@@ -271,7 +272,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               const immutableGuard=mutations.length?state.syncSnapshot?.guard(mutations):null;
               const inflightKey=state.principalReadinessMemoEnabled&&!state.replaying&&state.readBudget&&sameScope&&checking.getStore()?.readOnly
                 &&key==='execute'&&!mutations.length&&!metadata?inflightControlReadKey(args[0],context):null;
-              const ownershipKey=inflightKey?(ownershipControlReadKey(args[0],context)??contextLeaseDataReadKey(args[0],context)):null;
+              const ownershipKey=inflightKey?(ownershipControlReadKey(args[0],context)??contextLeaseDataReadKey(args[0],context)??tenantLeaseDataReadKey(args[0],context)):null;
               const epoch=memo.epoch(),result=immutableGuard
                 ?await state.tx.batch(...transportArguments('batch',[[...statements,immutableGuard]])).then(values=>key==='execute'?values[0]:values.slice(0,-1))
                 :inflightKey?await state.controlReads[ownershipKey?'ownership':'run'](context,currentExecutionReceiptTransactionMarker(),inflightKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
@@ -535,12 +536,12 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
-  contextLeaseDataEligibility.set(client,(context,name)=>{
+  contextLeaseDataEligibility.set(client,(context,name,tenantPass=false)=>{
     const state=scope.getStore(),execution=currentDurableExecution(),budget=currentExecutionBudget();
     return !!(state?.principalReadinessMemoEnabled&&state.tx&&!state.tx.closed&&!state.failure&&!state.replaying
       &&state.controlReads.isOpen()&&state.readBudget&&state.readBudget===budget&&state.readExecution===execution
       &&readScope.getStore()===context&&checking.getStore()?.readOnly&&currentExecutionReceiptTransactionMarker()
-      &&contextLeaseDataReadKey({sql:CONTEXT_LEASE_DATA_SQL,args:[name]},context));
+      &&(tenantPass===true?tenantLeaseDataReadKey:contextLeaseDataReadKey)({sql:CONTEXT_LEASE_DATA_SQL,args:[name]},context));
   });
   prefixDataReaders.set(client,async(context,key,read,grant)=>{
     const state=scope.getStore(),execution=currentDurableExecution(),marker=currentExecutionReceiptTransactionMarker();

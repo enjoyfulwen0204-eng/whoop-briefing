@@ -1,3 +1,4 @@
+import {isProxy} from 'node:util/types';
 import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 import {cloneResult} from './processingReadSnapshot.js';
 const ownership=`SELECT state,lease_owner,lease_expires_at,requested_generation,
@@ -31,7 +32,7 @@ export function inflightControlReadKey(statement,context){
  // genuine context brand/WeakMap and every original expiry/owner predicate
  // remain in phase4Cache; the pool also keys the exact context object.
  const lease=shape===0&&memoizedSqlSyntax(legacyLeaseSqlShape,sql)&&args.length===2&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
- const leaseData=shape===3&&args.length===1&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
+ const leaseData=shape===3&&args.length===1&&(/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0])||args[0]===`phase4-stage6-pass:${JSON.stringify([context.userId,'LIVE'])}`);
  if(!own&&!lock&&!lease&&!leaseData)return null;
  const key=JSON.stringify([sql,args]);return Buffer.byteLength(key)<=8192?key:null;
 }
@@ -43,7 +44,26 @@ export function ownershipControlReadKey(statement,context){
 }
 export function contextLeaseDataReadKey(statement,context){
  const key=inflightControlReadKey(statement,context);
- return key&&memoizedSqlSyntax(controlSqlShape,statement.sql)===3?key:null;
+ return key&&memoizedSqlSyntax(controlSqlShape,statement.sql)===3&&statement.args[0].startsWith('p4ctx:')?key:null;
+}
+// The tenant-pass namespace remains separate from context registry leases.
+export function tenantLeaseDataReadKey(statement,context){
+ const key=inflightControlReadKey(statement,context);
+ return key&&memoizedSqlSyntax(controlSqlShape,statement.sql)===3
+  &&statement.args[0]===`phase4-stage6-pass:${JSON.stringify([context.userId,'LIVE'])}`?key:null;
+}
+const canonicalTenantLeaseTime=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+ &&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+// ROW DATA only. Recompute all original owner, exact-expiry and current-time
+// predicates on every invocation. Noncanonical TEXT uses original SQLite.
+export function projectTenantLeaseData(row,expectedOwner,expectedExpiry,at){
+ if(row===undefined)return {supported:true,owned:false};
+ if(!row||typeof row!=='object'||isProxy(row)||![Object.prototype,null].includes(Object.getPrototypeOf(row)))return {supported:false};
+ const d=Object.getOwnPropertyDescriptors(row),owner=d.owner,expiry=d.expires_at;
+ if(!owner||!expiry||!Object.hasOwn(owner,'value')||!Object.hasOwn(expiry,'value')||typeof owner.value!=='string'
+  ||typeof expectedOwner!=='string'||!canonicalTenantLeaseTime(expiry.value)||!canonicalTenantLeaseTime(expectedExpiry)
+  ||!canonicalTenantLeaseTime(at))return {supported:false};
+ return {supported:true,owned:owner.value===expectedOwner&&expiry.value===expectedExpiry&&expiry.value>at};
 }
 // No serializer or user method is invoked to admit a retained row. The
 // installed ownership ResultSet contains only one row of primitive columns.

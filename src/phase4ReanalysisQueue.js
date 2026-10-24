@@ -1,3 +1,5 @@
+import {processingTenantLeaseDataEligible} from './processingTransaction.js';
+import {CONTEXT_LEASE_DATA_SQL,projectTenantLeaseData} from './processingInflightControlReads.js';
 import {recordLiveJobCompletion,liveCompletionWork,liveCompletionCursorHash} from './stage8LivePublication.js';
 import { randomUUID } from 'node:crypto';
 import { fail } from './phase4Core.js';
@@ -81,9 +83,17 @@ export function createReanalysisQueue(core) {
     },workStepOptions('stage6.claim',[context.userId,context.executionMode,kind,context.inputGeneration],{discardResult:true}));
   }
   async function checkTenant(lease) {
-    const b=lease.binding;
-    if(!(await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
-      args:[b.tenantPass,b.owner,b.expiresAt,timestamp()]})).rows.length)fail('PHASE4_LEASE_CAS_LOST');
+    const b=lease.binding,context=leases.get(lease)?.context,at=timestamp();let owned;
+    if(context&&processingTenantLeaseDataEligible(client,context,b.tenantPass)){
+      const rows=(await client.execute({sql:CONTEXT_LEASE_DATA_SQL,args:[b.tenantPass]})).rows,
+        projected=rows.length<=1?projectTenantLeaseData(rows[0],b.owner,b.expiresAt,at):{supported:false};
+      if(projected.supported)owned=projected.owned;
+    }
+    // Preserve the original SQL and this invocation's original single clock
+    // outside the narrow owned scope, including every terminal observation.
+    if(owned===undefined)owned=Boolean((await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
+      args:[b.tenantPass,b.owner,b.expiresAt,at]})).rows.length);
+    if(!owned)fail('PHASE4_LEASE_CAS_LOST');
   }
   const releaseTenant=lease=>executeCoordination(client,'release',[lease.binding.tenantPass,lease.binding.owner]);
   async function abandon(lease) {

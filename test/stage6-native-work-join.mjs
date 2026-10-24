@@ -24,8 +24,8 @@ export function validateWorkJoin(v){
  if(v.terminalJoinComplete){assert.equal(v.allPhysicalTransactions,v.linkedTransactionCount);for(const k of ['unsettledJoinedTransactions','retainedRequestOwners','retainedBeginOwners','lostJoins'])assert.equal(v[k],0);assert.equal(total,v.allPhysicalTransactions);}
  return true;
 }
-export function createWorkCorrelation({emit=()=>{}}={}){
- assert.equal(typeof emit,'function');
+export function createWorkCorrelation({emit=()=>{},around=(_metadata,call)=>call()}={}){
+ assert.equal(typeof emit,'function');assert.equal(typeof around,'function');
  const scope=new AsyncLocalStorage(),ordinals=new Uint32Array(18),outside=Object.freeze({preparationOrdinal:0,workInvocationOrdinal:0,workLabel:'OUTSIDE'});let scopeLoss=0;
  const data=(o,k)=>{if(!o||typeof o!=='object'||isProxy(o))return undefined;const d=Object.getOwnPropertyDescriptor(o,k);return d&&Object.hasOwn(d,'value')?d.value:undefined;};
  function preparation(ordinal,call){assert.ok(Number.isSafeInteger(ordinal)&&ordinal>=1&&ordinal<=17);return scope.run(Object.freeze({preparationOrdinal:ordinal,workInvocationOrdinal:0,workLabel:'READ_ONLY_OR_OTHER'}),call);}
@@ -39,7 +39,8 @@ export function createWorkCorrelation({emit=()=>{}}={}){
   let workInvocationOrdinal=0;if(ordinals[parent.preparationOrdinal]<4096)workInvocationOrdinal=++ordinals[parent.preparationOrdinal];else{scopeLoss++;workLabel='READ_ONLY_OR_OTHER';}
   // Only immutable telemetry metadata enters the diagnostic ALS. The original
   // options/arguments/callable are untouched; no accessor or coercion is added.
-  return scope.run(Object.freeze({preparationOrdinal:parent.preparationOrdinal,workInvocationOrdinal,workLabel}),call);
+  const metadata=Object.freeze({preparationOrdinal:parent.preparationOrdinal,workInvocationOrdinal,workLabel});
+  return scope.run(metadata,()=>around(metadata,call));
  }
  function decorate(base){
   const requests=new Map(),begins=new Map(),transactions=new Map(),counts=new Map(),slowest=[];let lost=0,linked=0,emissions=0;

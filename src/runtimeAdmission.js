@@ -325,8 +325,21 @@ function ordinaryRawEffectTableHeader(sql,name){
 // Only immutable compiled EXPECTED DDL is preprocessed. No actual catalog row,
 // successful match, admission, connection, guard or schema observation is cached.
 // Every original fresh metadata read and identity/currentness check still runs.
+// Complete literal equality with fixed code definitions is sufficient before
+// syntax normalization. Only these immutable expected strings are retained;
+// every fresh actual SQL string is compared in full, without storing it.
+const rawEffectExpectedLiteralText=new WeakMap();
+function rawEffectLiteralMatches(actual,expected){
+ let literals=rawEffectExpectedLiteralText.get(expected);
+ if(!literals){
+  literals=Object.freeze([expected.ddl,expected.ddl.replace(/^CREATE (TABLE|(?:UNIQUE )?INDEX|TRIGGER) IF NOT EXISTS /i,'CREATE $1 ')]);
+  rawEffectExpectedLiteralText.set(expected,literals);
+ }
+ return literals.includes(actual);
+}
 const rawEffectExpectedTableParts=new WeakMap();
 function rawEffectTableMatches(actual,expected){
+ if(rawEffectLiteralMatches(actual,expected))return true;
  let compiled=rawEffectExpectedTableParts.get(expected);
  if(!compiled){
   const suffix=normalizeSql(expected.ddl.slice(expected.ddl.lastIndexOf(')')+1));
@@ -352,6 +365,9 @@ function rawEffectExpectedObjectSql(expected){
  let text=rawEffectExpectedObjectText.get(expected);
  if(text===undefined){text=normalizeSql(expected.ddl);rawEffectExpectedObjectText.set(expected,text);}
  return text;
+}
+function rawEffectObjectMatches(actual,expected){
+ return rawEffectLiteralMatches(actual,expected)||normalizeSql(actual)===rawEffectExpectedObjectSql(expected);
 }
 export function ownedRawSourceEffectVerifier(client){
  const connection=connections.get(client),capability=connection?.rawEffectAdmission,issued=capabilities.get(capability);
@@ -383,7 +399,7 @@ export function ownedRawSourceEffectVerifier(client){
      const expectedTable=expected.type==='table'?expected.name:/\bON\s+(\w+)/i.exec(expected.ddl)?.[1];
      if(seenCanonical.has(row.name)||row.type!==expected.type||typeof row.sql!=='string'
       ||!expectedTable||row.tbl_name.toLowerCase()!==expectedTable.toLowerCase()
-      ||(expected.type==='table'?!ordinaryRawEffectTableHeader(row.sql,expected.name)||!rawEffectTableMatches(row.sql,expected):normalizeSql(row.sql)!==rawEffectExpectedObjectSql(expected)))return false;
+      ||(expected.type==='table'?!ordinaryRawEffectTableHeader(row.sql,expected.name)||!rawEffectTableMatches(row.sql,expected):!rawEffectObjectMatches(row.sql,expected)))return false;
      seenCanonical.add(row.name);continue;
     }
     const extra=extras.get(row.name);

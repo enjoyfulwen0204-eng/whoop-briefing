@@ -17,6 +17,17 @@ function controlSqlShape(sql){
  return shape===ownershipSql?1:shape===tenant?2:shape===CONTEXT_LEASE_DATA_SQL?3:0;
 }
 const legacyLeaseSqlShape=sql=>normalized(sql)===contextLease;
+// These two exact non-health projections already have snapshot DATA keys.
+// Share only a concurrent cold read; every caller repeats its own predicate.
+// Keep the enum0..3 parser contract and the retained ownership pool unchanged.
+const userStateSql=normalized(`SELECT u.id,u.status,u.timezone,u.lifecycle_generation,
+ COALESCE(t.auth_generation,0) auth_generation,p.source_generation,p.purge_generation,p.pending_purge_count
+ FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id
+ LEFT JOIN phase4_user_state p ON p.user_id=u.id WHERE u.id=?`);
+const principalReadinessSql=normalized(`SELECT u.status,o.state,COALESCE(t.auth_generation,0) auth_generation,p.pending_purge_count
+ FROM users u JOIN phase4_user_state p ON p.user_id=u.id JOIN user_onboarding o ON o.user_id=u.id
+ LEFT JOIN user_whoop_tokens t ON t.user_id=u.id WHERE u.id=?`);
+const principalSqlShape=sql=>{const shape=normalized(sql);return shape===userStateSql||shape===principalReadinessSql;};
 
 // Raw non-health DATA only. Every original clock/ownership/authority predicate
 // still runs. Keep the entire original query and every clock argument in key.
@@ -33,7 +44,8 @@ export function inflightControlReadKey(statement,context){
  // remain in phase4Cache; the pool also keys the exact context object.
  const lease=shape===0&&memoizedSqlSyntax(legacyLeaseSqlShape,sql)&&args.length===2&&/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0]);
  const leaseData=shape===3&&args.length===1&&(/^p4ctx:[a-f0-9]{64}:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(args[0])||args[0]===`phase4-stage6-pass:${JSON.stringify([context.userId,'LIVE'])}`);
- if(!own&&!lock&&!lease&&!leaseData)return null;
+ const principal=shape===0&&args.length===1&&args[0]===context.userId&&memoizedSqlSyntax(principalSqlShape,sql);
+ if(!own&&!lock&&!lease&&!leaseData&&!principal)return null;
  const key=JSON.stringify([sql,args]);return Buffer.byteLength(key)<=8192?key:null;
 }
 // The one clock-free ownership projection may retain raw ROW DATA. No lock,

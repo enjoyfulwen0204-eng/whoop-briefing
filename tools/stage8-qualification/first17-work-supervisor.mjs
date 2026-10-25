@@ -5,6 +5,28 @@ import {networkInterfaces} from 'node:os';
 import assert from 'node:assert/strict';
 import {validateWorkJoin} from '../../test/stage6-native-work-join.mjs';
 import {validateFamilyPhaseJoin} from '../../test/stage6-native-family-phases.mjs';
+import {validateRecovery17CostPacket,validateRecovery17CostState} from '../../test/stage6-native-recovery17-cost.mjs';
+export function projectRecovery17Cost(raw,candidateSha,workJoin,familyPhaseJoin){
+ const projection={contract:'one-original-recovery17-cost-preservation-v1',status:'UNKNOWN_COST',reason:'INVALID_INPUT',packet:null,observerState:null,targetJoin:null,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
+ let reason='INVALID_INPUT';
+ try{
+  assert.equal(typeof raw,'string');assert.ok(raw.length<16*1024*1024);assert.match(candidateSha??'',/^[a-f0-9]{40}$/);
+  const parse=(prefix,missing,duplicate)=>{const rows=raw.split('\n').filter(l=>l.startsWith(prefix));reason=missing;assert.ok(rows.length>0);reason=duplicate;assert.equal(rows.length,1);reason='INVALID_JSON';assert.ok(rows[0].length<8192);return JSON.parse(rows[0].slice(prefix.length));};
+  const packet=parse('STAGE6_RECOVERY17_CPU_COST ','MISSING_PACKET','DUPLICATE_PACKET');reason='INVALID_PACKET';validateRecovery17CostPacket(packet,candidateSha);projection.packet=packet;
+  const state=parse('STAGE6_RECOVERY17_CPU_COST_STATE ','MISSING_STATE','DUPLICATE_STATE');reason='INVALID_STATE';validateRecovery17CostState(state);projection.observerState=state;
+  reason='OBSERVER_UNKNOWN';assert.equal(state.claimed,true);assert.ok(state.observerFaults>=packet.observerFaults);assert.equal(state.observerFaults,0);assert.equal(packet.status,'OBSERVED_DIAGNOSTIC_COST_ONLY');
+  reason='TARGET_JOIN_UNAVAILABLE';validateWorkJoin(workJoin);validateFamilyPhaseJoin(familyPhaseJoin);assert.equal(workJoin.terminalJoinComplete,true);
+  for(const k of ['activeRoots','retainedOwners','lostObservations','unknownFamilyTerminals'])assert.equal(familyPhaseJoin[k],0);
+  reason='TARGET_NOT_EXACT';const matching=r=>r.preparationOrdinal===packet.preparationOrdinal&&r.workInvocationOrdinal===packet.workInvocationOrdinal&&r.workLabel===packet.workLabel;
+  const families=familyPhaseJoin.slowest8.filter(r=>matching(r)&&r.phases.METRIC_LIFECYCLE.calls>0);assert.equal(families.length,1);const target=families[0],phase=target.phases.METRIC_LIFECYCLE;
+  assert.ok(['COMMITTED','ROLLED_BACK'].includes(target.outcome));assert.equal(target.phaseWindowsWithinClientUpper,true);assert.equal(phase.calls,1);assert.equal(phase.completed,1);
+  assert.equal(phase.failed,packet.originalCallOutcome==='RETURNED'?0:1);assert.ok(packet.measurement.wallMs<=phase.maxInclusiveMs);
+  const originals=workJoin.slowest8.filter(r=>matching(r)&&r.outcome===target.outcome&&r.durationUpperBoundMs===target.durationUpperBoundMs);assert.equal(originals.length,1);
+  projection.targetJoin={preparationOrdinal:target.preparationOrdinal,workInvocationOrdinal:target.workInvocationOrdinal,workLabel:target.workLabel,outcome:target.outcome,durationUpperBoundMs:target.durationUpperBoundMs,phase:packet.phase,phaseInclusiveMs:phase.maxInclusiveMs,originalPhysicalTokenJoinVerified:true};
+  projection.status='OBSERVED_DIAGNOSTIC_COST_ONLY';projection.reason='EXACT_ORIGINAL_TARGET_JOIN';
+ }catch{projection.reason=reason;}
+ return projection;
+}
 export function exactKeys(value,names){
  assert.ok(value&&typeof value==='object'&&!Array.isArray(value));
  assert.deepEqual(Reflect.ownKeys(value).sort(),[...names].sort());
@@ -80,7 +102,8 @@ async function main(){
   assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<300000);
   assert.equal(workJoin?.terminalJoinComplete,true);validateFamilyTarget(familyPhaseJoin,workJoin);observed=values[0];status='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION';
  }catch{}
- await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-work-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,familyPhaseJoin,partialLegs:observed?null:partialLegs,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
+ const recovery17Cost=projectRecovery17Cost(raw,candidateSha,workJoin,familyPhaseJoin);
+ await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-work-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,familyPhaseJoin,recovery17Cost,partialLegs:observed?null:partialLegs,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
  process.exitCode=status==='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION'?0:2;
 }
 if(process.argv[1]&&new URL(import.meta.url).pathname===process.argv[1])main();

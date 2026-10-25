@@ -1,5 +1,7 @@
+import {createRecovery17CostProbe} from './stage6-native-recovery17-cost.mjs';
+const recoveryCost=createRecovery17CostProbe();
 import {createWorkCorrelation} from './stage6-native-work-join.mjs';
-const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value)),emitPhases:value=>console.log('STAGE6_NATIVE_FAMILY_PHASE_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=correlation;
+const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value)),emitPhases:value=>console.log('STAGE6_NATIVE_FAMILY_PHASE_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=recoveryCost.decorate(correlation);
 import {joinIssuedTransport,transportIsJoined,waitIssuedIdleBefore} from './stage6-native-join-barrier.mjs';
 // One fresh synthetic nonempty SQLD database. Bounded canonical preparations,
 // one original115ms final EOF and exact identity replay. No Production data or authority.
@@ -29,6 +31,7 @@ import {createDiagnosticFetch} from './stage6-native-diagnostic-observer.mjs';
 import {createAttribution} from './stage6-native-attribution.mjs';
 const directory=await mkdtemp(join(tmpdir(),'stage6-real-positive-hrana-eof-')),log=await open(join(directory,'sqld.log'),'wx',0o600),started=performance.now();
 const server=spawn('/usr/local/bin/isolated-sqld',['-d',join(directory,'physical'),'--http-listen-addr','127.0.0.1:18080','--no-welcome'],{stdio:['ignore',log.fd,log.fd],env:{PATH:process.env.PATH,HOME:'/tmp',LANG:'C.UTF-8'}});
+recoveryCost.setOwnedServer(server);
 let serverError=false;server.on('error',()=>{serverError=true;});
 const networkFetch=globalThis.fetch.bind(globalThis);let latency=false,db,a,b,stage='SERVER_START',failure=null,report=null,closed=false;
 const progress={startedPreparations:0,completedPreparations:0,sourceAcknowledgments:0,unitsCommitted:0,lastPendingJobs:null,lastBudgetPerTenant:null,check:'NOT_STARTED',preparationSnapshotState:'NOT_STARTED'};
@@ -148,7 +151,7 @@ try{
   if(pending.length===1&&pending[0].full_scan_cursor===last){ready=true;break;}
   if(pending.length===0)break;
   preparationBudget=preparationBudgetFor(pending,sourceCatalog);progress.lastPendingJobs=pending.length;progress.lastBudgetPerTenant=preparationBudget.maxItemsPerTenant;progress.startedPreparations++;progress.check='CANONICAL_WORK';
-  const diagnosticAt=performance.now();const result=await correlation.preparation(i+1,()=>runPreparation({userId:'a',requestId:'synthetic-native-positive-hybrid-eof-prepare-'+i}));setupCalls++;progress.completedPreparations=setupCalls;progress.sourceAcknowledgments+=result.result.itemsProcessed;progress.unitsCommitted+=result.result.unitsCommitted;
+  recoveryCost.setPreparation(i+1);const diagnosticAt=performance.now();const result=await correlation.preparation(i+1,()=>runPreparation({userId:'a',requestId:'synthetic-native-positive-hybrid-eof-prepare-'+i}));setupCalls++;progress.completedPreparations=setupCalls;progress.sourceAcknowledgments+=result.result.itemsProcessed;progress.unitsCommitted+=result.result.unitsCommitted;
   capturePreparationProgress();emitWorkJoin();
   diagnosticLegs.push({ordinal:i+1,kind:'RETURNED_CANONICAL_PREPARATION',postconditionsNotYetChecked:true,replayed:result.replayed,wallMs:performance.now()-diagnosticAt,processedItems:result.result.itemsProcessed,unitsCommitted:result.result.unitsCommitted,failedJobs:result.result.jobsFailed});console.log('STAGE6_FIRST17_WORK_RETURNED '+JSON.stringify(diagnosticLegs.at(-1)));
   progress.check='NOT_REPLAYED';assert.equal(result.replayed,false);progress.check='NO_FAILED_JOBS';assert.equal(result.result.jobsFailed,0);progress.check='SETUP_TIME';assert.ok(performance.now()-started<240000,'BOUNDED_SETUP_AND_RECOVERY_RESERVE_REQUIRED');
@@ -159,6 +162,7 @@ try{
 }catch(error){emitWorkJoin();capturePreparationProgress(progress.preparationSnapshotState==='TERMINAL');failure={stage,type:error.name,code:/^[A-Z0-9_]{1,80}$/.test(error.code??'')?error.code:'OTHER',classification:failureClassification(error),progress:{...progress},elapsedMs:performance.now()-started};console.log('STAGE6_NATIVE_POSITIVE_EOF_FAILURE '+JSON.stringify(failure));}
 finally{
  latency=false;
+ console.log('STAGE6_RECOVERY17_CPU_COST_STATE '+JSON.stringify(recoveryCost.snapshot()));
  try{if(db)await closeClient(b??a,{finalObservation:true});closed=(!a||transportIsJoined(a.snapshot()))&&(!b||transportIsJoined(b.snapshot()));}
  catch{closed=false;}
  emitWorkJoin();

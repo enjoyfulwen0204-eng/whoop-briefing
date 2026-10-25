@@ -4,10 +4,10 @@ No old run/attempt is resumed. Importing performs no action.
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil,hashlib
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='decfb2ee3fc1d81a57756b19926c315d4c56b0f6'
-REF='refs/heads/diagnostic/stage6-expected-literal-first17-20261025'
+BASE='d055e2ef377ba8ec6f409451e52edba8e19fab36'
+REF='refs/heads/diagnostic/stage6-recovery17-cpu-cost-20261025'
 MODE='native-first20-appcause'
-INTENT='one-original-expected-literal-first17-v1'
+INTENT='one-original-recovery17-cpu-cost-v1'
 CONTROL='tools/stage8-qualification/first17-work-ci.py';WRAPPER='tools/stage8-qualification/first17-work-supervisor.mjs';UNIT='tools/stage8-qualification/first17-work-ci.test.py';TEST='test/stage6-native-first17-work.mjs';WORKFLOW=h.WORKFLOW
 
 def validate(e,system,machine,uid,gid):
@@ -25,8 +25,8 @@ def source_gate(source,expected):
  assert h.run(['git','-C',str(source),'rev-parse','HEAD'])==expected
  assert not h.run(['git','-C',str(source),'status','--porcelain=v1','--untracked-files=all'])
  assert h.run(['git','-C',str(source),'rev-parse','HEAD^'])==BASE
- allowed={'M\tsrc/runtimeAdmission.js', 'M\ttest/stage6-raw-expected-compile.test.mjs', 'M\ttools/stage8-qualification/first17-work-ci.py', 'M\t.github/workflows/stage8-live-linux-qualification.yml', 'M\ttools/stage8-qualification/first17-work-ci.test.py'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
- assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci'])
+ allowed={'A\ttest/stage6-native-recovery17-cost.mjs','A\ttest/stage6-native-recovery17-cost.test.mjs','M\ttest/stage6-native-work-join.mjs','M\ttest/stage6-native-first17-work.mjs','M\ttools/stage8-qualification/first17-work-supervisor.mjs','M\ttools/stage8-qualification/first17-work-ci.py','M\ttools/stage8-qualification/first17-work-ci.test.py','M\t.github/workflows/stage8-live-linux-qualification.yml'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
+ assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci'])
  for name,digest in {'src/runtimeAdmission.js': '91b91d30deb7c86ef4be6808610894bafbbdbc48fae168d6517a33350dae63ff', 'src/processingRawSourceEffects.js': '53734b17549820bd159801cd17f4b8136733ba754ed936635a4ccdf0c5325cbc', 'src/processingReadSnapshot.js': 'd7226e04929da160e1fac9708c468fbee3312da45bb4fc1d9a3ae6ed8d19cab8', 'src/processingTransaction.js': 'e9b7ac23dcf7460b7197f17a0b1d8ce9b86ba1df395123f9a84c3fdf4d9f3f9b', 'src/phase4Core.js': 'ff0e850f47475c3b5f1d56a54581886686f35f94dcc64e35c4afc55926d9f9eb', 'src/db.js': '5a7bed48a2341a15bde233d28b5960675a34edadccdc6c3ac76bbb3b2e5f538c'}.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
  h.public_lock(source/'package-lock.json')
 

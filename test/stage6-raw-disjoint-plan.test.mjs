@@ -37,3 +37,22 @@ test('non-string original pragma membership edge preserves original fallback out
  assert.equal(classify('PRAGMA table_info()',new Set([undefined])),true);
  assert.equal(classify('PRAGMA table_info()',new Set()),false);
 });
+
+test('revoked proxy fallback retains original parse short circuit without new inspection',()=>{
+ const r=Proxy.revocable(new Set(['evidence_items']),{});r.revoke();
+ for(const sql of ['', 'SELECT \"unterminated', 'SELECT 1;',null,'SELECT '+ 'a'.repeat(8193)])assert.equal(classify(sql,r.proxy),false);
+ assert.throws(()=>classify('SELECT 1',r.proxy),TypeError);
+ const live=new Proxy(new Set(['evidence_items']),{});assert.equal(classify('',live),false);assert.throws(()=>classify('SELECT * FROM evidence_items',live),TypeError);
+});
+
+test('prototype-only fake Set keeps original errors after both cold and warm alias plans',()=>{
+ const alias='WITH expected(execution_id,receipt_key) AS (VALUES (?,?)) SELECT * FROM expected';
+ for(let i=0;i<3;i++){
+  const fake=Object.create(Set.prototype);
+  assert.throws(()=>classify(alias,fake),TypeError);
+  assert.equal(classify(alias,new Set()),true);
+  assert.throws(()=>classify(alias,fake),TypeError);
+  assert.equal(classify('',fake),false);assert.equal(classify('SELECT 1;',fake),false);
+  assert.throws(()=>classify('SELECT * FROM evidence_items',fake),TypeError);
+ }
+});

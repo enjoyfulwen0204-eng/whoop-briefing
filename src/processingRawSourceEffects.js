@@ -192,13 +192,16 @@ function parseRawDisjointSql(sql,canonicalTables){
 // against the current original plain Set. Nonstandard Sets use the original
 // parser so custom membership behavior is not memoized or reordered.
 export const RAW_DISJOINT_PLAN_LIMITS=Object.freeze({entries:64,keyBytes:8192,bytes:128*1024});
-const plainSetHas=Set.prototype.has,rawPlans=new Map();let rawPlanBytes=0;
+const plainSetHas=Set.prototype.has,plainSetSize=Object.getOwnPropertyDescriptor(Set.prototype,'size').get,rawPlans=new Map();let rawPlanBytes=0;
 export function supportedRawDisjointSql(sql,canonicalTables){
  if(typeof sql!=='string'||Buffer.byteLength(sql)>RAW_DISJOINT_PLAN_LIMITS.keyBytes
-  ||!(canonicalTables instanceof Set)||nativeTypes.isProxy(canonicalTables)
+  ||nativeTypes.isProxy(canonicalTables)||!(canonicalTables instanceof Set)
   ||Object.getPrototypeOf(canonicalTables)!==Set.prototype
   ||Object.hasOwn(canonicalTables,'has')||Set.prototype.has!==plainSetHas)
   return parseRawDisjointSql(sql,canonicalTables);
+ // A matching prototype does not establish the native [[SetData]] brand.
+ // Probe only brand; keep non-brand objects on the unchanged parser path.
+ try{plainSetSize.call(canonicalTables);}catch{return parseRawDisjointSql(sql,canonicalTables);}
  let plan=rawPlans.get(sql);
  if(plan===undefined){
   const required=new Set();

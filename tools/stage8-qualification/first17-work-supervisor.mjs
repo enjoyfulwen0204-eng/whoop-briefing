@@ -6,6 +6,20 @@ import assert from 'node:assert/strict';
 import {validateWorkJoin} from '../../test/stage6-native-work-join.mjs';
 import {validateFamilyPhaseJoin} from '../../test/stage6-native-family-phases.mjs';
 import {validateRecovery17CostPacket,validateRecovery17CostState} from '../../test/stage6-native-recovery17-cost.mjs';
+import {validateRecovery17ProfilePacket,validateRecovery17ProfileState} from '../../test/stage6-native-recovery17-profile.mjs';
+export function projectRecovery17Profile(raw,candidateSha,cost){
+ const projection={contract:'one-original-recovery17-profile-preservation-v1',status:'UNKNOWN_PROFILE',reason:'INVALID_INPUT',packet:null,observerState:null,logicalTargetMatchedToOriginalPhysicalJoin:false,profileSamplesNotExclusivePhysicalTokenCPU:true,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};let reason='INVALID_INPUT';
+ try{
+  assert.equal(typeof raw,'string');assert.ok(raw.length<16*1024*1024);assert.match(candidateSha??'',/^[a-f0-9]{40}$/);
+  const parse=(prefix,missing,duplicate)=>{const rows=raw.split('\n').filter(l=>l.startsWith(prefix));reason=missing;assert.ok(rows.length>0);reason=duplicate;assert.equal(rows.length,1);reason='INVALID_JSON';assert.ok(rows[0].length<32768);return JSON.parse(rows[0].slice(prefix.length));};
+  const packet=parse('STAGE6_RECOVERY17_TARGET_PROFILE ','MISSING_PACKET','DUPLICATE_PACKET');reason='INVALID_PACKET';validateRecovery17ProfilePacket(packet,candidateSha);projection.packet=packet;
+  const state=parse('STAGE6_RECOVERY17_TARGET_PROFILE_STATE ','MISSING_STATE','DUPLICATE_STATE');reason='INVALID_STATE';validateRecovery17ProfileState(state);projection.observerState=state;
+  reason='OBSERVER_UNKNOWN';assert.equal(state.claimed,true);assert.equal(state.matches,1);assert.equal(state.observerFaults,0);assert.equal(packet.status,'OBSERVED_PROFILE_DIAGNOSTIC_ONLY');
+  reason='TARGET_JOIN_UNAVAILABLE';assert.equal(cost?.contract,'one-original-recovery17-cost-preservation-v1');assert.equal(cost.status,'OBSERVED_DIAGNOSTIC_COST_ONLY');assert.equal(cost.reason,'EXACT_ORIGINAL_TARGET_JOIN');assert.equal(cost.targetJoin?.originalPhysicalTokenJoinVerified,true);
+  reason='TARGET_NOT_EXACT';for(const k of ['preparationOrdinal','workInvocationOrdinal','workLabel','phase'])assert.equal(packet[k],cost.targetJoin[k]);assert.equal(packet.originalCallOutcome,cost.packet?.originalCallOutcome);
+  projection.logicalTargetMatchedToOriginalPhysicalJoin=true;projection.status='OBSERVED_PROFILE_DIAGNOSTIC_ONLY';projection.reason='EXACT_LOGICAL_TARGET_ORIGINAL_JOIN_METADATA_MATCH';
+ }catch{projection.reason=reason;}return projection;
+}
 export function projectRecovery17Cost(raw,candidateSha,workJoin,familyPhaseJoin){
  const projection={contract:'one-original-recovery17-cost-preservation-v1',status:'UNKNOWN_COST',reason:'INVALID_INPUT',packet:null,observerState:null,targetJoin:null,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
  let reason='INVALID_INPUT';
@@ -41,10 +55,10 @@ export function validateLeg(x,i){
 export function validateDiagnostic(v,candidateSha){
  assert.match(candidateSha??'',/^[a-f0-9]{40}$/);
  exactKeys(v,['contract','status','applicationSource','diagnosticLegs','preparationTransactions','httpRequests','statementCount','maxPreparations','sourceHealthRows','users','addedLatencyMs','cpuProfilerUsed','productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','elapsedMs','ownedServerExited','originalPostconditionsPassed']);
- assert.equal(v.contract,'one-native-first17-work-diagnostic-v1');assert.equal(v.status,'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION');
+ assert.equal(v.contract,'one-native-first17-target-profile-diagnostic-v1');assert.equal(v.status,'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION');
  assert.equal(v.applicationSource,candidateSha);
- for(const k of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified','cpuProfilerUsed'])assert.equal(v[k],false);
-assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.equal(v.users,1);assert.equal(v.addedLatencyMs,0);
+ for(const k of ['productionEvidence','EOFQualified','sixJobCompletionQualified','capacityQualified'])assert.equal(v[k],false);
+assert.equal(v.cpuProfilerUsed,true);assert.equal(v.maxPreparations,17);assert.equal(v.sourceHealthRows,160);assert.equal(v.users,1);assert.equal(v.addedLatencyMs,0);
  assert.ok(Array.isArray(v.diagnosticLegs));assert.equal(v.diagnosticLegs.length,17);
  for(const [i,x]of v.diagnosticLegs.entries()){validateLeg(x,i);assert.equal(x.failedJobs,0);assert.equal(x.replayed,false);}
  assert.equal(v.originalPostconditionsPassed,true);assert.equal(v.ownedServerExited,true);assert.ok(Number.isFinite(v.elapsedMs)&&v.elapsedMs>=0);
@@ -103,7 +117,7 @@ async function main(){
   assert.equal(workJoin?.terminalJoinComplete,true);validateFamilyTarget(familyPhaseJoin,workJoin);observed=values[0];status='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION';
  }catch{}
  const recovery17Cost=projectRecovery17Cost(raw,candidateSha,workJoin,familyPhaseJoin);
- await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-work-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,familyPhaseJoin,recovery17Cost,partialLegs:observed?null:partialLegs,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
+ await rm(path);console.log('STAGE6_FIRST17_WORK_SUPERVISOR '+JSON.stringify({contract:'one-native-first17-target-profile-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,workJoin,familyPhaseJoin,recovery17Cost,partialLegs:observed?null:partialLegs,recovery17Profile:projectRecovery17Profile(raw,candidateSha,recovery17Cost),resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false}));
  process.exitCode=status==='DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION'?0:2;
 }
 if(process.argv[1]&&new URL(import.meta.url).pathname===process.argv[1])main();

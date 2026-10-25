@@ -1,3 +1,4 @@
+import {STAGE8_LIVE_DRAIN_BUDGET} from './stage8LiveDrainPolicy.js';
 import {subjectAlertExecutionId} from './stage8SubjectAlertManifest.js';
 import {composePhase4Stores} from './phase4Repositories.js';
 import {createStage8SubjectAlerts} from './stage8SubjectAlerts.js';
@@ -41,7 +42,7 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
  const capture=async id=>{await ready(id);const ctx=await core.capture(id,{executionMode:'LIVE',providerRequired:true});contextLeases.getStore()?.push(ctx);return ctx;};
  const assertContext=async ctx=>{if(runningReleaseSha(environment)!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');await ready(ctx.userId);return core.assertContext(ctx);};
  const execute=createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,
-  work:async(userId)=>{const v=await worker.drain({userId,triggerSource:'manual'});return {outcome:v.outcome,itemsProcessed:v.processedItems,jobsCompleted:v.completedJobs,jobsFailed:v.failedJobs,remainingJobs:v.remainingJobs,unitsCommitted:v.unitsCommitted};}});
+  work:async(userId)=>{const v=await worker.drain({userId,triggerSource:'manual',budget:STAGE8_LIVE_DRAIN_BUDGET});return {outcome:v.outcome,itemsProcessed:v.processedItems,jobsCompleted:v.completedJobs,jobsFailed:v.failedJobs,remainingJobs:v.remainingJobs,unitsCommitted:v.unitsCommitted};}});
  const alerts=subjectAlertProvider?await createStage8SubjectAlerts({core,stores:composePhase4Stores(core),db,capability,provider:subjectAlertProvider}):null;
  const executeAlerts=alerts?createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,work:async(_uid,ctx)=>alerts.produce(ctx)}):null;
  async function prepareFreshGeneration(userId){

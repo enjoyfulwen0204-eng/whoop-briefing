@@ -831,10 +831,10 @@ jobs:
             python3 "$control" --cleanup-only
           fi
 
-  native-recovery17-cpu-cost-diagnostic:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-recovery17-cpu-cost-20261025' && inputs.mode == 'native-first20-appcause' && inputs.first20_diagnostic_intent == 'one-original-recovery17-cpu-cost-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+  native-cpu-sensor-diagnostic:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-cpu-sensor-20261025' && inputs.mode == 'native-first20-appcause' && inputs.first20_diagnostic_intent == 'one-native-cpu-sensor-compatibility-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 12
     env:
       CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       QUALIFICATION_MODE: ${{ inputs.mode }}
@@ -843,7 +843,7 @@ jobs:
       QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
-      - name: Checkout exact reviewed native EOF source
+      - name: Checkout exact reviewed sensor source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: enjoyfulwen0204-eng/whoop-briefing
@@ -851,22 +851,23 @@ jobs:
           path: candidate-repository
           persist-credentials: false
           fetch-depth: 2
-      - name: Validate distinct EOF regression gates without native work
+      - name: Validate closed sensor gates without native work
         shell: bash
         run: |
           set -euo pipefail
-          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first17-work-ci.test.py"
-      - name: One bounded17 cumulative source-control candidate; no EOF or capacity qualification
+          python3 -I -B "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first17-work-ci.test.py"
+          python3 -I -B "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/cpu-sensor-ci.test.py"
+      - name: One short sensor compatibility check; no health workload
         shell: bash
         run: |
           set -euo pipefail
-          python3 "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first17-work-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
-      - name: Remove only an exited captured native EOF container
+          python3 -I -B "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/cpu-sensor-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
+      - name: Remove only the exited owned sensor container
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/first17-work-ci.py"
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/cpu-sensor-ci.py"
           if test -f "$control"; then
-            python3 "$control" --cleanup-only
+            python3 -I -B "$control" --cleanup-only
           fi

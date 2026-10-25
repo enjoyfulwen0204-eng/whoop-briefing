@@ -115,3 +115,31 @@ test('missing or mutable original scope cannot claim a measurement or alter orig
   const x=setup(),d=x.probe.decorate({owned:(_o,f)=>f(),phase:(_n,f)=>f(),currentWorkScope});assert.equal(await d.phase('METRIC_LIFECYCLE',()=>21),21);assert.equal(x.packets.length,0);assert.equal(x.probe.snapshot().claimed,false);assert.ok(x.probe.snapshot().observerFaults>0);
  }
 });
+
+
+test('Linux dotted numeric extension fields do not invalidate the required closed CPU counters',()=>{
+ const base=parseCPUStat(group(2));
+ assert.deepEqual(parseCPUStat(group(2)+'nice_usec 0\ncore_sched.force_idle_usec 0\nnr_bursts 0\nburst_usec 0\n'),base);
+ for(const bad of ['core_sched.force_idle_usec nope\n','core_sched.force_idle_usec -1\n','bad key 0\n'])assert.throws(()=>parseCPUStat(group(2)+bad));
+ assert.throws(()=>parseCPUStat(group(2).replace('user_usec 1400\n','')+'core_sched.force_idle_usec 0\n'));
+});
+
+import {inspectOwnedSensors} from './stage6-native-cpu-sensor.mjs';
+test('closed sensor compatibility uses an owned process and legitimate kernel extensions only',()=>{
+ const child={pid:71,spawnfile:'/usr/local/bin/isolated-sqld',spawnargs:['/usr/local/bin/isolated-sqld'],exitCode:null,signalCode:null};
+ const readText=p=>p==='/proc/71/stat'?stat():p.endsWith('/cgroup')?'0::/':p.endsWith('cpu.max')?'50000 100000':group(2)+'core_sched.force_idle_usec 0\n';
+ const v=inspectOwnedSensors({child,readText,cpu:()=>({user:4,system:1}),ticks:()=>100});assert.ok(Object.values(v.checks).every(x=>x==='PASS'));assert.equal(v.knownDottedExtensionSeen,true);assert.equal(v.legacySyntaxWouldReject,true);
+ for(const p of ['/proc/71/stat','/proc/self/cgroup','/proc/71/cgroup','/sys/fs/cgroup/cpu.max','/sys/fs/cgroup/cpu.stat']){
+  const bad=inspectOwnedSensors({child,readText:path=>path===p?'bad':readText(path),cpu:()=>({user:4,system:1}),ticks:()=>100});assert.ok(Object.values(bad.checks).some(x=>x!=='PASS'));
+ }
+ let reads=0;const bad=inspectOwnedSensors({child:{...child,spawnfile:'/foreign'},readText(){reads++;return '';},cpu(){throw Error('unused');},ticks(){throw Error('unused');}});assert.equal(bad.checks.ownedChild,'FAIL');assert.equal(reads,0);
+});
+
+
+test('sensor uses the captured original PID even when a mutable child identity changes',()=>{
+ for(const mode of ['first-stat','second-endpoint']){
+  const child={pid:71,spawnfile:'/usr/local/bin/isolated-sqld',spawnargs:['/usr/local/bin/isolated-sqld'],exitCode:null,signalCode:null};let stats=0,groups=0;const paths=[];
+  const readText=p=>{paths.push(p);if(p==='/proc/71/stat'){if(++stats===1&&mode==='first-stat')child.pid=72;return stat(71,'99');}if(p==='/proc/self/cgroup'){if(++groups===2&&mode==='second-endpoint')child.pid=72;return '0::/';}if(p.endsWith('/cgroup'))return '0::/';if(p.endsWith('cpu.max'))return '50000 100000';return group(1);};
+  const v=inspectOwnedSensors({child,readText,cpu:()=>({user:1,system:0}),ticks:()=>100});assert.equal(v.checks.ownedChild,'FAIL');assert.ok(Object.values(v.checks).some(x=>x!=='PASS'));assert.ok(!paths.some(p=>p.startsWith('/proc/72/')));
+ }
+});

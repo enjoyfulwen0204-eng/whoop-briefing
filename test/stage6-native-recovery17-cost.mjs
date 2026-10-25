@@ -43,7 +43,7 @@ const cgroupFields=['usage_usec','user_usec','system_usec','nr_periods','nr_thro
 export function parseCPUStat(text){
  if(typeof text!=='string'||text.length>4096)throw Error('INVALID_CONTAINER_STAT');
  const result={};for(const line of text.trim().split('\n')){
-  const m=/^(\w+)\s+(\d+)$/.exec(line);if(!m)throw Error('INVALID_CONTAINER_STAT');
+  const m=/^([A-Za-z_][A-Za-z0-9_.]*)\s+(\d+)$/.exec(line);if(!m)throw Error('INVALID_CONTAINER_STAT');
   if(cgroupFields.includes(m[1])){if(Object.hasOwn(result,m[1]))throw Error('DUPLICATE_CONTAINER_FIELD');result[m[1]]=BigInt(m[2]);}
  }
  if(cgroupFields.some(k=>!Object.hasOwn(result,k)))throw Error('MISSING_CONTAINER_FIELD');return result;

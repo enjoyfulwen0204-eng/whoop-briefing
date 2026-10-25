@@ -1,9 +1,7 @@
 import {createRecovery17CostProbe} from './stage6-native-recovery17-cost.mjs';
 const recoveryCost=createRecovery17CostProbe();
-import {createRecovery17ProfileProbe} from './stage6-native-recovery17-profile.mjs';
-const targetProfile=createRecovery17ProfileProbe();
 import {createWorkCorrelation} from './stage6-native-work-join.mjs';
-const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value)),emitPhases:value=>console.log('STAGE6_NATIVE_FAMILY_PHASE_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=targetProfile.decorate(recoveryCost.decorate(correlation));
+const diagnosticLegs=[],correlation=createWorkCorrelation({emit:value=>console.log('STAGE6_NATIVE_WORK_JOIN '+JSON.stringify(value)),emitPhases:value=>console.log('STAGE6_NATIVE_FAMILY_PHASE_JOIN '+JSON.stringify(value))});globalThis.__stage6WorkJoin=recoveryCost.decorate(correlation);
 import {joinIssuedTransport,transportIsJoined,waitIssuedIdleBefore} from './stage6-native-join-barrier.mjs';
 // One fresh synthetic nonempty SQLD database. Bounded canonical preparations,
 // one original115ms final EOF and exact identity replay. No Production data or authority.
@@ -160,12 +158,11 @@ try{
  }
  a.observer.setPhase('READBACK','READBACK');stage='FIRST17_WORK_DIAGNOSTIC_CLEANUP';assert.equal(setupCalls,17);assert.equal(diagnosticLegs.length,17);
  const final=await closeClient(a),packet=final.bins.GENUINE_ORIGINAL_PRODUCER_CALL;assert.equal(packet.requestErrors,0);assert.equal(packet.responseErrors,0);assert.equal(packet.unknownReplies,0);
- report={contract:'one-native-first17-target-profile-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',originalPostconditionsPassed:true,applicationSource:process.env.EXPECTED_CANDIDATE_SHA,diagnosticLegs,preparationTransactions:packet.transactions,httpRequests:packet.requests,statementCount:packet.submittedStatements,maxPreparations:17,sourceHealthRows:160,users:1,addedLatencyMs:0,cpuProfilerUsed:true,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
+ report={contract:'one-native-first17-work-diagnostic-v1',status:'DIAGNOSTIC_FIRST17_COMPLETE_NO_QUALIFICATION',originalPostconditionsPassed:true,applicationSource:process.env.EXPECTED_CANDIDATE_SHA,diagnosticLegs,preparationTransactions:packet.transactions,httpRequests:packet.requests,statementCount:packet.submittedStatements,maxPreparations:17,sourceHealthRows:160,users:1,addedLatencyMs:0,cpuProfilerUsed:false,productionEvidence:false,EOFQualified:false,sixJobCompletionQualified:false,capacityQualified:false};
 }catch(error){emitWorkJoin();capturePreparationProgress(progress.preparationSnapshotState==='TERMINAL');failure={stage,type:error.name,code:/^[A-Z0-9_]{1,80}$/.test(error.code??'')?error.code:'OTHER',classification:failureClassification(error),progress:{...progress},elapsedMs:performance.now()-started};console.log('STAGE6_NATIVE_POSITIVE_EOF_FAILURE '+JSON.stringify(failure));}
 finally{
  latency=false;
  console.log('STAGE6_RECOVERY17_CPU_COST_STATE '+JSON.stringify(recoveryCost.snapshot()));
- console.log('STAGE6_RECOVERY17_TARGET_PROFILE_STATE '+JSON.stringify(targetProfile.snapshot()));
  try{if(db)await closeClient(b??a,{finalObservation:true});closed=(!a||transportIsJoined(a.snapshot()))&&(!b||transportIsJoined(b.snapshot()));}
  catch{closed=false;}
  emitWorkJoin();

@@ -4,12 +4,11 @@ No old run/attempt is resumed. Importing performs no action.
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil,hashlib
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='46a17452f2403648711a82aa2e4513dc389e9cbd'
-REF='refs/heads/diagnostic/stage6-recovery17-target-profile-20261025'
+BASE='a305ccd8e53ce1744a06871a870de2182985b859'
+REF='refs/heads/diagnostic/stage6-private-scalar-first17-20261025'
 MODE='native-first20-appcause'
-INTENT='one-original-recovery17-target-profile-v1'
+INTENT='one-original-private-scalar-copy-first17-v1'
 CONTROL='tools/stage8-qualification/first17-work-ci.py';WRAPPER='tools/stage8-qualification/first17-work-supervisor.mjs';UNIT='tools/stage8-qualification/first17-work-ci.test.py';TEST='test/stage6-native-first17-work.mjs';WORKFLOW=h.WORKFLOW
-PROFILE_HELPER_PINS={'test/stage6-native-recovery17-profile.mjs': '25568813aebbfa427ac3adbb6e9246f87cd3e9b88128516ae3207f8c9b022e44', 'test/stage6-native-recovery17-profile.test.mjs': 'f83e5bafe55208798918e0453b4cddeb5bd6cda922c24c0940b9e53b923da4ef'}
 
 def validate(e,system,machine,uid,gid):
  assert e.get('GITHUB_REPOSITORY')==h.REPOSITORY and e.get('GITHUB_EVENT_NAME')=='workflow_dispatch'
@@ -19,18 +18,17 @@ def validate(e,system,machine,uid,gid):
  assert expected==e.get('GITHUB_SHA')==e.get('QUALIFICATION_WORKFLOW_SHA')
  assert e.get('GITHUB_RUN_ATTEMPT')=='1' and re.fullmatch(r'[1-9][0-9]*',e.get('GITHUB_RUN_ID',''))
  assert system=='Linux' and machine=='x86_64' and uid>0 and gid>0
- assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-recovery17-target-profile-diagnostic'
+ assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-private-scalar-first17-diagnostic'
  return expected
 
 def source_gate(source,expected):
  assert h.run(['git','-C',str(source),'rev-parse','HEAD'])==expected
  assert not h.run(['git','-C',str(source),'status','--porcelain=v1','--untracked-files=all'])
  assert h.run(['git','-C',str(source),'rev-parse','HEAD^'])==BASE
- allowed={'M\ttools/stage8-qualification/first17-work-ci.py','M\ttools/stage8-qualification/first17-work-ci.test.py','M\t.github/workflows/stage8-live-linux-qualification.yml','M\ttest/stage6-native-first17-work.mjs','M\ttools/stage8-qualification/first17-work-supervisor.mjs','A\ttest/stage6-native-recovery17-profile.mjs','A\ttest/stage6-native-recovery17-profile.test.mjs'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
- assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci'])
- for name,digest in {'src/runtimeAdmission.js': '91b91d30deb7c86ef4be6808610894bafbbdbc48fae168d6517a33350dae63ff', 'src/processingRawSourceEffects.js': '09a0b530f657f06bb0b4e7108dcee74ad926e23047213f099b1ab136de2c99da', 'src/processingReadSnapshot.js': 'd7226e04929da160e1fac9708c468fbee3312da45bb4fc1d9a3ae6ed8d19cab8', 'src/processingTransaction.js': 'e9b7ac23dcf7460b7197f17a0b1d8ce9b86ba1df395123f9a84c3fdf4d9f3f9b', 'src/phase4Core.js': 'ff0e850f47475c3b5f1d56a54581886686f35f94dcc64e35c4afc55926d9f9eb', 'src/db.js': '5a7bed48a2341a15bde233d28b5960675a34edadccdc6c3ac76bbb3b2e5f538c'}.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
- for name,digest in {'test/stage6-raw-disjoint-plan.test.mjs':'0cf26ac8abc1096a379b81642d6c6eb8f1615972635cf747041ecb6d525893a3','test/stage6-raw-effect-genuine-c35.test.mjs':'6e6666495f8a7171f08fe95c80af23b19541d9d96afce54303be6e6f43f9b29c','test/stage6-native-recovery17-cost.mjs':'4524262a1a2e79716e30d1ef959d4f7b30afef59e89b035ea3b7d9e872610219','test/stage6-native-first17-work.mjs':'5fe29b7d3e405b4ed9a3aa8a857391fa45b1e0b405d43bc09b26c055af25dbb9','tools/stage8-qualification/first17-work-supervisor.mjs':'2b4c1e02f50ebea4c863e4784faf26d512c60d99112ff2c06af571b27a004ba4'}.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
- for name,digest in PROFILE_HELPER_PINS.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
+ allowed={'M\ttools/stage8-qualification/first17-work-ci.py','M\ttools/stage8-qualification/first17-work-ci.test.py','M\t.github/workflows/stage8-live-linux-qualification.yml','M\ttest/stage6-native-first17-work.mjs','M\ttools/stage8-qualification/first17-work-supervisor.mjs','M\tsrc/processingReadSnapshot.js','M\tsrc/processingInflightControlReads.js','A\ttest/processing-private-scalar-clone-plan.test.mjs'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
+ assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci'])
+ for name,digest in {'src/runtimeAdmission.js': '91b91d30deb7c86ef4be6808610894bafbbdbc48fae168d6517a33350dae63ff', 'src/processingRawSourceEffects.js': '09a0b530f657f06bb0b4e7108dcee74ad926e23047213f099b1ab136de2c99da', 'src/processingReadSnapshot.js': '6fa6098b5876522a8a28dd9eba7fa3f4cddb0cfbb1d7f530f3cdeed378a369dc', 'src/processingInflightControlReads.js': '25fcc462572ff11c8db90e9068ab22d1cff86c5093488ab3d3a6c94a8981f259', 'src/processingTransaction.js': 'e9b7ac23dcf7460b7197f17a0b1d8ce9b86ba1df395123f9a84c3fdf4d9f3f9b', 'src/phase4Core.js': 'ff0e850f47475c3b5f1d56a54581886686f35f94dcc64e35c4afc55926d9f9eb', 'src/db.js': '5a7bed48a2341a15bde233d28b5960675a34edadccdc6c3ac76bbb3b2e5f538c'}.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
+ for name,digest in {'test/processing-private-scalar-clone-plan.test.mjs':'ca5fb0e6e68f0d1d35c9b8d5f8da7c76248aae80c47a3db8e4273ced953ec16b','test/stage6-raw-disjoint-plan.test.mjs':'0cf26ac8abc1096a379b81642d6c6eb8f1615972635cf747041ecb6d525893a3','test/stage6-raw-effect-genuine-c35.test.mjs':'6e6666495f8a7171f08fe95c80af23b19541d9d96afce54303be6e6f43f9b29c','test/stage6-native-recovery17-cost.mjs':'4524262a1a2e79716e30d1ef959d4f7b30afef59e89b035ea3b7d9e872610219','test/stage6-native-first17-work.mjs':'bed2240f1a74bb79b82fc7f76a092c540a57a08f2a582dd1bd08a9b8068e4702','tools/stage8-qualification/first17-work-supervisor.mjs':'9bf130e5ce68a880beb7d023d02b937e4cb03c72bb75dffb998f63fad19f7dec'}.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
  h.public_lock(source/'package-lock.json')
 
 def main():
@@ -42,7 +40,7 @@ def main():
  sandbox.mkdir(mode=0o700);context=sandbox/'context';context.mkdir(mode=0o700)
  for f in ['package.json','package-lock.json']:shutil.copyfile(source/f,context/f)
  shutil.copyfile(source/'tools/stage8-qualification/Dockerfile.native-empty-ci',context/'Dockerfile')
- result={'contract':'one-native-first17-target-profile-ci-v1','candidateSha':expected,'controlParent':BASE,'applicationSource':expected,'runId':os.environ['GITHUB_RUN_ID'],'attempt':1,'status':'NOT_STARTED','productionEvidence':False,'denseCapacityQualified':False,'EOFQualified':False,'sixJobCompletionQualified':False,'capacityQualified':False,'cleanupConfirmed':False}
+ result={'contract':'one-native-first17-work-ci-v1','candidateSha':expected,'controlParent':BASE,'applicationSource':expected,'runId':os.environ['GITHUB_RUN_ID'],'attempt':1,'status':'NOT_STARTED','productionEvidence':False,'denseCapacityQualified':False,'EOFQualified':False,'sixJobCompletionQualified':False,'capacityQualified':False,'cleanupConfirmed':False}
  try:
   h.run(['docker','build','--platform','linux/amd64','--build-arg','QUALIFICATION_ROOT=/candidate','--build-arg','QUALIFICATION_UID='+str(os.getuid()),'--build-arg','QUALIFICATION_GID='+str(os.getgid()),'-t',name+':one',str(context)],420)
   image=json.loads(h.run(['docker','image','inspect',name+':one']))[0];assert image['Architecture']=='amd64' and image['Os']=='linux'

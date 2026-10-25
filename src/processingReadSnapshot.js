@@ -54,11 +54,81 @@ export function cloneResult(result){
  Object.assign(copy,{columns:[...result.columns],columnTypes:[...result.columnTypes],rows:result.rows.map(object),
   rowsAffected:result.rowsAffected,lastInsertRowid:result.lastInsertRowid});return copy;
 }
+// DATA-copy optimization only: eligibility is checked BEFORE the original
+// clone, so callback-bearing sources cannot leak a presumed-private snapshot.
+// Capture existing trusted intrinsics, as with other narrow data fast paths.
+const cloneIntrinsics=(()=>{const iteratorPrototype=Object.getPrototypeOf([][Symbol.iterator]());return Object.freeze({
+ global:globalThis,iteratorSymbol:Symbol.iterator,speciesSymbol:Symbol.species,object:Object,array:Array,reflect:Reflect,ownKeys:Reflect.ownKeys,isProxy:nativeTypes.isProxy,objectPrototype:Object.prototype,arrayPrototype:Array.prototype,
+ create:Object.create,assign:Object.assign,descriptors:Object.getOwnPropertyDescriptors,values:Object.values,
+ hasOwn:Object.hasOwn,getPrototype:Object.getPrototypeOf,descriptor:Object.getOwnPropertyDescriptor,
+ defineProperties:Object.defineProperties,isArray:Array.isArray,map:Array.prototype.map,
+ iterator:Array.prototype[Symbol.iterator],iteratorPrototype,iteratorNext:iteratorPrototype.next,
+ speciesGetter:Object.getOwnPropertyDescriptor(Array,Symbol.species).get});})();
+const cloneObjectMethods=['create','assign','getOwnPropertyDescriptors','values','hasOwn','getPrototypeOf','getOwnPropertyDescriptor','defineProperties'];
+const cloneObjectFunctions=[cloneIntrinsics.create,cloneIntrinsics.assign,cloneIntrinsics.descriptors,cloneIntrinsics.values,cloneIntrinsics.hasOwn,cloneIntrinsics.getPrototype,cloneIntrinsics.descriptor,cloneIntrinsics.defineProperties];
+function cloneOwnDataValue(object,key){const i=cloneIntrinsics,d=i.descriptor(object,key);return d&&i.hasOwn(d,'value')?d.value:undefined;}
+function cloneEnvironmentStable(){
+ const i=cloneIntrinsics,value=cloneOwnDataValue;
+ if(value(i.global,'Object')!==i.object)return false;
+ for(let n=0;n<cloneObjectMethods.length;n++)if(value(i.object,cloneObjectMethods[n])!==cloneObjectFunctions[n])return false;
+ if(value(i.arrayPrototype,'map')!==i.map||value(i.arrayPrototype,i.iteratorSymbol)!==i.iterator
+  ||value(i.arrayPrototype,'constructor')!==i.array||value(i.iteratorPrototype,'next')!==i.iteratorNext)return false;
+ const species=i.descriptor(i.array,i.speciesSymbol);
+ if(!species||species.get!==i.speciesGetter||species.set!==undefined)return false;
+ // ToPropertyDescriptor must not expose retained templates through inherited hooks.
+ if(i.descriptor(i.objectPrototype,'get')||i.descriptor(i.objectPrototype,'set'))return false;
+ return true;
+}
+function ordinaryScalarCloneSource(result){
+ const i=cloneIntrinsics;
+ try{
+  if(!cloneEnvironmentStable())return false;
+  if(!result||typeof result!=='object'||i.isProxy(result))return false;
+  const fields=['columns','columnTypes','rows','rowsAffected','lastInsertRowid'],d=i.create(null);
+  for(let n=0;n<fields.length;n++){const key=fields[n],x=i.descriptor(result,key);if(!x||!i.hasOwn(x,'value'))return false;d[key]=x.value;}
+  let proto=i.getPrototype(result);
+  for(let depth=0;proto!==null;depth++,proto=i.getPrototype(proto)){
+   if(depth>=8||i.isProxy(proto))return false;
+   for(let n=0;n<fields.length;n++){const x=i.descriptor(proto,fields[n]);if(x&&!i.hasOwn(x,'value'))return false;}
+  }
+  const scalar=v=>v===null||typeof v==='undefined'||typeof v==='string'||typeof v==='number'||typeof v==='boolean'||typeof v==='bigint';
+  if(!scalar(d.rowsAffected)||!scalar(d.lastInsertRowid))return false;
+  const array=(a,max)=>{
+   if(!i.isArray(a)||i.isProxy(a)||i.getPrototype(a)!==i.arrayPrototype||a.length>max)return null;
+   const names=['constructor','map',i.iteratorSymbol];for(let n=0;n<names.length;n++)if(i.descriptor(a,names[n]))return null;
+   const values=i.create(null);values.length=a.length;for(let n=0;n<a.length;n++){const x=i.descriptor(a,n);if(!x||!i.hasOwn(x,'value'))return null;values[n]=x.value;}return values;
+  };
+  const columns=array(d.columns,16),types=array(d.columnTypes,16),rows=array(d.rows,1);
+  if(!columns||!types||!rows||columns.length!==types.length)return false;
+  for(let n=0;n<columns.length;n++)if(typeof columns[n]!=='string'||typeof types[n]!=='string')return false;
+  if(rows.length){const row=rows[0];if(!row||typeof row!=='object'||i.isProxy(row))return false;
+   const proto=i.getPrototype(row);if(proto!==i.objectPrototype&&proto!==null)return false;
+   const keys=i.ownKeys(row);if(keys.length>32)return false;
+   for(let n=0;n<keys.length;n++){const x=i.descriptor(row,keys[n]);if(!x||!i.hasOwn(x,'value')||!scalar(x.value))return false;}
+  }
+  return true;
+ }catch{return false;}
+}
+export function createPrivateMemoResultClone(result){
+ const eligible=ordinaryScalarCloneSource(result),snapshot=cloneResult(result);
+ if(!eligible)return ()=>cloneResult(snapshot);
+ // No user hook can run between the eligibility proof and original clone.
+ // At most1 row/16 columns/32 scalar descriptors are retained per existing entry.
+ const prototype=Object.getPrototypeOf(snapshot),columns=[...snapshot.columns],columnTypes=[...snapshot.columnTypes],
+  affected=snapshot.rowsAffected,last=snapshot.lastInsertRowid,hasRow=snapshot.rows.length===1,
+  rowPrototype=hasRow?Object.getPrototypeOf(snapshot.rows[0]):null,
+  descriptors=hasRow?Object.getOwnPropertyDescriptors(snapshot.rows[0]):null;
+ let fast=true;return ()=>{if(fast&&!cloneEnvironmentStable())fast=false;
+  if(!fast)return cloneResult(snapshot);
+  return Object.assign(Object.create(prototype),{columns:[...columns],columnTypes:[...columnTypes],
+   rows:hasRow?[Object.create(rowPrototype,descriptors)]:[],rowsAffected:affected,lastInsertRowid:last});
+ };
+}
 export function createReadSnapshotMemo(){
  let contexts=new Map(),rawContexts=new Map(),rawEntries=0,rawBytes=0,rawEpoch=0,entries=0,bytes=0,epoch=0,closed=false;
  return {
   epoch:()=>epoch,
-  get(context,key){const result=contexts.get(context)?.get(key);return !closed&&result?cloneResult(result):undefined;},
+  get(context,key){const result=contexts.get(context)?.get(key);return !closed&&result?(typeof result==='function'?result():cloneResult(result)):undefined;},
   put(context,key,result,observedEpoch){
    if(closed||epoch!==observedEpoch||entries+rawEntries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(result?.rows)
     ||result.rows.length>READ_SNAPSHOT_LIMITS.rows||!Array.isArray(result.columns)||!Array.isArray(result.columnTypes))return;
@@ -71,9 +141,9 @@ export function createReadSnapshotMemo(){
      .reduce((sum,descriptor)=>sum+(descriptor.value instanceof ArrayBuffer||ArrayBuffer.isView(descriptor.value)?descriptor.value.byteLength:0),0),0);
     const size=binaryBytes+Buffer.byteLength(JSON.stringify(result,(_key,value)=>typeof value==='bigint'?String(value):value),'utf8')+Buffer.byteLength(key,'utf8');
     if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+rawBytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
-    const snapshot=cloneResult(result),rows=contexts.get(context)??new Map();
+    const clone=createPrivateMemoResultClone(result),rows=contexts.get(context)??new Map();
     if(rows.has(key))return;
-    rows.set(key,snapshot);contexts.set(context,rows);entries++;bytes+=size;
+    rows.set(key,clone);contexts.set(context,rows);entries++;bytes+=size;
    }catch{/* A result outside this narrow clone shape is simply not reused. */}
   },
   getData(context,key){const data=contexts.get(context)?.get('data:'+key)?.prefixData;return !closed&&data?structuredClone(data):undefined;},

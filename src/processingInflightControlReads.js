@@ -1,6 +1,6 @@
 import {isProxy} from 'node:util/types';
 import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
-import {cloneResult} from './processingReadSnapshot.js';
+import {cloneResult,createPrivateMemoResultClone} from './processingReadSnapshot.js';
 const ownership=`SELECT state,lease_owner,lease_expires_at,requested_generation,
  claimed_generation,scope_revision,claimed_scope_revision,claimed_purge_generation,claimed_lifecycle_generation,
  claimed_auth_generation FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?`;
@@ -122,7 +122,7 @@ function ownershipDataMemo(){
  };
  return {
   epoch:()=>epoch,
-  get(scope,key){const entry=scopes.get(scope)?.get(key);return !closed&&entry?cloneResult(entry.result):undefined;},
+  get(scope,key){const entry=scopes.get(scope)?.get(key);return !closed&&entry?entry.clone():undefined;},
   put(scope,key,result,observedEpoch){
    if(closed||epoch!==observedEpoch||entries>=128)return;
    try{
@@ -143,8 +143,8 @@ function ownershipDataMemo(){
     if(![d.rowsAffected.value,d.lastInsertRowid.value].every(x=>x===undefined||typeof x==='number'&&Number.isFinite(x)||typeof x==='bigint'))return;
     if([d.rowsAffected.value,d.lastInsertRowid.value].some(x=>typeof x==='bigint'&&String(x).length>40))return;
     if(size>16384||bytes+size>1048576)return;
-    const snapshot=cloneResult(result),stored=scopes.get(scope)??new Map();if(stored.has(key))return;
-    stored.set(key,{result:snapshot});scopes.set(scope,stored);entries++;bytes+=size;
+    const clone=createPrivateMemoResultClone(result),stored=scopes.get(scope)??new Map();if(stored.has(key))return;
+    stored.set(key,{clone});scopes.set(scope,stored);entries++;bytes+=size;
    }catch{/* Unsupported DATA stays on its original uncached path. */}
   },
   clear(){scopes.clear();entries=0;bytes=0;epoch++;},

@@ -3,9 +3,8 @@ import {memoizedSqlSyntax} from './sqlSyntaxMemo.js';
 import {createInflightControlReads,inflightControlReadKey,ownershipControlReadKey,contextLeaseDataReadKey,tenantLeaseDataReadKey,inflightSourceControlReadKey,CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
 import {exactRealStatement} from './exactRealStatement.js';
 import {consumeOwnedCommitGuardFailure} from './commitSubmissionGuard.js';
-import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
+import {registerReceiverScopes,shareReceiverScopes,createReceiverScope} from './receiverScopeLifetime.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentExecutionBudget,ExecutionBudgetError } from './executionBudget.js';
 import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,currentExecutionReceiptTransactionMarker,CommitIndeterminateError,requireSettledOperation,readWorkStep,databaseNowMs} from './phase4ExecutionContext.js';
 import {inRuntimeMetadata} from './runtimeMetadataContext.js';
@@ -125,7 +124,7 @@ async function retryContention(call,{afterBusy,deadlineAt=Date.now()+15000}={}) 
 /** All stores share this executor, so a processing transaction includes every
  * database side effect, even writes hidden behind a store/helper function. */
 export function processingTransactions(base,{privateRuntime=false}={}) {
-  const scope = new AsyncLocalStorage();
+  const scope = createReceiverScope(base);
   // Keep original statements for guards, metadata and read-snapshot identity.
   // Reuse the accepted exact binary64 transport only at physical dispatch in
   // the private LIVE Stage6 HTTP execution; this grants no work authority.
@@ -135,10 +134,10 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       ||state&&state.readExecution!==execution)return args;
     return [method==='batch'?args[0].map(exactRealStatement):exactRealStatement(args[0]),...args.slice(1)];
   };
-  const readScope=new AsyncLocalStorage(),activeReadMemos=new Set();
+  const readScope=createReceiverScope(base),activeReadMemos=new Set();
   const invalidateReadMemos=()=>{for(const memo of activeReadMemos)memo.close();};
-  const readOnlyWork=new AsyncLocalStorage(),preparationScope=new AsyncLocalStorage();
-  const fenceScope = new AsyncLocalStorage(), checking = new AsyncLocalStorage();
+  const readOnlyWork=createReceiverScope(base),preparationScope=createReceiverScope(base);
+  const fenceScope = createReceiverScope(base), checking = createReceiverScope(base);
   registerReceiverScopes(base,scope,readScope,readOnlyWork,preparationScope,fenceScope,checking);
   const fences = () => checking.getStore() ? [] : (fenceScope.getStore() ?? []);
   async function runChecks(checks,client){

@@ -11,7 +11,7 @@ import {hranaTransport} from './hranaTransport.js';
 
 async function fixture(t){
  const dir=await mkdtemp(join(tmpdir(),'read-checks-')),url=`file:${join(dir,'db.sqlite')}`,seed=createOwnedDb({url});
- await seed.migrate({targetVersion:32});await seed.close();
+ await seed.migrate({targetVersion:34});await seed.close();
  const transport=hranaTransport(url),db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch:transport.fetch});
  t.after(async()=>{db.close();transport.close();await rm(dir,{recursive:true,force:true});});await db.admitRuntime();return {db,transport};
 }

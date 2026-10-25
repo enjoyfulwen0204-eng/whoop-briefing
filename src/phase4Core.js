@@ -1,4 +1,4 @@
-import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
+import {registerReceiverScopes,shareReceiverScopes,createReceiverScope} from './receiverScopeLifetime.js';
 import {currentExecutionBudget} from './executionBudget.js';
 import {hasLiveProducingAuthority,isLiveExecution} from './stage8LiveProducerAuthority.js';
 import {LIVE_HEALTH_FIELDS} from './stage8LiveAllocation.js';
@@ -15,7 +15,6 @@ import { coverageLineage } from './phase4CoverageLineage.js';
  * directly. The public Foundation factory supplies SHADOW-only authority;
  * isolated tests supply a distinct factory that owns its in-memory database. */
 import { randomUUID } from 'node:crypto';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import {currentDurableExecution,currentExecutionReceiptTransactionMarker,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 import {READ_SNAPSHOT_LIMITS} from './processingReadSnapshot.js';
 import {requireOwnedBodyMetricPurpose,currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
@@ -71,10 +70,10 @@ function compareRootObservation(context,type,id,values){
  * A JSON object, a context from another connection, or a changed mode is not a
  * capability. Authority is supplied only by the owning server/fixture factory. */
 export async function buildPhase4Core({processing,keys,admission,authorizeMode:modeAuthority,liveAuthority,liveProducingAuthority,now=()=>new Date()}) {
-  const jobScope=new AsyncLocalStorage(),terminalControlChecks=new WeakMap();
+  const terminalControlChecks=new WeakMap();
   requirePhase4Keys(keys);
   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
-  const {client,transaction}=processing;registerReceiverScopes(client,jobScope);
+  const {client,transaction}=processing,jobScope=createReceiverScope(client);registerReceiverScopes(client,jobScope);
   // The frozen Stage 5 composition remains usable on v27. A Stage 6 worker
   // must separately require v28; unsupported versions still fail closed.
   const schemaVersion=admission ? requireRuntimeAdmission(client,admission,keys,transaction)

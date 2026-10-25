@@ -1,9 +1,8 @@
-import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
+import {registerReceiverScopes,shareReceiverScopes,createReceiverScope} from './receiverScopeLifetime.js';
 import {analysisTable} from './stage8LiveAllocation.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { isRequestSet, isRequestTime, isJournalRequestSet, normalizeRequestAliases, requestEvidenceIds } from './phase4RequestContract.js';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import {fail,readableRow,DERIVED_TABLES,RAW_SOURCE_READ_BATCH} from './phase4Core.js';
 import { BODY_ENERGY } from './bodyEnergyRegistry.js';
 import { INTELLIGENCE_VERSIONS,PHASE4_METRICS,phase4Metric } from './phase4IntelligenceRegistry.js';
@@ -81,7 +80,7 @@ export function createOperationReceipts(core) {
   const newMetricDomains=new WeakMap();
   const routing=core.schemaVersion>=29?createReceiptRouting(client,keys,{live:core.liveAllocation}):null;
   const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys,{live:core.liveAllocation}):null;
-  const producerScope=new AsyncLocalStorage();registerReceiverScopes(client,producerScope);
+  const producerScope=createReceiverScope(client);registerReceiverScopes(client,producerScope);
   const refreshAuthority=createInsightRefreshAuthority(core,{authenticate,authorities,
     validateEvidence:(context,id)=>forArtifact(context,'evidence_items',{evidence_item_id:id})});
   const metricRefresh=createMetricRefreshAuthority(core,{authenticate,authorities,

@@ -110,7 +110,7 @@ function readExpression(list,canonicalTables,expected=false){
 // Pure classification accepts only the already canonical table-name set.
 // Callers MUST separately prove the complete actual schema/trigger/FK effects
 // inside the same acknowledged owned BEGIN; this function cannot prove that.
-export function supportedRawDisjointSql(sql,canonicalTables){
+function parseRawDisjointSql(sql,canonicalTables){
  const t=tokens(sql);if(!t?.length||!(canonicalTables instanceof Set)||t.some((token,i)=>['LIKE','GLOB','REGEXP','MATCH','CURRENT_DATE','CURRENT_TIME','CURRENT_TIMESTAMP'].includes(token.value)||token.value==='COLLATE'&&(t[i+1]?.kind!=='word'||t[i+1]?.value!=='BINARY'||t[i+2]?.value==='(')||token.value==='-'&&t[i+1]?.value==='>'))return false;
  let i=0;
  const at=value=>t[i]?.value===value;
@@ -185,6 +185,39 @@ export function supportedRawDisjointSql(sql,canonicalTables){
  if(eat('UPDATE'))return target()&&eat('SET')&&assignments()&&where();
  if(eat('DELETE'))return eat('FROM')&&target()&&where();
  return false;
+}
+
+// Cache a bounded pure SQL-shape plan, never a catalog/guard/row/result or
+// an accepted table membership. Each hit rechecks its required table names
+// against the current original plain Set. Nonstandard Sets use the original
+// parser so custom membership behavior is not memoized or reordered.
+export const RAW_DISJOINT_PLAN_LIMITS=Object.freeze({entries:64,keyBytes:8192,bytes:128*1024});
+const plainSetHas=Set.prototype.has,rawPlans=new Map();let rawPlanBytes=0;
+export function supportedRawDisjointSql(sql,canonicalTables){
+ if(typeof sql!=='string'||Buffer.byteLength(sql)>RAW_DISJOINT_PLAN_LIMITS.keyBytes
+  ||!(canonicalTables instanceof Set)||nativeTypes.isProxy(canonicalTables)
+  ||Object.getPrototypeOf(canonicalTables)!==Set.prototype
+  ||Object.hasOwn(canonicalTables,'has')||Set.prototype.has!==plainSetHas)
+  return parseRawDisjointSql(sql,canonicalTables);
+ let plan=rawPlans.get(sql);
+ if(plan===undefined){
+  const required=new Set();
+  class ShapeTables extends Set{has(name){required.add(name);return true;}}
+  const supported=parseRawDisjointSql(sql,new ShapeTables());
+  // The original grammar admits exactly one WITH form: its fixed EXPECTED
+  // VALUES alias shadows a same-named catalog table. It is a local relation,
+  // not a required canonical catalog member. Every other name remains fresh.
+  if(supported&&/^\s*WITH\b/i.test(sql))required.delete('expected');
+  if([...required].some(name=>typeof name!=='string'))return parseRawDisjointSql(sql,canonicalTables);
+  const names=Object.freeze(supported?[...required]:[]);
+  plan=Object.freeze({supported,names});
+  const size=Buffer.byteLength(sql)+names.reduce((n,name)=>n+Buffer.byteLength(name)+8,0);
+  if(size<=RAW_DISJOINT_PLAN_LIMITS.bytes){
+   if(rawPlans.size>=RAW_DISJOINT_PLAN_LIMITS.entries||rawPlanBytes+size>RAW_DISJOINT_PLAN_LIMITS.bytes){rawPlans.clear();rawPlanBytes=0;}
+   rawPlans.set(sql,plan);rawPlanBytes+=size;
+  }
+ }
+ return plan.supported&&plan.names.every(name=>plainSetHas.call(canonicalTables,name));
 }
 
 // Still unqualified and unwired. Every query below is fixed read-only metadata

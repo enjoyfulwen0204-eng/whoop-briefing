@@ -4,13 +4,13 @@ No old run/attempt is resumed. Importing performs no action.
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil,hashlib
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='4de4cf9547c5237184f49fa5ebe7128058536f49'
-REF='refs/heads/diagnostic/stage6-file48-parent-verify-eof-20261026'
+BASE='077a53aee08eef05451b7b9ef83d967aa39171f6'
+REF='refs/heads/diagnostic/stage6-file48-eof-failure-profile-20261026'
 MODE='native-positive-hybrid-eof'
-INTENT='one-original-file48-parent-verify-eof-and-replay-v1'
-CONTROL='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py';WRAPPER='tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';UNIT='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py';TEST='test/stage6-owned-file-batched-prepared-native-eof.mjs';WORKER='test/stage6-owned-file-physical-batch-worker.mjs';BATCH_CONTROL='test/stage6-owned-file-batch-control.mjs';RESOURCE='test/stage6-native-file48-eof-resource.mjs';WORKFLOW=h.WORKFLOW
+INTENT='one-original-file48-eof-failure-profile-v1'
+CONTROL='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py';WRAPPER='tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';UNIT='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py';TEST='test/stage6-owned-file-batched-prepared-native-eof.mjs';WORKER='test/stage6-owned-file-physical-batch-worker.mjs';BATCH_CONTROL='test/stage6-owned-file-batch-control.mjs';RESOURCE='test/stage6-native-file48-eof-resource.mjs';FAILURE_PROFILE='test/stage6-native-eof-failure-profile.mjs';WORKFLOW=h.WORKFLOW
 
-RESOURCE_PINS={'test/stage6-owned-file-physical-batch-worker.mjs': 'c94957962fa4c04571cea025f77d70da87be0dceaf6d75fe5114adefad3796c4', 'test/stage6-owned-file-batch-control.mjs': 'b3b934aa390e5526379d259583e0b3035acb5d4ef66bba607dac9c6c113d645b', 'test/stage6-owned-file-batched-prepared-native-eof.mjs': 'c4df5b09d075eefccf4613c2e0058edbe3f5fb596b2bd4ffc87f5b780882c585', 'tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs': '42f4f50f7e060646d3b1004b1d21ecb82d9bb44764be0c34e8650ac7f3bfc3b8', 'src/stage8LiveDrainPolicy.js': 'c427b0a5e536c462c8c92cc763254d5eeb31f9bdfa9deb305e8b44593420f938', 'test/stage6-native-file48-eof-resource.mjs': '3f55d71a5855de49d87bc068fff1a813fd3b3cd80297ff88250af46712fc4d16', 'test/stage6-owned-file-prepared-native-eof.mjs': 'f67fca13689e131338c9d563682bb15651773954f7b7677c19ab16155731525f'}
+RESOURCE_PINS={'test/stage6-owned-file-physical-batch-worker.mjs': 'c94957962fa4c04571cea025f77d70da87be0dceaf6d75fe5114adefad3796c4', 'test/stage6-owned-file-batch-control.mjs': 'b3b934aa390e5526379d259583e0b3035acb5d4ef66bba607dac9c6c113d645b', 'test/stage6-owned-file-batched-prepared-native-eof.mjs': 'c052539c407f9eb5ea6e787e837a8de479473427758d9062ad939701d74a5b7a', 'tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs': '4c2b152f69a5cd8400126fcf21799f0069d3867d3cd179a94a589a51cac447ad', 'src/stage8LiveDrainPolicy.js': 'c427b0a5e536c462c8c92cc763254d5eeb31f9bdfa9deb305e8b44593420f938', 'test/stage6-native-file48-eof-resource.mjs': '3f55d71a5855de49d87bc068fff1a813fd3b3cd80297ff88250af46712fc4d16', 'test/stage6-owned-file-prepared-native-eof.mjs': 'f67fca13689e131338c9d563682bb15651773954f7b7677c19ab16155731525f', 'test/stage6-native-eof-failure-profile.mjs': '3f3396fe4222abb85e7573b3315fde4d525b78f277e45bd1802a176da5378666', 'test/stage6-native-attribution.mjs': 'fb0db1b5f3821f014c45116fec704f93dce27d7b1be7a80567313303b4f37334'}
 
 def validate(e,system,machine,uid,gid):
  assert e.get('GITHUB_REPOSITORY')==h.REPOSITORY and e.get('GITHUB_EVENT_NAME')=='workflow_dispatch'
@@ -20,15 +20,15 @@ def validate(e,system,machine,uid,gid):
  assert expected==e.get('GITHUB_SHA')==e.get('QUALIFICATION_WORKFLOW_SHA')
  assert e.get('GITHUB_RUN_ATTEMPT')=='1' and re.fullmatch(r'[1-9][0-9]*',e.get('GITHUB_RUN_ID',''))
  assert system=='Linux' and machine=='x86_64' and uid>0 and gid>0
- assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-file48-parent-verify-eof'
+ assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-file48-eof-failure-profile'
  return expected
 
 def source_gate(source,expected):
  assert h.run(['git','-C',str(source),'rev-parse','HEAD'])==expected
  assert not h.run(['git','-C',str(source),'status','--porcelain=v1','--untracked-files=all'])
  assert h.run(['git','-C',str(source),'rev-parse','HEAD^'])==BASE
- allowed={'M\ttest/stage6-owned-file-batched-prepared-native-eof.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs', 'M\ttest/stage6-owned-file-batch-control.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py', 'M\t.github/workflows/stage8-live-linux-qualification.yml'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
- assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci','test/stage6-native-live12-semi4-positive-eof.mjs','test/stage6-native-semi4-eof-resource.mjs','test/stage6-owned-file-prepared-native-eof.mjs'])
+ allowed={'M\ttest/stage6-owned-file-batched-prepared-native-eof.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs', 'A\ttest/stage6-native-eof-failure-profile.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py', 'M\t.github/workflows/stage8-live-linux-qualification.yml'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
+ assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci','test/stage6-native-live12-semi4-positive-eof.mjs','test/stage6-native-semi4-eof-resource.mjs','test/stage6-owned-file-prepared-native-eof.mjs',BATCH_CONTROL,WORKER,'test/stage6-native-attribution.mjs'])
  for name,digest in RESOURCE_PINS.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
  h.public_lock(source/'package-lock.json')
 

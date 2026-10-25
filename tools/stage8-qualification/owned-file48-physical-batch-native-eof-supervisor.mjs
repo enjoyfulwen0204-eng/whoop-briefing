@@ -1,3 +1,4 @@
+import {projectEOFFailure} from '../../test/stage6-native-eof-failure-profile.mjs';
 import {spawn,execFileSync} from 'node:child_process';
 import {readFile,stat,open,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -98,10 +99,8 @@ let spawnError=false;child.on('error',()=>{spawnError=true;});const timer=setTim
 const size=(await stat(path)).size;assert.ok(size<16*1024*1024);const raw=await readFile(path,'utf8'),memoryEvents=Object.fromEntries((await read('memory.events')).split('\n').map(l=>l.split(/\s+/)).map(([k,v])=>[k,Number(v)])),memoryPeakBytes=Number(await read('memory.peak'));
 const childResources=projectChildResources(raw,candidateSha,{pid:child.pid,parentPid:process.pid});
 const batchFailure=projectBatchFailure(raw,candidateSha,child.pid);
-let failure=null,observed=null,status='FAILED_OR_UNKNOWN_NO_QUALIFICATION';
+const failureProjection=projectEOFFailure(raw);let failure=failureProjection.failure,observed=null,status='FAILED_OR_UNKNOWN_NO_QUALIFICATION';
 const matches=raw.split('\n').filter(l=>l.startsWith('STAGE6_FILE_PREPARED_NATIVE_EOF_RESULT '));
-const failures=raw.split('\n').filter(l=>l.startsWith('STAGE6_FILE_PREPARED_NATIVE_EOF_FAILURE '));
-if(failures.length===1){const f=JSON.parse(failures[0].split('STAGE6_FILE_PREPARED_NATIVE_EOF_FAILURE ')[1]);failure={stage:/^[A-Z_]{1,80}$/.test(f.stage??'')?f.stage:'UNKNOWN',type:['Error','AssertionError'].includes(f.type)?f.type:'OTHER',code:/^[A-Z0-9_]{1,80}$/.test(f.code??'')?f.code:'OTHER',classification:['BOUNDED_SETUP_AND_RECOVERY_RESERVE_REQUIRED','ORIGINAL_NONEMPTY_CURSOR_REQUIRED','REAL_SYNTHETIC_POSITIVE_FAMILY_REQUIRED','ORIGINAL_CALL_AND_RECOVERY_RESERVE_REQUIRED','ORIGINAL_RECEIPT_CHANGED_OR_MISSING','OTHER_ASSERTION','OTHER_ERROR'].includes(f.classification)?f.classification:'UNKNOWN',progress:f.progress&&Object.values(f.progress).every(v=>v===null||typeof v==='number'&&Number.isFinite(v)&&v>=0||typeof v==='string'&&/^[A-Z_]{1,40}$/.test(v))?f.progress:null,elapsedMs:Number.isFinite(f.elapsedMs)?f.elapsedMs:null};}
 const terminalLines=raw.split('\n').filter(l=>l.startsWith('STAGE6_FILE_PREPARED_NATIVE_EOF_TERMINAL '));let fixtureTerminal=null;if(terminalLines.length===1){const x=JSON.parse(terminalLines[0].split('STAGE6_FILE_PREPARED_NATIVE_EOF_TERMINAL ')[1]);fixtureTerminal={closed:x.closed===true,ownedServerExited:x.ownedServerExited===true,clientTerminalComplete:x.clientTerminalComplete===true,retainedStreams:Number.isSafeInteger(x.retainedStreams)?x.retainedStreams:null,physicalTerminalObservationComplete:x.physicalTerminalObservationComplete===true};}
 try{
  assert.equal(childResources.status,'OBSERVED_SAMPLE_WITHIN_SELECTED_MEMORY_BOUNDS');
@@ -113,7 +112,7 @@ try{
  assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<300000);status='PASS_PHYSICAL_BATCH_FILE48_PARENT_VERIFIED_NATIVE_SQLD_EOF_COMPONENT_ONLY';
 }catch{observed=null;}
 await rm(path);
-console.log('STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR '+JSON.stringify({contract:'one-physical-batch-file48-parent-verified-native-eof-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,childResources,batchFailure,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,denseCapacityQualified:false,serverEnforcedAbsoluteTransactionLimit:'UNKNOWN'}));
+console.log('STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR '+JSON.stringify({contract:'one-physical-batch-file48-parent-verified-native-eof-supervisor-v1',candidateSha,status,terminal,spawnError,failure,failureProjectionStatus:failureProjection.status,fixtureTerminal,observed,childResources,batchFailure,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,denseCapacityQualified:false,serverEnforcedAbsoluteTransactionLimit:'UNKNOWN'}));
 process.exitCode=status==='PASS_PHYSICAL_BATCH_FILE48_PARENT_VERIFIED_NATIVE_SQLD_EOF_COMPONENT_ONLY'?0:2;
 
 }

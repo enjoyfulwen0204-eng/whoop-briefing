@@ -4,7 +4,7 @@ from unittest.mock import patch
 p=pathlib.Path(__file__).with_name('owned-file48-physical-batch-native-eof-ci.py');s=importlib.util.spec_from_file_location('batch_control',p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 class Gate(unittest.TestCase):
- def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-parent-verify-eof'}
+ def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-eof-failure-profile'}
  def test_closed_execution_identity(self):
   self.assertEqual(m.validate(self.env,'Linux','x86_64',1001,1001),'c'*40)
   for key in self.env:
@@ -15,7 +15,7 @@ class Gate(unittest.TestCase):
   for args in [('Darwin','arm64',501,20),('Linux','aarch64',1001,1001),('Linux','x86_64',0,1001),('Linux','x86_64',1001,0)]:
    with self.subTest(args=args),self.assertRaises(AssertionError):m.validate(self.env,*args)
  def test_exact_six_file_source_gate(self):
-  allowed=['M\t'+p for p in [m.TEST,m.BATCH_CONTROL,m.WRAPPER,m.CONTROL,m.UNIT,m.WORKFLOW]]
+  allowed=['M\t'+p for p in [m.TEST,m.WRAPPER,m.CONTROL,m.UNIT,m.WORKFLOW]]+['A\t'+m.FAILURE_PROFILE]
   def execute(changes=allowed,parent=m.BASE,dirty='',head='c'*40,app=''):
    def fake(args,*rest):
     cmd=args[3:]
@@ -31,7 +31,7 @@ class Gate(unittest.TestCase):
    with self.subTest(options=options),self.assertRaises(AssertionError):execute(**options)
  def test_workflow_append_and_unchanged_outer_limits(self):
   # Candidate retains all old workflow text and appends exactly its strict job.
-  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-parent-verify-eof:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
+  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-eof-failure-profile:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
   self.assertIn(m.REF,added);self.assertIn(m.INTENT,added);self.assertIn('github.run_attempt == 1',added)
   control=(ROOT/m.CONTROL).read_text();wrapper=(ROOT/m.WRAPPER).read_text();batch=(ROOT/m.BATCH_CONTROL).read_text()
   for value in ["'--memory','512m'","'--memory-swap','512m'","'--cpus','0.5'","'--network','none'","'330s'","timeout=350"]:self.assertIn(value,control)
@@ -47,7 +47,7 @@ class Gate(unittest.TestCase):
   new=new.replace("one-owned-file-batched-parent-verified-native-hrana-positive-eof-component-v1","one-owned-file-prepared-native-hrana-positive-eof-component-v1")
   begin=new.index(' // Fresh parent connection opens');end=new.index(" stage='ONE_SQLD_LEGACY_STARTUP';",begin);new=new[:begin]+new[end:]
   metadata="preparationLifecycle:'PHYSICAL_JOINED_BATCHES_FRESH_PARENT_VERIFIED',parentFileVerification,physicalPreparationBatches:physicalPreparation.batches,physicalPreparationChildrenJoined:physicalPreparation.physicalChildrenJoined,allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationEvidence:physicalPreparation.evidence,"
-  self.assertEqual(new.count(metadata),1);new=new.replace(metadata,'');self.assertEqual(new,old)
+  self.assertEqual(new.count(metadata),1);new=new.replace(metadata,'');new=new.replace("let eofDiagnostic=null;try{if(b)eofDiagnostic=collectEOFFailureDiagnostic(b.snapshot());}catch{}",'').replace('progress:{...progress},eofDiagnostic,elapsedMs:','progress:{...progress},elapsedMs:');self.assertEqual(new,old)
  def test_supervisor_parser_closed_case_and_identity(self):
   packet={'contract':'one-physical-batch-file48-parent-verified-native-eof-supervisor-v1','candidateSha':'c'*40,'status':'FAILED_OR_UNKNOWN_NO_QUALIFICATION'};prefix='STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR ';raw=prefix+json.dumps(packet)
   self.assertEqual(m.parse_original_supervisor(raw,'c'*40),packet)
@@ -221,5 +221,78 @@ const two={...packet,completedCalls:2,callsWithUnitsOrCompletedJobs:1,sourceAckn
 assert.equal(validateBatchPacket(two,identity),true);
 for(const bad of [{...two,callsWithUnitsOrCompletedJobs:0},{...two,callsWithUnitsOrCompletedJobs:-1},{...two,callsWithUnitsOrCompletedJobs:1.5},{...two,callsWithUnitsOrCompletedJobs:'1'},{...two,callsWithUnitsOrCompletedJobs:2},{...two,completedCalls:3},{...two,sourceAcknowledgments:41},{...two,extraPrivate:'forbidden'}])assert.throws(()=>validateBatchPacket(bad,identity));
 """)
+
+
+ def failure_profile_prefix(self):
+  return "import assert from 'node:assert/strict';import {createAttribution} from './test/stage6-native-attribution.mjs';import {collectEOFFailureDiagnostic,projectFailureProgress,projectEOFFailure} from './test/stage6-native-eof-failure-profile.mjs';\n"+r"""
+const snapshot=createAttribution().snapshot();snapshot.adapter={terminalComplete:true,retainedStreams:0};
+Object.assign(snapshot.bins.GENUINE_ORIGINAL_PRODUCER_CALL,{requests:40,submittedStatements:95});Object.assign(snapshot.bins.GENUINE_ORIGINAL_PRODUCER_CALL.transactions,{begun:2,committed:2,maxDurationUpperBoundMs:6001,atOrAbove5s:1});
+const sample={startedPhase:'GENUINE_ORIGINAL_PRODUCER_CALL',endedPhase:'GENUINE_ORIGINAL_PRODUCER_CALL',outerWorkUnit:'ORIGINAL_PRODUCER_RUN',callOrdinal:1,requestOrdinal:1,beginStatementOrdinal:0,innerSemanticWorkUnit:'UNKNOWN_NOT_INSTRUMENTED',lastStorageCategory:'EXECUTION_CONTROL',outcome:'committed',durationUpperBoundMs:6001};snapshot.transactionSamples=[sample,{...sample,requestOrdinal:2,durationUpperBoundMs:2000}];
+const diagnostic=collectEOFFailureDiagnostic(snapshot);assert.ok(diagnostic);
+const progress={check:'EOF_TX_5S_COUNT',eofSnapshotState:'TERMINAL',eofRequests:40,eofTransactions:2,eofAtOrAbove5s:1,eofMaxUpperMs:6001,eofOpen:0,eofUnknownTerminal:0,lastPendingJobs:null};
+const failure={stage:'JOINED_CLIENT_CLEANUP',type:'AssertionError',code:'ERR_ASSERTION',classification:'OTHER_ASSERTION',progress,eofDiagnostic:diagnostic,elapsedMs:160000};const frame=v=>'STAGE6_FILE_PREPARED_NATIVE_EOF_FAILURE '+JSON.stringify(v);
+"""
+ def test_closed_failure_progress_and_optional_observation_privacy(self):
+  self.node(self.failure_profile_prefix()+r"""
+let v=projectEOFFailure(frame(failure));assert.equal(v.failure.progress.check,'EOF_TX_5S_COUNT');assert.equal(v.failure.eofDiagnostic.eof.transactions.atOrAbove5s,1);assert.equal(v.failure.eofDiagnostic.selectedSamples[0].durationUpperBoundMs,6001);assert.equal(v.EOFQualified,false);assert.equal(v.failure.eofDiagnostic.EOFQualified,false);
+for(const change of [{privateHealth:15},{check:'PRIVATE_HEALTH'},{eofRequests:true},{eofMaxUpperMs:Infinity},{eofOpen:-1},{eofSnapshotState:'arbitrary'}])assert.equal(projectFailureProgress({...progress,...change}),null);
+let accessed=0;const getter={...progress};Object.defineProperty(getter,'check',{enumerable:true,get(){accessed++;return 'EOF_TX_5S_COUNT';}});assert.equal(projectFailureProgress(getter),null);assert.equal(accessed,0);
+for(const change of [d=>d.privateHealth='forbidden',d=>d.eof.categories.privateHealth={submitted:1,executed:1},d=>d.selectedSamples[0].rawSQL='forbidden',d=>d.selectedSamples[0].outcome='private',d=>d.selectedSamples[0].durationUpperBoundMs=-1,d=>d.selectedSamples=Array(9).fill(sample),d=>d.capacityQualified=true]){const d=structuredClone(diagnostic);change(d);v=projectEOFFailure(frame({...failure,eofDiagnostic:d}));assert.equal(v.failure.eofDiagnostic,null);assert.equal(v.failure.progress.check,'EOF_TX_5S_COUNT');assert.equal(JSON.stringify(v).includes('forbidden'),false);}
+for(const mutate of [f=>f.privateHealth='forbidden',f=>f.stage='PRIVATE_HEALTH',f=>f.elapsedMs=-1]){const f=structuredClone(failure);mutate(f);v=projectEOFFailure(frame(f));assert.equal(v.failure,null);assert.equal(JSON.stringify(v).includes('forbidden'),false);}
+assert.equal(projectEOFFailure(frame(failure)+'\n'+frame(failure)).failure,null);assert.equal(projectEOFFailure('STAGE6_FILE_PREPARED_NATIVE_EOF_FAILURE notJSON').failure,null);
+const incomplete=structuredClone(snapshot);incomplete.physicalTerminalObservationComplete=false;incomplete.adapter.terminalComplete=false;incomplete.adapter.retainedStreams=1;incomplete.droppedTransactionSamples=3;incomplete.transactionSampleCoverageComplete=false;v=collectEOFFailureDiagnostic(incomplete);assert.equal(v.physicalTerminalObservationComplete,false);assert.equal(v.adapterTerminalComplete,false);assert.equal(v.transactionSampleCoverageComplete,false);assert.equal(v.sampleCountDropped,3);assert.equal(v.EOFQualified,false);
+const many=structuredClone(snapshot);many.transactionSamples=Array.from({length:64},(_,i)=>({...sample,requestOrdinal:i,durationUpperBoundMs:i}));v=collectEOFFailureDiagnostic(many);assert.equal(v.sampleCountRetained,64);assert.equal(v.selectedSamples.length,8);assert.equal(v.selectedSamples[0].durationUpperBoundMs,63);many.transactionSamples.push(sample);assert.equal(collectEOFFailureDiagnostic(many),null);
+""")
+ def test_failure_counters_survive_child_supervisor_ci_summary_wire(self):
+  raw=self.node(self.failure_profile_prefix()+r"""
+const projected=projectEOFFailure(frame(failure));assert.ok(projected.failure);console.log(JSON.stringify({contract:'one-physical-batch-file48-parent-verified-native-eof-supervisor-v1',candidateSha:'c'.repeat(40),status:'FAILED_OR_UNKNOWN_NO_QUALIFICATION',failure:projected.failure,failureProjectionStatus:projected.status}));
+""")
+  wrapper=json.loads(raw);original=m.parse_original_supervisor('STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR '+raw,'c'*40)
+  self.assertEqual(original,wrapper)
+  summary={'contract':'one-physical-batch-file48-parent-verified-native-eof-ci-v1','candidateSha':'c'*40,'runId':'123','attempt':1,'status':'FAILED_OR_UNKNOWN_NO_QUALIFICATION','observed':original,'EOFQualified':False,'sixJobCompletionQualified':False,'capacityQualified':False,'productionEvidence':False}
+  # Same wire encoding and marker split used by the private original collector.
+  marker='STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SAFE_SUMMARY ';wire='timestamp '+marker+json.dumps(summary);lines=[x for x in wire.splitlines()if marker in x];self.assertEqual(len(lines),1);collected=json.loads(lines[0].split(marker,1)[1]);self.assertEqual(collected,summary)
+  observation=collected['observed']['failure'];self.assertEqual(observation['progress']['check'],'EOF_TX_5S_COUNT');self.assertEqual(observation['eofDiagnostic']['eof']['transactions']['atOrAbove5s'],1);self.assertEqual(observation['eofDiagnostic']['selectedSamples'][0]['durationUpperBoundMs'],6001);self.assertFalse(collected['EOFQualified'])
+
+ def test_actual_supervisor_main_and_ci_failure_wire(self):
+  # Execute the unchanged supervisor main body with inert child/fs/cgroup seams.
+  # No child process, database, Docker, provider, or real filesystem log is used.
+  raw=self.node(self.failure_profile_prefix()+r"""
+import {readFileSync} from 'node:fs';import {EventEmitter} from 'node:events';import {createHash} from 'node:crypto';import {pathToFileURL} from 'node:url';
+import {validateChildResourceSample,validateChildResourceShape} from './test/stage6-native-file48-eof-resource.mjs';
+const source=readFileSync('./tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs','utf8');
+const body=source.slice(source.indexOf('export function projectChildResources'),source.lastIndexOf("if(process.argv[1]")).replace(/^export /gm,'');
+const AsyncFunction=Object.getPrototypeOf(async()=>{}).constructor;const factory=new AsyncFunction('projectEOFFailure','spawn','execFileSync','readFile','stat','open','rm','createHash','networkInterfaces','assert','pathToFileURL','validateChildResourceSample','validateChildResourceShape','process','performance','setTimeout','clearTimeout','console',body+'\nawait main();');
+const fixture=readFileSync('./test/stage6-owned-file-batched-prepared-native-eof.mjs','utf8'),catchStart=fixture.indexOf('}catch(error){capturePreparationProgress('),catchEnd=fixture.indexOf('\nfinally{',catchStart);assert.ok(catchStart>0&&catchEnd>catchStart);
+const catchBody=fixture.slice(catchStart+'}catch(error){'.length,catchEnd-1),childLines=[];
+const catchFactory=new Function('capturePreparationProgress','progress','b','collectEOFFailureDiagnostic','stage','error','failureClassification','performance','started','console','let failure=null;'+catchBody+';return failure;');
+const childPacket=catchFactory(()=>{},progress,{snapshot:()=>snapshot},collectEOFFailureDiagnostic,'JOINED_CLIENT_CLEANUP',{name:'AssertionError',code:'ERR_ASSERTION'},()=> 'OTHER_ASSERTION',{now:()=>160000},0,{log:v=>childLines.push(v)});
+assert.equal(childLines.length,1);assert.equal(childPacket.progress.check,'EOF_TX_5S_COUNT');assert.equal(childPacket.eofDiagnostic.eof.transactions.atOrAbove5s,1);
+const childRaw=childLines[0]+'\nSTAGE6_FILE_PREPARED_NATIVE_EOF_TERMINAL '+JSON.stringify({closed:true,ownedServerExited:true,clientTerminalComplete:true,retainedStreams:0,physicalTerminalObservationComplete:true})+'\n';
+const calls=[],logs=[],fakeProcess={pid:200,env:{EXPECTED_CANDIDATE_SHA:'c'.repeat(40),PATH:'/fake'},platform:'linux',arch:'x64',version:'v22.23.2',execPath:'/fake/node'};
+const spawn=()=>{calls.push('spawn');const c=new EventEmitter();c.pid=201;queueMicrotask(()=>c.emit('close',1,null));return c;};
+const readFile=async path=>path.endsWith('.log')?childRaw:({'memory.max':'536870912','memory.swap.max':'0','cpu.max':'50000 100000','memory.events':'oom 0\noom_kill 0','memory.peak':'495000000'})[path.split('/').at(-1)];
+await factory(projectEOFFailure,spawn,()=> 'c'.repeat(40),readFile,async()=>({size:Buffer.byteLength(childRaw)}),async()=>({fd:99,close:async()=>calls.push('close')}),async()=>calls.push('rm'),createHash,()=>({lo:[]}),assert,pathToFileURL,validateChildResourceSample,validateChildResourceShape,fakeProcess,{now:()=>170000},()=>99,()=>{}, {log:s=>{assert.ok(calls.includes('rm'));logs.push(s);}});
+assert.equal(fakeProcess.exitCode,2);assert.deepEqual(calls,['spawn','close','rm']);assert.equal(logs.length,1);assert.equal(logs[0].includes('STAGE6_FILE_PREPARED_NATIVE_EOF_FAILURE '),false);
+const wire=JSON.parse(logs[0].split('STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR ')[1]);assert.equal(wire.failure.progress.check,'EOF_TX_5S_COUNT');assert.equal(wire.failure.eofDiagnostic.eof.transactions.atOrAbove5s,1);assert.equal(wire.status,'FAILED_OR_UNKNOWN_NO_QUALIFICATION');console.log(logs[0]);
+""")
+  import tempfile,io,contextlib
+  from types import SimpleNamespace
+  supervisor=m.parse_original_supervisor(raw,'c'*40)
+  with tempfile.TemporaryDirectory(prefix='closed-eof-wire-') as td:
+   root=pathlib.Path(td);source=root/'source';source.mkdir();(source/'.git').mkdir();(source/'tools/stage8-qualification').mkdir(parents=True)
+   for f in ['package.json','package-lock.json','tools/stage8-qualification/Dockerfile.native-empty-ci']:(source/f).write_text('inert fixture')
+   sandbox=root/'sandbox';cid='a'*64
+   def command(args,*unused):
+    if args[:2]==['docker','build']:return ''
+    if args[:3]==['docker','image','inspect']:return json.dumps([{'Architecture':'amd64','Os':'linux','Id':'test-image'}])
+    if args[:2]==['docker','ps']:return ''
+    if args[:2]==['docker','create']:(sandbox/'container.cid').write_text(cid);return cid
+    if args[:2]==['docker','inspect']:return json.dumps([{'State':{'Running':False,'ExitCode':2,'OOMKilled':False}}])
+    raise AssertionError('UNEXPECTED_COMMAND')
+   output=io.StringIO()
+   with patch.dict(m.os.environ,self.env if hasattr(self,'env') else {'GITHUB_RUN_ID':'123'},clear=True),patch.object(m,'validate',return_value='c'*40),patch.object(m.h,'paths',return_value=(sandbox,'inert-wire')),patch.object(m,'source_gate'),patch.object(m.h,'run',side_effect=command),patch.object(m.h,'write'),patch.object(m.h,'cleanup',return_value=True),patch.object(m.subprocess,'run',return_value=SimpleNamespace(stdout=raw,returncode=2)),patch.object(m.sys,'argv',['ci','--run',str(source)]),contextlib.redirect_stdout(output):
+    self.assertEqual(m.main(),2)
+   marker='STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SAFE_SUMMARY ';wire=output.getvalue();self.assertEqual(wire.count(marker),1);summary=json.loads(wire.split(marker)[1]);self.assertEqual(summary['observed'],supervisor);self.assertEqual(summary['status'],'FAILED_OR_UNKNOWN_NO_QUALIFICATION');self.assertTrue(summary['cleanupConfirmed']);self.assertFalse(summary['EOFQualified']);self.assertEqual(summary['observed']['failure']['eofDiagnostic']['eof']['transactions']['atOrAbove5s'],1)
 
 if __name__=='__main__':unittest.main()

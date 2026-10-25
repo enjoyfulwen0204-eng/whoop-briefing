@@ -4,13 +4,13 @@ No old run/attempt is resumed. Importing performs no action.
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil,hashlib
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='cf7e543dce74706ac3f276ec7f13e7800336b87c'
-REF='refs/heads/diagnostic/stage6-file48-physical-batch-eof-20261026'
+BASE='05de651ac88122aeedd3377f8fc1e64db505ee4c'
+REF='refs/heads/diagnostic/stage6-file48-single-call-eof-20261026'
 MODE='native-positive-hybrid-eof'
-INTENT='one-original-file48-physical-batch-eof-and-replay-v1'
+INTENT='one-original-file48-single-call-eof-and-replay-v1'
 CONTROL='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py';WRAPPER='tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';UNIT='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py';TEST='test/stage6-owned-file-batched-prepared-native-eof.mjs';WORKER='test/stage6-owned-file-physical-batch-worker.mjs';BATCH_CONTROL='test/stage6-owned-file-batch-control.mjs';RESOURCE='test/stage6-native-file48-eof-resource.mjs';WORKFLOW=h.WORKFLOW
 
-RESOURCE_PINS={'test/stage6-owned-file-physical-batch-worker.mjs': 'dcb26edba65d578a9632c2e6e01d81298443090a5fe1bde6854e11c7d0caf0b2', 'test/stage6-owned-file-batch-control.mjs': '082531e10610e488d86ca271eeb2a5e2bc1dad06497957220a3b6854141be6ff', 'test/stage6-owned-file-batched-prepared-native-eof.mjs': 'bde46dcccc1afe4e9467d1690268b3ace9b21a8d6a9c4688d24764c030bd31a6', 'tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs': '07d281fa8e6e64eefac00830b2f41f9cd88365a7104896522c75c186f1640e7a', 'src/stage8LiveDrainPolicy.js': 'c427b0a5e536c462c8c92cc763254d5eeb31f9bdfa9deb305e8b44593420f938', 'test/stage6-native-file48-eof-resource.mjs': '3f55d71a5855de49d87bc068fff1a813fd3b3cd80297ff88250af46712fc4d16', 'test/stage6-owned-file-prepared-native-eof.mjs': 'f67fca13689e131338c9d563682bb15651773954f7b7677c19ab16155731525f'}
+RESOURCE_PINS={'test/stage6-owned-file-physical-batch-worker.mjs': '98c43e2d461eeccb5da779453ad7972e87c0ba7b6b8d107db56139996ef1a430', 'test/stage6-owned-file-batch-control.mjs': '944f69d7cfc4a4a74fe82f11ac5404cb3f25cc716cc27ea517cf97a28484a3dc', 'test/stage6-owned-file-batched-prepared-native-eof.mjs': 'bde46dcccc1afe4e9467d1690268b3ace9b21a8d6a9c4688d24764c030bd31a6', 'tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs': 'a0666775ee956e5d71febc75c05bfe140807d8571c6a26ea75212ad30865f7c8', 'src/stage8LiveDrainPolicy.js': 'c427b0a5e536c462c8c92cc763254d5eeb31f9bdfa9deb305e8b44593420f938', 'test/stage6-native-file48-eof-resource.mjs': '3f55d71a5855de49d87bc068fff1a813fd3b3cd80297ff88250af46712fc4d16', 'test/stage6-owned-file-prepared-native-eof.mjs': 'f67fca13689e131338c9d563682bb15651773954f7b7677c19ab16155731525f'}
 
 def validate(e,system,machine,uid,gid):
  assert e.get('GITHUB_REPOSITORY')==h.REPOSITORY and e.get('GITHUB_EVENT_NAME')=='workflow_dispatch'
@@ -20,14 +20,14 @@ def validate(e,system,machine,uid,gid):
  assert expected==e.get('GITHUB_SHA')==e.get('QUALIFICATION_WORKFLOW_SHA')
  assert e.get('GITHUB_RUN_ATTEMPT')=='1' and re.fullmatch(r'[1-9][0-9]*',e.get('GITHUB_RUN_ID',''))
  assert system=='Linux' and machine=='x86_64' and uid>0 and gid>0
- assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-file48-physical-batch-eof'
+ assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-file48-single-call-eof'
  return expected
 
 def source_gate(source,expected):
  assert h.run(['git','-C',str(source),'rev-parse','HEAD'])==expected
  assert not h.run(['git','-C',str(source),'status','--porcelain=v1','--untracked-files=all'])
  assert h.run(['git','-C',str(source),'rev-parse','HEAD^'])==BASE
- allowed={'A\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py', 'A\ttest/stage6-owned-file-batch-control.mjs', 'A\ttest/stage6-owned-file-batched-prepared-native-eof.mjs', 'A\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py', 'A\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs', 'A\ttest/stage6-owned-file-physical-batch-worker.mjs', 'M\t.github/workflows/stage8-live-linux-qualification.yml'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
+ allowed={'M\ttest/stage6-owned-file-physical-batch-worker.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs', 'M\ttest/stage6-owned-file-batch-control.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py', 'M\t.github/workflows/stage8-live-linux-qualification.yml'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
  assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci','test/stage6-native-live12-semi4-positive-eof.mjs','test/stage6-native-semi4-eof-resource.mjs','test/stage6-owned-file-prepared-native-eof.mjs'])
  for name,digest in RESOURCE_PINS.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
  h.public_lock(source/'package-lock.json')
@@ -36,7 +36,7 @@ def parse_original_supervisor(raw,expected):
  assert isinstance(raw,str) and len(raw)<16*1024*1024 and h.HEX40.fullmatch(expected)
  prefix='STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR '
  lines=[line for line in raw.splitlines() if line.startswith(prefix)]
- assert len(lines)==1 and len(lines[0])<131072
+ assert len(lines)==1 and len(lines[0])<262144
  observed=json.loads(lines[0][len(prefix):])
  assert isinstance(observed,dict) and observed.get('candidateSha')==expected
  assert observed.get('contract')=='one-physical-batch-file48-prepared-native-eof-supervisor-v1'

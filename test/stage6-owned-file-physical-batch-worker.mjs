@@ -123,12 +123,12 @@ try{
   catalogDigest=digest(sourceCatalog);if(prior)assert.equal(catalogDigest,prior.catalogDigest);
   if(mode==='BATCH'){
    const before={};for(const table of ['stage8_live_executions','stage8_live_execution_work_receipts'])before[table]=(await rows(table)).map(canonical);
-   for(let j=0;j<2;j++){
+   for(let j=0;j<1;j++){
     const pending=(await db.raw.execute("SELECT state,full_scan_cursor FROM phase4_jobs WHERE execution_mode='LIVE' AND state<>'COMPLETED'")).rows;assert.ok(pending.length>0,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');if(boundaryReady(pending)){ready=true;break;}assert.ok(ordinal+j<64,'ORIGINAL_PREPARATION_CALL_LIMIT');
     preparationBudget=preparationBudgetFor(pending,sourceCatalog);
-    const result=await runPreparation({userId:'a',requestId:'synthetic-native-physical-batch-prepare-'+(ordinal+j)});assert.equal(result.replayed,false);assert.equal(result.result.jobsFailed,0);completedCalls++;sourceAcknowledgments+=result.result.itemsProcessed;unitsCommitted+=result.result.unitsCommitted;
+    const result=await runPreparation({userId:'a',requestId:'synthetic-native-single-call-prepare-'+(ordinal+j)});assert.equal(result.replayed,false);assert.equal(result.result.jobsFailed,0);completedCalls++;sourceAcknowledgments+=result.result.itemsProcessed;unitsCommitted+=result.result.unitsCommitted;
    }
-   await preserveOriginal(before);assert.ok(completedCalls>=1&&completedCalls<=2);const pendingAfter=(await db.raw.execute("SELECT state,full_scan_cursor FROM phase4_jobs WHERE execution_mode='LIVE' AND state<>'COMPLETED'")).rows;assert.ok(pendingAfter.length>0,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');ready=boundaryReady(pendingAfter);
+   await preserveOriginal(before);assert.equal(completedCalls,1);const pendingAfter=(await db.raw.execute("SELECT state,full_scan_cursor FROM phase4_jobs WHERE execution_mode='LIVE' AND state<>'COMPLETED'")).rows;assert.ok(pendingAfter.length>0,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');ready=boundaryReady(pendingAfter);
   }
   after=await snapshot();assert.equal(after.executionCount,mode==='INIT'?0:ordinal+completedCalls);if(prior){assert.equal(after.sourceDigest,prior.snapshot.sourceDigest);assert.equal(after.generationDigest,prior.snapshot.generationDigest);assert.ok(after.receiptCount>=prior.snapshot.receiptCount);}
  }

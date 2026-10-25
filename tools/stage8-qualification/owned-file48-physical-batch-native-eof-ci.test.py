@@ -4,7 +4,7 @@ from unittest.mock import patch
 p=pathlib.Path(__file__).with_name('owned-file48-physical-batch-native-eof-ci.py');s=importlib.util.spec_from_file_location('batch_control',p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 class Gate(unittest.TestCase):
- def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-physical-batch-eof'}
+ def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-single-call-eof'}
  def test_closed_execution_identity(self):
   self.assertEqual(m.validate(self.env,'Linux','x86_64',1001,1001),'c'*40)
   for key in self.env:
@@ -14,8 +14,8 @@ class Gate(unittest.TestCase):
    with self.subTest(key=k),self.assertRaises(AssertionError):m.validate({**self.env,k:v},'Linux','x86_64',1001,1001)
   for args in [('Darwin','arm64',501,20),('Linux','aarch64',1001,1001),('Linux','x86_64',0,1001),('Linux','x86_64',1001,0)]:
    with self.subTest(args=args),self.assertRaises(AssertionError):m.validate(self.env,*args)
- def test_exact_seven_file_source_gate(self):
-  allowed=['A\t'+p for p in [m.WORKER,m.BATCH_CONTROL,m.TEST,m.WRAPPER,m.CONTROL,m.UNIT]]+['M\t'+m.WORKFLOW]
+ def test_exact_six_file_source_gate(self):
+  allowed=['M\t'+p for p in [m.WORKER,m.BATCH_CONTROL,m.WRAPPER,m.CONTROL,m.UNIT,m.WORKFLOW]]
   def execute(changes=allowed,parent=m.BASE,dirty='',head='c'*40,app=''):
    def fake(args,*rest):
     cmd=args[3:]
@@ -31,7 +31,7 @@ class Gate(unittest.TestCase):
    with self.subTest(options=options),self.assertRaises(AssertionError):execute(**options)
  def test_workflow_append_and_unchanged_outer_limits(self):
   # Candidate retains all old workflow text and appends exactly its strict job.
-  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-physical-batch-eof:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
+  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-single-call-eof:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
   self.assertIn(m.REF,added);self.assertIn(m.INTENT,added);self.assertIn('github.run_attempt == 1',added)
   control=(ROOT/m.CONTROL).read_text();wrapper=(ROOT/m.WRAPPER).read_text();batch=(ROOT/m.BATCH_CONTROL).read_text()
   for value in ["'--memory','512m'","'--memory-swap','512m'","'--cpus','0.5'","'--network','none'","'330s'","timeout=350"]:self.assertIn(value,control)
@@ -59,7 +59,7 @@ class PureNode(unittest.TestCase):
   self.assertEqual(r.returncode,0,r.stderr[-6000:]);return r.stdout
  def prefix(self):
   source=(ROOT/m.BATCH_CONTROL).read_text();pure=source[source.index('const HEX='):source.index('async function until')].replace('export ','')
-  return "import assert from 'node:assert/strict';import {createHash,createHmac} from 'node:crypto';import {readFileSync} from 'node:fs';\n"+pure+"\nconst sha='c'.repeat(40),H='a'.repeat(64),keys={lookup:v=>createHmac('sha256',Buffer.alloc(32,71)).update(JSON.stringify(v)).digest('hex')};const fp={durableDigest:H,sourceDigest:H,generationDigest:H,executionCount:2,receiptCount:29,jobsCount:2,sourceRows:160};\nconst packet={contract:'native-physical-owned-file-batch-child-v1',mode:'BATCH',ordinal:0,pid:123,parentPID:122,closed:true,failed:false,failureType:null,completedCalls:2,sourceAcknowledgments:24,unitsCommitted:0,ready:true,descriptorSHA256:H,after:fp,catalogDigest:H,elapsedMs:1,memory:{rss:1,heapUsed:1,heapTotal:1,external:1},productionEvidence:false,LinuxQualification:false,EOFQualified:false,capacityQualified:false};\n"
+  return "import assert from 'node:assert/strict';import {createHash,createHmac} from 'node:crypto';import {readFileSync} from 'node:fs';\n"+pure+"\nconst sha='c'.repeat(40),H='a'.repeat(64),keys={lookup:v=>createHmac('sha256',Buffer.alloc(32,71)).update(JSON.stringify(v)).digest('hex')};const fp={durableDigest:H,sourceDigest:H,generationDigest:H,executionCount:1,receiptCount:15,jobsCount:2,sourceRows:160};\nconst packet={contract:'native-physical-owned-file-batch-child-v1',mode:'BATCH',ordinal:0,pid:123,parentPID:122,closed:true,failed:false,failureType:null,completedCalls:1,sourceAcknowledgments:12,unitsCommitted:0,ready:true,descriptorSHA256:H,after:fp,catalogDigest:H,elapsedMs:1,memory:{rss:1,heapUsed:1,heapTotal:1,external:1},productionEvidence:false,LinuxQualification:false,EOFQualified:false,capacityQualified:false};\n"
  def test_typed_rows_packet_and_authenticated_ack(self):
   self.node(self.prefix()+r'''
 assert.equal(canonicalOwnedRow({a:1,b:'x'}),canonicalOwnedRow({b:'x',a:1}));
@@ -67,11 +67,11 @@ assert.notEqual(canonicalOwnedRow({a:1}),canonicalOwnedRow({a:'1'}));assert.notE
 assert.equal(canonicalOwnedRow({a:new Uint8Array([2,3])}),canonicalOwnedRow({a:new Uint8Array([1,2,3,4]).subarray(1,3)}));
 for(const a of [NaN,Infinity,{},undefined])assert.throws(()=>canonicalOwnedRow({a}));
 const identity={mode:'BATCH',ordinal:0,pid:123,parentPID:122};assert.equal(validateBatchPacket(packet,identity),true);
-for(const p of [{...packet,pid:124},{...packet,sourceAcknowledgments:25},{...packet,after:{...fp,privateHealth:'forbidden'}},{...packet,memory:{...packet.memory,journal:'forbidden'}},{...packet,capacityQualified:true}])assert.throws(()=>validateBatchPacket(p,identity));
+for(const p of [{...packet,pid:124},{...packet,completedCalls:2},{...packet,sourceAcknowledgments:13},{...packet,after:{...fp,privateHealth:'forbidden'}},{...packet,memory:{...packet.memory,journal:'forbidden'}},{...packet,capacityQualified:true}])assert.throws(()=>validateBatchPacket(p,identity));
 const failed={...packet,failed:true,failureType:'Error',descriptorSHA256:null};assert.equal(validateBatchPacket(failed,identity),true);
 assert.throws(()=>validateBatchPacket({...failed,after:{...fp,privateHealth:'forbidden'}},identity));
-const body={contract:'native-owned-file-batch-durable-ack-v1',selected:'batch-0',mode:'BATCH',ordinal:0,nextOrdinal:2,snapshot:fp,catalogDigest:H,closed:true,ready:true};const ack={...body,seal:keys.lookup(['native-owned-file-batch-ack-v1',body])};assert.deepEqual(validateBatchAck(ack,packet,keys),body);
-for(const a of [{...ack,seal:'0'.repeat(64)},{...ack,nextOrdinal:3},{...ack,privateHealth:'forbidden'}])assert.throws(()=>validateBatchAck(a,packet,keys));
+const body={contract:'native-owned-file-batch-durable-ack-v1',selected:'batch-0',mode:'BATCH',ordinal:0,nextOrdinal:1,snapshot:fp,catalogDigest:H,closed:true,ready:true};const ack={...body,seal:keys.lookup(['native-owned-file-batch-ack-v1',body])};assert.deepEqual(validateBatchAck(ack,packet,keys),body);
+for(const a of [{...ack,seal:'0'.repeat(64)},{...ack,nextOrdinal:2},{...ack,privateHealth:'forbidden'}])assert.throws(()=>validateBatchAck(a,packet,keys));
 ''')
  def test_real_ownership_fault_paths_and_negative_packet_preservation(self):
   source=(ROOT/m.BATCH_CONTROL).read_text();start=source.index('async function until');end=source.index('export async function runOwnedPreparationBatches');ownership=source[start:end]
@@ -88,7 +88,7 @@ async function scenario(kind){
    if(['stdout','kill','unknown'].includes(kind)){child.stdout.emit('error',Error('private data must never project'));return;}
    if(kind==='deadline')return;
    const fail=kind==='failed',p={...packet,failed:fail,failureType:fail?'Error':null,descriptorSHA256:fail?null:H};
-   const descriptor={contract:'native-owned-file-batch-durable-ack-v1',selected:'batch-0',mode:'BATCH',ordinal:0,nextOrdinal:2,snapshot:fp,catalogDigest:H,closed:true,ready:true};raw=Buffer.from(JSON.stringify({...descriptor,seal:keys.lookup(['native-owned-file-batch-ack-v1',descriptor])}));if(!fail)p.descriptorSHA256=createHash('sha256').update(raw).digest('hex');
+   const descriptor={contract:'native-owned-file-batch-durable-ack-v1',selected:'batch-0',mode:'BATCH',ordinal:0,nextOrdinal:1,snapshot:fp,catalogDigest:H,closed:true,ready:true};raw=Buffer.from(JSON.stringify({...descriptor,seal:keys.lookup(['native-owned-file-batch-ack-v1',descriptor])}));if(!fail)p.descriptorSHA256=createHash('sha256').update(raw).digest('hex');
    const resource=resourcePacket({candidateSha:sha,pid:123,parentPid:122,node:'v22.23.2',platform:'linux',architecture:'x64',argv:[...FILE48_ARGV],startupHeapLimitBytes:62914560,exitSampleHeapLimitBytes:62914560,maxRSSKiB:150000,exitCode:fail?2:0});
    child.stdout.emit('data',Buffer.from('STAGE6_NATIVE_PHYSICAL_BATCH_PACKET '+JSON.stringify(kind==='malformed'?{...p,health:'forbidden'}:p)+'\nSTAGE6_FILE48_EOF_CHILD_RESOURCE '+JSON.stringify(resource)+'\n'));child.emit('close',fail?2:0,null);
   });return child;
@@ -99,7 +99,7 @@ async function scenario(kind){
  let result,error;try{result=await run({directory:'/fake/root',mode:'BATCH',ordinal:0,previous:'init',deadline:1000,candidateSha:sha,keys});}catch(e){error=e.message;}
  assert.equal(children,1);return {result,error,signals,timers};
 }
-let r=await scenario('success');assert.equal(r.result.ok,true);assert.equal(r.result.ack.nextOrdinal,2);assert.deepEqual(r.signals,[]);
+let r=await scenario('success');assert.equal(r.result.ok,true);assert.equal(r.result.ack.nextOrdinal,1);assert.deepEqual(r.signals,[]);
 r=await scenario('failed');assert.equal(r.result.ok,false);assert.equal(r.result.evidence.packet.failed,true);assert.equal(r.result.evidence.resource.exitCode,2);assert.equal(r.result.ack,null);
 r=await scenario('malformed');assert.equal(r.result.ok,false);assert.equal(r.result.evidence.packet,null);assert.equal(r.result.evidence.resource.exitCode,0);
 for(const type of ['setup','stdout']){r=await scenario(type);assert.equal(r.result.ok,false);assert.deepEqual(r.signals,['SIGTERM']);assert.equal(r.result.evidence.physicalChildJoined,true);assert.equal(r.result.evidence.pid,123);}
@@ -111,9 +111,10 @@ console.log('EIGHT_PURE_OWNERSHIP_CASES_NO_ACTUAL_CHILDREN');
   self.assertIn('EIGHT_PURE_OWNERSHIP_CASES',self.node(body))
  def test_real_supervisor_physical_evidence_and_resource_schema(self):
   body=self.prefix()+"import {resourcePacket,FILE48_ARGV} from './test/stage6-native-file48-eof-resource.mjs';import {validatePhysicalPreparationEvidence} from './tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';\n"+r'''
-function evidence(mode,ordinal,pid,calls,ready,receipts){const p={...packet,mode,ordinal,pid,completedCalls:calls,ready,sourceAcknowledgments:mode==='BATCH'?24:0,after:{...fp,executionCount:ordinal+calls,receiptCount:receipts}};return {mode,ordinal,pid,parentPID:122,terminal:{code:0,signal:null},physicalChildJoined:true,TERMRequested:false,KILLRequested:false,error:null,totalLogBytes:1000,stdoutSHA256:H,stderrSHA256:H,packet:p,resource:resourcePacket({candidateSha:sha,pid,parentPid:122,node:'v22.23.2',platform:'linux',architecture:'x64',argv:[...FILE48_ARGV],startupHeapLimitBytes:62914560,exitSampleHeapLimitBytes:62914560,maxRSSKiB:150000,exitCode:0})};}
-const report={preparationLifecycle:'PHYSICAL_JOINED_BATCHES',allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationBatches:1,physicalPreparationChildrenJoined:3,setupProducerCalls:2,physicalPreparationEvidence:[evidence('INIT',0,123,0,false,0),evidence('BATCH',0,124,2,true,29),evidence('VERIFY',2,125,0,true,29)]};assert.equal(validatePhysicalPreparationEvidence(report,sha,122),true);
+function evidence(mode,ordinal,pid,calls,ready,receipts){const p={...packet,mode,ordinal,pid,completedCalls:calls,ready,sourceAcknowledgments:mode==='BATCH'?12:0,after:{...fp,executionCount:ordinal+calls,receiptCount:receipts}};return {mode,ordinal,pid,parentPID:122,terminal:{code:0,signal:null},physicalChildJoined:true,TERMRequested:false,KILLRequested:false,error:null,totalLogBytes:1000,stdoutSHA256:H,stderrSHA256:H,packet:p,resource:resourcePacket({candidateSha:sha,pid,parentPid:122,node:'v22.23.2',platform:'linux',architecture:'x64',argv:[...FILE48_ARGV],startupHeapLimitBytes:62914560,exitSampleHeapLimitBytes:62914560,maxRSSKiB:150000,exitCode:0})};}
+const report={preparationLifecycle:'PHYSICAL_JOINED_BATCHES',allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationBatches:1,physicalPreparationChildrenJoined:3,setupProducerCalls:1,physicalPreparationEvidence:[evidence('INIT',0,123,0,false,0),evidence('BATCH',0,124,1,true,15),evidence('VERIFY',1,125,0,true,15)]};assert.equal(validatePhysicalPreparationEvidence(report,sha,122),true);
 for(const mutation of [r=>r.physicalPreparationEvidence[1].pid=123,r=>r.physicalPreparationEvidence[1].TERMRequested=true,r=>r.physicalPreparationEvidence[1].packet.after.sourceDigest='b'.repeat(64),r=>r.physicalPreparationEvidence[2].packet.after.receiptCount=30,r=>r.physicalPreparationEvidence[1].packet.ready=false,r=>r.physicalPreparationEvidence[1].resource.fullLifetimeRSSBoundVerified=true,r=>r.physicalPreparationEvidence[1].packet.memory.health='forbidden']){const changed=structuredClone(report);mutation(changed);assert.throws(()=>validatePhysicalPreparationEvidence(changed,sha,122));}
+const rows=[evidence('INIT',0,200,0,false,0)];for(let i=0;i<64;i++)rows.push(evidence('BATCH',i,201+i,1,i===63,15*(i+1)));rows.push(evidence('VERIFY',64,265,0,true,960));const maximum={preparationLifecycle:'PHYSICAL_JOINED_BATCHES',allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationBatches:64,physicalPreparationChildrenJoined:66,setupProducerCalls:64,physicalPreparationEvidence:rows};assert.equal(validatePhysicalPreparationEvidence(maximum,sha,122),true);assert.ok(JSON.stringify(maximum).length<262144);assert.throws(()=>validatePhysicalPreparationEvidence({...maximum,physicalPreparationBatches:65},sha,122));
 '''
   self.node(body)
 

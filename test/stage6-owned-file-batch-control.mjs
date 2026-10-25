@@ -35,7 +35,7 @@ export function validateBatchPacket(v,{mode,ordinal,pid,parentPID}){
  assert.ok(exact(v,['contract','mode','ordinal','pid','parentPID','closed','failed','failureType','completedCalls','sourceAcknowledgments','unitsCommitted','ready','descriptorSHA256','after','catalogDigest','elapsedMs','memory','productionEvidence','LinuxQualification','EOFQualified','capacityQualified']));
  assert.equal(v.contract,'native-physical-owned-file-batch-child-v1');assert.equal(v.mode,mode);assert.equal(v.ordinal,ordinal);assert.equal(v.pid,pid);assert.equal(v.parentPID,parentPID);
  for(const k of ['ordinal','pid','parentPID','completedCalls','sourceAcknowledgments','unitsCommitted'])assert.ok(integer(v[k]));
- assert.ok(v.pid>0&&v.parentPID>0&&v.completedCalls<=2&&v.sourceAcknowledgments+v.unitsCommitted<=24);
+ assert.ok(v.pid>0&&v.parentPID>0&&v.completedCalls<=1&&v.sourceAcknowledgments+v.unitsCommitted<=12);
  for(const k of ['closed','failed','ready'])assert.equal(typeof v[k],'boolean');assert.ok([null,'Error','AssertionError','OTHER','CLOSE_FAILURE'].includes(v.failureType));
  assert.ok(Number.isFinite(v.elapsedMs)&&v.elapsedMs>=0);assert.ok(exact(v.memory,['rss','heapUsed','heapTotal','external'])&&Object.values(v.memory).every(x=>Number.isFinite(x)&&x>=0));
  for(const k of ['productionEvidence','LinuxQualification','EOFQualified','capacityQualified'])assert.equal(v[k],false);
@@ -114,7 +114,7 @@ export async function runOwnedPreparationBatches({directory,keys,started,candida
  };
  await issue('INIT',0);assert.equal(last.snapshot.executionCount,0);assert.equal(last.ready,false);
  while(!last.ready&&ordinal<64){
-  const next=await issue('BATCH',ordinal);assert.ok(next.evidence.packet.completedCalls>=1&&next.evidence.packet.completedCalls<=2);ordinal=next.ack.nextOrdinal;batches++;
+  const next=await issue('BATCH',ordinal);assert.ok(next.evidence.packet.completedCalls===1);ordinal=next.ack.nextOrdinal;batches++;
   sourceAcknowledgments+=next.evidence.packet.sourceAcknowledgments;unitsCommitted+=next.evidence.packet.unitsCommitted;
   onProgress({physicalChildrenJoined:evidence.length,preparationBatches:batches,lastBatchOrdinal:next.evidence.ordinal,completedPreparations:ordinal,sourceAcknowledgments,unitsCommitted});
  }

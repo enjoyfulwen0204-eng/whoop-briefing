@@ -1310,3 +1310,43 @@ jobs:
           if test -f "$control"; then
             python3 -I -B "$control" --cleanup-only
           fi
+
+  native-file48-physical-batch-eof:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1 && github.event.repository.private == false && github.ref == 'refs/heads/diagnostic/stage6-file48-physical-batch-eof-20261026' && inputs.mode == 'native-positive-hybrid-eof' && inputs.positive_hybrid_eof_intent == 'one-original-file48-physical-batch-eof-and-replay-v1' && inputs.candidate_sha == github.sha && github.workflow_sha == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      QUALIFICATION_MODE: ${{ inputs.mode }}
+      POSITIVE_HYBRID_EOF_INTENT: ${{ inputs.positive_hybrid_eof_intent }}
+      QUALIFICATION_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      QUALIFICATION_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact reviewed physical-batch FILE48-prepared EOF component source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: enjoyfulwen0204-eng/whoop-briefing
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate-repository
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Validate FILE component identity, typed preservation and bounds without SQLD work
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -B "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py"
+      - name: One physical-batch FILE48-prepared HTTP EOF component and exact replay; no original HTTP preparation, six-job or capacity qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -B "$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py" --run "$GITHUB_WORKSPACE/candidate-repository"
+      - name: Remove only the exited owned original-cost container
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          control="$GITHUB_WORKSPACE/candidate-repository/tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py"
+          if test -f "$control"; then
+            python3 -I -B "$control" --cleanup-only
+          fi

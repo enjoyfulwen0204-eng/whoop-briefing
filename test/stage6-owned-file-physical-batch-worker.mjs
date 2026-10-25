@@ -42,7 +42,7 @@ assert.ok(mode==='INIT'?ordinal===0:mode==='BATCH'?ordinal<=63:ordinal<=64);asse
 const selected=mode==='INIT'?'init':mode==='VERIFY'?'verify-'+ordinal:'batch-'+ordinal;
 const previous=mode==='INIT'?null:previousName;const last=JSON.stringify(['workout','workout-39']);
 const boundaryReady=pending=>pending.length===1&&pending[0].full_scan_cursor===last;
-const started=performance.now();let db,failed=false,closed=false,failureType=null,after=null,catalogDigest=null,prior=null,completedCalls=0,sourceAcknowledgments=0,unitsCommitted=0,ready=false;
+const started=performance.now();let db,failed=false,closed=false,failureType=null,after=null,catalogDigest=null,prior=null,completedCalls=0,callsWithUnitsOrCompletedJobs=0,sourceAcknowledgments=0,unitsCommitted=0,ready=false;
 const exact=(o,fields)=>o&&Object.getPrototypeOf(o)===Object.prototype&&Object.keys(o).length===fields.length&&fields.every(k=>Object.hasOwn(o,k));
 const digest=o=>keys.lookup(['native-physical-batch-fingerprint-v1',o]);
 const canonical=canonicalOwnedRow,rows=async table=>(await db.raw.execute('SELECT * FROM '+table)).rows;
@@ -55,14 +55,21 @@ function readPrior(){
 }
 function preparationBudgetFor(pending,catalog){
  const ceiling=STAGE8_LIVE_DRAIN_BUDGET.maxItemsPerTenant;
- if(!Array.isArray(catalog)||catalog.length<1||catalog.length>512||new Set(catalog).size!==catalog.length)throw Error('SYNTHETIC_PROGRESS_CATALOG_INVALID');
+ if(!Array.isArray(catalog)||catalog.length<1||catalog.length>512||new Set(catalog).size!==catalog.length||catalog.some(x=>typeof x!=='string')||catalog.at(-1)!==last)throw Error('SYNTHETIC_PROGRESS_CATALOG_INVALID');
+ if(!Array.isArray(pending)||pending.length<1||pending.length>2)throw Error('SYNTHETIC_PENDING_JOBS_INVALID');
+ let remainingACKs=0;
  for(const row of pending){
   const index=row.full_scan_cursor===null?-1:catalog.indexOf(row.full_scan_cursor);
   if(row.full_scan_cursor!==null&&index<0)throw Error('SYNTHETIC_PROGRESS_CURSOR_INVALID');
-  const remaining=catalog.length-index-1;
-  if(remaining<=ceiling)return {maxItems:1,maxItemsPerTenant:1};
+  remainingACKs+=catalog.length-index-1;
  }
- return STAGE8_LIVE_DRAIN_BUDGET;
+ // This bounds source ACKs, not committed units or business completion.
+ // Every original per-unit/per-job fence and maxItemsPerTenant still applies.
+ if(remainingACKs===0){
+  if(pending.length!==2)throw Error('ORIGINAL_NONEMPTY_CURSOR_REQUIRED');
+  return {maxJobs:1,maxItems:1,maxItemsPerTenant:1};
+ }
+ return {maxItems:Math.min(ceiling,remainingACKs),maxItemsPerTenant:ceiling};
 }
 
 async function preserveOriginal(before){
@@ -123,12 +130,12 @@ try{
   catalogDigest=digest(sourceCatalog);if(prior)assert.equal(catalogDigest,prior.catalogDigest);
   if(mode==='BATCH'){
    const before={};for(const table of ['stage8_live_executions','stage8_live_execution_work_receipts'])before[table]=(await rows(table)).map(canonical);
-   for(let j=0;j<1;j++){
+   for(let j=0;j<2;j++){
     const pending=(await db.raw.execute("SELECT state,full_scan_cursor FROM phase4_jobs WHERE execution_mode='LIVE' AND state<>'COMPLETED'")).rows;assert.ok(pending.length>0,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');if(boundaryReady(pending)){ready=true;break;}assert.ok(ordinal+j<64,'ORIGINAL_PREPARATION_CALL_LIMIT');
     preparationBudget=preparationBudgetFor(pending,sourceCatalog);
-    const result=await runPreparation({userId:'a',requestId:'synthetic-native-single-call-prepare-'+(ordinal+j)});assert.equal(result.replayed,false);assert.equal(result.result.jobsFailed,0);completedCalls++;sourceAcknowledgments+=result.result.itemsProcessed;unitsCommitted+=result.result.unitsCommitted;
+    const result=await runPreparation({userId:'a',requestId:'synthetic-native-adaptive-prepare-'+(ordinal+j)});assert.equal(result.replayed,false);assert.equal(result.result.jobsFailed,0);completedCalls++;sourceAcknowledgments+=result.result.itemsProcessed;unitsCommitted+=result.result.unitsCommitted;if(result.result.unitsCommitted>0||result.result.jobsCompleted>0){callsWithUnitsOrCompletedJobs++;break;}
    }
-   await preserveOriginal(before);assert.equal(completedCalls,1);const pendingAfter=(await db.raw.execute("SELECT state,full_scan_cursor FROM phase4_jobs WHERE execution_mode='LIVE' AND state<>'COMPLETED'")).rows;assert.ok(pendingAfter.length>0,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');ready=boundaryReady(pendingAfter);
+   await preserveOriginal(before);assert.ok(completedCalls>=1&&completedCalls<=2);const pendingAfter=(await db.raw.execute("SELECT state,full_scan_cursor FROM phase4_jobs WHERE execution_mode='LIVE' AND state<>'COMPLETED'")).rows;assert.ok(pendingAfter.length>0,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');ready=boundaryReady(pendingAfter);
   }
   after=await snapshot();assert.equal(after.executionCount,mode==='INIT'?0:ordinal+completedCalls);if(prior){assert.equal(after.sourceDigest,prior.snapshot.sourceDigest);assert.equal(after.generationDigest,prior.snapshot.generationDigest);assert.ok(after.receiptCount>=prior.snapshot.receiptCount);}
  }
@@ -141,4 +148,4 @@ if(!failed&&closed){
  const body={contract:'native-owned-file-batch-durable-ack-v1',selected,mode,ordinal,nextOrdinal:mode==='BATCH'?ordinal+completedCalls:ordinal,snapshot:after,catalogDigest,closed:true,ready};const raw=JSON.stringify({...body,seal:keys.lookup(['native-owned-file-batch-ack-v1',body])});const path=join(directory,selected+'.private.json'),fd=openSync(path,'wx',0o600);try{writeFileSync(fd,raw);fsyncSync(fd);}finally{closeSync(fd);}const dirfd=openSync(directory,'r');try{fsyncSync(dirfd);}finally{closeSync(dirfd);}descriptorSHA256=createHash('sha256').update(raw).digest('hex');
 }
 const {rss,heapUsed,heapTotal,external}=process.memoryUsage();
-writeSync(1,'STAGE6_NATIVE_PHYSICAL_BATCH_PACKET '+JSON.stringify({contract:'native-physical-owned-file-batch-child-v1',mode,ordinal,pid:process.pid,parentPID:process.ppid,closed,failed,failureType,completedCalls,sourceAcknowledgments,unitsCommitted,ready,descriptorSHA256,after,catalogDigest,elapsedMs:performance.now()-started,memory:{rss,heapUsed,heapTotal,external},productionEvidence:false,LinuxQualification:false,EOFQualified:false,capacityQualified:false})+'\n');process.exitCode=failed||!closed?2:0;
+writeSync(1,'STAGE6_NATIVE_PHYSICAL_BATCH_PACKET '+JSON.stringify({contract:'native-physical-owned-file-batch-child-v1',mode,ordinal,pid:process.pid,parentPID:process.ppid,closed,failed,failureType,completedCalls,callsWithUnitsOrCompletedJobs,sourceAcknowledgments,unitsCommitted,ready,descriptorSHA256,after,catalogDigest,elapsedMs:performance.now()-started,memory:{rss,heapUsed,heapTotal,external},productionEvidence:false,LinuxQualification:false,EOFQualified:false,capacityQualified:false})+'\n');process.exitCode=failed||!closed?2:0;

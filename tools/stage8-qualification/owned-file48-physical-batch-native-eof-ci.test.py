@@ -4,7 +4,7 @@ from unittest.mock import patch
 p=pathlib.Path(__file__).with_name('owned-file48-physical-batch-native-eof-ci.py');s=importlib.util.spec_from_file_location('batch_control',p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 class Gate(unittest.TestCase):
- def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-single-call-eof'}
+ def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-adaptive-eof'}
  def test_closed_execution_identity(self):
   self.assertEqual(m.validate(self.env,'Linux','x86_64',1001,1001),'c'*40)
   for key in self.env:
@@ -31,7 +31,7 @@ class Gate(unittest.TestCase):
    with self.subTest(options=options),self.assertRaises(AssertionError):execute(**options)
  def test_workflow_append_and_unchanged_outer_limits(self):
   # Candidate retains all old workflow text and appends exactly its strict job.
-  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-single-call-eof:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
+  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-adaptive-eof:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
   self.assertIn(m.REF,added);self.assertIn(m.INTENT,added);self.assertIn('github.run_attempt == 1',added)
   control=(ROOT/m.CONTROL).read_text();wrapper=(ROOT/m.WRAPPER).read_text();batch=(ROOT/m.BATCH_CONTROL).read_text()
   for value in ["'--memory','512m'","'--memory-swap','512m'","'--cpus','0.5'","'--network','none'","'330s'","timeout=350"]:self.assertIn(value,control)
@@ -40,7 +40,7 @@ class Gate(unittest.TestCase):
  def test_original_math_and_full_eof_tail_preserved(self):
   original=(ROOT/'test/stage6-owned-file-prepared-native-eof.mjs').read_text();worker=(ROOT/m.WORKER).read_text();candidate=(ROOT/m.TEST).read_text()
   helper=lambda v:v[v.index('function preparationBudgetFor'):v.index('\nfunction failureClassification')] if '\nfunction failureClassification' in v else v[v.index('function preparationBudgetFor'):v.index('\nasync function preserveOriginal')]
-  self.assertEqual(helper(worker),helper(original));self.assertIn('preparationBudget=preparationBudgetFor(pending,sourceCatalog)',worker)
+  self.assertIn('remainingACKs+=catalog.length-index-1',helper(worker));self.assertIn('maxJobs:1,maxItems:1,maxItemsPerTenant:1',helper(worker));self.assertIn('preparationBudget=preparationBudgetFor(pending,sourceCatalog)',worker)
   self.assertEqual(worker.count('await db.migrate({targetVersion:35})'),1);self.assertIn("if(mode==='INIT')await core.initializeTenant",worker);self.assertIn("if(mode==='INIT')await worker.rolloutAlgorithm",worker)
   self.assertIn('if(boundaryReady(pending)){ready=true;break;}',worker);self.assertIn('assert.ok(ordinal+j<64',worker)
   start=" stage='VERIFY_GENUINE_FILE_PREPARATION'";old=original[original.index(start):];new=candidate[candidate.index(start):]
@@ -59,7 +59,7 @@ class PureNode(unittest.TestCase):
   self.assertEqual(r.returncode,0,r.stderr[-6000:]);return r.stdout
  def prefix(self):
   source=(ROOT/m.BATCH_CONTROL).read_text();pure=source[source.index('const HEX='):source.index('async function until')].replace('export ','')
-  return "import assert from 'node:assert/strict';import {createHash,createHmac} from 'node:crypto';import {readFileSync} from 'node:fs';\n"+pure+"\nconst sha='c'.repeat(40),H='a'.repeat(64),keys={lookup:v=>createHmac('sha256',Buffer.alloc(32,71)).update(JSON.stringify(v)).digest('hex')};const fp={durableDigest:H,sourceDigest:H,generationDigest:H,executionCount:1,receiptCount:15,jobsCount:2,sourceRows:160};\nconst packet={contract:'native-physical-owned-file-batch-child-v1',mode:'BATCH',ordinal:0,pid:123,parentPID:122,closed:true,failed:false,failureType:null,completedCalls:1,sourceAcknowledgments:12,unitsCommitted:0,ready:true,descriptorSHA256:H,after:fp,catalogDigest:H,elapsedMs:1,memory:{rss:1,heapUsed:1,heapTotal:1,external:1},productionEvidence:false,LinuxQualification:false,EOFQualified:false,capacityQualified:false};\n"
+  return "import assert from 'node:assert/strict';import {createHash,createHmac} from 'node:crypto';import {readFileSync} from 'node:fs';\n"+pure+"\nconst sha='c'.repeat(40),H='a'.repeat(64),keys={lookup:v=>createHmac('sha256',Buffer.alloc(32,71)).update(JSON.stringify(v)).digest('hex')};const fp={durableDigest:H,sourceDigest:H,generationDigest:H,executionCount:1,receiptCount:15,jobsCount:2,sourceRows:160};\nconst packet={contract:'native-physical-owned-file-batch-child-v1',mode:'BATCH',ordinal:0,pid:123,parentPID:122,closed:true,failed:false,failureType:null,completedCalls:1,callsWithUnitsOrCompletedJobs:0,sourceAcknowledgments:12,unitsCommitted:0,ready:true,descriptorSHA256:H,after:fp,catalogDigest:H,elapsedMs:1,memory:{rss:1,heapUsed:1,heapTotal:1,external:1},productionEvidence:false,LinuxQualification:false,EOFQualified:false,capacityQualified:false};\n"
  def test_typed_rows_packet_and_authenticated_ack(self):
   self.node(self.prefix()+r'''
 assert.equal(canonicalOwnedRow({a:1,b:'x'}),canonicalOwnedRow({b:'x',a:1}));
@@ -67,7 +67,7 @@ assert.notEqual(canonicalOwnedRow({a:1}),canonicalOwnedRow({a:'1'}));assert.notE
 assert.equal(canonicalOwnedRow({a:new Uint8Array([2,3])}),canonicalOwnedRow({a:new Uint8Array([1,2,3,4]).subarray(1,3)}));
 for(const a of [NaN,Infinity,{},undefined])assert.throws(()=>canonicalOwnedRow({a}));
 const identity={mode:'BATCH',ordinal:0,pid:123,parentPID:122};assert.equal(validateBatchPacket(packet,identity),true);
-for(const p of [{...packet,pid:124},{...packet,completedCalls:2},{...packet,sourceAcknowledgments:13},{...packet,after:{...fp,privateHealth:'forbidden'}},{...packet,memory:{...packet.memory,journal:'forbidden'}},{...packet,capacityQualified:true}])assert.throws(()=>validateBatchPacket(p,identity));
+for(const p of [{...packet,pid:124},{...packet,callsWithUnitsOrCompletedJobs:2},{...packet,sourceAcknowledgments:49},{...packet,after:{...fp,privateHealth:'forbidden'}},{...packet,memory:{...packet.memory,journal:'forbidden'}},{...packet,capacityQualified:true}])assert.throws(()=>validateBatchPacket(p,identity));
 const failed={...packet,failed:true,failureType:'Error',descriptorSHA256:null};assert.equal(validateBatchPacket(failed,identity),true);
 assert.throws(()=>validateBatchPacket({...failed,after:{...fp,privateHealth:'forbidden'}},identity));
 const body={contract:'native-owned-file-batch-durable-ack-v1',selected:'batch-0',mode:'BATCH',ordinal:0,nextOrdinal:1,snapshot:fp,catalogDigest:H,closed:true,ready:true};const ack={...body,seal:keys.lookup(['native-owned-file-batch-ack-v1',body])};assert.deepEqual(validateBatchAck(ack,packet,keys),body);
@@ -138,5 +138,52 @@ function bodySafe(v){return v;}
 const runner=await factory(assert,{platform:'linux',arch:'x64',version:'v22.23.2'},{now:()=>10},()=>sha,'/fake',async v=>v,()=>'/tmp',()=>'/tmp',()=>root.slice(5),async()=>({isSymbolicLink:()=>false}),runOne,{log:()=>{}});
 await assert.rejects(()=>runner({directory:root,keys,started:0,candidateSha:sha}),/OWNED_PREPARATION_BATCH_FAILED/);assert.equal(issued.length,2);assert.deepEqual(issued.map(x=>[x.mode,x.ordinal,x.previous,x.deadline]),[['INIT',0,'NONE',120000],['BATCH',0,'init',120000]]);
 ''')
+
+
+ def planner_prefix(self):
+  source=(ROOT/m.WORKER).read_text()
+  helper=source[source.index('function preparationBudgetFor'):source.index('\nasync function preserveOriginal')]
+  loop=source[source.index('   for(let j=0;j<2;j++){'):source.index('\n   await preserveOriginal(before)')]
+  return "import assert from 'node:assert/strict';\nconst STAGE8_LIVE_DRAIN_BUDGET={maxItemsPerTenant:12},last=JSON.stringify(['workout','workout-39']);\nconst catalog=Array.from({length:160},(_,i)=>JSON.stringify(['synthetic',String(i)])).concat(last);\nconst boundaryReady=pending=>pending.length===1&&pending[0].full_scan_cursor===last;\n"+helper+"\nconst originalLoop="+json.dumps(loop)+";\n"
+ def test_actual_adaptive_planner_catalog_cursor_and_zero_tail_boundaries(self):
+  self.node(self.planner_prefix()+r"""
+const rows=(...cursors)=>cursors.map(full_scan_cursor=>({full_scan_cursor}));
+assert.deepEqual(preparationBudgetFor(rows(null,null),catalog),{maxItems:12,maxItemsPerTenant:12});
+assert.deepEqual(preparationBudgetFor(rows(catalog.at(-2),last),catalog),{maxItems:1,maxItemsPerTenant:12});
+assert.deepEqual(preparationBudgetFor(rows(catalog.at(-3),catalog.at(-4)),catalog),{maxItems:5,maxItemsPerTenant:12});
+assert.deepEqual(preparationBudgetFor(rows(last,last),catalog),{maxJobs:1,maxItems:1,maxItemsPerTenant:1});
+assert.deepEqual(preparationBudgetFor(rows(catalog.at(-2)),catalog),{maxItems:1,maxItemsPerTenant:12});
+assert.throws(()=>preparationBudgetFor(rows(last),catalog),/ORIGINAL_NONEMPTY_CURSOR_REQUIRED/);
+for(const pending of [[],rows(null,null,null),rows(undefined),rows('foreign'),[{}]])assert.throws(()=>preparationBudgetFor(pending,catalog));
+for(const bad of [null,[],[last,last],[1,last],['bad'],Array(512).fill('x').concat(last)])assert.throws(()=>preparationBudgetFor(rows(null),bad));
+// Exact catalog cursor position drives ACK count; no score or work-unit estimate.
+for(let i=0;i<catalog.length-1;i++)assert.equal(preparationBudgetFor(rows(catalog[i]),catalog).maxItems,Math.min(12,catalog.length-i-1));
+console.log('ACTUAL_HELPER_BOUNDARIES_NO_DATABASE');
+""")
+ def test_actual_worker_loop_rechecks_last_eof_and_stops_after_heavy_call(self):
+  self.node(self.planner_prefix()+r"""
+const AsyncFunction=Object.getPrototypeOf(async()=>{}).constructor;
+const make=()=>new AsyncFunction('assert','db','boundaryReady','preparationBudgetFor','sourceCatalog','runPreparation',`let ready=false,completedCalls=0,callsWithUnitsOrCompletedJobs=0,sourceAcknowledgments=0,unitsCommitted=0,preparationBudget=null;const ordinal=0;const wrapped=async arg=>runPreparation(arg,preparationBudget);${originalLoop.replace('await runPreparation(','await wrapped(')};return {ready,completedCalls,callsWithUnitsOrCompletedJobs,sourceAcknowledgments,unitsCommitted};`);
+const rows=(...cursors)=>cursors.map(full_scan_cursor=>({full_scan_cursor}));
+async function seam(states,results){let reads=0,calls=[];const result=await make()(assert,{raw:{execute:async()=>({rows:states[Math.min(reads++,states.length-1)]})}},boundaryReady,preparationBudgetFor,catalog,async(arg,budget)=>{calls.push({arg,budget});const v=results[calls.length-1];assert.ok(v,'UNEXPECTED_EXTRA_CALL');return {replayed:false,result:{jobsFailed:0,itemsProcessed:0,unitsCommitted:0,jobsCompleted:0,...v}};});return {result,calls,reads};}
+let v=await seam([rows(null,null)],[{itemsProcessed:4,unitsCommitted:8}]);assert.equal(v.calls.length,1);assert.equal(v.result.callsWithUnitsOrCompletedJobs,1);assert.equal(v.result.unitsCommitted,8);
+v=await seam([rows(last,last)],[{jobsCompleted:1}]);assert.equal(v.calls.length,1);assert.deepEqual(v.calls[0].budget,{maxJobs:1,maxItems:1,maxItemsPerTenant:1});assert.equal(v.result.callsWithUnitsOrCompletedJobs,1);
+// First ACK-only call reaches last pending cursor: guard prevents any EOF call.
+v=await seam([rows(catalog.at(-2)),rows(last)],[{itemsProcessed:1}]);assert.equal(v.calls.length,1);assert.equal(v.reads,2);assert.equal(v.result.ready,true);assert.equal(v.result.callsWithUnitsOrCompletedJobs,0);
+// Two cheap calls share a process; second call gets a fresh exact tail budget.
+v=await seam([rows(catalog.at(-3),last),rows(catalog.at(-2),last)],[{itemsProcessed:1},{itemsProcessed:1}]);assert.equal(v.calls.length,2);assert.deepEqual(v.calls.map(x=>x.budget.maxItems),[2,1]);assert.deepEqual(v.calls.map(x=>x.arg.requestId),['synthetic-native-adaptive-prepare-0','synthetic-native-adaptive-prepare-1']);
+// If two jobs reach EOF after cheap first call, second may finish only one.
+v=await seam([rows(catalog.at(-2),last),rows(last,last)],[{itemsProcessed:1},{jobsCompleted:1}]);assert.equal(v.calls.length,2);assert.equal(v.calls[1].budget.maxJobs,1);assert.equal(v.result.callsWithUnitsOrCompletedJobs,1);
+await assert.rejects(()=>seam([rows('foreign')],[{}]),/SYNTHETIC_PROGRESS_CURSOR_INVALID/);
+await assert.rejects(()=>seam([[]],[{}]),/ORIGINAL_NONEMPTY_CURSOR_REQUIRED/);
+console.log('SEVEN_ACTUAL_LOOP_SEAMS_NO_DATABASE');
+""")
+ def test_adaptive_two_call_packet_and_counter_rejection(self):
+  self.node(self.prefix()+r"""
+const identity={mode:'BATCH',ordinal:0,pid:123,parentPID:122};
+const two={...packet,completedCalls:2,callsWithUnitsOrCompletedJobs:1,sourceAcknowledgments:16,unitsCommitted:8,after:{...fp,executionCount:2}};
+assert.equal(validateBatchPacket(two,identity),true);
+for(const bad of [{...two,callsWithUnitsOrCompletedJobs:0},{...two,callsWithUnitsOrCompletedJobs:-1},{...two,callsWithUnitsOrCompletedJobs:1.5},{...two,callsWithUnitsOrCompletedJobs:'1'},{...two,callsWithUnitsOrCompletedJobs:2},{...two,completedCalls:3},{...two,sourceAcknowledgments:41},{...two,extraPrivate:'forbidden'}])assert.throws(()=>validateBatchPacket(bad,identity));
+""")
 
 if __name__=='__main__':unittest.main()

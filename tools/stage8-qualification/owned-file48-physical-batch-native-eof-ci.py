@@ -4,13 +4,13 @@ No old run/attempt is resumed. Importing performs no action.
 import importlib.util,pathlib,os,platform,re,subprocess,sys,json,time,shutil,hashlib
 ROOT=pathlib.Path(__file__).resolve().parent
 _spec=importlib.util.spec_from_file_location('original_finalization_helpers',ROOT/'finalization-native-ci.py');h=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(h)
-BASE='34daee77d5b8f6cf515d2e121cfa8c05644c3856'
-REF='refs/heads/diagnostic/stage6-file48-adaptive-eof-20261026'
+BASE='4de4cf9547c5237184f49fa5ebe7128058536f49'
+REF='refs/heads/diagnostic/stage6-file48-parent-verify-eof-20261026'
 MODE='native-positive-hybrid-eof'
-INTENT='one-original-file48-adaptive-eof-and-replay-v1'
+INTENT='one-original-file48-parent-verify-eof-and-replay-v1'
 CONTROL='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py';WRAPPER='tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';UNIT='tools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py';TEST='test/stage6-owned-file-batched-prepared-native-eof.mjs';WORKER='test/stage6-owned-file-physical-batch-worker.mjs';BATCH_CONTROL='test/stage6-owned-file-batch-control.mjs';RESOURCE='test/stage6-native-file48-eof-resource.mjs';WORKFLOW=h.WORKFLOW
 
-RESOURCE_PINS={'test/stage6-owned-file-physical-batch-worker.mjs': 'c94957962fa4c04571cea025f77d70da87be0dceaf6d75fe5114adefad3796c4', 'test/stage6-owned-file-batch-control.mjs': '3eba69d89a8ea9e962d4c91dfd6cbb0d5973d4246d4ef101612933327d07096d', 'test/stage6-owned-file-batched-prepared-native-eof.mjs': 'bde46dcccc1afe4e9467d1690268b3ace9b21a8d6a9c4688d24764c030bd31a6', 'tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs': '52a4c1b6d874db25cf80c000905cdf93dcc7c78c8d64591eac2273a7c2136240', 'src/stage8LiveDrainPolicy.js': 'c427b0a5e536c462c8c92cc763254d5eeb31f9bdfa9deb305e8b44593420f938', 'test/stage6-native-file48-eof-resource.mjs': '3f55d71a5855de49d87bc068fff1a813fd3b3cd80297ff88250af46712fc4d16', 'test/stage6-owned-file-prepared-native-eof.mjs': 'f67fca13689e131338c9d563682bb15651773954f7b7677c19ab16155731525f'}
+RESOURCE_PINS={'test/stage6-owned-file-physical-batch-worker.mjs': 'c94957962fa4c04571cea025f77d70da87be0dceaf6d75fe5114adefad3796c4', 'test/stage6-owned-file-batch-control.mjs': 'b3b934aa390e5526379d259583e0b3035acb5d4ef66bba607dac9c6c113d645b', 'test/stage6-owned-file-batched-prepared-native-eof.mjs': 'c4df5b09d075eefccf4613c2e0058edbe3f5fb596b2bd4ffc87f5b780882c585', 'tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs': '42f4f50f7e060646d3b1004b1d21ecb82d9bb44764be0c34e8650ac7f3bfc3b8', 'src/stage8LiveDrainPolicy.js': 'c427b0a5e536c462c8c92cc763254d5eeb31f9bdfa9deb305e8b44593420f938', 'test/stage6-native-file48-eof-resource.mjs': '3f55d71a5855de49d87bc068fff1a813fd3b3cd80297ff88250af46712fc4d16', 'test/stage6-owned-file-prepared-native-eof.mjs': 'f67fca13689e131338c9d563682bb15651773954f7b7677c19ab16155731525f'}
 
 def validate(e,system,machine,uid,gid):
  assert e.get('GITHUB_REPOSITORY')==h.REPOSITORY and e.get('GITHUB_EVENT_NAME')=='workflow_dispatch'
@@ -20,14 +20,14 @@ def validate(e,system,machine,uid,gid):
  assert expected==e.get('GITHUB_SHA')==e.get('QUALIFICATION_WORKFLOW_SHA')
  assert e.get('GITHUB_RUN_ATTEMPT')=='1' and re.fullmatch(r'[1-9][0-9]*',e.get('GITHUB_RUN_ID',''))
  assert system=='Linux' and machine=='x86_64' and uid>0 and gid>0
- assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-file48-adaptive-eof'
+ assert e.get('RUNNER_OS')=='Linux' and e.get('RUNNER_ARCH')=='X64' and e.get('GITHUB_JOB')=='native-file48-parent-verify-eof'
  return expected
 
 def source_gate(source,expected):
  assert h.run(['git','-C',str(source),'rev-parse','HEAD'])==expected
  assert not h.run(['git','-C',str(source),'status','--porcelain=v1','--untracked-files=all'])
  assert h.run(['git','-C',str(source),'rev-parse','HEAD^'])==BASE
- allowed={'M\ttest/stage6-owned-file-physical-batch-worker.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs', 'M\ttest/stage6-owned-file-batch-control.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py', 'M\t.github/workflows/stage8-live-linux-qualification.yml'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
+ allowed={'M\ttest/stage6-owned-file-batched-prepared-native-eof.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.py', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs', 'M\ttest/stage6-owned-file-batch-control.mjs', 'M\ttools/stage8-qualification/owned-file48-physical-batch-native-eof-ci.test.py', 'M\t.github/workflows/stage8-live-linux-qualification.yml'};changed=h.run(['git','-C',str(source),'diff','--name-status','--no-renames',BASE,'HEAD']).splitlines();assert len(changed)==len(allowed) and set(changed)==allowed
  assert not h.run(['git','-C',str(source),'diff',BASE,'HEAD','--','src','scripts','package.json','package-lock.json','tools/stage8-qualification/finalization-native-ci.py','tools/stage8-qualification/Dockerfile.native-empty-ci','test/stage6-native-live12-semi4-positive-eof.mjs','test/stage6-native-semi4-eof-resource.mjs','test/stage6-owned-file-prepared-native-eof.mjs'])
  for name,digest in RESOURCE_PINS.items():assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest
  h.public_lock(source/'package-lock.json')
@@ -39,7 +39,7 @@ def parse_original_supervisor(raw,expected):
  assert len(lines)==1 and len(lines[0])<262144
  observed=json.loads(lines[0][len(prefix):])
  assert isinstance(observed,dict) and observed.get('candidateSha')==expected
- assert observed.get('contract')=='one-physical-batch-file48-prepared-native-eof-supervisor-v1'
+ assert observed.get('contract')=='one-physical-batch-file48-parent-verified-native-eof-supervisor-v1'
  return observed
 
 def main():
@@ -51,7 +51,7 @@ def main():
  sandbox.mkdir(mode=0o700);context=sandbox/'context';context.mkdir(mode=0o700)
  for f in ['package.json','package-lock.json']:shutil.copyfile(source/f,context/f)
  shutil.copyfile(source/'tools/stage8-qualification/Dockerfile.native-empty-ci',context/'Dockerfile')
- result={'contract':'one-physical-batch-file48-native-eof-ci-v1','candidateSha':expected,'controlParent':BASE,'applicationSource':expected,'runId':os.environ['GITHUB_RUN_ID'],'attempt':1,'status':'NOT_STARTED','productionEvidence':False,'denseCapacityQualified':False,'EOFQualified':False,'sixJobCompletionQualified':False,'capacityQualified':False,'cleanupConfirmed':False}
+ result={'contract':'one-physical-batch-file48-parent-verified-native-eof-ci-v1','candidateSha':expected,'controlParent':BASE,'applicationSource':expected,'runId':os.environ['GITHUB_RUN_ID'],'attempt':1,'status':'NOT_STARTED','productionEvidence':False,'denseCapacityQualified':False,'EOFQualified':False,'sixJobCompletionQualified':False,'capacityQualified':False,'cleanupConfirmed':False}
  try:
   h.run(['docker','build','--platform','linux/amd64','--build-arg','QUALIFICATION_ROOT=/candidate','--build-arg','QUALIFICATION_UID='+str(os.getuid()),'--build-arg','QUALIFICATION_GID='+str(os.getgid()),'-t',name+':one',str(context)],420)
   image=json.loads(h.run(['docker','image','inspect',name+':one']))[0];assert image['Architecture']=='amd64' and image['Os']=='linux'
@@ -62,12 +62,12 @@ def main():
   p=subprocess.run(['docker','start','-a',cid],capture_output=True,text=True,timeout=350);result['nativeRuntimeSeconds']=round(time.monotonic()-at,3);result['containerStartExitCode']=p.returncode
   observed=parse_original_supervisor(p.stdout,expected);result['observed']=observed
   state=json.loads(h.run(['docker','inspect',cid]))[0]['State'];assert state['Running'] is False and state['ExitCode']==0 and not state['OOMKilled'] and p.returncode==0
-  assert observed['status']=='PASS_PHYSICAL_BATCH_FILE48_NATIVE_SQLD_EOF_COMPONENT_ONLY';source_gate(source,expected);result['status']='PASS_PHYSICAL_BATCH_FILE48_NATIVE_SQLD_EOF_COMPONENT_ONLY'
+  assert observed['status']=='PASS_PHYSICAL_BATCH_FILE48_PARENT_VERIFIED_NATIVE_SQLD_EOF_COMPONENT_ONLY';source_gate(source,expected);result['status']='PASS_PHYSICAL_BATCH_FILE48_PARENT_VERIFIED_NATIVE_SQLD_EOF_COMPONENT_ONLY'
  except Exception as error:result['status']='FAILED_OR_UNKNOWN_NO_QUALIFICATION';result['failureType']=type(error).__name__
  finally:
   try:result['cleanupConfirmed']=h.cleanup(sandbox,name)
   except Exception as error:result['cleanupFailureType']=type(error).__name__
   if not result['cleanupConfirmed']:result['status']='CLEANUP_UNCONFIRMED_NO_QUALIFICATION'
   h.write(sandbox/'sanitized-summary.json',result);print('STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SAFE_SUMMARY '+json.dumps(result,separators=(',',':')))
- return 0 if result['status']=='PASS_PHYSICAL_BATCH_FILE48_NATIVE_SQLD_EOF_COMPONENT_ONLY' else 2
+ return 0 if result['status']=='PASS_PHYSICAL_BATCH_FILE48_PARENT_VERIFIED_NATIVE_SQLD_EOF_COMPONENT_ONLY' else 2
 if __name__=='__main__':os.umask(0o077);sys.exit(main())

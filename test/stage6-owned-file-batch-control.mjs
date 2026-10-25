@@ -118,8 +118,10 @@ export async function runOwnedPreparationBatches({directory,keys,started,candida
   sourceAcknowledgments+=next.evidence.packet.sourceAcknowledgments;unitsCommitted+=next.evidence.packet.unitsCommitted;
   onProgress({physicalChildrenJoined:evidence.length,preparationBatches:batches,lastBatchOrdinal:next.evidence.ordinal,completedPreparations:ordinal,sourceAcknowledgments,unitsCommitted});
  }
- assert.equal(last.ready,true,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');const finalBefore=last.snapshot;
- await issue('VERIFY',ordinal);assert.deepEqual(last.snapshot,finalBefore);assert.ok(performance.now()<deadline,'BOUNDED_SETUP_AND_RECOVERY_RESERVE_REQUIRED');
- assert.equal(evidence.length,batches+2);assert.equal(ordinal,last.snapshot.executionCount);
+ assert.equal(last.ready,true,'ORIGINAL_NONEMPTY_CURSOR_REQUIRED');
+ // The existing fresh parent FILE readback must verify this authenticated
+ // snapshot, quick_check, typed rows/schema and close before the same120s limit.
+ assert.ok(performance.now()<deadline,'BOUNDED_SETUP_AND_RECOVERY_RESERVE_REQUIRED');
+ assert.equal(evidence.length,batches+1);assert.equal(ordinal,last.snapshot.executionCount);
  return {ready:true,workCalls:ordinal,batches,physicalChildrenJoined:evidence.length,snapshot:last.snapshot,catalogDigest:last.catalogDigest,sourceAcknowledgments,unitsCommitted,evidence};
 }

@@ -4,7 +4,7 @@ from unittest.mock import patch
 p=pathlib.Path(__file__).with_name('owned-file48-physical-batch-native-eof-ci.py');s=importlib.util.spec_from_file_location('batch_control',p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 class Gate(unittest.TestCase):
- def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-adaptive-eof'}
+ def setUp(self):self.env={'GITHUB_REPOSITORY':m.h.REPOSITORY,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_REF':m.REF,'QUALIFICATION_MODE':m.MODE,'POSITIVE_HYBRID_EOF_INTENT':m.INTENT,'QUALIFICATION_REPOSITORY_PRIVATE':'false','CANDIDATE_SHA':'c'*40,'GITHUB_SHA':'c'*40,'QUALIFICATION_WORKFLOW_SHA':'c'*40,'GITHUB_RUN_ATTEMPT':'1','GITHUB_RUN_ID':'123','RUNNER_OS':'Linux','RUNNER_ARCH':'X64','GITHUB_JOB':'native-file48-parent-verify-eof'}
  def test_closed_execution_identity(self):
   self.assertEqual(m.validate(self.env,'Linux','x86_64',1001,1001),'c'*40)
   for key in self.env:
@@ -15,7 +15,7 @@ class Gate(unittest.TestCase):
   for args in [('Darwin','arm64',501,20),('Linux','aarch64',1001,1001),('Linux','x86_64',0,1001),('Linux','x86_64',1001,0)]:
    with self.subTest(args=args),self.assertRaises(AssertionError):m.validate(self.env,*args)
  def test_exact_six_file_source_gate(self):
-  allowed=['M\t'+p for p in [m.WORKER,m.BATCH_CONTROL,m.WRAPPER,m.CONTROL,m.UNIT,m.WORKFLOW]]
+  allowed=['M\t'+p for p in [m.TEST,m.BATCH_CONTROL,m.WRAPPER,m.CONTROL,m.UNIT,m.WORKFLOW]]
   def execute(changes=allowed,parent=m.BASE,dirty='',head='c'*40,app=''):
    def fake(args,*rest):
     cmd=args[3:]
@@ -31,12 +31,12 @@ class Gate(unittest.TestCase):
    with self.subTest(options=options),self.assertRaises(AssertionError):execute(**options)
  def test_workflow_append_and_unchanged_outer_limits(self):
   # Candidate retains all old workflow text and appends exactly its strict job.
-  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-adaptive-eof:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
+  candidate=(ROOT/m.WORKFLOW).read_text();marker='\n  native-file48-parent-verify-eof:\n';self.assertEqual(candidate.count(marker),1);added=candidate[candidate.index(marker):]
   self.assertIn(m.REF,added);self.assertIn(m.INTENT,added);self.assertIn('github.run_attempt == 1',added)
   control=(ROOT/m.CONTROL).read_text();wrapper=(ROOT/m.WRAPPER).read_text();batch=(ROOT/m.BATCH_CONTROL).read_text()
   for value in ["'--memory','512m'","'--memory-swap','512m'","'--cpus','0.5'","'--network','none'","'330s'","timeout=350"]:self.assertIn(value,control)
   self.assertIn("child.kill('SIGTERM'),300000",wrapper);self.assertIn('started<300000',wrapper);self.assertEqual(batch.count('deadline=started+120000'),1);self.assertNotIn('deadline=performance.now()+120000',batch)
-  self.assertIn("await issue('INIT',0)",batch);self.assertIn("await issue('VERIFY',ordinal)",batch);self.assertIn('if(!result.ok)',batch)
+  self.assertIn("await issue('INIT',0)",batch);self.assertNotIn("await issue('VERIFY',ordinal)",batch);self.assertIn('evidence.length,batches+1',batch);self.assertIn('if(!result.ok)',batch)
  def test_original_math_and_full_eof_tail_preserved(self):
   original=(ROOT/'test/stage6-owned-file-prepared-native-eof.mjs').read_text();worker=(ROOT/m.WORKER).read_text();candidate=(ROOT/m.TEST).read_text()
   helper=lambda v:v[v.index('function preparationBudgetFor'):v.index('\nfunction failureClassification')] if '\nfunction failureClassification' in v else v[v.index('function preparationBudgetFor'):v.index('\nasync function preserveOriginal')]
@@ -44,11 +44,12 @@ class Gate(unittest.TestCase):
   self.assertEqual(worker.count('await db.migrate({targetVersion:35})'),1);self.assertIn("if(mode==='INIT')await core.initializeTenant",worker);self.assertIn("if(mode==='INIT')await worker.rolloutAlgorithm",worker)
   self.assertIn('if(boundaryReady(pending)){ready=true;break;}',worker);self.assertIn('assert.ok(ordinal+j<64',worker)
   start=" stage='VERIFY_GENUINE_FILE_PREPARATION'";old=original[original.index(start):];new=candidate[candidate.index(start):]
-  new=new.replace("one-owned-file-batched-native-hrana-positive-eof-component-v1","one-owned-file-prepared-native-hrana-positive-eof-component-v1")
-  metadata="preparationLifecycle:'PHYSICAL_JOINED_BATCHES',physicalPreparationBatches:physicalPreparation.batches,physicalPreparationChildrenJoined:physicalPreparation.physicalChildrenJoined,allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationEvidence:physicalPreparation.evidence,"
+  new=new.replace("one-owned-file-batched-parent-verified-native-hrana-positive-eof-component-v1","one-owned-file-prepared-native-hrana-positive-eof-component-v1")
+  begin=new.index(' // Fresh parent connection opens');end=new.index(" stage='ONE_SQLD_LEGACY_STARTUP';",begin);new=new[:begin]+new[end:]
+  metadata="preparationLifecycle:'PHYSICAL_JOINED_BATCHES_FRESH_PARENT_VERIFIED',parentFileVerification,physicalPreparationBatches:physicalPreparation.batches,physicalPreparationChildrenJoined:physicalPreparation.physicalChildrenJoined,allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationEvidence:physicalPreparation.evidence,"
   self.assertEqual(new.count(metadata),1);new=new.replace(metadata,'');self.assertEqual(new,old)
  def test_supervisor_parser_closed_case_and_identity(self):
-  packet={'contract':'one-physical-batch-file48-prepared-native-eof-supervisor-v1','candidateSha':'c'*40,'status':'FAILED_OR_UNKNOWN_NO_QUALIFICATION'};prefix='STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR ';raw=prefix+json.dumps(packet)
+  packet={'contract':'one-physical-batch-file48-parent-verified-native-eof-supervisor-v1','candidateSha':'c'*40,'status':'FAILED_OR_UNKNOWN_NO_QUALIFICATION'};prefix='STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR ';raw=prefix+json.dumps(packet)
   self.assertEqual(m.parse_original_supervisor(raw,'c'*40),packet)
   for bad in [raw+'\n'+raw,prefix+json.dumps({**packet,'candidateSha':'d'*40}),prefix+json.dumps({**packet,'contract':'old'}),prefix+'notJSON']:
    with self.assertRaises((AssertionError,ValueError)):m.parse_original_supervisor(bad,'c'*40)
@@ -109,14 +110,49 @@ r=await scenario('unknown');assert.equal(r.error,'TEST_ONLY_UNKNOWN_JOIN_HOLD');
 console.log('EIGHT_PURE_OWNERSHIP_CASES_NO_ACTUAL_CHILDREN');
 '''
   self.assertIn('EIGHT_PURE_OWNERSHIP_CASES',self.node(body))
- def test_real_supervisor_physical_evidence_and_resource_schema(self):
-  body=self.prefix()+"import {resourcePacket,FILE48_ARGV} from './test/stage6-native-file48-eof-resource.mjs';import {validatePhysicalPreparationEvidence} from './tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';\n"+r'''
+
+
+ def parent_prefix(self):
+  return self.prefix()+"import {resourcePacket,FILE48_ARGV} from './test/stage6-native-file48-eof-resource.mjs';import {validatePhysicalPreparationEvidence,validateFreshParentFileVerification} from './tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';\n"+r"""
 function evidence(mode,ordinal,pid,calls,ready,receipts){const p={...packet,mode,ordinal,pid,completedCalls:calls,ready,sourceAcknowledgments:mode==='BATCH'?12:0,after:{...fp,executionCount:ordinal+calls,receiptCount:receipts}};return {mode,ordinal,pid,parentPID:122,terminal:{code:0,signal:null},physicalChildJoined:true,TERMRequested:false,KILLRequested:false,error:null,totalLogBytes:1000,stdoutSHA256:H,stderrSHA256:H,packet:p,resource:resourcePacket({candidateSha:sha,pid,parentPid:122,node:'v22.23.2',platform:'linux',architecture:'x64',argv:[...FILE48_ARGV],startupHeapLimitBytes:62914560,exitSampleHeapLimitBytes:62914560,maxRSSKiB:150000,exitCode:0})};}
-const report={preparationLifecycle:'PHYSICAL_JOINED_BATCHES',allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationBatches:1,physicalPreparationChildrenJoined:3,setupProducerCalls:1,physicalPreparationEvidence:[evidence('INIT',0,123,0,false,0),evidence('BATCH',0,124,1,true,15),evidence('VERIFY',1,125,0,true,15)]};assert.equal(validatePhysicalPreparationEvidence(report,sha,122),true);
-for(const mutation of [r=>r.physicalPreparationEvidence[1].pid=123,r=>r.physicalPreparationEvidence[1].TERMRequested=true,r=>r.physicalPreparationEvidence[1].packet.after.sourceDigest='b'.repeat(64),r=>r.physicalPreparationEvidence[2].packet.after.receiptCount=30,r=>r.physicalPreparationEvidence[1].packet.ready=false,r=>r.physicalPreparationEvidence[1].resource.fullLifetimeRSSBoundVerified=true,r=>r.physicalPreparationEvidence[1].packet.memory.health='forbidden']){const changed=structuredClone(report);mutation(changed);assert.throws(()=>validatePhysicalPreparationEvidence(changed,sha,122));}
-const rows=[evidence('INIT',0,200,0,false,0)];for(let i=0;i<64;i++)rows.push(evidence('BATCH',i,201+i,1,i===63,15*(i+1)));rows.push(evidence('VERIFY',64,265,0,true,960));const maximum={preparationLifecycle:'PHYSICAL_JOINED_BATCHES',allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationBatches:64,physicalPreparationChildrenJoined:66,setupProducerCalls:64,physicalPreparationEvidence:rows};assert.equal(validatePhysicalPreparationEvidence(maximum,sha,122),true);assert.ok(JSON.stringify(maximum).length<262144);assert.throws(()=>validatePhysicalPreparationEvidence({...maximum,physicalPreparationBatches:65},sha,122));
-'''
-  self.node(body)
+function proof(e){return {contract:'fresh-parent-owned-file-verification-v1',candidateSha:sha,parentPID:122,finalWorkerPID:e.pid,finalWorkerOrdinal:e.ordinal,lastWorkerDescriptorSHA256:e.packet.descriptorSHA256,snapshot:structuredClone(e.packet.after),schemaVersion:35,freshAdmissionVerified:true,quickCheckPassed:true,authenticatedLastChildFingerprintMatches:true,allTypedApplicationRowsAndSchemaCaptured:true,fileClientClosed:true,WALAndSHMVerified:true,applicationTables:12,elapsedMs:1000};}
+function report(rows){return {preparationLifecycle:'PHYSICAL_JOINED_BATCHES_FRESH_PARENT_VERIFIED',parentFileVerification:proof(rows.at(-1)),originalApplicationTablesPreserved:12,allPhysicalBatchAcksAndResourceSamplesVerified:true,physicalPreparationBatches:rows.length-1,physicalPreparationChildrenJoined:rows.length,setupProducerCalls:rows.at(-1).packet.after.executionCount,physicalPreparationEvidence:rows};}
+"""
+ def test_real_supervisor_physical_evidence_and_resource_schema(self):
+  self.node(self.parent_prefix()+r"""
+const r=report([evidence('INIT',0,123,0,false,0),evidence('BATCH',0,124,1,true,15)]);assert.equal(validatePhysicalPreparationEvidence(r,sha,122),true);
+for(const mutation of [r=>r.physicalPreparationEvidence[1].pid=123,r=>r.physicalPreparationEvidence[1].TERMRequested=true,r=>r.physicalPreparationEvidence[1].packet.after.sourceDigest='b'.repeat(64),r=>r.parentFileVerification.snapshot.receiptCount=30,r=>r.physicalPreparationEvidence[1].packet.ready=false,r=>r.physicalPreparationEvidence[1].resource.fullLifetimeRSSBoundVerified=true,r=>r.physicalPreparationEvidence[1].packet.memory.health='forbidden',r=>r.physicalPreparationChildrenJoined=3]){const changed=structuredClone(r);mutation(changed);assert.throws(()=>validatePhysicalPreparationEvidence(changed,sha,122));}
+const rows=[evidence('INIT',0,200,0,false,0)];for(let i=0;i<64;i++)rows.push(evidence('BATCH',i,201+i,1,i===63,15*(i+1)));const maximum=report(rows);assert.equal(validatePhysicalPreparationEvidence(maximum,sha,122),true);assert.ok(JSON.stringify(maximum).length<262144);assert.throws(()=>validatePhysicalPreparationEvidence({...maximum,physicalPreparationBatches:65},sha,122));
+const oldExtra=structuredClone(r);oldExtra.physicalPreparationEvidence.push(evidence('VERIFY',1,125,0,true,15));oldExtra.physicalPreparationChildrenJoined++;assert.throws(()=>validatePhysicalPreparationEvidence(oldExtra,sha,122));
+""")
+ def test_fresh_parent_verification_closed_identity_and_failure_guards(self):
+  self.node(self.parent_prefix()+r"""
+const e=evidence('BATCH',0,124,1,true,15),p=proof(e),args={candidateSha:sha,parentPID:122,lastEvidence:e,applicationTables:12};assert.equal(validateFreshParentFileVerification(p,args),true);
+for(const mutate of [v=>v.candidateSha='d'.repeat(40),v=>v.parentPID=123,v=>v.finalWorkerPID=125,v=>v.finalWorkerOrdinal=1,v=>v.lastWorkerDescriptorSHA256='b'.repeat(64),v=>v.schemaVersion=33,v=>v.snapshot.generationDigest='b'.repeat(64),v=>v.snapshot.privateHealth='forbidden',v=>v.freshAdmissionVerified=false,v=>v.quickCheckPassed=false,v=>v.authenticatedLastChildFingerprintMatches=false,v=>v.allTypedApplicationRowsAndSchemaCaptured=false,v=>v.fileClientClosed=false,v=>v.WALAndSHMVerified=false,v=>v.elapsedMs=120000,v=>v.elapsedMs=NaN,v=>v.applicationTables=13,v=>v.privateHealth='forbidden']){const v=structuredClone(p);mutate(v);assert.throws(()=>validateFreshParentFileVerification(v,args));}
+assert.throws(()=>validateFreshParentFileVerification(p,{...args,lastEvidence:{...e,pid:122}}));assert.throws(()=>validateFreshParentFileVerification(p,{...args,lastEvidence:{...e,physicalChildJoined:false}}));assert.throws(()=>validateFreshParentFileVerification(p,{...args,lastEvidence:{...e,terminal:{code:0,signal:'SIGTERM'}}}));
+""")
+ def test_actual_parent_file_guard_never_enters_sqld_after_failed_readback(self):
+  source=(ROOT/m.TEST).read_text();start=source.index(' let setupCalls=physicalPreparation.workCalls');end=source.index(" stage='ONE_SQLD_LEGACY_STARTUP';",start)+len(" stage='ONE_SQLD_LEGACY_STARTUP';");segment=source[start:end]
+  self.node(self.parent_prefix()+"import {join} from 'node:path';import {pathToFileURL} from 'node:url';const segment="+json.dumps(segment)+";\n"+r"""
+const AsyncFunction=Object.getPrototypeOf(async()=>{}).constructor;
+const prep={workCalls:1,ready:true,snapshot:structuredClone(fp),evidence:[evidence('INIT',0,123,0,false,0),evidence('BATCH',0,124,1,true,15)]};let clock=0;
+const factory=new AsyncFunction('assert','keys','physicalPreparation','createOwnedFileDb','pathToFileURL','join','directory','fingerprintOwnedFile','performance','allRows','verifyLiveExecutionResult','canonicalRow','stat','physicalBatchReleaseSha','process','setImmediate','Buffer',`let db,stage='BOUNDED_PHYSICAL_FILE_PREPARATION',progress={},started=0;try{${segment};return {stage,proof:parentFileVerification};}catch(error){return {stage,error:error.message,proof:null};}`);
+async function seam(kind){clock=0;let opened=0,closed=0,admitted=0;
+ const fake={raw:{protocol:'file',execute:async sql=>{
+  if(sql==='SELECT max(version) n FROM schema_version')return {rows:[{n:kind==='schema'?33:35}]};
+  if(sql==='PRAGMA quick_check')return {rows:[{quick_check:kind==='integrity'?'bad':'ok'}]};
+  if(sql.includes('count(*) n FROM phase4_jobs'))return {rows:[{n:1}]};
+  if(sql.includes('count(*) n FROM observation_episodes'))return {rows:[{n:1}]};
+  if(sql.includes("SELECT type,name,tbl_name,sql"))return {rows:[{type:'table',name:'synthetic_rows',tbl_name:'synthetic_rows',sql:'CREATE TABLE synthetic_rows(a)'}]};
+  if(sql.includes("SELECT name FROM sqlite_master"))return {rows:[{name:'synthetic_rows'}]};
+  if(sql==='SELECT * FROM synthetic_rows')return {rows:[{a:1}]};
+  throw Error('UNEXPECTED_SQL');}},admitRuntime:async()=>{admitted++;if(kind==='admission')throw Error('ADMISSION_FAIL');},close:async()=>{closed++;if(kind==='close')throw Error('CLOSE_FAIL');if(kind==='time')clock=120000;}};
+ const r=await factory(assert,keys,prep,()=>{opened++;return fake;},pathToFileURL,join,'/tmp/synthetic',async()=>kind==='fingerprint'?{...fp,sourceDigest:'b'.repeat(64)}:structuredClone(fp),{now:()=>clock},async table=>table==='stage8_live_executions'?[{state:'FINALIZED_SUCCESS'}]:[{synthetic:1}],()=>{if(kind==='signature')throw Error('SIGNATURE_FAIL');},JSON.stringify,async()=>({size:kind==='wal'?1:0}),()=>sha,{pid:122},setImmediate,Buffer);return {...r,opened,closed,admitted};}
+let r=await seam('ok');assert.equal(r.stage,'ONE_SQLD_LEGACY_STARTUP',JSON.stringify(r));assert.equal(r.proof.fileClientClosed,true);assert.equal(r.proof.applicationTables,1);assert.equal(r.opened,1);assert.equal(r.admitted,1);assert.equal(r.closed,1);assert.equal(r.proof.parentPID,122);assert.equal(r.proof.lastWorkerDescriptorSHA256,H);
+for(const kind of ['admission','schema','integrity','fingerprint','signature','close','wal','time']){r=await seam(kind);assert.notEqual(r.stage,'ONE_SQLD_LEGACY_STARTUP',kind);assert.equal(r.proof,null);assert.equal(typeof r.error,'string');}
+console.log('NINE_ACTUAL_PARENT_GUARD_SEAMS_NO_DB_OR_CHILDREN');
+""")
+
 
  def test_failure_projection_preserves_only_closed_metadata(self):
   self.node(self.prefix()+"import {resourcePacket,FILE48_ARGV} from './test/stage6-native-file48-eof-resource.mjs';import {projectBatchFailure} from './tools/stage8-qualification/owned-file48-physical-batch-native-eof-supervisor.mjs';\n"+r''' 

@@ -19,15 +19,28 @@ export function projectChildResources(raw,candidateSha,identity){
  return projection;
 }
 
+export function validateFreshParentFileVerification(v,{candidateSha,parentPID,lastEvidence,applicationTables}){
+ const exact=(o,n)=>o&&Object.getPrototypeOf(o)===Object.prototype&&Reflect.ownKeys(o).length===n.length&&n.every(k=>Object.hasOwn(o,k));
+ const int=x=>Number.isSafeInteger(x)&&x>=0,hex=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
+ assert.ok(exact(v,['contract','candidateSha','parentPID','finalWorkerPID','finalWorkerOrdinal','lastWorkerDescriptorSHA256','snapshot','schemaVersion','freshAdmissionVerified','quickCheckPassed','authenticatedLastChildFingerprintMatches','allTypedApplicationRowsAndSchemaCaptured','fileClientClosed','WALAndSHMVerified','applicationTables','elapsedMs']));
+ assert.equal(v.contract,'fresh-parent-owned-file-verification-v1');assert.match(candidateSha??'',/^[a-f0-9]{40}$/);assert.equal(v.candidateSha,candidateSha);assert.ok(int(parentPID)&&parentPID>0);assert.equal(v.parentPID,parentPID);
+ assert.equal(lastEvidence.mode,'BATCH');assert.equal(lastEvidence.parentPID,parentPID);assert.ok(int(lastEvidence.pid)&&lastEvidence.pid>0&&lastEvidence.pid!==parentPID);assert.equal(lastEvidence.physicalChildJoined,true);assert.deepEqual(lastEvidence.terminal,{code:0,signal:null});assert.equal(lastEvidence.packet.ready,true);
+ assert.equal(v.finalWorkerPID,lastEvidence.pid);assert.equal(v.finalWorkerOrdinal,lastEvidence.ordinal);assert.ok(hex(v.lastWorkerDescriptorSHA256));assert.equal(v.lastWorkerDescriptorSHA256,lastEvidence.packet.descriptorSHA256);assert.equal(v.schemaVersion,35);
+ for(const k of ['freshAdmissionVerified','quickCheckPassed','authenticatedLastChildFingerprintMatches','allTypedApplicationRowsAndSchemaCaptured','fileClientClosed','WALAndSHMVerified'])assert.equal(v[k],true);
+ assert.ok(int(applicationTables)&&applicationTables>0);assert.equal(v.applicationTables,applicationTables);
+ const p=v.snapshot;assert.ok(exact(p,['durableDigest','sourceDigest','generationDigest','executionCount','receiptCount','jobsCount','sourceRows']));for(const k of ['durableDigest','sourceDigest','generationDigest'])assert.ok(hex(p[k]));for(const k of ['executionCount','receiptCount','jobsCount','sourceRows'])assert.ok(int(p[k]));assert.equal(p.jobsCount,2);assert.equal(p.sourceRows,160);assert.deepEqual(p,lastEvidence.packet.after);
+ assert.ok(Number.isFinite(v.elapsedMs)&&v.elapsedMs>=0&&v.elapsedMs<120000);return true;
+}
+
 export function validatePhysicalPreparationEvidence(report,candidateSha,parentPID){
  const exact=(v,n)=>v&&Object.getPrototypeOf(v)===Object.prototype&&Reflect.ownKeys(v).length===n.length&&n.every(k=>Object.hasOwn(v,k));
  const int=v=>Number.isSafeInteger(v)&&v>=0,hex=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
  const fingerprint=v=>{assert.ok(exact(v,['durableDigest','sourceDigest','generationDigest','executionCount','receiptCount','jobsCount','sourceRows']));for(const k of ['durableDigest','sourceDigest','generationDigest'])assert.ok(hex(v[k]));for(const k of ['executionCount','receiptCount','jobsCount','sourceRows'])assert.ok(int(v[k]));assert.equal(v.jobsCount,2);assert.equal(v.sourceRows,160);};
- assert.equal(report.preparationLifecycle,'PHYSICAL_JOINED_BATCHES');assert.equal(report.allPhysicalBatchAcksAndResourceSamplesVerified,true);
- assert.ok(int(report.physicalPreparationBatches)&&report.physicalPreparationBatches>=1&&report.physicalPreparationBatches<=64);assert.equal(report.physicalPreparationChildrenJoined,report.physicalPreparationBatches+2);
+ assert.equal(report.preparationLifecycle,'PHYSICAL_JOINED_BATCHES_FRESH_PARENT_VERIFIED');assert.equal(report.allPhysicalBatchAcksAndResourceSamplesVerified,true);
+ assert.ok(int(report.physicalPreparationBatches)&&report.physicalPreparationBatches>=1&&report.physicalPreparationBatches<=64);assert.equal(report.physicalPreparationChildrenJoined,report.physicalPreparationBatches+1);
  const rows=report.physicalPreparationEvidence;assert.ok(Array.isArray(rows)&&rows.length===report.physicalPreparationChildrenJoined);let ordinal=0,prior=null;const pids=new Set();
  for(let i=0;i<rows.length;i++){
-  const e=rows[i],mode=i===0?'INIT':i===rows.length-1?'VERIFY':'BATCH';
+  const e=rows[i],mode=i===0?'INIT':'BATCH';
   assert.ok(exact(e,['mode','ordinal','pid','parentPID','terminal','physicalChildJoined','TERMRequested','KILLRequested','error','totalLogBytes','stdoutSHA256','stderrSHA256','packet','resource']));
   assert.equal(e.mode,mode);assert.equal(e.ordinal,ordinal);assert.ok(int(e.pid)&&e.pid>0&&!pids.has(e.pid));pids.add(e.pid);assert.equal(e.parentPID,parentPID);assert.deepEqual(e.terminal,{code:0,signal:null});assert.equal(e.physicalChildJoined,true);assert.equal(e.TERMRequested,false);assert.equal(e.KILLRequested,false);assert.equal(e.error,null);assert.ok(int(e.totalLogBytes)&&e.totalLogBytes<=4*1024*1024);assert.ok(hex(e.stdoutSHA256)&&hex(e.stderrSHA256));
   validateChildResourceSample(e.resource,candidateSha,{pid:e.pid,parentPid:parentPID});
@@ -36,10 +49,10 @@ export function validatePhysicalPreparationEvidence(report,candidateSha,parentPI
   for(const k of ['completedCalls','callsWithUnitsOrCompletedJobs','sourceAcknowledgments','unitsCommitted'])assert.ok(int(p[k]));assert.ok(mode==='BATCH'?p.completedCalls>=1&&p.completedCalls<=2:p.completedCalls===0);assert.ok(p.sourceAcknowledgments+p.unitsCommitted<=48);assert.ok(p.callsWithUnitsOrCompletedJobs<=1&&p.callsWithUnitsOrCompletedJobs<=p.completedCalls&&(p.unitsCommitted===0||p.callsWithUnitsOrCompletedJobs===1));assert.equal(typeof p.ready,'boolean');assert.ok(hex(p.descriptorSHA256)&&hex(p.catalogDigest));fingerprint(p.after);assert.equal(p.after.executionCount,ordinal+p.completedCalls);
   assert.ok(Number.isFinite(p.elapsedMs)&&p.elapsedMs>=0);assert.ok(exact(p.memory,['rss','heapUsed','heapTotal','external'])&&Object.values(p.memory).every(x=>Number.isFinite(x)&&x>=0));for(const k of ['productionEvidence','LinuxQualification','EOFQualified','capacityQualified'])assert.equal(p[k],false);
   if(prior){assert.equal(p.after.sourceDigest,prior.after.sourceDigest);assert.equal(p.after.generationDigest,prior.after.generationDigest);assert.equal(p.catalogDigest,prior.catalogDigest);assert.ok(p.after.receiptCount>=prior.after.receiptCount);}
-  if(mode==='INIT')assert.equal(p.ready,false);if(mode==='VERIFY'){assert.equal(p.ready,true);assert.deepEqual(p.after,prior.after);}if(mode==='BATCH')assert.equal(p.ready,i===rows.length-2);
+  if(mode==='INIT')assert.equal(p.ready,false);if(mode==='BATCH')assert.equal(p.ready,i===rows.length-1);
   ordinal+=p.completedCalls;prior=p;
  }
- assert.equal(ordinal,report.setupProducerCalls);return true;
+ assert.equal(ordinal,report.setupProducerCalls);assert.ok(!pids.has(parentPID));validateFreshParentFileVerification(report.parentFileVerification,{candidateSha,parentPID,lastEvidence:rows.at(-1),applicationTables:report.originalApplicationTablesPreserved});return true;
 }
 
 // Only closed process metadata is projected. Invalid/raw child text is hash-bound
@@ -93,15 +106,15 @@ const terminalLines=raw.split('\n').filter(l=>l.startsWith('STAGE6_FILE_PREPARED
 try{
  assert.equal(childResources.status,'OBSERVED_SAMPLE_WITHIN_SELECTED_MEMORY_BOUNDS');
  assert.ok(fixtureTerminal&&fixtureTerminal.closed&&fixtureTerminal.ownedServerExited&&fixtureTerminal.clientTerminalComplete&&fixtureTerminal.physicalTerminalObservationComplete&&fixtureTerminal.retainedStreams===0);assert.equal(spawnError,false);assert.deepEqual(terminal,{code:0,signal:null});assert.equal(matches.length,1);observed=JSON.parse(matches[0].split('STAGE6_FILE_PREPARED_NATIVE_EOF_RESULT ')[1]);
- validatePhysicalPreparationEvidence(observed,candidateSha,child.pid);assert.equal(observed.contract,'one-owned-file-batched-native-hrana-positive-eof-component-v1');
+ validatePhysicalPreparationEvidence(observed,candidateSha,child.pid);assert.equal(observed.contract,'one-owned-file-batched-parent-verified-native-hrana-positive-eof-component-v1');
  assert.equal(observed.preparationTransport,'OWNED_NATIVE_FILE_NOT_HTTP');assert.equal(observed.filePreparationBudgetMs,120000);assert.ok(Number.isSafeInteger(observed.originalApplicationTablesPreserved)&&observed.originalApplicationTablesPreserved>0);assert.equal(observed.allOriginalTypedApplicationRowsPreserved,true);assert.equal(observed.fileClientClosed,true);assert.equal(observed.originalHTTPPreparationQualified,false);assert.equal(observed.sixJobCompletionQualified,false);
  assert.equal(observed.status,'PASS_FILE_PREPARED_NATIVE_SQLD_EOF_COMPONENT_ONLY');assert.equal(observed.sourceHealthRows,160);assert.ok(observed.positiveEpisodeRows>=1);assert.equal(observed.users,1);assert.equal(observed.jobsCompleted,2);assert.ok(Number.isSafeInteger(observed.setupProducerCalls)&&observed.setupProducerCalls>=1&&observed.setupProducerCalls<=64);assert.equal(observed.original115msCalls,1);assert.equal(observed.exactOriginalReplays,1);assert.equal(observed.exactReplayLatencyMs,115);assert.equal(observed.addedLatencyMs,115);assert.ok(Number.isSafeInteger(observed.originalReceiptCount)&&observed.originalReceiptCount>0);assert.ok(observed.eofMs>0&&observed.eofMs<45000);assert.ok(observed.maxObservedTransactionUpperBoundMs>0&&observed.maxObservedTransactionUpperBoundMs<5000);
  for(const k of ['allOriginalExecutionsAndReceiptsPreserved','exactReplayVerified','finalClientTerminalComplete','physicalTerminalObservationComplete','ownedServerExited'])assert.equal(observed[k],true);assert.equal(observed.finalRetainedStreams,0);assert.equal(observed.absoluteServerDeadline,'UNKNOWN');assert.equal(observed.productionEvidence,false);assert.equal(observed.denseCapacityQualified,false);assert.equal(observed.representativeWholePipelineQualified,false);
- assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<300000);status='PASS_PHYSICAL_BATCH_FILE48_NATIVE_SQLD_EOF_COMPONENT_ONLY';
+ assert.equal(memoryEvents.oom,0);assert.equal(memoryEvents.oom_kill,0);assert.ok(memoryPeakBytes>0&&memoryPeakBytes<=536870912);assert.ok(performance.now()-started<300000);status='PASS_PHYSICAL_BATCH_FILE48_PARENT_VERIFIED_NATIVE_SQLD_EOF_COMPONENT_ONLY';
 }catch{observed=null;}
 await rm(path);
-console.log('STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR '+JSON.stringify({contract:'one-physical-batch-file48-prepared-native-eof-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,childResources,batchFailure,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,denseCapacityQualified:false,serverEnforcedAbsoluteTransactionLimit:'UNKNOWN'}));
-process.exitCode=status==='PASS_PHYSICAL_BATCH_FILE48_NATIVE_SQLD_EOF_COMPONENT_ONLY'?0:2;
+console.log('STAGE6_PHYSICAL_BATCH_FILE48_NATIVE_EOF_SUPERVISOR '+JSON.stringify({contract:'one-physical-batch-file48-parent-verified-native-eof-supervisor-v1',candidateSha,status,terminal,spawnError,failure,fixtureTerminal,observed,childResources,batchFailure,resources:{node:process.version,platform:process.platform,architecture:process.arch,memoryMaxBytes:536870912,memoryPeakBytes,cpuMax:'50000 100000',swapMaxBytes:0,oom:memoryEvents.oom,oomKills:memoryEvents.oom_kill,network:'none'},elapsedMs:performance.now()-started,childLogSha256:createHash('sha256').update(raw).digest('hex'),productionEvidence:false,denseCapacityQualified:false,serverEnforcedAbsoluteTransactionLimit:'UNKNOWN'}));
+process.exitCode=status==='PASS_PHYSICAL_BATCH_FILE48_PARENT_VERIFIED_NATIVE_SQLD_EOF_COMPONENT_ONLY'?0:2;
 
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main();

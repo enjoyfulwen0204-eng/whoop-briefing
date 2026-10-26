@@ -2,15 +2,6 @@ import {processingContextLeaseDataEligible} from './processingTransaction.js';
 import {CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
 import {executeCoordination} from './phase4Coordination.js';
 import { fail } from './phase4Core.js';
-import {requireUserId} from './userContext.js';
-
-export function phase4UserStateStatement(userId){
- const uid=requireUserId(userId,'phase4');
- return {sql:`SELECT u.id,u.status,u.timezone,u.lifecycle_generation,
-      COALESCE(t.auth_generation,0) auth_generation,p.source_generation,p.purge_generation,p.pending_purge_count
-      FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id
-      LEFT JOIN phase4_user_state p ON p.user_id=u.id WHERE u.id=?`,args:[uid]};
-}
 
 const LIFETIME=15*60*1000;
 // Only canonical ASCII ISO TEXT has the same ordering in SQLite BINARY and
@@ -50,23 +41,6 @@ export function createPhase4ContextRegistry({client,keys,now,timestamp,newId}) {
     }else owner=(await client.execute({sql:'SELECT owner FROM resource_locks WHERE name=? AND expires_at>?',args:[entry.name,at]})).rows[0]?.owner;
     if(owner!==entry.owner) {entry.values.clear();fail('PHASE4_CONTEXT_REVOKED');}
   }
-  // This method itself obtains all DATA from the actual owned client. No
-  // caller-supplied lease row or successful assertion can be reused.
-  async function assertLeaseAndControlData(context) {
-    const entry=state(context);
-    if(timestamp()>=entry.expires){entry.values.clear();fail('PHASE4_CONTEXT_EXPIRED');}
-    const at=timestamp();
-    // Fixed three statements only. The original SQL expiry predicate also
-    // retains the registry's fallback semantics for noncanonical lease data.
-    const results=await client.batch([
-      {sql:'SELECT owner FROM resource_locks WHERE name=? AND expires_at>?',args:[entry.name,at]},
-      phase4UserStateStatement(context.userId),
-      {sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[context.userId,context.executionMode]},
-    ]);
-    const owner=results[0].rows[0]?.owner;
-    if(owner!==entry.owner){entry.values.clear();fail('PHASE4_CONTEXT_REVOKED');}
-    return results.slice(1);
-  }
   async function release(context) {
     const entry=local.get(context);if(!entry)fail('PHASE4_SERVER_CONTEXT_REQUIRED');
     entry.values.clear();entry.released=true;
@@ -91,7 +65,7 @@ export function createPhase4ContextRegistry({client,keys,now,timestamp,newId}) {
     return keys.lookup(['context-cache-v1',context.userId,context.executionMode,identity,context.algorithmSetVersion,
       context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration]);
   }
-  return {register,assertLease,assertLeaseAndControlData,release,pending,clear:context=>local.get(context)?.values.clear(),
+  return {register,assertLease,release,pending,clear:context=>local.get(context)?.values.clear(),
     get:(context,identity)=>state(context).values.get(cacheKey(context,identity)),
     set:(context,identity,value)=>state(context).values.set(cacheKey(context,identity),structuredClone(value))};
 }

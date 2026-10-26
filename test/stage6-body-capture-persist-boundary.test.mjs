@@ -10,9 +10,9 @@ for(const fault of ['SOURCE_CORRECTED','OWNER_REVOKED','SOURCE_GENERATION_CHANGE
  await f.db.transaction(()=>seedBodyInput(f.db,bodyInput({asOf:Date.now()-1000,days:0})));
  await f.db.ensureOnboarding('a',{state:'READY'});await f.db.linkTelegram({userId:'a',chatId:'10001'});
  const p=await createStage8LiveProducer({...f,admission:await f.db.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a'});
- const original=f.db.raw.execute,batch=f.db.raw.batch;let inventories=0,captureMarker=null,persistMarker=null,armed=false,injected=false,priorReceipts=[],readBatches=0;
- const project=async(stmt,result)=>{
-  const sql=typeof stmt==='string'?stmt:stmt.sql;
+ const original=f.db.raw.execute;let inventories=0,captureMarker=null,persistMarker=null,armed=false,injected=false,priorReceipts=[];
+ f.db.raw.execute=async stmt=>{
+  const sql=typeof stmt==='string'?stmt:stmt.sql,result=await original(stmt);
   if(/^SELECT user_id,/.test(sql)&&/FROM (whoop_sleeps|whoop_recoveries|whoop_cycles|whoop_workouts|whoop_resource_access|whoop_sync_state|whoop_resource_tombstones|whoop_capabilities) WHERE/.test(sql)){
    inventories++;captureMarker=currentExecutionReceiptTransactionMarker();
   }
@@ -38,15 +38,7 @@ for(const fault of ['SOURCE_CORRECTED','OWNER_REVOKED','SOURCE_GENERATION_CHANGE
   }
   return result;
  };
- f.db.raw.execute=async stmt=>project(stmt,await original(stmt));
- f.db.raw.batch=async(statements,...rest)=>{
-  const list=[...statements],results=await batch(list,...rest);
-  if(list.length===3&&list[0]?.sql==='SELECT owner FROM resource_locks WHERE name=? AND expires_at>?'
-    ||list.length===4&&/^SELECT \* FROM whoop_/.test(list[0]?.sql??''))readBatches++;
-  return Promise.all(results.map((result,index)=>project(list[index],result)));
- };
- let value,error;try{value=await p.run({userId:'a',requestId:'body-capture-fresh-boundary-'+fault});}catch(e){error=e;}finally{f.db.raw.execute=original;f.db.raw.batch=batch;}
- assert.ok(readBatches>0,'fault projections must traverse actual new read-batch transport');
+ let value,error;try{value=await p.run({userId:'a',requestId:'body-capture-fresh-boundary-'+fault});}catch(e){error=e;}finally{f.db.raw.execute=original;}
  assert.equal(armed,true);assert.equal(injected,true);assert.ok(captureMarker);assert.ok(persistMarker);
  assert.notEqual(captureMarker,persistMarker,'capture and persist must be original distinct owned transactions');
  if(error)assert.match(String(error.code??error.message),/PHASE4_PARENT_STALE|REQUEST_OWNER_FENCED|STAGE8_LIVE|PHASE4_INPUT_FENCED|PHASE4_AUTH_FENCED|PHASE4_CONTEXT_RELEASED|PHASE4_RESOURCE_FENCED|PHASE4_SOURCE_DELETED/);

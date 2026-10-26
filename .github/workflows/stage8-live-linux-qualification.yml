@@ -19,6 +19,7 @@ on:
           - native-empty-attribution
           - native-empty-metadata-repair
           - native-empty-principal-snapshot-repair
+          - shadow-snapshot-component
       diagnostic_run_intent:
         description: Only for native-empty-attribution; explicit one-original-empty-120s-v1
         required: false
@@ -45,8 +46,77 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  shadow-snapshot-component:
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event.repository.private == false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/repair/stage6-shadow-publication-20261026' && github.workflow_sha == github.sha && inputs.candidate_sha == github.sha && inputs.mode == 'shadow-snapshot-component'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Validate exact component identity
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$CANDIDATE_SHA" = "$GITHUB_SHA"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Build pinned existing Node and public locked dependencies
+        run: |
+          set -euo pipefail
+          context="$RUNNER_TEMP/shadow-component-build"
+          mkdir "$context"
+          cp package.json package-lock.json "$context/"
+          cp tools/stage8-qualification/Dockerfile.native-empty-ci "$context/Dockerfile"
+          python3 - <<'PY'
+          import importlib.util,pathlib
+          p=pathlib.Path('tools/stage8-qualification/native-empty-ci.py')
+          s=importlib.util.spec_from_file_location('reviewed_native',p)
+          m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+          m.public_lock(pathlib.Path('package-lock.json'))
+          PY
+          docker build --pull --platform linux/amd64 --tag "shadow-component:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --build-arg "QUALIFICATION_ROOT=$GITHUB_WORKSPACE" --build-arg "QUALIFICATION_UID=$(id -u)" --build-arg "QUALIFICATION_GID=$(id -g)" "$context"
+          docker image inspect --format '{{.Id}}' "shadow-component:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" > "$RUNNER_TEMP/shadow-component-image.id"
+      - name: Two owned bounded Linux components; synthetic transport only
+        run: |
+          set -euo pipefail
+          for mode in guards runtime; do
+            name="shadow-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$mode"
+            cidfile="$RUNNER_TEMP/$name.cid"
+            docker create --cidfile "$cidfile" --name "$name" --label "healthos.stage6.shadow=$GITHUB_SHA:$mode:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" --init --platform linux/amd64 --network none --memory 536870912 --memory-swap 536870912 --cpus 0.5 --pids-limit 128 --read-only --cap-drop ALL --security-opt no-new-privileges --cgroupns private --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=67108864 --workdir "$GITHUB_WORKSPACE" --env "PHASE4_RELEASE_SHA=$GITHUB_SHA" --mount "type=bind,src=$GITHUB_WORKSPACE/src,dst=$GITHUB_WORKSPACE/src,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/test,dst=$GITHUB_WORKSPACE/test,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/scripts,dst=$GITHUB_WORKSPACE/scripts,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/tools,dst=$GITHUB_WORKSPACE/tools,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/.git,dst=$GITHUB_WORKSPACE/.git,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/package.json,dst=$GITHUB_WORKSPACE/package.json,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/package-lock.json,dst=$GITHUB_WORKSPACE/package-lock.json,readonly" "shadow-component:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" node tools/stage8-qualification/shadow-snapshot-component.mjs "$mode"
+            cid="$(cat "$cidfile")"
+            [[ "$cid" =~ ^[a-f0-9]{64}$ ]]
+            docker start --attach "$cid"
+            test "$(docker inspect --format '{{.State.Status}}' "$name")" = exited
+            test "$(docker inspect --format '{{.State.OOMKilled}}' "$name")" = false
+            test "$(docker inspect --format '{{.State.ExitCode}}' "$name")" = 0
+          done
+      - name: Close only containers owned by this component run
+        if: always()
+        run: |
+          set -euo pipefail
+          for mode in guards runtime; do
+            name="shadow-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$mode"
+            cidfile="$RUNNER_TEMP/$name.cid"
+            if test -s "$cidfile"; then
+              cid="$(cat "$cidfile")"
+              [[ "$cid" =~ ^[a-f0-9]{64}$ ]]
+              test "$(docker inspect --format '{{.Name}}' "$cid")" = "/$name"
+              test "$(docker inspect --format '{{index .Config.Labels "healthos.stage6.shadow"}}' "$cid")" = "$GITHUB_SHA:$mode:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT"
+              test "$(docker inspect --format '{{.Image}}' "$cid")" = "$(cat "$RUNNER_TEMP/shadow-component-image.id")"
+              if test "$(docker inspect --format '{{.State.Running}}' "$cid")" = true; then
+                docker stop --time 10 "$cid"
+              fi
+              test "$(docker inspect --format '{{.State.Running}}' "$cid")" = false
+              docker rm "$cid"
+            elif docker inspect "$name" >/dev/null 2>&1; then
+              exit 1
+            fi
+          done
   qualify:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'native-empty-restart'
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'native-empty-restart' && inputs.mode != 'shadow-snapshot-component'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

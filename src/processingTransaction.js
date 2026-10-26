@@ -11,6 +11,7 @@ import {inRuntimeMetadata} from './runtimeMetadataContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
 import {createReadSnapshotMemo,readSnapshotKey} from './processingReadSnapshot.js';
+import {metricProducerDataKey} from './processingMetricProducerData.js';
 import {consumeSyncCommitSnapshot,createSyncCommitSnapshot} from './syncCommitSnapshot.js';
 const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet(),coalescibleControlChecks=new WeakSet();
 const readObservationChecks=new WeakMap();
@@ -278,11 +279,25 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             }
             const memo=state.readMemo,context=readScope.getStore(),sameScope=state.readBudget===currentExecutionBudget()&&state.readExecution===currentDurableExecution();
             if(!mutations.length&&sameScope){const observed=key==='execute'?state.syncSnapshot?.get(args[0]):state.syncSnapshot?.getBatch(args[0]);if(observed!==undefined){currentExecutionBudget()?.assert();return observed;}}
-            const snapshotKey=key==='execute'&&!mutations.length&&!metadata&&sameScope?readSnapshotKey(args[0],context,{allowPrincipalReadiness:state.principalReadinessMemoEnabled&&context?.executionMode==='LIVE'}):null;
+            const ordinaryKey=key==='execute'&&!mutations.length&&!metadata&&sameScope?readSnapshotKey(args[0],context,{allowPrincipalReadiness:state.principalReadinessMemoEnabled&&context?.executionMode==='LIVE'}):null;
+            const producerMarker=!ordinaryKey&&state.principalReadinessMemoEnabled&&!state.replaying&&key==='execute'&&!mutations.length&&!metadata
+              &&sameScope&&processingOwnedLiveObservationEpoch(client,context)!==null?currentExecutionReceiptTransactionMarker():null;
+            const producerKey=producerMarker?metricProducerDataKey(args[0],context):null;
+            let dataScope=context;
+            if(producerKey){
+              // A marker namespace is private to this exact acknowledged root.
+              // Nested receipt lifetimes cannot share producer DATA, even if
+              // they use the same Core context and SQL. All DML/terminal clear
+              // the original bounded memo; no final-state proof is retained.
+              const scopes=state.metricProducerScopes??=new WeakMap();let markers=scopes.get(context);
+              if(!markers){markers=new WeakMap();scopes.set(context,markers);}
+              dataScope=markers.get(producerMarker);if(!dataScope){dataScope={};markers.set(producerMarker,dataScope);}
+            }
+            const snapshotKey=ordinaryKey??producerKey;
             if(mutations.length)memo.clear();
             try{
               currentExecutionBudget()?.assert();
-              if(snapshotKey){const cached=memo.get(context,snapshotKey);if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
+              if(snapshotKey){const cached=memo.get(dataScope,snapshotKey);if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
               const immutableGuard=mutations.length?state.syncSnapshot?.guard(mutations):null;
               const inflightKey=state.principalReadinessMemoEnabled&&!state.replaying&&state.readBudget&&sameScope&&checking.getStore()?.readOnly
                 &&key==='execute'&&!mutations.length&&!metadata?inflightControlReadKey(args[0],context):null;
@@ -300,7 +315,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
                 ?await state.tx.batch(...transportArguments('batch',[[...statements,immutableGuard]])).then(values=>key==='execute'?values[0]:values.slice(0,-1))
                 :pendingKey?await state.controlReads[ownershipKey?'ownership':'run'](context,currentExecutionReceiptTransactionMarker(),pendingKey,epoch,()=>state.tx[key](...transportArguments(key,args)))
                 :await state.tx[key](...transportArguments(key,args));currentExecutionBudget()?.assert();
-              if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
+              if(snapshotKey)memo.put(dataScope,snapshotKey,result,epoch);return result;
             }finally{if(mutations.length)memo.clear();}}
           const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
           if(rootAdmission&&!metadata)await traceExecutionOperation('RUNTIME_READMISSION',()=>{countExecutionTelemetry('runtime_readmissions');return checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));});

@@ -5,6 +5,7 @@ import {bodySha256} from './briefingTriggerAuth.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {JOB_KINDS} from './phase4V24Schema.js';
 import {phase4Metric,INTELLIGENCE_VERSIONS} from './phase4IntelligenceRegistry.js';
+import {metricProducerPageSql} from './phase4MetricProofSql.js';
 
 const kinds=new Set(['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY']),proofs=new WeakMap();
 const continuationScope=new AsyncLocalStorage();
@@ -28,7 +29,8 @@ export function metricUnitWork(context,plan,kind){
 }
 /** Existing v32 named work receipts authorize only their exact immutable unit.
  * This is not a producer or execution grant. Every use rechecks the current
- * owner plus the old durable receipt/producer; no observation is cached. */
+ * owner plus the old durable receipt/producer; no accepted proof or authority
+ * observation is cached. The private owned executor may reuse row DATA only. */
 export async function metricUnitReceipt(core,context,plan,kind){
  const receipt=await namedUnitReceipt(core,context,[metricUnitWork(context,plan,kind).workStep]);
  if(!receipt)return null;
@@ -83,13 +85,7 @@ function validateReceipt(core,context,owner,p,receipt,keys){
    ||!['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','DISABLED','POLICY_DEFERRED'].includes(record.outcome))fail();
  }
 }
-const producerSql=core=>`SELECT p.*,e.state,e.phase,e.generation final_generation,
- e.execution_seq final_seq,e.identity_digest,e.scope_key,e.created_at,e.deadline_at,e.finalized_at,
- e.result_json,e.result_digest,e.release_sha,e.trigger_source,e.config_proof FROM ${analysisTable(core,'phase4_execution_producers')} p
- JOIN ${analysisTable(core,'phase4_executions')} e ON e.execution_id=p.producing_execution_id
- WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=?
- AND p.producing_execution_id>? COLLATE BINARY
- ORDER BY p.producing_execution_id COLLATE BINARY LIMIT 65`;
+const producerSql=core=>metricProducerPageSql(core.liveAllocation);
 function requireUnitPurpose(core,context){
  requireSettledOperation();core.assertAnalysisWrite(context);const execution=currentDurableExecution();
  if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||!core.jobAuthority()

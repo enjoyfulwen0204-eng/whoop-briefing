@@ -16,7 +16,9 @@ import {NATIVE_LIMITS} from './stage6-linux-native-contract.mjs';
 import {nativeTraceSummary} from './stage6ShadowNativeTrace.mjs';
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const prefixProfile=process.env.STAGE6_NATIVE_PREFIX_PROFILE==='1';
-test(prefixProfile?'one genuine owned-prefix native producer call: diagnostic only':'fresh native LIVE producer completes original representative jobs through EOF', {timeout:prefixProfile?180000:NATIVE_LIMITS.wallMs},async t=>{
+const coldProfile=process.env.STAGE6_NATIVE_COLD_PROFILE==='1',profile=prefixProfile||coldProfile;
+assert.ok(!(prefixProfile&&coldProfile),'DIAGNOSTIC_SCOPES_MUST_NOT_MIX');
+test(profile?(coldProfile?'one fresh native cold producer call: diagnostic only':'one genuine owned-prefix native producer call: diagnostic only'):'fresh native LIVE producer completes original representative jobs through EOF', {timeout:profile?180000:NATIVE_LIMITS.wallMs},async t=>{
  assert.equal(process.env.STAGE6_SHADOW_NATIVE_SQLD,'1','EXPLICIT_ISOLATED_NATIVE_INTENT_REQUIRED');
  const seed=await createStage6OwnedMemoryDb(async()=>{},fixtureKeys);
  let native,db; t.after(async()=>{native?.setPhase('CLEANUP','CLEANUP');try{await db?.close();}finally{try{await native?.close();}finally{seed.close();}}});
@@ -40,7 +42,7 @@ test(prefixProfile?'one genuine owned-prefix native producer call: diagnostic on
  let latency=true;
  const fetch=request=>{
   const work=async()=>{if(latency)await new Promise(resolve=>setTimeout(resolve,NATIVE_LIMITS.addedHttpLatencyMs));return native.fetch(request);};
-  return prefixProfile?globalThis.__stage6RawReplayProfile.fetch(work):work();
+  return profile?globalThis.__stage6RawReplayProfile.fetch(work):work();
  };
  const open=()=>createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch});db=open();
  const producer=async()=>createStage8LiveProducer({db,keys:fixtureKeys,admission:await db.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a'});
@@ -52,8 +54,8 @@ test(prefixProfile?'one genuine owned-prefix native producer call: diagnostic on
  };
  native.setPhase('ADMISSION_AND_COMPOSITION','BUILD_LIVE_PRODUCER');
  const start=performance.now(),p=await producer(),progress=[];let firstGenerations,last,original;
- if(prefixProfile)globalThis.__stage6RawReplayProfile.start();
- for(let leg=0;leg<(prefixProfile?1:NATIVE_LIMITS.maximumCalls-1);leg++){
+ if(profile){assert.ok(globalThis.__stage6RawReplayProfile,'EXPLICIT_DIAGNOSTIC_PRELOAD_REQUIRED');globalThis.__stage6RawReplayProfile.start();}
+ for(let leg=0;leg<(profile?1:NATIVE_LIMITS.maximumCalls-1);leg++){
   assert.ok(performance.now()-start<NATIVE_LIMITS.wallMs);
   const at=performance.now(),requestId='representative-native-live-'+leg;
   // The observer's closed call-ordinal contract is 0/1. Every original leg is
@@ -67,7 +69,7 @@ test(prefixProfile?'one genuine owned-prefix native producer call: diagnostic on
   console.log('SYNTHETIC_NATIVE_LIVE_LEG '+JSON.stringify(progress.at(-1)));
   const {transactionSamples,...observation}=nativeTraceSummary(native.snapshot());
   console.log('SYNTHETIC_NATIVE_LIVE_LEG_TRACE '+JSON.stringify({leg,...observation,transactionExamples:transactionSamples.filter(t=>t.durationUpperBoundMs>=5000).slice(0,8),provisional:true}));
-  if(prefixProfile){console.log('SYNTHETIC_NATIVE_RAW_REPLAY_PROFILE '+JSON.stringify(globalThis.__stage6RawReplayProfile.snapshot()));return;}
+  if(profile){console.log('SYNTHETIC_NATIVE_RAW_REPLAY_PROFILE '+JSON.stringify(globalThis.__stage6RawReplayProfile.snapshot()));return;}
   assert.equal(observation.atOrAbove5s,0,'OBSERVED_NATIVE_TRANSACTION_CONTRACT_FAILED_STOP_NO_RETRY');
   assert.ok(last.result.itemsProcessed||last.result.unitsCommitted||last.result.jobsCompleted,
    'NO_DURABLE_NATIVE_PROGRESS_STOP_NO_RETRY');

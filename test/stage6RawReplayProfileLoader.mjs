@@ -9,6 +9,12 @@ export async function load(url,context,nextLoad){
  if(url===root+'phase4Reanalysis.js'){
   const raw='stores.intelligence.metricPreparationUnitFromCurrentRaw(context,metricKey,source)';replace(raw,measure('RAW_PREPARATION','metricKey',raw));
   const request='stores.intelligence.currentRawMetricReplayRequest(context,metricKey,source)';replace(request,measure('RAW_REQUEST','metricKey',request));
+  for(const [phase,call] of [['BODY_COMPUTE','stores.bodyEnergy.computeForCurrentDrain(context)'],
+   ['BODY_METRIC_UNIT','stores.intelligence.metricPreparationUnitFromCurrentBody(context,asOfUtc)']])replace(call,measure(phase,"'body_energy'",call));
+  replace('()=>stores.intelligence.replayCurrentBodyMetricFamily(context,asOfUtc,',
+   "()=>globalThis.__stage6RawReplayProfile.measure('BODY_FAMILY_REPLAY','body_energy',()=>stores.intelligence.replayCurrentBodyMetricFamily(context,asOfUtc,");
+  replace("{replayOnly:true,readOnlyReplay:replaying})),{assertBudget});",
+   "{replayOnly:true,readOnlyReplay:replaying}))),{assertBudget});");
   const family='metricsV30(context,request,lease,assertBudget,{preparedDefault:[32,33,34,35].includes(core.schemaVersion),rawReplay})';replace(family,measure('METRIC_FAMILIES','metricKey',family));
   const association='()=>associations(context,metricKey,analysisAsOf)';replace(association,'()=>'+measure('ASSOCIATIONS','metricKey','associations(context,metricKey,analysisAsOf)'));
  }

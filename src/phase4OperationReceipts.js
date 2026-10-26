@@ -320,9 +320,20 @@ export function createOperationReceipts(core) {
           'authGeneration','purgeGeneration','algorithmSetVersion'].some(field=>produced[field]!==current[field])
         ||!await metricPreparationDomainReceipt(core,context,row.operation_key,decoded.request_json.request))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     }
-    const selected=currentOwnedBodyMetricObservation(core,context),parallel=Boolean(!retainedBody&&selected
+    const selected=currentOwnedBodyMetricObservation(core,context),bodyParallel=Boolean(!retainedBody&&selected
       &&row.operation_kind==='analyzeMetric'&&row.operation_key===selected.operationKey
       &&decoded.related_results_json.every(target=>['body_energy_results','evidence_runs','evidence_items',RESULT_AUTHORITY_TABLE].includes(target.type)));
+    // Transport scheduling only: the actual raw metric continuation can
+    // settle the same independent readonly closures together. No row, receipt
+    // or accepted authority survives this owned transaction or a mutation.
+    const rawParallel=!retainedBody&&core.processing.active?.()&&metricPreparationContinuation(core,context)
+      &&row.operation_kind==='analyzeMetric'&&decoded.request_json.request.refresh===true
+      &&Object.hasOwn(PHASE4_METRICS,decoded.request_json.request.metricKey)
+      &&['sleep','recovery','cycle','workout'].includes(PHASE4_METRICS[decoded.request_json.request.metricKey].sourceType)
+      &&decoded.related_results_json.every(target=>['evidence_runs','evidence_items',RESULT_AUTHORITY_TABLE].includes(target.type))
+      &&currentExecutionReceiptTransactionMarker()
+      ?{execution:currentDurableExecution(),job:core.jobAuthority(),marker:currentExecutionReceiptTransactionMarker(),epoch:processingReadObservationEpoch(client)}:null;
+    const parallel=bodyParallel||Boolean(rawParallel);
     const contracts=Object.entries(decoded.schema_contract_json),schema=async([table,contract])=>{
       if(!DERIVED_TABLES.includes(table))invalid();
       const info=(await client.execute(`PRAGMA table_info(${table})`)).rows
@@ -399,7 +410,12 @@ export function createOperationReceipts(core) {
           .map(target=>Promise.resolve().then(()=>related(target))));
         for(const value of checks)if(value.status==='rejected')throw value.reason;
       }
-      await assertFreshContextAndWorkOwner(core,context);if(!currentOwnedBodyMetricObservation(core,context))fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+      await assertFreshContextAndWorkOwner(core,context);
+      if(bodyParallel&&!currentOwnedBodyMetricObservation(core,context))fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+      if(rawParallel&&(!core.processing.active?.()||!metricPreparationContinuation(core,context)
+        ||rawParallel.execution!==currentDurableExecution()||rawParallel.job!==core.jobAuthority()
+        ||rawParallel.marker!==currentExecutionReceiptTransactionMarker()||rawParallel.epoch!==processingReadObservationEpoch(client)))
+        fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
     }else for(const target of decoded.related_results_json)await related(target);
     return restoreResult(context,decoded,decoded.result_json);
   }

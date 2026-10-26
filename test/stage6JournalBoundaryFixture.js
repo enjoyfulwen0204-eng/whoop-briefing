@@ -14,9 +14,9 @@ const {bodyHealthDate}=await mod('src/bodyEnergyInputs.js');
 const {createPhase4Foundation}=await mod('src/phase4Foundation.js');
 const {log}=await mod('src/logger.js');
 for(const k of ['info','warn','error'])log[k]=()=>{};
-export async function residualFixture(t,{http=false}={}){
+export async function residualFixture(t,{http=false,targetVersion=32}={}){
  const dir=await mkdtemp(join(tmpdir(),'whoop-stage6-residual-')),url='file:'+join(dir,'fixture.sqlite');
- const seed=createOwnedDb({url});await seed.migrate({targetVersion:32});await seed.raw.execute('PRAGMA journal_mode=WAL');
+ const seed=createOwnedDb({url});await seed.migrate({targetVersion});await seed.raw.execute('PRAGMA journal_mode=WAL');
  const transport=hranaTransport(url);let db=seed,latency=0,trace=false,origin=0;const timeline=[];
  const fetch=async r=>{
   let kinds=[];if(trace){const body=await r.clone().json();for(const entry of body.requests??[]){

@@ -11,6 +11,7 @@ import {currentExecutionBudget} from './executionBudget.js';
 import {createPreparationScheduling} from './stage6PreparationScheduling.js';
 import {drainProcessPublicationFence,notifyDrainProcessBoundary} from './drainProcessAuthority.js';
 import {exactRealStatement} from './exactRealStatement.js';
+import {snapshotGuards} from './stage6SnapshotGuard.js';
 const clients=new WeakMap(),issued=new WeakMap(),quote=x=>'"'+x.replaceAll('"','""')+'"';
 const postResponseFailures=new WeakSet(),receiverCoverage=new WeakMap();
 export function assertPreparedReceiverCoverage(token,db,grant,client){const p=receiverCoverage.get(token);if(!p||p.used||p.db!==db||p.grant!==grant||p.client!==client||p.execution!==currentDurableExecution()||p.budget!==currentExecutionBudget())fail('STAGE6_SNAPSHOT_COVERAGE_REQUIRED');p.budget.assert();p.execution.authority.assert();p.used=true;}
@@ -152,10 +153,7 @@ async function publishDataUnit(client,plan,{beforeCommit}={}){
  if(p.seal!==keys.lookup(['short-transaction-plan-v1',plan.userId,plan.executionId,p.descriptors.map(d=>[d.table,d.payload]),p.effects,p.result]))fail('PREPARATION_TAMPERED');
  const ownerCondition=`EXISTS(SELECT 1 FROM phase4_executions WHERE execution_id=? AND owner=? AND generation=? AND identity_digest=? AND scope_key=? AND state='ESTABLISHED' AND lease_until>${databaseNowMs} AND deadline_at>${databaseNowMs})`;
  const ownerArgs=[p.owner.execution_id,p.owner.owner,p.owner.generation,p.owner.identity_digest,p.owner.scope_key],timeGuard=assertion(`${databaseNowMs}<?`,[p.temporalDeadline],'SHORT_TRANSACTION_EXPIRED'),stmts=[p.contextGuard,assertion(`${databaseNowMs}+5500<?`,[p.temporalDeadline],'SHORT_TRANSACTION_HEADROOM_REJECTED'),assertion('(SELECT foreign_keys FROM pragma_foreign_keys())=1'),assertion('(SELECT ignore_check_constraints FROM pragma_ignore_check_constraints())=0'),assertion(ownerCondition,ownerArgs),timeGuard,assertion(`(${p.schemaStatement}) IS ?`,[p.schemaPayload],'SHORT_TRANSACTION_SCHEMA_CHANGED')];
- for(const d of p.descriptors){
-  stmts.push(assertion(`(SELECT count(*) FROM ${quote(d.table)} WHERE ${d.filter.where})=?`,[...d.filter.args,d.rows.length]));
-  for(const row of d.rows)stmts.push(assertion(`EXISTS(SELECT 1 FROM ${quote(d.table)} WHERE (${d.filter.where}) AND ${d.columns.map(c=>quote(c)+' IS ?').join(' AND ')})`,[...d.filter.args,...row]));
- }
+ for(const d of p.descriptors)stmts.push(...snapshotGuards(d));
  for(const effect of p.effects){stmts.push({sql:effect.sql,args:effect.args});stmts.push(assertion('changes()=?',[effect.rowsAffected],'SHORT_TRANSACTION_ZERO_ROW_REJECTED'));}
  stmts.push(assertion(ownerCondition,ownerArgs),timeGuard,p.contextGuard);
  await beforeCommit?.();p.budget.assert();p.execution.authority.assert();

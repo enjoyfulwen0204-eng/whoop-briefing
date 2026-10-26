@@ -29,7 +29,7 @@ import { V27_TABLES } from './phase4V27Schema.js';
 import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
-import { createPhase4ContextRegistry } from './phase4Cache.js';
+import { createPhase4ContextRegistry,phase4UserStateStatement } from './phase4Cache.js';
 import { requireRuntimeAdmission, admitRuntime, followRuntimeRenewal } from './runtimeAdmission.js';
 
 export class Phase4InvariantError extends Error {
@@ -109,14 +109,14 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   const timestamp=()=>{const value=now();if(!(value instanceof Date) || !Number.isFinite(value.getTime()))fail('PHASE4_INVALID_CLOCK');return value.toISOString();};
   const contextRegistry=createPhase4ContextRegistry({client,keys,now,timestamp,newId:()=>randomUUID()});
   async function userState(userId) {
-    const uid=requireUserId(userId,'phase4');
-    const row=(await client.execute({sql:`SELECT u.id,u.status,u.timezone,u.lifecycle_generation,
-      COALESCE(t.auth_generation,0) auth_generation,p.source_generation,p.purge_generation,p.pending_purge_count
-      FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id
-      LEFT JOIN phase4_user_state p ON p.user_id=u.id WHERE u.id=?`,args:[uid]})).rows[0];
+    const row=(await client.execute(phase4UserStateStatement(userId))).rows[0];
     if(!row)fail('PHASE4_TENANT_NOT_FOUND');
     return row;
   }
+  const liveObservationBatch=context=>schemaVersion===35&&liveAllocation&&context.executionMode==='LIVE'
+    &&context.providerRequired&&processing.active?.()&&typeof client.batch==='function'&&jobScope.getStore()
+    &&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
+    &&isLiveExecution(currentDurableExecution(),client,keys,context.userId,context);
   async function initializeTenant(userId,mode) {
     authorizeMode(mode,client,userId);
     const uid=requireUserId(userId,'phase4');
@@ -161,10 +161,23 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     try {
     // The brand remains first; all three non-health metadata observations use
     // the same owned transaction and settle before any source/business work.
-    // Preserve lease-first failure priority and every original comparison.
-    const observations=await Promise.allSettled([Promise.resolve().then(()=>contextRegistry.assertLease(context)),
-      Promise.resolve().then(()=>userState(context.userId)),Promise.resolve().then(()=>client.execute({
-      sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[context.userId,context.executionMode]}))]);
+    // Successful rowsets retain lease-first comparison order. A transport/
+    // SQL batch error exposes no partial rows: propagate it and roll back;
+    // never infer a lease result or resubmit to reconstruct error priority.
+    const computationStatement={sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[context.userId,context.executionMode]};
+    let observations;
+    if(liveObservationBatch(context)){
+      // Three original independent control reads, in their original owned
+      // root. Every assertion and both fresh runtime brackets remain; no
+      // accepted guard or raw observation survives this call.
+      await processing.assertFences?.();
+      const results=await contextRegistry.assertLeaseAndControlData(context);
+      const state=results[0].rows[0];
+      if(!state)fail('PHASE4_TENANT_NOT_FOUND');
+      observations=[{status:'fulfilled'},{status:'fulfilled',value:state},{status:'fulfilled',value:results[1]}];
+      await processing.assertFences?.();
+    }else observations=await Promise.allSettled([Promise.resolve().then(()=>contextRegistry.assertLease(context)),
+      Promise.resolve().then(()=>userState(context.userId)),Promise.resolve().then(()=>client.execute(computationStatement))]);
     if(observations[0].status==='rejected')throw observations[0].reason;
     if(observations[1].status==='rejected')throw observations[1].reason;
     const state=observations[1].value;
@@ -287,20 +300,26 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       const whoop=['sleep','recovery','cycle','workout'].includes(type);
       // The enclosing Core check has already admitted context/runtime before
       // this health callback. Observe the canonical row and its independent
-      // resource controls together; every execute keeps its original fresh
-      // runtime fence, and source/access/capability/tombstone priority remains.
-      const calls=[()=>client.execute({sql:`SELECT * FROM ${table} WHERE ${owner}=? AND ${key}=?`,args:[context.userId,id]})];
-      if(whoop&&context.authGeneration>=1)calls.push(
-          ()=>client.execute(processingSourceControlStatement(client,context,{sql:`SELECT status FROM whoop_resource_access
+      // resource controls together. Original fresh runtime brackets remain,
+      // and successful rows retain source/access/capability/tombstone order.
+      // A batch failure propagates without partial-row claims or retries.
+      const statements=[{sql:`SELECT * FROM ${table} WHERE ${owner}=? AND ${key}=?`,args:[context.userId,id]}];
+      if(whoop&&context.authGeneration>=1)statements.push(
+          {sql:`SELECT status FROM whoop_resource_access
           WHERE user_id=? AND resource=? AND auth_generation=? AND lifecycle_generation=?`,
-            args:[context.userId,type,context.authGeneration,context.lifecycleGeneration]})),
-          ()=>client.execute(processingSourceControlStatement(client,context,{sql:`SELECT 1 FROM whoop_capabilities
+            args:[context.userId,type,context.authGeneration,context.lifecycleGeneration]},
+          {sql:`SELECT 1 FROM whoop_capabilities
             WHERE user_id=? AND key=? AND lifecycle_generation=? AND status IN ('UNSUPPORTED','UNAVAILABLE')`,
-            args:[context.userId,type,context.lifecycleGeneration]})),
-          ()=>client.execute(processingSourceControlStatement(client,context,{sql:`SELECT 1 FROM whoop_resource_tombstones
-            WHERE user_id=? AND resource_type=? AND resource_id=? AND state='ACTIVE'`,args:[context.userId,type,String(id)]})),
+            args:[context.userId,type,context.lifecycleGeneration]},
+          {sql:`SELECT 1 FROM whoop_resource_tombstones
+            WHERE user_id=? AND resource_type=? AND resource_id=? AND state='ACTIVE'`,args:[context.userId,type,String(id)]},
       );
-      const values=await Promise.allSettled(calls.map(call=>Promise.resolve().then(call)));
+      let values;
+      if(whoop&&context.authGeneration>=1&&liveObservationBatch(context)){
+        await processing.assertFences?.();
+        values=(await client.batch(statements)).map(value=>({status:'fulfilled',value}));
+      }else values=await Promise.allSettled(statements.map((statement,index)=>Promise.resolve().then(()=>client.execute(
+        index?processingSourceControlStatement(client,context,statement):statement))));
       if(values[0].status==='rejected')throw values[0].reason;
       const row=values[0].value.rows[0];if(!row)fail('PHASE4_SOURCE_NOT_FOUND');
       if(whoop) {

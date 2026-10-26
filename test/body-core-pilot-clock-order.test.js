@@ -4,7 +4,9 @@ import {betaPilotConfiguration,createBetaPilotPermit,PILOT_DURATION_MS} from '..
 import {OWNER_PILOT_APPROVAL_SHA256,reviewedPilotAllowance} from '../src/betaPilotAllowance.js';
 const component='phase4_beta_pilot_permit_v1';
 async function setup(t,{expiresInMs=null}={}){
- const {db,transport}=await fixture(t);await db.createUser({id:'a',displayName:'Synthetic',status:'ACTIVE',timezone:'Asia/Taipei'});
+ // Exercise the unchanged pilot contract under the currently admitted schema
+ // in this isolated fixture; no Production permit or migration is involved.
+ const {db,transport}=await fixture(t,34);await db.createUser({id:'a',displayName:'Synthetic',status:'ACTIVE',timezone:'Asia/Taipei'});
  await db.ensureOnboarding('a',{state:'READY'});await db.admitRuntime();
  const config=betaPilotConfiguration({PHASE4_BETA_PILOT_ID:'a'.repeat(64),PHASE4_BETA_PILOT_USER_ID:'a',
   PHASE4_BETA_PILOT_START_AT:new Date(expiresInMs===null?Date.now()-1000:Date.now()-PILOT_DURATION_MS+expiresInMs).toISOString(),PHASE4_BETA_PILOT_CONSENT_SHA256:'b'.repeat(64),

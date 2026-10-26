@@ -8,6 +8,7 @@ import { canonicalSourceTime } from './phase4SourceVersion.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {currentDurableExecution,assertExecutionWorkOwner,currentExecutionReceiptTransactionMarker,requireSettledOperation} from './phase4ExecutionContext.js';
+import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 
 // Transport selection only: neither token authorizes a read, effect or source
 // receipt. Only this module's actual new persist can issue the same-root brand.
@@ -108,7 +109,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       const observations=unique.map(source=>core.ownedBodyMetricRootData(context,source.type,source.id));
       if(observations.every(Boolean)){
         for(let index=0;index<unique.length;index++)verify(unique[index],observations[index]);
-        await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
         if(currentOwnedBodyMetricObservation(core,context))return result;
       }
     }

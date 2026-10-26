@@ -1,16 +1,16 @@
-import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 import {createReceiptRouting} from './phase4ReceiptRouting.js';
 import {createOperationReceipts} from './phase4OperationReceipts.js';
 import {healthSourceVersion} from './phase4SourceVersion.js';
 import {phase4Metric} from './phase4IntelligenceRegistry.js';
 import {canonicalJson} from './phase4EntityStore.js';
 import {canonicalMetricSourceValue} from './phase4IntelligenceStore.js';
+import {observeContextAndWorkOwner} from './phase4ReadControls.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 /** The current analyzer captures a supported producer clock. No caller clock,
  * future ingestion, rewritten source snapshot or historical alias is admitted.
  * A committed operation's exact source versions reuse its original instant. */
 export async function stage6CurrentCaptureTime(core,context,metricKey,artifact,{preparePending=null,verifyPending=null}={}){
-  core.assertAnalysisWrite(context);await core.assertContext(context);const owner=await assertExecutionWorkOwner(core.client);
+  core.assertAnalysisWrite(context);const owner=await observeContextAndWorkOwner(core,context);
   if(!core.analysisModeAllowed(context)||owner?.phase!=='STAGE6_DRAIN')fail('STAGE6_CURRENT_CAPTURE_OWNER_REQUIRED');
   const supportedClock=core.now().getTime(),actualClock=Date.now();
   if(supportedClock>actualClock)fail('STAGE6_CURRENT_CAPTURE_CLOCK_FENCED');
@@ -51,6 +51,6 @@ export async function stage6CurrentCaptureTime(core,context,metricKey,artifact,{
     }
     if(times.size>1)fail('STAGE6_CURRENT_CAPTURE_AMBIGUOUS');
   }
-  await assertExecutionWorkOwner(core.client);await core.assertContext(context);
+  await observeContextAndWorkOwner(core,context,{ownerFirst:true});
   return times.size?[...times][0]:new Date(clock).toISOString();
 }

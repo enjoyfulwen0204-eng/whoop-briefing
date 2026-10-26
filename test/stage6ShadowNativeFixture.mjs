@@ -92,7 +92,7 @@ export async function nativeShadowFixture(f){
   client.close();client=null;
   const schemaVersion=(await f.db.raw.execute('SELECT max(version) version FROM schema_version')).rows[0].version;
   console.log('SYNTHETIC_SHADOW_NATIVE_CLONE '+JSON.stringify({version,schemaVersion,tables:descriptors.length,rows:descriptors.reduce((n,d)=>n+d.rows.length,0),exactSchema:true,exactTypedRows:true,source:'FRESH_SYNTHETIC_SCHEMA_FIXTURE_NOT_PRODUCTION',productionEvidence:false}));
-  return {close,fetch:async request=>{
+  return {close,snapshot:()=>trace.snapshot(),setPhase:(...args)=>trace.observer.setPhase(...args),fetch:async request=>{
    assert.equal(new URL(request.url).origin,'https://isolated.invalid');
    runtimeUsed=true;
    return trace.fetch(base+'/v2/pipeline',{method:'POST',headers:{'content-type':'application/json'},body:await request.text(),signal:request.signal,redirect:'error'});

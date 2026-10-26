@@ -13,20 +13,35 @@ import {fixtureKeys} from './localDb.js';
 import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {nativeShadowFixture} from './stage6ShadowNativeFixture.mjs';
 import {NATIVE_LIMITS} from './stage6-linux-native-contract.mjs';
+import {nativeTraceSummary} from './stage6ShadowNativeTrace.mjs';
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-test('fresh native LIVE producer completes original representative jobs through EOF', {timeout:NATIVE_LIMITS.wallMs},async t=>{
+const prefixProfile=process.env.STAGE6_NATIVE_PREFIX_PROFILE==='1';
+test(prefixProfile?'one genuine owned-prefix native producer call: diagnostic only':'fresh native LIVE producer completes original representative jobs through EOF', {timeout:prefixProfile?180000:NATIVE_LIMITS.wallMs},async t=>{
  assert.equal(process.env.STAGE6_SHADOW_NATIVE_SQLD,'1','EXPLICIT_ISOLATED_NATIVE_INTENT_REQUIRED');
  const seed=await createStage6OwnedMemoryDb(async()=>{},fixtureKeys);
- let native,db; t.after(async()=>{try{await db?.close();}finally{try{await native?.close();}finally{seed.close();}}});
+ let native,db; t.after(async()=>{native?.setPhase('CLEANUP','CLEANUP');try{await db?.close();}finally{try{await native?.close();}finally{seed.close();}}});
  await seed.migrate({targetVersion:35});
  await seed.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
  const stores=await createPhase4Foundation({db:seed,keys:fixtureKeys});await stores.initializeTenant('a','SHADOW');
  await seed.transaction(()=>seedBodyInput(seed,bodyInput({asOf:Date.now()-1000,days:0})));
  await seed.ensureOnboarding('a',{state:'READY'});await seed.linkTelegram({userId:'a',chatId:'10001'});await seed.setLocale('a','en');
  assert.equal((await seed.raw.execute("SELECT count(*) n FROM phase4_jobs WHERE execution_mode='LIVE'")).rows[0].n,0);
+ if(prefixProfile){
+  assert.ok(globalThis.__stage6RawReplayProfile,'EXPLICIT_DIAGNOSTIC_PRELOAD_REQUIRED');
+  // One genuine server-factory leg on an owned synthetic receiver; never
+  // install a cursor, result, receipt, worker override or extended deadline.
+  const prefix=await createStage8LiveProducer({db:seed,keys:fixtureKeys,admission:await seed.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a'});
+  const value=await prefix.run({userId:'a',requestId:'representative-owned-prefix-one'});
+  assert.ok(value.result.itemsProcessed||value.result.unitsCommitted||value.result.jobsCompleted);
+  assert.notEqual(value.publication.status,'CURRENT','PROFILE_REQUIRES_UNFINISHED_GENUINE_PREFIX');
+  console.log('SYNTHETIC_OWNED_PREFIX '+JSON.stringify({oneOriginalFactoryLeg:true,result:value.result,productionEvidence:false,wholeRuntimeQualified:false}));
+ }
  native=await nativeShadowFixture({synthetic:true,db:seed});
  let latency=true;
- const fetch=async request=>{if(latency)await new Promise(resolve=>setTimeout(resolve,NATIVE_LIMITS.addedHttpLatencyMs));return native.fetch(request);};
+ const fetch=request=>{
+  const work=async()=>{if(latency)await new Promise(resolve=>setTimeout(resolve,NATIVE_LIMITS.addedHttpLatencyMs));return native.fetch(request);};
+  return prefixProfile?globalThis.__stage6RawReplayProfile.fetch(work):work();
+ };
  const open=()=>createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch});db=open();
  const producer=async()=>createStage8LiveProducer({db,keys:fixtureKeys,admission:await db.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a'});
  const jobs=async()=>(await db.raw.execute("SELECT job_kind,state,scope_kind,requested_generation,completed_generation,attempt,full_scan_cursor FROM phase4_jobs WHERE user_id='a' AND execution_mode='LIVE' ORDER BY job_kind")).rows;
@@ -35,15 +50,27 @@ test('fresh native LIVE producer completes original representative jobs through 
   for(const name of names){assert.match(name,/^[a-z0-9_]+$/);const rows=(await db.raw.execute('SELECT * FROM '+name)).rows;assert.ok(rows.length<=4096);facts.push([name,rows.map(r=>JSON.stringify(r)).sort()]);}
   return digest(facts);
  };
+ native.setPhase('ADMISSION_AND_COMPOSITION','BUILD_LIVE_PRODUCER');
  const start=performance.now(),p=await producer(),progress=[];let firstGenerations,last,original;
- for(let leg=0;leg<NATIVE_LIMITS.maximumCalls-1;leg++){
+ if(prefixProfile)globalThis.__stage6RawReplayProfile.start();
+ for(let leg=0;leg<(prefixProfile?1:NATIVE_LIMITS.maximumCalls-1);leg++){
   assert.ok(performance.now()-start<NATIVE_LIMITS.wallMs);
-  const at=performance.now(),requestId='representative-native-live-'+leg;last=await p.run({userId:'a',requestId});
+  const at=performance.now(),requestId='representative-native-live-'+leg;
+  // The observer's closed call-ordinal contract is 0/1. Every original leg is
+  // separately numbered below; this label attributes the work category only.
+  native.setPhase('GENUINE_ORIGINAL_PRODUCER_CALL','ORIGINAL_PRODUCER_RUN',1);
+  last=await p.run({userId:'a',requestId});native.setPhase('READBACK','READBACK');
   assert.equal(last.result.jobsFailed,0);assert.notEqual(last.result.outcome,'FAILED');
   const current=await jobs();assert.equal(current.length,2);firstGenerations??=current.map(j=>j.requested_generation);
   current.forEach((j,i)=>{assert.equal(j.requested_generation,firstGenerations[i]);assert.equal(j.attempt,0);});
   progress.push({leg,elapsedMs:performance.now()-at,result:last.result,publication:last.publication.status,jobs:current});
   console.log('SYNTHETIC_NATIVE_LIVE_LEG '+JSON.stringify(progress.at(-1)));
+  const {transactionSamples,...observation}=nativeTraceSummary(native.snapshot());
+  console.log('SYNTHETIC_NATIVE_LIVE_LEG_TRACE '+JSON.stringify({leg,...observation,transactionExamples:transactionSamples.filter(t=>t.durationUpperBoundMs>=5000).slice(0,8),provisional:true}));
+  if(prefixProfile){console.log('SYNTHETIC_NATIVE_RAW_REPLAY_PROFILE '+JSON.stringify(globalThis.__stage6RawReplayProfile.snapshot()));return;}
+  assert.equal(observation.atOrAbove5s,0,'OBSERVED_NATIVE_TRANSACTION_CONTRACT_FAILED_STOP_NO_RETRY');
+  assert.ok(last.result.itemsProcessed||last.result.unitsCommitted||last.result.jobsCompleted,
+   'NO_DURABLE_NATIVE_PROGRESS_STOP_NO_RETRY');
   original??={requestId,resultDigest:digest(last.result)};
   if(last.publication.status==='CURRENT')break;
  }

@@ -90,7 +90,8 @@ export async function nativeShadowFixture(f){
   const observed=(await client.execute("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND type IN ('table','index','trigger') ORDER BY type,name")).rows;
   assert.deepEqual(observed.map(r=>[r.type,r.name,r.tbl_name,r.sql]),schema.map(r=>[r.type,r.name,r.tbl_name,r.sql]));
   client.close();client=null;
-  console.log('SYNTHETIC_SHADOW_NATIVE_CLONE '+JSON.stringify({version,tables:descriptors.length,rows:descriptors.reduce((n,d)=>n+d.rows.length,0),exactSchema:true,exactTypedRows:true,source:'FRESH_SYNTHETIC_SCHEMA34_FIXTURE_NOT_PRODUCTION',productionEvidence:false}));
+  const schemaVersion=(await f.db.raw.execute('SELECT max(version) version FROM schema_version')).rows[0].version;
+  console.log('SYNTHETIC_SHADOW_NATIVE_CLONE '+JSON.stringify({version,schemaVersion,tables:descriptors.length,rows:descriptors.reduce((n,d)=>n+d.rows.length,0),exactSchema:true,exactTypedRows:true,source:'FRESH_SYNTHETIC_SCHEMA_FIXTURE_NOT_PRODUCTION',productionEvidence:false}));
   return {close,fetch:async request=>{
    assert.equal(new URL(request.url).origin,'https://isolated.invalid');
    runtimeUsed=true;

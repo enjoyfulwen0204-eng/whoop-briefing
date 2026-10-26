@@ -25,6 +25,7 @@ on:
           - native-live-prefix-profile
           - native-live-cold-profile
           - native-owned-file-eof
+          - native-owned-file-six-jobs
       diagnostic_run_intent:
         description: Only for native-empty-attribution; explicit one-original-empty-120s-v1
         required: false
@@ -52,7 +53,7 @@ concurrency:
 
 jobs:
   shadow-snapshot-component:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event.repository.private == false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/repair/stage6-shadow-publication-20261026' && github.workflow_sha == github.sha && inputs.candidate_sha == github.sha && (inputs.mode == 'shadow-snapshot-component' || inputs.mode == 'shadow-snapshot-native-component' || inputs.mode == 'native-live-completion' || inputs.mode == 'native-live-prefix-profile' || inputs.mode == 'native-live-cold-profile' || inputs.mode == 'native-owned-file-eof')
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event.repository.private == false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/repair/stage6-shadow-publication-20261026' && github.workflow_sha == github.sha && inputs.candidate_sha == github.sha && (inputs.mode == 'shadow-snapshot-component' || inputs.mode == 'shadow-snapshot-native-component' || inputs.mode == 'native-live-completion' || inputs.mode == 'native-live-prefix-profile' || inputs.mode == 'native-live-cold-profile' || inputs.mode == 'native-owned-file-eof' || inputs.mode == 'native-owned-file-six-jobs')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -95,6 +96,7 @@ jobs:
           if test "$COMPONENT_MODE" = native-live-prefix-profile; then modes=native-live-prefix-profile; fi
           if test "$COMPONENT_MODE" = native-live-cold-profile; then modes=native-live-cold-profile; fi
           if test "$COMPONENT_MODE" = native-owned-file-eof; then modes=native-owned-file-eof; fi
+          if test "$COMPONENT_MODE" = native-owned-file-six-jobs; then modes=native-owned-file-six-jobs; fi
           for mode in $modes; do
             name="shadow-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$mode"
             cidfile="$RUNNER_TEMP/$name.cid"
@@ -110,7 +112,7 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          for mode in guards runtime native-runtime native-live-completion native-live-prefix-profile native-live-cold-profile native-owned-file-eof; do
+          for mode in guards runtime native-runtime native-live-completion native-live-prefix-profile native-live-cold-profile native-owned-file-eof native-owned-file-six-jobs; do
             name="shadow-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$mode"
             cidfile="$RUNNER_TEMP/$name.cid"
             if test -s "$cidfile"; then
@@ -129,7 +131,7 @@ jobs:
             fi
           done
   qualify:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'native-empty-restart' && inputs.mode != 'shadow-snapshot-component' && inputs.mode != 'shadow-snapshot-native-component' && inputs.mode != 'native-live-completion' && inputs.mode != 'native-live-prefix-profile' && inputs.mode != 'native-live-cold-profile' && inputs.mode != 'native-owned-file-eof'
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'native-empty-restart' && inputs.mode != 'shadow-snapshot-component' && inputs.mode != 'shadow-snapshot-native-component' && inputs.mode != 'native-live-completion' && inputs.mode != 'native-live-prefix-profile' && inputs.mode != 'native-live-cold-profile' && inputs.mode != 'native-owned-file-eof' && inputs.mode != 'native-owned-file-six-jobs'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

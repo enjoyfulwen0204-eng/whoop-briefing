@@ -8,7 +8,8 @@ export async function load(url,context,nextLoad){
  const measure=(phase,key,expression)=>`globalThis.__stage6RawReplayProfile.measure('${phase}',${key},()=>${expression})`;
  if(url===root+'phase4Reanalysis.js'){
   const raw='stores.intelligence.metricPreparationUnitFromCurrentRaw(context,metricKey,source)';replace(raw,measure('RAW_PREPARATION','metricKey',raw));
-  const family='metricsV30(context,request,lease,assertBudget,{preparedDefault:[32,33,34,35].includes(core.schemaVersion)})';replace(family,measure('METRIC_FAMILIES','metricKey',family));
+  const request='stores.intelligence.currentRawMetricReplayRequest(context,metricKey,source)';replace(request,measure('RAW_REQUEST','metricKey',request));
+  const family='metricsV30(context,request,lease,assertBudget,{preparedDefault:[32,33,34,35].includes(core.schemaVersion),rawReplay})';replace(family,measure('METRIC_FAMILIES','metricKey',family));
   const association='()=>associations(context,metricKey,analysisAsOf)';replace(association,'()=>'+measure('ASSOCIATIONS','metricKey','associations(context,metricKey,analysisAsOf)'));
  }
  if(url===root+'phase4IntelligenceStore.js'){

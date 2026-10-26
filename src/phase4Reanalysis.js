@@ -112,7 +112,12 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const replayPrepared=replayOnly?await stores.intelligence.replayExistingMetricPreparation(context,{...req,refresh:true}):null;
     if(entry&&!(await familyDirectory.work(context,entry)).due)
       return reportCompletion?{outcome:'ALREADY_COMPLETE',newlyCompleted:false}:'ALREADY_COMPLETE';
-    if(readOnlyReplay)fail('PHASE4_REANALYSIS_REQUIRED');
+    // An existing named default-family step may represent a legitimate empty
+    // calculation with no directory entry. Replay only that read-only metric
+    // branch; its precise absence checks below still have to succeed.
+    const replayEmpty=readOnlyReplay&&!entry&&candidate.familyKey===defaultKey&&!current.unknownEntries.length
+      &&replayPrepared&&(!['LIMITED','AVAILABLE'].includes(replayPrepared.quality.status)||replayPrepared.quality.confidence<=0);
+    if(readOnlyReplay&&!replayEmpty)fail('PHASE4_REANALYSIS_REQUIRED');
     const complete=async(outcome,owned)=>{
       if(owned)await familyDirectory.complete(context,owned);
       if(!reportCompletion)return outcome;
@@ -149,7 +154,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     return complete(result,owned);
   }
 
-  async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false,defaultReplay=null}={}) {
+  async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false,defaultReplay=null,rawReplay=false}={}) {
     const directory=defaultReplay?.inventory??await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),
       {assertBudget,workKind:'stage6.family-inventory',workFacts:[req.metricKey,req.asOfUtc]});
     if([32,33,34,35].includes(core.schemaVersion)&&req.metricKey==='body_energy'&&directory.created)
@@ -177,10 +182,15 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
 
       }
       const reportCompletion=[32,33,34,35].includes(core.schemaVersion)&&req.metricKey!=='body_energy';
-      const performFamily=req=>performMetricFamily(context,req,candidate,defaultKey,{reportCompletion});
+      // The observed request belongs to the default window only. A retained
+      // custom family must perform its own original DOMAIN preparation.
+      const performFamily=req=>performMetricFamily(context,req,candidate,defaultKey,
+        {reportCompletion,replayOnly:rawReplay&&candidate.familyKey===defaultKey});
+      const replay=rawReplay&&candidate.familyKey===defaultKey?()=>performMetricFamily(context,req,candidate,defaultKey,
+        {reportCompletion,replayOnly:true,readOnlyReplay:true}):undefined;
       const performed=await queue.owned(context,lease,()=>preparedDefault&&req.metricKey==='body_energy'
         ?stores.intelligence.withCurrentBodyMetricObservation(context,req,lease.asOfUtc,performFamily):performFamily(req),
-        {assertBudget,workKind:'stage6.family',workFacts:[req.metricKey,req.asOfUtc,candidate.familyKey]});
+        {assertBudget,workKind:'stage6.family',workFacts:[req.metricKey,req.asOfUtc,candidate.familyKey],replay});
       const outcome=reportCompletion?performed?.outcome??null:performed;
       units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'COMPLETE',outcome});
       // Keep the existing named family COMMIT separate from remaining source
@@ -424,9 +434,15 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     for(const [metricKey] of registeredMetrics) {
       let analysisAsOf=asOfUtc;
       try {
-        let request;
+        let request,rawReplay=false;
         if([32,33,34,35].includes(core.schemaVersion)){
-          const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentRaw(context,metricKey,source),{assertBudget});
+          // A completed DOMAIN needs a current request observation, not a new
+          // named AUTHORITY step. Its full typed replay is mandatory inside
+          // every family callback, including completed-family early exits.
+          const replay=live&&core.schemaVersion===35?await queue.withOwnership(context,lease,
+            ()=>stores.intelligence.currentRawMetricReplayRequest(context,metricKey,source),{assertBudget}):null;
+          rawReplay=!!replay?.request;
+          const unit=replay??await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentRaw(context,metricKey,source),{assertBudget});
           if(unit.sourceSkipped)return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
           if(unit.created)return {kind:'SOURCE',status:'INCOMPLETE',failure:null,
             units:[...units,{kind:'METRIC_PREPARATION_UNIT',metricKey,unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
@@ -439,7 +455,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           request=await queue.owned(context,lease,()=>inputs.metric(context,metricKey,root,analysisAsOf),{assertBudget});
         }
         units.push({kind:'METRIC_SOURCE',metricKey,status:'COMPLETE'});
-        const episodeWork=await metricsV30(context,request,lease,assertBudget,{preparedDefault:[32,33,34,35].includes(core.schemaVersion)});
+        const episodeWork=await metricsV30(context,request,lease,assertBudget,{preparedDefault:[32,33,34,35].includes(core.schemaVersion),rawReplay});
         units.push(episodeWork);
         if(episodeWork.status==='INCOMPLETE')return {...episodeWork,units};
         firstFailure??=episodeWork.failure;

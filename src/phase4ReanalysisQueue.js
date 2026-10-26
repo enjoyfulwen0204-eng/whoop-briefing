@@ -127,9 +127,9 @@ export function createReanalysisQueue(core) {
     };checks?.set(assertBudget,ownerCheck);}
     return core.withJobFence(lease.binding,ownerCheck,fn);
   };
-  const owned=(context,lease,fn,{assertBudget=()=>{},workKind,workFacts}={})=>withOwnership(context,lease,
+  const owned=(context,lease,fn,{assertBudget=()=>{},workKind,workFacts,replay}={})=>withOwnership(context,lease,
     ()=>core.run(context,fn,workKind?workStepOptions(workKind,[context.userId,context.executionMode,lease.binding.jobKind,
-    lease.binding.requestedGeneration,lease.binding.scopeRevision,workFacts],{discardResult:true}):{readOnly:true}),{assertBudget});
+    lease.binding.requestedGeneration,lease.binding.scopeRevision,workFacts],{discardResult:true,replay}):{readOnly:true}),{assertBudget});
   async function checkpoint(context,lease,cursor) {
     if(!core.processing.active()||!core.jobAuthority())fail('PHASE4_TRANSACTION_REQUIRED');
     await check(context,lease);

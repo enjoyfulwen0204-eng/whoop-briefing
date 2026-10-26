@@ -70,13 +70,7 @@ export function composePhase4Stores(core) {
     if(!options?.history)requireCurrentInsightAt(sealed.row,options?.asOfUtc);
     return sealed;
   }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
-  const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence,
-    recordedMetricPreparation:receipts.recordedMetricPreparation,
-    metricDomainWork:receipts.metricDomainWork,
-    performMetricDomain:(context,request,purpose)=>receipts.execute(context,'analyzeMetric',request,
-      (semantic,preparation)=>intelligence.analyzeMetric(context,semantic,purpose,preparation),{discover,bodyMetricPurpose:purpose}),
-    takeMetricDomainProgress:receipts.takeNewMetricDomainProgress,replayMetricDomain:receipts.replayMetricDomain,
-    prepareCurrentRawMetricRequest:async(context,metricKey,source)=>{
+  async function prepareCurrentRawMetricRequest(context,metricKey,source){
       if(phase4Metric(metricKey).sourceType!==source.source_type)fail('PHASE4_METRIC_SOURCE_MISMATCH');
       const inputs=createReanalysisInputs(core,{readArtifact,root:core.root}),current=await core.root(context,source.source_type,source.source_id),
         skipped=()=>({request:null,source:[source.source_type,source.source_id,source.cursor,metricKey]});
@@ -89,7 +83,37 @@ export function composePhase4Stores(core) {
       },verifyPending:(request,row)=>intelligence.verifyRawMetricPreparationClock(context,request,row)});
       const request=retained?.asOfUtc===asOfUtc?retained:await inputs.metric(context,metricKey,current,asOfUtc);
       return {request:{...request,refresh:true},current,asOfUtc};
-    },
+  }
+  async function currentRawMetricReplayRequest(context,metricKey,source){
+    if(!core.liveAllocation||core.schemaVersion!==35||context.executionMode!=='LIVE')return null;
+    return withMetricPreparationContinuation(core,context,()=>core.run(context,async()=>{
+      const owner=await assertExecutionWorkOwner(client);
+      if(owner?.phase!=='STAGE6_DRAIN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      // Metadata chooses a read-only scheduling path. It is never evidence of
+      // a valid DOMAIN, never mints a work receipt, and cannot complete a unit.
+      const hint=(await client.execute({sql:`SELECT 1 FROM ${OPERATION_RECEIPT_TABLE}
+        WHERE user_id=? AND execution_mode=? AND input_generation=? AND operation_kind='analyzeMetric'
+          AND json_extract(CASE WHEN json_valid(request_json) THEN request_json ELSE '{}' END,'$.request.metricKey')=?
+          AND json_extract(CASE WHEN json_valid(request_json) THEN request_json ELSE '{}' END,'$.request.currentSource.source_type')=?
+          AND json_extract(CASE WHEN json_valid(request_json) THEN request_json ELSE '{}' END,'$.request.currentSource.source_id')=? LIMIT 1`,
+        args:[context.userId,context.executionMode,context.inputGeneration,metricKey,source.source_type,source.source_id]})).rows[0];
+      if(!hint)return null;
+      const prepared=await prepareCurrentRawMetricRequest(context,metricKey,source);
+      if(!prepared.request)return {sourceSkipped:true};
+      const domain=await receipts.metricDomainWork(context,prepared.request);
+      const exact=(await client.execute({sql:`SELECT 1 FROM ${OPERATION_RECEIPT_TABLE}
+        WHERE user_id=? AND execution_mode=? AND operation_kind='analyzeMetric' AND operation_key=?`,
+        args:[context.userId,context.executionMode,domain.operationKey]})).rows[0];
+      return exact?{request:prepared.request}:null;
+    }));
+  }
+  const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence,
+    recordedMetricPreparation:receipts.recordedMetricPreparation,
+    metricDomainWork:receipts.metricDomainWork,
+    performMetricDomain:(context,request,purpose)=>receipts.execute(context,'analyzeMetric',request,
+      (semantic,preparation)=>intelligence.analyzeMetric(context,semantic,purpose,preparation),{discover,bodyMetricPurpose:purpose}),
+    takeMetricDomainProgress:receipts.takeNewMetricDomainProgress,replayMetricDomain:receipts.replayMetricDomain,
+    prepareCurrentRawMetricRequest,
     prepareCurrentBodyMetricRequest:async(context,asOfUtc)=>{
       const recorded=await readForCurrentDrain(context,asOfUtc);if(!recorded)fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const request=['AVAILABLE','LIMITED'].includes(recorded.body.row.quality_state)
@@ -323,6 +347,7 @@ export function composePhase4Stores(core) {
       metricPreparationUnitFromCurrentBody:intelligence.metricPreparationUnitFromCurrentBody,
       withCurrentBodyMetricObservation:intelligence.withCurrentBodyMetricObservation,
       replayCurrentBodyMetricFamily:intelligence.replayCurrentBodyMetricFamily,
+      currentRawMetricReplayRequest,
       replayExistingMetricPreparation:(context,request)=>withMetricPreparationContinuation(core,context,async()=>{
         const result=await receipts.replayMetricDomain(context,request);
         if(result?.resultState!=='REFRESH_PREPARED')fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');

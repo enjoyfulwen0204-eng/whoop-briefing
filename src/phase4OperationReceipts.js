@@ -1047,10 +1047,18 @@ export function createOperationReceipts(core) {
       if([32,33,34,35].includes(core.schemaVersion)&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN')
         await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode,kind,key]);
       else await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
+      const newLiveBody=Boolean(newBodyCapture)&&kind==='BODY_ENERGY_COMPUTE'&&core.schemaVersion===35
+        &&core.liveAllocation&&context.executionMode==='LIVE'&&core.jobAuthority()
+        &&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN';
       const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related},
-        {batchNew:Boolean(bodyMetricPurpose&&kind==='analyzeMetric')||rawMetric}):[];
+        {batchNew:Boolean(bodyMetricPurpose&&kind==='analyzeMetric')||rawMetric||newLiveBody}):[];
       const fields=Object.keys(row);
-      await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(field=>row[field])});
+      const receiptInsert={sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(field=>row[field])};
+      // Only the genuine new LIVE Body's artifact-only route has no family
+      // touch/reopen between this DOMAIN INSERT and its original privacy
+      // links. Preserve their statement order in one bounded transport batch.
+      const batchBody=newLiveBody&&routedSubjects.length>0&&routedSubjects.every(([kind])=>kind==='ARTIFACT');
+      if(!batchBody)await client.execute(receiptInsert);
       if(familyDirectory)for(const metricKey of Object.keys(PHASE4_METRICS)) {
         const token=routing.token(context.userId,context.executionMode,'EPISODE',
           [metricKey,phase4Metric(metricKey).domain]);
@@ -1069,7 +1077,8 @@ export function createOperationReceipts(core) {
       }
       await addPrivacyLinks(client,roots.roots.map(root=>({userId:context.userId,mode:context.executionMode,table:TABLE,
         artifactId:row.privacy_artifact_id,sourceMode:root.mode,sourceType:root.type,sourceId:root.id,
-        relationship:root.as_of?`DEPENDS_ON_AS_OF:${root.as_of}`:'DEPENDS_ON',at:core.timestamp()})));
+        relationship:root.as_of?`DEPENDS_ON_AS_OF:${root.as_of}`:'DEPENDS_ON',at:core.timestamp()})),
+        batchBody?{precedingStatement:receiptInsert}:{});
       if(refreshPredecessor)await core.transaction(async()=>{}, {beforeCommit:async()=>{
         await refreshAuthority.retained(context,refreshPredecessor);
         await refreshAuthority.fresh(context,semanticRequest,refreshPredecessor);

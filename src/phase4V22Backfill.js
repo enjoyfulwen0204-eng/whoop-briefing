@@ -33,12 +33,21 @@ export async function addPrivacyLink(client,link) {
 // Only validated caller lists inside an existing processing transaction use
 // this path. Each attempted link still consumes its original logical unit,
 // including duplicate/failed/rolled-back submissions. Writes remain ordered.
-export async function addPrivacyLinks(client,links) {
-  if(typeof client.batch!=='function'){for(const link of links)await addPrivacyLink(client,link);return;}
-  for(let start=0;start<links.length;start+=64){
-    const statements=links.slice(start,start+64).map(privacyLinkStatement);
+export async function addPrivacyLinks(client,links,{precedingStatement=null}={}) {
+  if(typeof client.batch!=='function'){
+    if(precedingStatement)await client.execute(precedingStatement);
+    for(const link of links)await addPrivacyLink(client,link);return;
+  }
+  if(!links.length){if(precedingStatement)await client.execute(precedingStatement);return;}
+  for(let start=0;start<links.length;){
+    // One already-reserved producer statement may precede its privacy links.
+    // Keep the original 64-statement bound and every per-link reservation;
+    // a batch error remains the original transaction's rollback, never retry.
+    const count=64-(precedingStatement?1:0),statements=links.slice(start,start+count).map(privacyLinkStatement);
     for(const statement of statements)reserveLink(client,statement);
+    if(precedingStatement)statements.unshift(precedingStatement);
     await client.batch(statements);
+    start+=count;precedingStatement=null;
   }
 }
 const redaction = (at, id) => ({ privacy_artifact_id: id, content_state: 'REDACTED',

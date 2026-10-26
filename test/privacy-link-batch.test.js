@@ -5,7 +5,7 @@ import {createBetaPilotPermit,betaPilotConfiguration,withBetaPilotAttempt,reserv
 import {OWNER_PILOT_APPROVAL_SHA256,reviewedPilotAllowance} from '../src/betaPilotAllowance.js';
 const link=(artifact,n)=>({userId:'a',mode:'SHADOW',table:'body_energy_results',artifactId:artifact,
  sourceMode:'SHARED',sourceType:'USER',sourceId:'synthetic-'+n,at:'2026-10-11T00:00:00.000Z'});
-async function setup(t){const {db,transport}=await fixture(t);await db.createUser({id:'a',displayName:'Synthetic',status:'ACTIVE',timezone:'Asia/Taipei'});
+async function setup(t){const {db,transport}=await fixture(t,34);await db.createUser({id:'a',displayName:'Synthetic',status:'ACTIVE',timezone:'Asia/Taipei'});
  await db.ensureOnboarding('a',{state:'READY'});await db.admitRuntime();return {db,transport};}
 
 test('ordered source-link batches execute the same complete rows in the same existing physical transaction with fewer Hrana requests',async t=>{
@@ -23,6 +23,27 @@ test('a failed ordered source-link statement rolls back the whole producing tran
  const {db}=await setup(t),links=Array.from({length:20},(_,n)=>link('rollback',n));links[17]={...links[17],sourceId:null};
  await assert.rejects(()=>db.transaction(()=>addPrivacyLinks(db.raw,links)),/NOT NULL/);
  assert.equal((await db.raw.execute("SELECT count(*) n FROM phase4_source_links WHERE artifact_id='rollback'")).rows[0].n,0);
+});
+
+test('a producer prefix retains the 64-statement transport bound and a later-chunk failure rolls back every earlier statement',async t=>{
+ const {db}=await setup(t),batch=db.raw.batch;
+ for(const fail of [false,true]){
+  const artifact=fail?'prefix-rollback':'prefix-success',prefix=link(artifact,'prefix');
+  const precedingStatement={sql:`INSERT INTO phase4_source_links(user_id,artifact_execution_mode,artifact_type,artifact_id,
+   source_execution_mode,source_type,source_id,relationship,linked_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+   args:[prefix.userId,prefix.mode,prefix.table,prefix.artifactId,prefix.sourceMode,prefix.sourceType,prefix.sourceId,'DEPENDS_ON',prefix.at]};
+  const links=Array.from({length:130},(_,n)=>link(artifact,n)),sizes=[];
+  if(fail)links[70]={...links[70],sourceId:null};
+  db.raw.batch=async(statements,...rest)=>{const list=[...statements];sizes.push(list.length);
+   if(sizes.length===1)assert.deepEqual(list[0],precedingStatement);
+   assert.ok(list.length<=64);return batch(list,...rest);};
+  try{
+   const work=()=>db.transaction(()=>addPrivacyLinks(db.raw,links,{precedingStatement}));
+   if(fail)await assert.rejects(work,/NOT NULL/);else await work();
+  }finally{db.raw.batch=batch;}
+  assert.deepEqual(sizes,fail?[64,64]:[64,64,3]);
+  assert.equal((await db.raw.execute({sql:'SELECT count(*) n FROM phase4_source_links WHERE artifact_id=?',args:[artifact]})).rows[0].n,fail?0:131);
+ }
 });
 
 test('batch preparation preserves every attempted logical mutation reservation, denies the next scalar before submission and never refunds a rollback',async t=>{

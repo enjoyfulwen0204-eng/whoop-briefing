@@ -7,7 +7,7 @@ import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
 import {readOnlyProcessingCheck,processingSourceControlStatement} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
-import {coalescibleControlProcessingCheck,controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
+import {coalescibleControlProcessingCheck,controlOnlyProcessingCheck,processingReadObservationEpoch,processingOwnedLiveObservationEpoch} from './processingTransaction.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import {readPilotSourceLinkRows,pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { coverageLineage } from './phase4CoverageLineage.js';
@@ -506,6 +506,55 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     if(row.invalidated_at || (table==='health_insights' && row.legacy_classification!=='PHASE4'))fail('PHASE4_PARENT_STALE');
     if(!row.privacy_artifact_id)fail('PHASE4_HEALTH_PARENT_REQUIRED');
   }
+  // Fresh post-link DATA for the actual scalar raw ITEM writer. Observe the
+  // complete flat ITEM -> RUN -> WHOOP closure together, then repeat every
+  // row/edge/source comparison. Nothing crosses a write epoch or supplies a
+  // source capability. Historical or complex graphs keep artifact() below.
+  async function newRawMetricItemData(context,record,refs){
+    if(schemaVersion!==35||!liveAllocation||context.executionMode!=='LIVE'||!context.providerRequired
+      ||!processing.active?.()||!jobScope.getStore()||processingOwnedLiveObservationEpoch(client,context)===null
+      ||!isLiveExecution(currentDurableExecution(),client,keys,context.userId,context))return null;
+    const list=validateReferences(context,refs),parents=list.filter(source=>source.mode===context.executionMode&&source.type==='evidence_runs'),
+      raw=list.filter(source=>source.mode==='SHARED'&&['sleep','recovery','cycle','workout'].includes(source.type)&&!source.historicalAsOf);
+    if(parents.length!==1||!raw.length||raw.length+1!==list.length||list.length>64||parents[0].historicalAsOf)return null;
+    const parent=parents[0];
+    if(parent.row?.run_id!==record.run_id)return null;
+    return run(context,async()=>{
+      const epoch=processingReadObservationEpoch(client),marker=currentExecutionReceiptTransactionMarker();
+      if(epoch===null||!marker)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      const observed=await Promise.allSettled([
+        Promise.resolve().then(()=>client.execute({sql:'SELECT * FROM evidence_items WHERE user_id=? AND execution_mode=? AND evidence_item_id=?',
+          args:[context.userId,context.executionMode,record.evidence_item_id]})),
+        Promise.resolve().then(()=>client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
+          args:[context.userId,context.executionMode,parent.id]})),
+        Promise.resolve().then(()=>readPilotSourceLinkRows(client,context,'evidence_items',record.privacy_artifact_id,false)),
+        Promise.resolve().then(()=>readPilotSourceLinkRows(client,context,'evidence_runs',parent.id,false)),
+        Promise.resolve().then(()=>readRoots(context,raw,{compareRows:true})),
+      ]);
+      // All submitted observation promises settle, even when a comparator rejects.
+      // No fallback retries an SQL/ownership/privacy failure.
+      for(const result of observed)if(result.status==='rejected')throw result.reason;
+      const actual=observed[0].value.rows[0],runRow=observed[1].value.rows[0];
+      compareArtifactRow(context,'evidence_items',actual);compareArtifactRow(context,'evidence_runs',runRow);
+      if(runRow.state!=='COMPLETED')fail('PHASE4_EVIDENCE_NOT_COMPLETED');
+      if(Object.keys(record).some(field=>actual[field]!==record[field]))fail('PHASE4_IDENTITY_CONTENT_CONFLICT');
+      if(JSON.stringify({...runRow})!==JSON.stringify({...parent.row}))fail('PHASE4_PARENT_STALE');
+      const identities=rows=>[...new Set(rows.map(row=>JSON.stringify(row)))].sort();
+      const expected=sources=>identities(sources.map(source=>[source.mode,source.type,source.id,'DEPENDS_ON']));
+      const edges=rows=>identities(rows.map(row=>[row.source_execution_mode,row.source_type,row.source_id,row.relationship]));
+      if(JSON.stringify(edges(observed[2].value))!==JSON.stringify(expected(list)))fail('PHASE4_INCOMPLETE_PROVENANCE');
+      const runLinks=observed[3].value;
+      if(runLinks.some(edge=>edge.source_execution_mode!=='SHARED'||!['sleep','recovery','cycle','workout'].includes(edge.source_type)
+        ||edge.relationship!=='DEPENDS_ON'))return null;
+      if(JSON.stringify(edges(runLinks))!==JSON.stringify(expected(raw)))fail('PHASE4_INCOMPLETE_PROVENANCE');
+      // These actual complete edge sets close the entire two-level graph:
+      // exactly one completed RUN, only the same freshly checked WHOOP roots,
+      // no historical/derived/answer edges, cycles or hidden dependencies.
+      await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
+      if(epoch!==processingReadObservationEpoch(client)||marker!==currentExecutionReceiptTransactionMarker())fail('PROCESSING_READ_OBSERVATION_CHANGED');
+      return {row:{...actual},created:true};
+    });
+  }
   async function validateStoredGraph(context,table,artifactId,path=new Set(),verified=new Set()) {
     // The same closed data purpose used by artifact() can serve a top-level
     // source revalidation. Compare every actual link/root again, then perform
@@ -909,5 +958,5 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   const core=Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,liveAllocation,analysisModeAllowed,assertAnalysisWrite,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     withJobFence:(binding,check,fn)=>jobScope.run({binding,check},fn),jobAuthority:()=>jobScope.getStore()?.binding??null,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,ownedBodyMetricRootData,copyOwnedRootObservation,compareRootObservation,readRoots,currentBodyRawUnion,bodyMetricPreparationRawUnion,metricPreparationItemSources,linkMetricPreparationItem,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});return core;
+    tableInfo,root,ownedBodyMetricRootData,copyOwnedRootObservation,compareRootObservation,readRoots,currentBodyRawUnion,bodyMetricPreparationRawUnion,metricPreparationItemSources,linkMetricPreparationItem,newRawMetricItemData,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});return core;
 }

@@ -21,7 +21,7 @@ export function readObservationProcessingCheck(check,localCheck){
  if(typeof check!=='function'||typeof localCheck!=='function')throw Error('PROCESSING_READ_OBSERVATION_CHECK_REQUIRED');
  readObservationChecks.set(check,localCheck);return check;
 }
-const observationEpochs=new WeakMap(),prefixDataReaders=new WeakMap();
+const observationEpochs=new WeakMap(),ownedObservationEpochs=new WeakMap(),prefixDataReaders=new WeakMap();
 const contextLeaseDataEligibility=new WeakMap(),sourceControlStatements=new WeakMap();
 // Mark a server-selected DATA statement, never an accepted guard. A mark is
 // scoped to its original root and consumed at execute entry before any await.
@@ -37,6 +37,7 @@ export const processingPrefixReadData=(client,context,key,read,grant)=>prefixDat
 // typed readers reject their raw union if an intervening business write clears
 // the existing transaction-local data snapshot while reads are settling.
 export function processingReadObservationEpoch(client){return observationEpochs.get(client)?.()??null;}
+export function processingOwnedLiveObservationEpoch(client,context){return ownedObservationEpochs.get(client)?.(context)??null;}
 export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return check;}
 // Only trusted server checks consisting of non-health control observations
 // and explicit runtime brackets use this narrower transport composition.
@@ -605,6 +606,13 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     }catch(error){state.failure=error;throw error;}
   });
   observationEpochs.set(client,()=>scope.getStore()?.readMemo.epoch()??null);
+  ownedObservationEpochs.set(client,context=>{
+    const state=scope.getStore(),execution=currentDurableExecution();
+    return privateRuntime&&state?.tx&&!state.tx.closed&&!state.failure&&!state.replaying
+      &&readScope.getStore()===context&&state.readExecution===execution&&state.readBudget===currentExecutionBudget()
+      &&execution?.claim?.request?.phase==='STAGE6_DRAIN'&&execution.claim.request.executionMode==='LIVE'
+      &&currentExecutionReceiptTransactionMarker()?state.readMemo.epoch():null;
+  });
   const readOnlyTransaction=fn=>{
     if(scope.getStore())throw Error('PROCESSING_READ_ONLY_ROOT_REQUIRED');
     return transaction(()=>{scope.getStore().preparationReadOnly=true;return readOnlyWork.run(true,fn);},{readOnly:true});

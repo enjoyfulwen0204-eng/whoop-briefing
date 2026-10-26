@@ -716,9 +716,11 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(['RUN','RUN_START','RUN_COMPLETE'].includes(kind))return {unit:kind,status:'COMPLETE',created:!runRow};
       if(['AUTHORITY','DOMAIN'].includes(kind)&&!(await client.execute({sql:`SELECT 1 FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?`,
         args:[context.userId,context.executionMode,run.row.run_id,plan.itemKey]})).rows.length)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-      const itemData=metricItemData(request.metricKey,sourceSet,baseline,quality,calculation,plan),item=await (kind==='ITEM'&&request.metricKey==='body_energy'
-        ?entities.appendMetricPreparationItem(context,{...itemData,run_id:run.row.run_id},sourceSet.refs)
-        :entities.append(context,'evidence_items',{...itemData,run_id:run.row.run_id},sourceSet.refs));
+      const itemData=metricItemData(request.metricKey,sourceSet,baseline,quality,calculation,plan),data={...itemData,run_id:run.row.run_id};
+      const rawItem=kind==='ITEM'&&requestFrom&&core.schemaVersion===35&&core.liveAllocation&&context.executionMode==='LIVE'
+        &&['sleep','recovery','cycle','workout'].includes(phase4Metric(request.metricKey).sourceType);
+      const item=await (kind==='ITEM'&&request.metricKey==='body_energy'?entities.appendMetricPreparationItem(context,data,sourceSet.refs)
+        :rawItem?entities.appendRawMetricPreparationItem(context,data,sourceSet.refs):entities.append(context,'evidence_items',data,sourceSet.refs));
       validateMetricItem(item.row,itemData,run.row.run_id);
       if(canonicalJson(durableConfidence(item))!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
       const itemProof=!item.created?await metricUnitReceipt(core,context,plan,'ITEM'):null;

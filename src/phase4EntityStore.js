@@ -74,7 +74,7 @@ export function createPhase4EntityStore(core) {
     }
     return refs;
   }
-  async function append(context,table,data,sourceRefs=[],metricPreparationItem=false) {
+  async function append(context,table,data,sourceRefs=[],metricPreparationItem=false,rawMetricPreparationItem=false) {
     if(!IDENTITIES[table])fail('PHASE4_UNKNOWN_ENTITY');
     return core.run(context,async()=>{
       const info=await core.tableInfo(table),names=new Set(info.map(c=>c.name));
@@ -119,6 +119,9 @@ export function createPhase4EntityStore(core) {
       if(bundle&&!bundle.fallback)await core.linkMetricPreparationItem(context,record.privacy_artifact_id,refs);
       else await core.link(context,table,record.privacy_artifact_id,refs);
       const key=Object.fromEntries(info.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>[c.name,record[c.name]]));
+      if(rawMetricPreparationItem){
+        const closed=await core.newRawMetricItemData(context,record,refs);if(closed)return closed;
+      }
       if(metricPreparationItem&&bundle&&!bundle.fallback){
         // This private ITEM unit returns scalar progress, never a source
         // capability. Its parents were freshly checked both before INSERT
@@ -166,5 +169,6 @@ export function createPhase4EntityStore(core) {
     });
   }
   return Object.freeze({append,validateParents,completeEvidence,
+    appendRawMetricPreparationItem:(context,data,refs)=>append(context,'evidence_items',data,refs,false,true),
     appendMetricPreparationItem:(context,data,refs)=>append(context,'evidence_items',data,refs,true)});
 }

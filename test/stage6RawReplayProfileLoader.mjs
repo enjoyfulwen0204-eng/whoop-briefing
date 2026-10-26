@@ -25,6 +25,18 @@ export async function load(url,context,nextLoad){
   replace('return {request,contract,sourceSet,baseline,quality,baseIdentity,priorQualifying,observationCalculation,plan};\n  }', 'return {request,contract,sourceSet,baseline,quality,baseIdentity,priorQualifying,observationCalculation,plan};\n  });}');
   const recorded='ownedPurpose?withOwnedBodyMetricObservations(core,context,ownedPurpose,\n          ()=>recordedMetricPreparation(context,request)):recordedMetricPreparation(context,request)';
   replace(recorded,measure('RECORDED_METRIC','request.metricKey','('+recorded+')'));
+  replace('const workStepFrom=async()=>{\n      if(!requestFrom)',
+   "const workStepFrom=()=>globalThis.__stage6RawReplayProfile.measure('METRIC_UNIT_SELECT','unknown',async()=>{\n      if(!requestFrom)");
+  replace('return metricUnitWork(context,prepared.plan,kind).workStep;\n    };',
+   'return metricUnitWork(context,prepared.plan,kind).workStep;\n    });');
+  replace('const perform=async()=>{',
+   "const perform=()=>globalThis.__stage6RawReplayProfile.measure('METRIC_UNIT_'+kind,request?.metricKey??'unknown',async()=>{");
+  replace("return {unit:'AUTHORITY',status:'COMPLETE',created:true,prepared:true};\n    };",
+   "return {unit:'AUTHORITY',status:'COMPLETE',created:true,prepared:true};\n    });");
+  replace('const result=await core.run(context,performOwned,{workStepFrom,discardResult:true,replay:',
+   "const result=await globalThis.__stage6RawReplayProfile.measure('METRIC_UNIT_ROOT','unknown',()=>core.run(context,performOwned,{workStepFrom,discardResult:true,replay:");
+  replace("?{unit:'DOMAIN',status:'COMPLETE',created:false,prepared:false,domainResult:await replayMetricDomain(context,request)}:performOwned()});",
+   "?{unit:'DOMAIN',status:'COMPLETE',created:false,prepared:false,domainResult:await replayMetricDomain(context,request)}:performOwned()}));");
  }
  return {...result,source};
 }

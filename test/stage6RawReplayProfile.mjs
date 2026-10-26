@@ -7,8 +7,9 @@ assert.equal(process.platform,'linux');
 const prefix=process.env.STAGE6_NATIVE_PREFIX_PROFILE==='1',cold=process.env.STAGE6_NATIVE_COLD_PROFILE==='1';
 assert.equal(Number(prefix)+Number(cold),1,'EXACT_ONE_DIAGNOSTIC_SCOPE_REQUIRED');
 assert.equal(readFileSync('/sys/fs/cgroup/memory.max','utf8').trim(),'536870912');
-const phases=new Set(['RAW_PREPARATION','RAW_REQUEST','METRIC_FAMILIES','ASSOCIATIONS','METRIC_PLAN','RECORDED_METRIC','BODY_COMPUTE','BODY_CAPTURE','BODY_PERSIST','BODY_METRIC_UNIT','BODY_FAMILY_REPLAY']);
-const metrics=new Set(['recovery_score','hrv','rhr','sleep_performance','sleep_duration_minutes','sleep_efficiency','respiratory_rate','cycle_strain','body_energy']);
+const phases=new Set(['RAW_PREPARATION','RAW_REQUEST','METRIC_FAMILIES','ASSOCIATIONS','METRIC_PLAN','RECORDED_METRIC','BODY_COMPUTE','BODY_CAPTURE','BODY_PERSIST','BODY_METRIC_UNIT','BODY_FAMILY_REPLAY',
+ 'METRIC_UNIT_ROOT','METRIC_UNIT_SELECT',...['SOURCE','DIRECTORY','RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','DOMAIN'].map(kind=>'METRIC_UNIT_'+kind)]);
+const metrics=new Set(['unknown','recovery_score','hrv','rhr','sleep_performance','sleep_duration_minutes','sleep_efficiency','respiratory_rate','cycle_strain','body_energy']);
 const scope=new AsyncLocalStorage(),totals=new Map();let enabled=false;
 const entry=(phase,metric)=>{assert.ok(phases.has(phase));assert.ok(metrics.has(metric));const key=phase+':'+metric;if(!totals.has(key))totals.set(key,{phase,metric,calls:0,wallMs:0,httpRequests:0,httpMs:0,errors:0});return totals.get(key);};
 globalThis.__stage6RawReplayProfile=Object.freeze({

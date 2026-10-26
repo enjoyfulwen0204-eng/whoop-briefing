@@ -119,6 +119,16 @@ export async function runDaily({
     const alreadyDelivered = missedHealthDate
       ? await db.isSent(uid, 'daily', missedHealthDate).catch(() => false)
       : false;
+    if (alreadyDelivered) {
+      const staleObservation = missedHealthDate !== todayLocal;
+      await recordEvaluation(BRIEFING_OUTCOME.ALREADY_SENT, {
+        reason: staleObservation ? 'prior_health_date' : 'current_health_date',
+      });
+      return {
+        status: 'already_sent', healthDate: missedHealthDate,
+        localDate: missedHealthDate, staleObservation,
+      };
+    }
     // ★ 冪等靠**耐久狀態**，不靠通知冷卻。
     // 排程每 10 分鐘跑一次，如果每一輪都重新宣告一次漏發，那就是把一個
     // 修好的問題換成另一個騷擾來源。已經記成 MISSED 的同一天就直接收工。

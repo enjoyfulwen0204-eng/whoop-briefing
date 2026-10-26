@@ -120,11 +120,26 @@ test('outer LIVE parent abort fences actual publication after canonical work wit
   if(sql.some(value=>/INSERT INTO stage8_live_publications\(/.test(value))){publicationAttempted=true;attemptBudget=budget;controller.abort(new ExecutionBudgetError('SYNC_TIMEOUT'));return Promise.reject(request.signal.reason);}
   return transport.fetch(request);
  });
- let failure;
- try{for(let leg=0;leg<8;leg++){try{await withExecutionBudget(parent,()=>producer.run({userId:'a',requestId:`outer-publication-abort-${leg}`}));}catch(error){failure=error;break;}}}
+ let failure,lastLeg;
+ try{for(let leg=0;leg<8;leg++){lastLeg=leg;try{await withExecutionBudget(parent,()=>producer.run({userId:'a',requestId:`outer-publication-abort-${leg}`}));}catch(error){failure=error;break;}}}
  finally{parent.close();f.setHook(null);}
  assert.equal(publicationAttempted,true,'a genuine canonical empty business result must reach publication');assert.match(failure?.message??'',/SYNC_TIMEOUT/);assert.equal(attemptBudget.deadlineAt-attemptBudget.startedAt,45000);
  assert.equal(await count(f.db,'stage8_live_publications'),0);assert.equal(await count(f.db,'stage8_live_job_completions'),2);
  const jobs=(await f.db.raw.execute("SELECT * FROM phase4_jobs WHERE user_id='a' AND execution_mode='LIVE'")).rows;assert.equal(jobs.length,2);assert.ok(jobs.every(row=>row.state==='COMPLETED'&&row.completed_generation===row.requested_generation));
  const rows=await executionRows(f.db);assert.ok(rows.length>0);assert.ok(rows.every(row=>row.state==='FINALIZED_SUCCESS'&&row.generation===1));assert.equal((await f.db.raw.execute("SELECT last_completed_generation=input_generation complete FROM phase4_computation_state WHERE user_id='a' AND execution_mode='LIVE'")).rows[0].complete,1);
+ // Exact old RID replay grants no new publication or alert effects, even when
+ // its canonical jobs had genuinely finished before the original interruption.
+ const receipts=(await f.db.raw.execute('SELECT * FROM stage8_live_execution_work_receipts ORDER BY receipt_key')).rows;
+ const replay=await producer.run({userId:'a',requestId:`outer-publication-abort-${lastLeg}`});assert.equal(replay.replayed,true);assert.equal(replay.publication.status,'ANALYSIS_UPDATING');
+ assert.equal(await count(f.db,'stage8_live_publications'),0);assert.deepEqual(await executionRows(f.db),rows);
+ assert.deepEqual((await f.db.raw.execute('SELECT * FROM stage8_live_execution_work_receipts ORDER BY receipt_key')).rows,receipts);
+ // Model a stale initial absence, as when another real caller finalizes this
+ // exact RID after the preflight SELECT. The runner still observes and verifies
+ // the actual finalized execution. This early hint cannot authorize effects.
+ const execute=f.db.raw.execute;let staleHint=false;
+ f.db.raw.execute=async statement=>{if(!staleHint&&statement?.sql==='SELECT 1 FROM stage8_live_executions WHERE execution_id=?'){staleHint=true;const value=await execute(statement);assert.equal(value.rows.length,1);return {...value,rows:[]};}return execute(statement);};
+ try{const raced=await producer.run({userId:'a',requestId:`outer-publication-abort-${lastLeg}`});assert.equal(staleHint,true);assert.equal(raced.replayed,true);assert.equal(raced.publication.status,'ANALYSIS_UPDATING');}
+ finally{f.db.raw.execute=execute;}
+ assert.equal(await count(f.db,'stage8_live_publications'),0);assert.deepEqual(await executionRows(f.db),rows);
+ const fresh=await producer.run({userId:'a',requestId:'new-authorized-publication-after-interruption'});assert.equal(fresh.replayed,false);assert.equal(fresh.publication.status,'CURRENT');assert.equal(await count(f.db,'stage8_live_publications'),1);
 });

@@ -66,19 +66,31 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
  async function runWork({userId,requestId}={}){
   if(runningReleaseSha(environment)!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');
   if(requestId!==undefined&&(typeof requestId!=='string'||!/^[-a-zA-Z0-9_]{8,128}$/.test(requestId)))fail('STAGE8_LIVE_REQUEST_INVALID');
-  await ready(userId);await core.initializeTenant(userId,'LIVE');await worker.rolloutAlgorithm({userId});
+  await ready(userId);
   const executionId=requestId?keys.lookup(['stage8-live-request-v1',userId,requestId]):null;
-  const prior=executionId&&(await db.raw.execute({sql:'SELECT 1 FROM stage8_live_executions WHERE execution_id=?',args:[executionId]})).rows.length;
-  if(!prior)await prepareFreshGeneration(userId);
+  // The original write root serializes this observation with other execution
+  // claims. An absence observed outside this root cannot authorize preparation:
+  // another caller could finalize the same RID before generation/rollout work.
+  // Actual execution and canonical work remain separate bounded transactions.
+  await db.transaction(async()=>{
+   const prior=executionId&&(await db.raw.execute({sql:'SELECT 1 FROM stage8_live_executions WHERE execution_id=?',args:[executionId]})).rows.length;
+   if(!prior){await core.initializeTenant(userId,'LIVE');await worker.rolloutAlgorithm({userId});await prepareFreshGeneration(userId);}
+  });
   const result=await db.withRuntimeFence(readOnlyProcessingCheck(()=>ready(userId)),()=>execute({userId,...(requestId?{requestId:executionId}:{})}));
   const ctx=await capture(userId),{computation}=await core.assertContext(ctx);
   let publication={status:'ANALYSIS_UPDATING'};
   if(computation.last_completed_generation===ctx.inputGeneration){
+   if(result.replayed){
+    // A finalized original RID may report an already valid publication. It
+    // cannot create a missing publication or a separate alert execution.
+    if(await verifyStage8LivePublication(core,ctx))publication={status:'CURRENT',replayed:true,inputGeneration:ctx.inputGeneration};
+   }else{
    const prior=(await db.raw.execute({sql:'SELECT 1 FROM stage8_live_publications WHERE user_id=? AND input_generation=?',args:[userId,ctx.inputGeneration]})).rows.length;
    // Original canonical job executions are finalized before the separately
    // signed subject-alert execution. First aggregate publication follows both.
    if(executeAlerts&&!prior)await db.withRuntimeFence(readOnlyProcessingCheck(()=>ready(userId)),()=>executeAlerts({userId,requestId:subjectAlertExecutionId(keys,ctx)}));
    publication={status:'CURRENT',...await db.withRuntimeFence(readOnlyProcessingCheck(()=>ready(userId)),()=>publishStage8Live(core,ctx,capability))};
+   }
   }
   await assertContext(ctx);return Object.freeze({...result,publication});
  }

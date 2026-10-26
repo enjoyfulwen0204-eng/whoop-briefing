@@ -1,11 +1,14 @@
 import {analysisTable} from './stage8LiveAllocation.js';
-import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
+import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation,currentExecutionReceiptTransactionMarker} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {bodySha256} from './briefingTriggerAuth.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {JOB_KINDS} from './phase4V24Schema.js';
 import {phase4Metric,INTELLIGENCE_VERSIONS} from './phase4IntelligenceRegistry.js';
 import {metricProducerPageSql} from './phase4MetricProofSql.js';
+import {finishRunObservationBranches} from './phase4RunObservationBarriers.js';
+import {processingOwnedLiveObservationEpoch} from './processingTransaction.js';
+import {isLiveExecution} from './stage8LiveProducerAuthority.js';
 
 const kinds=new Set(['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY']),proofs=new WeakMap();
 const continuationScope=new AsyncLocalStorage();
@@ -156,6 +159,20 @@ async function namedRunReceipt(core,context,plan){
    const rows=receipts.filter(row=>row.receipt_key===keys[index]);if(rows.length>1)fail();
    for(const receipt of rows){validateReceipt(core,context,owner,p,receipt,[keys[index]]);branch.found=true;}
   }catch(error){branch.error=error;}
+ }
+ // All producer pages and their original barriers have already settled.
+ // Only trailing non-health branch barriers overlap inside this exact owned
+ // LIVE root. Each original guard still runs, with original interleaved
+ // branch/guard error priority; unused alternatives remain unobserved.
+ const epoch=processingOwnedLiveObservationEpoch(core.client,context),marker=currentExecutionReceiptTransactionMarker(),
+   execution=currentDurableExecution(),job=core.jobAuthority();
+ if(core.schemaVersion===35&&core.liveAllocation&&context.executionMode==='LIVE'&&epoch!==null
+   &&isLiveExecution(execution,core.client,core.keys,context.userId,context)){
+  const value=await finishRunObservationBranches(branches,()=>finishUnitObservation(core,context));
+  requireSettledOperation();
+  if(epoch!==processingOwnedLiveObservationEpoch(core.client,context)||marker!==currentExecutionReceiptTransactionMarker()
+    ||execution!==currentDurableExecution()||job!==core.jobAuthority())fail();
+  return value;
  }
  const branch=index=>{if(branches[index].error)throw branches[index].error;return branches[index].found;};
  const whole=branch(0);await finishUnitObservation(core,context);if(whole)return true;

@@ -11,6 +11,10 @@ import {readOnlyProcessingCheck} from './processingTransaction.js';
 const fail=(code='STAGE8_FINALIZED_SYNC_REQUIRED')=>{throw Object.assign(Error(code),{code});};
 const sign=(keys,value)=>keys.lookup(['stage8-post-sync-metadata-v1',canonicalJson(value)]);
 const keyFor=(keys,id,uid)=>'stage8:sync-subject:'+keys.lookup(['stage8-sync-subject-v1',id,uid]);
+const STOPPED_ORIGINAL='ORIGINAL_LIVE_EXECUTION_EXPIRED';
+const stoppedResult=()=>({status:STOPPED_ORIGINAL,continuation:false,requiresFreshSync:true});
+const validProgress=p=>Number.isSafeInteger(p.ordinal)&&p.ordinal>=0&&p.ordinal<64&&typeof p.done==='boolean'
+ &&(p.stopped===undefined||p.stopped===STOPPED_ORIGINAL&&p.done===false);
 async function snapshot(db,keys,uid){
  const row=(await db.raw.execute({sql:`SELECT u.status,u.timezone,u.lifecycle_generation,t.auth_generation,p.source_generation,p.purge_generation,p.pending_purge_count,o.state,o.enrollment_revision,COALESCE(n.preference_version,0) preference_version
   FROM users u JOIN user_whoop_tokens t ON t.user_id=u.id JOIN phase4_user_state p ON p.user_id=u.id
@@ -81,9 +85,19 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
   });
   try{
    await check();const saved=await db.getState(progressKey);let ordinal=0,done=false;
-   if(saved){const {hmac,...p}=JSON.parse(saved);if(hmac!==sign(keys,{progressKey,...p})||!Number.isSafeInteger(p.ordinal)||p.ordinal<0||p.ordinal>=64||typeof p.done!=='boolean')fail();ordinal=p.ordinal;done=p.done;}
+   if(saved){const {hmac,...p}=JSON.parse(saved);if(hmac!==sign(keys,{progressKey,...p})||!validProgress(p))fail();if(p.stopped)return stoppedResult();ordinal=p.ordinal;done=p.done;}
    const requestId=keys.lookup(['stage8-finalized-sync-live-leg-v1',executionId,row.result_digest,userId,value.scope,ordinal]);
-   const result=await db.withRuntimeFence(check,()=>producer.run({userId,requestId}));await check();
+   let result;
+   try{result=await db.withRuntimeFence(check,()=>producer.run({userId,requestId}));}
+   catch(error){
+    if(error?.code!=='STAGE8_LIVE_REQUEST_EXPIRED')throw error;
+    // Preserve the expired original RID and ordinal. This is a signed stopped
+    // continuation, never completion or permission to mint a replacement RID.
+    // A later genuine per-subject finalized SYNC grants its own fresh scope.
+    await db.transaction(async()=>{await check();const stopped={ordinal,done:false,stopped:STOPPED_ORIGINAL};await db.setState(progressKey,canonicalJson({...stopped,hmac:sign(keys,{progressKey,...stopped})}));await check();});
+    return stoppedResult();
+   }
+   await check();
    const complete=result.publication.status==='CURRENT',next={ordinal:complete||done?ordinal:ordinal+1,done:complete};if(next.ordinal>=64)fail('STAGE8_POST_SYNC_ORDINAL_EXHAUSTED');
    await db.transaction(async()=>{await check();await db.setState(progressKey,canonicalJson({...next,hmac:sign(keys,{progressKey,...next})}));await check();});
    return {status:complete?'CURRENT':'ANALYSIS_UPDATING',replayed:result.replayed,continuation:!complete,executionId:result.executionId};
@@ -102,7 +116,7 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
    const rows=(await db.raw.execute({sql:`SELECT execution_id,identity_digest,generation,result_digest,created_at FROM phase4_executions
     WHERE phase='SYNC' AND state='FINALIZED_SUCCESS' AND release_sha=? AND config_proof=? AND execution_mode=?
     AND created_at>? AND created_at<=? AND finalized_at<=? AND finalized_at>=?
-    ORDER BY created_at DESC,execution_id DESC LIMIT 64`,args:[release,proof,mode,at-EXECUTION_WORK_MAX_AGE_MS,at,at,at-HANDOFF_TTL_MS]})).rows;budget.assert();
+    ORDER BY execution_seq DESC LIMIT 64`,args:[release,proof,mode,at-EXECUTION_WORK_MAX_AGE_MS,at,at,at-HANDOFF_TTL_MS]})).rows;budget.assert();
    for(const [id,expiry] of exhausted)if(expiry<=at)exhausted.delete(id);
    // Rotate only discovery order. Each subject keeps its original signed
    // parent/ordinal/expiry, including when its selected leg fails or is busy.
@@ -122,7 +136,10 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
      const progressKey='stage8:sync-progress:'+keys.lookup(['stage8-sync-progress-v1',row.execution_id,userId,value.scope]),saved=await db.getState(progressKey);budget.assert();
      if(saved){
       if(saved.length>2048)fail();let p,seal;try{({hmac:seal,...p}=JSON.parse(saved));}catch{fail();}
-      if(seal!==sign(keys,{progressKey,...p})||!Number.isSafeInteger(p.ordinal)||p.ordinal<0||p.ordinal>=64||typeof p.done!=='boolean')fail();
+      if(seal!==sign(keys,{progressKey,...p})||!validProgress(p))fail();
+      // A stopped newest parent cannot be evaded via an older retained one.
+      // A genuinely newer authorized SYNC is considered before this marker.
+      if(p.stopped)break;
       if(p.done)continue;
      }
      budget.assert();return {executionId:row.execution_id,userId,id,expiresAt:row.created_at+EXECUTION_WORK_MAX_AGE_MS};

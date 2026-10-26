@@ -10,6 +10,8 @@ export async function load(url,context,nextLoad){
   const raw='stores.intelligence.metricPreparationUnitFromCurrentRaw(context,metricKey,source)';replace(raw,measure('RAW_PREPARATION','metricKey',raw));
   const request='stores.intelligence.currentRawMetricReplayRequest(context,metricKey,source)';replace(request,measure('RAW_REQUEST','metricKey',request));
   for(const [phase,call] of [['BODY_COMPUTE','stores.bodyEnergy.computeForCurrentDrain(context)'],
+   ['BODY_CAPTURE','stores.bodyEnergy.prepareForCurrentDrain(context)'],
+   ['BODY_PERSIST','stores.bodyEnergy.persist(context,capturedBody)'],
    ['BODY_METRIC_UNIT','stores.intelligence.metricPreparationUnitFromCurrentBody(context,asOfUtc)']])replace(call,measure(phase,"'body_energy'",call));
   replace('()=>stores.intelligence.replayCurrentBodyMetricFamily(context,asOfUtc,',
    "()=>globalThis.__stage6RawReplayProfile.measure('BODY_FAMILY_REPLAY','body_energy',()=>stores.intelligence.replayCurrentBodyMetricFamily(context,asOfUtc,");

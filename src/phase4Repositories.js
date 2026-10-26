@@ -139,8 +139,8 @@ export function composePhase4Stores(core) {
     return perform();
   }
   const bodyCompute=operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.compute(context,request)));
-  async function computeForCurrentDrain(context){
-    const request=await core.run(context,async()=>{
+  async function currentDrainBodyRequest(context){
+    return core.run(context,async()=>{
       const execution=await assertExecutionWorkOwner(client);
       if(!core.analysisModeAllowed(context)||execution?.phase!=='STAGE6_DRAIN')fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const supportedClock=core.now().getTime(),actualClock=Date.now();
@@ -156,7 +156,17 @@ export function composePhase4Stores(core) {
       if(rows.length>1)fail('BODY_ENERGY_CURRENT_DRAIN_AMBIGUOUS');
       return {asOfEpochMs:rows[0]?.as_of_epoch_ms??clock};
     });
-    return bodyCompute(context,request);
+  }
+  async function computeForCurrentDrain(context){
+    return bodyCompute(context,await currentDrainBodyRequest(context));
+  }
+  async function prepareForCurrentDrain(context){
+    if(!core.liveAllocation||core.schemaVersion!==35||context.executionMode!=='LIVE'||!core.jobAuthority())
+      fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+    // Capture data with the existing private ticket API in a read-only root.
+    // This is no result/receipt authority. Persist retains its original fresh
+    // source revalidation and atomic BODY/domain/named-source write boundary.
+    return core.run(context,async()=>body.prepare(context,await currentDrainBodyRequest(context)));
   }
   async function readForCurrentDrain(context,asOfUtc){
     const bundle=await receipts.readCurrentBodyBundle(context,asOfUtc);
@@ -368,7 +378,7 @@ export function composePhase4Stores(core) {
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),
     experiments:Object.freeze(experiments),
-    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,computeForCurrentDrain,readForCurrentDrain,checkpoint:bodyCheckpoint,
+    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,computeForCurrentDrain,prepareForCurrentDrain,readForCurrentDrain,checkpoint:bodyCheckpoint,
       readForPublication:bodyPublication.readCurrent,
       readDropCandidate:bodyPublication.readDropCandidate,
       persist:(context,ticket)=>operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.persist(context,ticket)))(context,body.describeTicket(context,ticket)),

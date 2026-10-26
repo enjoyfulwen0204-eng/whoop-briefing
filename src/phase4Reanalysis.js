@@ -401,9 +401,12 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         assertBudget();return {body:retained.body,...(['AVAILABLE','LIMITED'].includes(retained.body.row.quality_state)
           ?{request:await inputs.metric(context,'body_energy',retained.current,retained.analysisTime)}:{})};
       },{assertBudget}):null;
+      const capturedBody=!prior&&live&&core.schemaVersion===35?await queue.withOwnership(context,lease,
+        ()=>stores.bodyEnergy.prepareForCurrentDrain(context),{assertBudget}):null;
       const recorded=prior??await queue.owned(context,lease,async()=>{
-        const body=await ([32,33,34,35].includes(core.schemaVersion)?stores.bodyEnergy.computeForCurrentDrain(context)
-          :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}));
+        const body=await (capturedBody?stores.bodyEnergy.persist(context,capturedBody)
+          :[32,33,34,35].includes(core.schemaVersion)?stores.bodyEnergy.computeForCurrentDrain(context)
+            :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}));
         // Replayed Body and its required metric inputs use the same current
         // owned transaction. Every original typed artifact/domain/root check
         // still runs; deterministic read transport can reuse that snapshot.

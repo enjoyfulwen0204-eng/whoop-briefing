@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {Sqlite3Transaction} from '@libsql/client/sqlite3';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
 import {runExecutionPhase} from '../src/phase4Execution.js';
 import {configurationProof} from '../src/phase4ExecutionStore.js';
 import {runningReleaseSha} from '../src/phase4Release.js';
+import {canonicalJson} from '../src/phase4EntityStore.js';
 import {createSync} from '../src/sync.js';
 import {recordStage8SyncSubject,createStage8PostSync} from '../src/stage8PostSync.js';
 
@@ -105,4 +107,44 @@ test('a newer genuine SYNC wins an equal-millisecond tie over a lexically greate
  const restarted=f.restart();assert.equal((await restarted.resume()).status,'ANALYSIS_UPDATING');assert.equal(f.calls.at(-1).userId,'a','sequence-newer subject must not be hidden by stopped UUID ordering');
  assert.deepEqual((await f.db.raw.execute({sql:'SELECT * FROM phase4_executions WHERE execution_id IN (?,?) ORDER BY execution_seq',args:[older,newer]})).rows,parents);
  for(const row of stopped)assert.equal(await f.db.getState(row.key),row.value);
+});
+
+test('a committed stopped continuation survives lost COMMIT acknowledgement without retrying its original RID',async t=>{
+ const f=await fixture(t),app=f.restart();
+ const executions=(await f.db.raw.execute('SELECT * FROM phase4_executions ORDER BY execution_seq')).rows;
+ const receipts=(await f.db.raw.execute('SELECT * FROM phase4_execution_work_receipts ORDER BY receipt_key')).rows;
+ const execute=Sqlite3Transaction.prototype.execute,commit=Sqlite3Transaction.prototype.commit,stops=new WeakSet();
+ let fired=false,saved;
+ // Inject only after the actual native transaction wrote the signed stop and
+ // its real COMMIT acknowledged locally. No SQL/result/row is fabricated. The
+ // producer error is modeled; this is continuation-metadata recovery evidence.
+ Sqlite3Transaction.prototype.execute=async function(statement,...args){
+  const result=await execute.call(this,statement,...args);
+  if(typeof statement?.sql==='string'&&/^INSERT INTO telegram_state\b/.test(statement.sql)
+   &&statement.args?.[0]?.startsWith('stage8:sync-progress:')
+   &&JSON.parse(statement.args[1]).stopped==='ORIGINAL_LIVE_EXECUTION_EXPIRED'){
+   stops.add(this);saved={key:statement.args[0],value:statement.args[1]};
+  }
+  return result;
+ };
+ Sqlite3Transaction.prototype.commit=async function(...args){
+  await commit.apply(this,args);
+  if(stops.has(this)&&!fired){fired=true;throw Object.assign(Error('SYNTHETIC_LOST_STOP_COMMIT_ACK'),{code:'SQLITE_IOERR'});}
+ };
+ try{
+  f.failCode('STAGE8_LIVE_REQUEST_EXPIRED');
+  await assert.rejects(app.run({executionId:f.parent,userId:'a'}),error=>error.code==='COMMIT_INDETERMINATE');
+ }finally{Sqlite3Transaction.prototype.execute=execute;Sqlite3Transaction.prototype.commit=commit;}
+ assert.equal(fired,true);assert.equal(f.calls.length,1);
+ assert.equal(await f.db.getState(saved.key),saved.value,'unknown ACK must not erase an actually committed signed stop');
+ const {hmac,...progress}=JSON.parse(saved.value);
+ assert.deepEqual(progress,{done:false,ordinal:0,stopped:'ORIGINAL_LIVE_EXECUTION_EXPIRED'});
+ assert.equal(hmac,f.keys.lookup(['stage8-post-sync-metadata-v1',canonicalJson({progressKey:saved.key,...progress})]));
+ assert.deepEqual(await f.restart().run({executionId:f.parent,userId:'a'}),{status:'ORIGINAL_LIVE_EXECUTION_EXPIRED',continuation:false,requiresFreshSync:true});
+ assert.equal(f.calls.length,1,'verified durable stop must not invoke the expired producer again');
+ assert.equal(await f.db.getState(saved.key),saved.value);
+ assert.deepEqual((await f.db.raw.execute('SELECT * FROM phase4_executions ORDER BY execution_seq')).rows,executions);
+ assert.deepEqual((await f.db.raw.execute('SELECT * FROM phase4_execution_work_receipts ORDER BY receipt_key')).rows,receipts);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM stage8_live_executions')).rows[0].n,0);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
 });

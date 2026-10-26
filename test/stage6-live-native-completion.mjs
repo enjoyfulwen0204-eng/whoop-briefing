@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {canonicalJson} from '../src/phase4EntityStore.js';
 import {createDb,createStage6OwnedMemoryDb} from '../src/db.js';
 import {createPhase4Foundation} from '../src/phase4Foundation.js';
 import {createStage8LiveProducer} from '../src/stage8LiveProducer.js';
@@ -14,7 +15,7 @@ import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {nativeShadowFixture} from './stage6ShadowNativeFixture.mjs';
 import {NATIVE_LIMITS} from './stage6-linux-native-contract.mjs';
 import {nativeTraceSummary} from './stage6ShadowNativeTrace.mjs';
-const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const digest=value=>createHash('sha256').update(canonicalJson(value)).digest('hex');
 const prefixProfile=process.env.STAGE6_NATIVE_PREFIX_PROFILE==='1';
 const coldProfile=process.env.STAGE6_NATIVE_COLD_PROFILE==='1',profile=prefixProfile||coldProfile;
 assert.ok(!(prefixProfile&&coldProfile),'DIAGNOSTIC_SCOPES_MUST_NOT_MIX');

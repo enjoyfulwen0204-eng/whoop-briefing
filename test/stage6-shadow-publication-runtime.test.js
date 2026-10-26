@@ -10,12 +10,18 @@ import {runningReleaseSha} from '../src/phase4Release.js';
 import {OWNER_PILOT_APPROVAL_SHA256} from '../src/betaPilotAllowance.js';
 import {stage6CapacityStatus} from '../src/stage6CapacityRuntime.js';
 import {verifyCurrentRuntimeProof} from './stage6RuntimeCurrentProof.mjs';
+import {nativeShadowFixture} from './stage6ShadowNativeFixture.mjs';
 
 for(const attack of ['NONE','CONTENT','SOURCE_GENERATION','OWNER','CONTEXT','ACK_LOSS'])
  test(`actual schema34 SHADOW publication keeps original guards and authority: ${attack}`,{timeout:120000},async t=>{
+  const nativeIntent=process.env.STAGE6_SHADOW_NATIVE_SQLD==='1';
+  if(nativeIntent)assert.equal(attack,'NONE','native component is one positive original execution only');
   // Current v33 transition admission requires SHADOW OFF. Qualify the lawful
   // future schema34 path without weakening that production activation gate.
   const f=await residualFixture(t,{targetVersion:34});
+  let db,native;
+  t.after(async()=>{try{await db?.close();}finally{await native?.close();}});
+  native=nativeIntent?await nativeShadowFixture(f):null;
   f.transport.setTransactionMaxMs(5000);
   let armed=false,injected=false,request,packedGuards=0,packedRows=0;
   const fetch=async r=>{
@@ -31,9 +37,10 @@ for(const attack of ['NONE','CONTENT','SOURCE_GENERATION','OWNER','CONTEXT','ACK
      if(attack==='CONTEXT')await f.db.raw.execute("DELETE FROM resource_locks WHERE name LIKE 'p4ctx:%:short:%'");
     }
    }
+   if(native){if(armed)await new Promise(resolve=>setTimeout(resolve,115));return native.fetch(r);}
    return f.syntheticFetch(r);
   };
-  let db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch});t.after(()=>db.close());
+  db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch});
   const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off',PHASE4_BETA_PILOT_ID:'a'.repeat(64),PHASE4_BETA_PILOT_USER_ID:'a',PHASE4_BETA_PILOT_START_AT:new Date(Date.now()-1000).toISOString(),PHASE4_BETA_PILOT_CONSENT_SHA256:'b'.repeat(64),PHASE4_BETA_PILOT_ALLOWANCE_ID:OWNER_PILOT_APPROVAL_SHA256};
   const releaseSha=runningReleaseSha(environment),configProof=configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment,releaseSha);
   const req=(phase,extra={})=>({requestId:randomUUID(),releaseSha,phase,triggerSource:'manual',executionMode:'SHADOW',configProof,...extra});
@@ -46,7 +53,7 @@ for(const attack of ['NONE','CONTENT','SOURCE_GENERATION','OWNER','CONTEXT','ACK
   // No test prototype, injected worker, overridden budget or real provider is used.
   const start=performance.now(),result=await runExecutionPhase({...options(),request}),executionMs=performance.now()-start;f.setLatency(0);
   assert.ok(packedGuards>0,'must execute the changed production-source SQL');
-  assert.equal(stage6CapacityStatus().active,false);assert.equal(f.transport.evidence.filter(e=>e.event==='transaction_timeout').length,0);
+  assert.equal(stage6CapacityStatus().active,false);if(!native)assert.equal(f.transport.evidence.filter(e=>e.event==='transaction_timeout').length,0);
   if(['CONTENT','SOURCE_GENERATION','OWNER','CONTEXT'].includes(attack)){
    assert.equal(injected,true);assert.notEqual(result.body.ok,true,JSON.stringify(result));
    const after=await f.jobs();assert.deepEqual(after.map(j=>j.full_scan_cursor),before.map(j=>j.full_scan_cursor));assert.equal((await f.counts()).domain,0);
@@ -64,5 +71,5 @@ for(const attack of ['NONE','CONTENT','SOURCE_GENERATION','OWNER','CONTEXT','ACK
    await fresh();assert.deepEqual(await verifyCurrentRuntimeProof(db,request.requestId,[]),proof);assert.deepEqual(await runExecutionPhase({...options(),request}),result);
    assert.ok(stage6CapacityStatus().lastPublication.transactionMs<5000);
   }
-  console.log('SYNTHETIC_SCHEMA34_SHADOW_PUBLICATION '+JSON.stringify({attack,schema:34,addedRequestLatencyMs:attack==='NONE'?115:0,executionMs,elapsedMs:performance.now()-start,packedGuards,packedRows,avoidedRowStatements:packedRows-packedGuards,publication:attack==='NONE'?stage6CapacityStatus().lastPublication:undefined,outcome:result.body.result?.outcome,productionEvidence:false,linuxQualification:false,sixJobCompletion:false}));
+  console.log('SYNTHETIC_SCHEMA34_SHADOW_PUBLICATION '+JSON.stringify({attack,schema:34,nativeSQLDUsed:Boolean(native),modeledAbsoluteTransactionLimitMs:native?null:5000,nativeServerAbsoluteTransactionLimit:native?'UNKNOWN':null,addedRequestLatencyMs:attack==='NONE'?115:0,executionMs,elapsedMs:performance.now()-start,packedGuards,packedRows,avoidedRowStatements:packedRows-packedGuards,publication:attack==='NONE'?stage6CapacityStatus().lastPublication:undefined,outcome:result.body.result?.outcome,productionEvidence:false,linuxQualification:false,sixJobCompletion:false}));
  });

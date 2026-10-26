@@ -20,6 +20,7 @@ on:
           - native-empty-metadata-repair
           - native-empty-principal-snapshot-repair
           - shadow-snapshot-component
+          - shadow-snapshot-native-component
       diagnostic_run_intent:
         description: Only for native-empty-attribution; explicit one-original-empty-120s-v1
         required: false
@@ -47,7 +48,7 @@ concurrency:
 
 jobs:
   shadow-snapshot-component:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event.repository.private == false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/repair/stage6-shadow-publication-20261026' && github.workflow_sha == github.sha && inputs.candidate_sha == github.sha && inputs.mode == 'shadow-snapshot-component'
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event.repository.private == false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/repair/stage6-shadow-publication-20261026' && github.workflow_sha == github.sha && inputs.candidate_sha == github.sha && (inputs.mode == 'shadow-snapshot-component' || inputs.mode == 'shadow-snapshot-native-component')
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -80,9 +81,13 @@ jobs:
           docker build --pull --platform linux/amd64 --tag "shadow-component:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --build-arg "QUALIFICATION_ROOT=$GITHUB_WORKSPACE" --build-arg "QUALIFICATION_UID=$(id -u)" --build-arg "QUALIFICATION_GID=$(id -g)" "$context"
           docker image inspect --format '{{.Id}}' "shadow-component:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" > "$RUNNER_TEMP/shadow-component-image.id"
       - name: Two owned bounded Linux components; synthetic transport only
+        env:
+          COMPONENT_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
-          for mode in guards runtime; do
+          modes="guards runtime"
+          if test "$COMPONENT_MODE" = shadow-snapshot-native-component; then modes=native-runtime; fi
+          for mode in $modes; do
             name="shadow-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$mode"
             cidfile="$RUNNER_TEMP/$name.cid"
             docker create --cidfile "$cidfile" --name "$name" --label "healthos.stage6.shadow=$GITHUB_SHA:$mode:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" --init --platform linux/amd64 --network none --memory 536870912 --memory-swap 536870912 --cpus 0.5 --pids-limit 128 --read-only --cap-drop ALL --security-opt no-new-privileges --cgroupns private --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=67108864 --workdir "$GITHUB_WORKSPACE" --env "PHASE4_RELEASE_SHA=$GITHUB_SHA" --mount "type=bind,src=$GITHUB_WORKSPACE/src,dst=$GITHUB_WORKSPACE/src,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/test,dst=$GITHUB_WORKSPACE/test,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/scripts,dst=$GITHUB_WORKSPACE/scripts,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/tools,dst=$GITHUB_WORKSPACE/tools,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/.git,dst=$GITHUB_WORKSPACE/.git,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/package.json,dst=$GITHUB_WORKSPACE/package.json,readonly" --mount "type=bind,src=$GITHUB_WORKSPACE/package-lock.json,dst=$GITHUB_WORKSPACE/package-lock.json,readonly" "shadow-component:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" node tools/stage8-qualification/shadow-snapshot-component.mjs "$mode"
@@ -97,7 +102,7 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          for mode in guards runtime; do
+          for mode in guards runtime native-runtime; do
             name="shadow-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$mode"
             cidfile="$RUNNER_TEMP/$name.cid"
             if test -s "$cidfile"; then
@@ -116,7 +121,7 @@ jobs:
             fi
           done
   qualify:
-    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'native-empty-restart' && inputs.mode != 'shadow-snapshot-component'
+    if: github.repository == 'enjoyfulwen0204-eng/whoop-briefing' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'native-empty-restart' && inputs.mode != 'shadow-snapshot-component' && inputs.mode != 'shadow-snapshot-native-component'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

@@ -70,3 +70,16 @@ export function throwNativeCloseFailures(joinError,shutdownError){
  if(joinError&&shutdownError)throw new AggregateError([joinError,shutdownError],'SYNTHETIC_NATIVE_TRACE_AND_SHUTDOWN_FAILED',{cause:joinError});
  if(joinError)throw joinError;if(shutdownError)throw shutdownError;
 }
+
+// Per-invocation gate before another original work cycle. An acknowledged idle
+// baton may remain owned; active/unknown transactions or lost observations may
+// never be carried into the next cycle. This is not a physical close witness.
+export function assertNativeLegObservations(snapshot){
+ const s=nativeTraceSummary(snapshot);
+ assert.ok(s.requests>0&&s.begun>0,'original native work observations required');
+ for(const key of ['requestErrors','responseErrors','unknownTerminal','atOrAbove5s','attributionDroppedObservations','adapterDroppedObservations','unknownProtocolReplies','inflightRequests','activeFetches','pendingAcknowledgedBegins','unsettledTransactions','unresolvedStreams'])assert.equal(s[key],0,'NATIVE_LEG_'+key);
+ assert.equal(s.begun,s.committed+s.rolledBack,'NATIVE_LEG_EVERY_BEGIN_TERMINAL');
+ assert.equal(s.physicalTerminalObservationComplete,true);assert.equal(s.allTransactionTerminalsKnown,true);assert.equal(s.terminalComplete,true);
+ assert.ok(Number.isFinite(s.maxDurationUpperBoundMs)&&s.maxDurationUpperBoundMs>=0&&s.maxDurationUpperBoundMs<5000,'observed original native leg transactions below 5s');
+ return s;
+}

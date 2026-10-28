@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDiagnosticFetch} from './stage6-native-diagnostic-observer.mjs';
-import {nativeTraceJoined,nativeTraceSummary,awaitNativeTraceJoined,assertNativeObservedTransactions,throwNativeCloseFailures} from './stage6ShadowNativeTrace.mjs';
+import {nativeTraceJoined,nativeTraceSummary,awaitNativeTraceJoined,assertNativeObservedTransactions,throwNativeCloseFailures,assertNativeLegObservations} from './stage6ShadowNativeTrace.mjs';
 const {PipelineRespBody}=await import(new URL('./http/json_decode.js',import.meta.resolve('@libsql/hrana-client')));
 const stmt={cols:[],rows:[],affected_row_count:0,last_insert_rowid:null};
 const ok=(type,result)=>({type:'ok',response:{type,...(result?{result}:{})}});
@@ -90,4 +90,16 @@ test('5s violation beyond bounded transaction sample retention still fails from 
  assert.equal(summary.atOrAbove5s,1);assert.equal(summary.maxDurationUpperBoundMs,5000);
  assert.equal(nativeTraceJoined(joined),true);
  assert.throws(()=>assertNativeObservedTransactions(joined),/below 5s/);
+});
+
+
+test('per-leg gate accepts an acknowledged idle baton without claiming physical stream join',async()=>{
+ const trace=adapter(async()=>json({baton:'PRIVATE_IDLE',results:[ok('execute',stmt),ok('execute',stmt)]}));
+ await trace.fetch(request([execute('BEGIN'),execute('COMMIT')]));
+ assert.equal(assertNativeLegObservations(trace.snapshot()).committed,1);assert.equal(nativeTraceJoined(trace.snapshot()),false);
+});
+test('per-leg gate rejects lost COMMIT response immediately before any next cycle',async()=>{
+ let calls=0;const trace=adapter(async()=>++calls===1?json({baton:'PRIVATE_ACTIVE',results:[ok('execute',stmt)]}):Promise.reject(Error('PRIVATE_LOST_COMMIT')));
+ await trace.fetch(request([execute('BEGIN')]));await assert.rejects(trace.fetch(request([execute('COMMIT')],'PRIVATE_ACTIVE')),/PRIVATE_LOST_COMMIT/);
+ assert.throws(()=>assertNativeLegObservations(trace.snapshot()),/NATIVE_LEG_/);
 });

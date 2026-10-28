@@ -14,7 +14,7 @@ import {fixtureKeys} from './localDb.js';
 import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {nativeShadowFixture} from './stage6ShadowNativeFixture.mjs';
 import {NATIVE_LIMITS} from './stage6-linux-native-contract.mjs';
-import {nativeTraceSummary} from './stage6ShadowNativeTrace.mjs';
+import {nativeTraceSummary,assertNativeLegObservations} from './stage6ShadowNativeTrace.mjs';
 const digest=value=>createHash('sha256').update(canonicalJson(value)).digest('hex');
 const prefixProfile=process.env.STAGE6_NATIVE_PREFIX_PROFILE==='1';
 const coldProfile=process.env.STAGE6_NATIVE_COLD_PROFILE==='1',profile=prefixProfile||coldProfile;
@@ -71,7 +71,7 @@ test(profile?(coldProfile?'one fresh native cold producer call: diagnostic only'
   const {transactionSamples,...observation}=nativeTraceSummary(native.snapshot());
   console.log('SYNTHETIC_NATIVE_LIVE_LEG_TRACE '+JSON.stringify({leg,...observation,transactionExamples:transactionSamples.filter(t=>t.durationUpperBoundMs>=5000).slice(0,8),provisional:true}));
   if(profile){console.log('SYNTHETIC_NATIVE_RAW_REPLAY_PROFILE '+JSON.stringify(globalThis.__stage6RawReplayProfile.snapshot()));return;}
-  assert.equal(observation.atOrAbove5s,0,'OBSERVED_NATIVE_TRANSACTION_CONTRACT_FAILED_STOP_NO_RETRY');
+  assertNativeLegObservations(native.snapshot());
   assert.ok(last.result.itemsProcessed||last.result.unitsCommitted||last.result.jobsCompleted,
    'NO_DURABLE_NATIVE_PROGRESS_STOP_NO_RETRY');
   original??={requestId,resultDigest:digest(last.result)};
@@ -84,7 +84,7 @@ test(profile?(coldProfile?'one fresh native cold producer call: diagnostic only'
  assert.equal((await db.raw.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
  assert.equal((await db.raw.execute("SELECT count(*) n FROM system_heartbeats WHERE component LIKE 'phase4_beta_pilot_permit%'")).rows[0].n,0);
  const before=await canonical();await db.close();db=open();const replay=await (await producer()).run({userId:'a',requestId:original.requestId});
- assert.equal(replay.replayed,true);assert.equal(digest(replay.result),original.resultDigest);assert.equal(await canonical(),before);
+ assert.equal(replay.replayed,true);assert.equal(replay.publication.status,'CURRENT');assert.equal(digest(replay.result),original.resultDigest);assert.equal(await canonical(),before);
  const admission=await db.admitRuntime(),reader=createStage8DerivedReader({db,keys:fixtureKeys,admission,eligible:id=>id==='a'}),scopes=await createScopedHealthContext({db,keys:fixtureKeys,admission,derivedReader:reader}),typed=[];
  for(const kind of ['BODY_ENERGY','EPISODES','EVIDENCE','INSIGHTS']){
   const scope=await scopes.open({user:await db.getUser('a'),chatId:'10001',text:'/insights'}),value=await scopes.derived(scope,kind);

@@ -1,0 +1,41 @@
+{
+  "checkpoint": "R22-recovery-296",
+  "atUTC": "2026-10-28T10:48:29.817210+00:00",
+  "stage": "ORIGINAL_ROOT_TERMINAL_OBSERVATION_IMPLEMENTED",
+  "baseCommit": "02909408045204daec0e94c9a5cdf958722f2150",
+  "changes": [
+    "afterCompletion receives frozen per-attempt observation with ACKNOWLEDGED_COMMIT, ACKNOWLEDGED_ROLLBACK, UNKNOWN or NO_ROOT",
+    "Known-open admitted FILE/HTTP driver terminals only; closed Hrana rollback no-op is not ACK",
+    "Unknown COMMIT remains unknown after cleanup rollback; known COMMIT is not erased by later close failure",
+    "Observation never grants retry, hold disposal or physical completion; receipt/cache/authority decisions unchanged"
+  ],
+  "validation": {
+    "focusedTests": 15,
+    "focusedFailures": 0,
+    "includesInstalledHttpDriverAndNativeSqliteBeforeAfterCommitAckLoss": true,
+    "adjacentPassed": 22,
+    "adjacentFailed": 1,
+    "adjacentFailure": "preexisting nested-root reaper skipped-count regression",
+    "baselineComparison": "Exact Git0290940 source and current source both fail original targeted R3 assertion skipped0 vs1; initial baseline import error is not used as evidence"
+  },
+  "independentReview": "Source and all15 focused tests GO; reviewer inspected both A/B logs. Baseline archive identity is recorded by the primary build, not an independent byte-for-byte reviewer audit.",
+  "qualificationLimits": [
+    "Terminal observation is data, not authority",
+    "physicalCompletion always UNKNOWN",
+    "finally close failure can still prevent callbacks; legacy error propagation unchanged",
+    "New application source is not covered by historical65ecd2a/02e9dcd native component passes",
+    "Telegram prepared ticket/audit ordering remains unimplemented"
+  ],
+  "next": "Repair reaper caller composition inside an already-owned processing root using original independent reads; keep global read-only root guard and original ownership assertions. Then continue ticket integration.",
+  "invariants": [
+    "F02 preserved",
+    "no Production writes/migrations/sends/permit reset/token change",
+    "no native campaign rerun"
+  ],
+  "privateEvidenceSHA256": {
+    "recovery2-terminal-observation-r2.tap.private": "0b2f3b7a14d04d5d3523a39b775b832dabf6f709c1cd3474344417b74e30c1a9",
+    "recovery2-terminal-adjacent-r1.tap.private": "be3efab0823d00849d4dd04a01e891b1148308e1743b368d2c3a3603245da82e",
+    "recovery2-terminal-baseline-ownership-r2.tap.private": "03b7d3d8939e2323e1251d8c9e1ec966974b609c5f81c827ade6301e420e79f3",
+    "recovery2-terminal-current-ownership-r2.tap.private": "c64774375c1cf54faf0053347152ecd1824d5be9ff0194c94ba3fbe248c568ea"
+  }
+}

@@ -59,6 +59,10 @@ const firstAdmissionReads=new Set([
    AND e.lease_until>${databaseNowMs} AND e.deadline_at>${databaseNowMs}`,
 ].map(normalizedSql));
 const rolledBackReadOnly=new WeakMap();
+// Observation only: this does not prove stream/request completion, erase any
+// private preparation, authorize a retry, or grant permission to release a hold.
+const terminalObservation=(outcome,attempt)=>Object.freeze({contract:'processing-root-terminal-observation-v1',outcome,attempt,physicalCompletion:'UNKNOWN'});
+const noRootTerminal=terminalObservation('NO_ROOT',null);
 export function consumeReadOnlyRollback(error){
  const proof=error&&typeof error==='object'?rolledBackReadOnly.get(error):null;
  if(!proof||proof.budget!==currentExecutionBudget()||proof.execution!==currentDurableExecution())return false;
@@ -391,6 +395,17 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     for (let attempt = 0; attempt < 12; attempt++) {
       const releaseRoot=await acquireRoot();
       let tx,commitSubmitted=false,commitGuardRejected=false;
+      let terminal='UNKNOWN',beginAcknowledged=false,commitAcknowledged=false,commitUnknown=false;
+      // Hrana rollback() resolves without SQL when its stream is already
+      // closed. Only an admitted, known-open owned transaction can establish
+      // an acknowledged terminal here. Unknown COMMIT is permanently sticky.
+      const canObserveTerminal=()=>{
+        try{return beginAcknowledged&&['file','http'].includes(base.protocol)&&tx?.closed===false;}catch{return false;}
+      };
+      const rollback=async()=>{
+        const observable=canObserveTerminal();await tx.rollback();
+        if(observable&&!commitUnknown&&!commitAcknowledged)terminal='ACKNOWLEDGED_ROLLBACK';
+      };
       const readMemo=createReadSnapshotMemo(),controlReads=createInflightControlReads(),readBudget=currentExecutionBudget();
       const originalClear=readMemo.clear.bind(readMemo);readMemo.clear=()=>{controlReads.clear();originalClear();};
       const originalClose=readMemo.close.bind(readMemo);readMemo.close=()=>{controlReads.close();originalClose();};
@@ -446,7 +461,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           // No transaction/callback exists yet, so discard that idle connection
           // before re-admission; never reconnect an active transaction.
           afterBusy:refreshIdleConnection,
-        });state.tx=tx;
+        });state.tx=tx;beginAcknowledged=true;
         // Every processing root opens write mode; the locked HTTP driver maps it
         // to BEGIN IMMEDIATE and the branch above awaited its original ACK.
         // Never opt in outside this owned LIVE Stage6 root or before that ACK.
@@ -462,7 +477,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           if(!admissionChecked)await runChecks(admissionChecks,client);
           if(workStepFrom&&execution&&execution.receipts!==false){
             state.readOnly=true;const prepared=await workStepFrom(client);state.readOnly=readOnly;
-            if(prepared===null){readMemo.close();await tx.rollback();return null;}
+            if(prepared===null){readMemo.close();await rollback();return null;}
             if(typeof prepared!=='string'||!prepared||prepared.length>512)missingStep();
             state.workStep=prepared;
           }
@@ -470,7 +485,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             state.replaying=true;if(state.principalReadinessMemoEnabled)readMemo.close();
             const result=replay?await replay():receipt.result_json===null?null:JSON.parse(receipt.result_json);
             for(const check of state.checks)await check(client);currentExecutionBudget()?.assert();
-            readMemo.close();await tx.rollback();return result;
+            readMemo.close();await rollback();return result;
           }}
           const callbackAt=performance.now(),result = await fn();
           state.syncSnapshot?.note('callbackMs',performance.now()-callbackAt);
@@ -507,7 +522,10 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             if(original&&original.remainingMs()<25)throw new ExecutionBudgetError();
             const context=currentDurableExecution();const token={};
             context?.pending.add(token);commitSubmitted=true;
-            try {readMemo.close();await tx.commit();state.syncSnapshot?.note('commitMs',performance.now()-commitAt);}
+            const observable=canObserveTerminal();
+            try {readMemo.close();await tx.commit();
+              if(observable&&!commitUnknown){commitAcknowledged=true;terminal='ACKNOWLEDGED_COMMIT';}
+              state.syncSnapshot?.note('commitMs',performance.now()-commitAt);}
             catch(error){
               // The exact privately owned outer guard can prove its synchronous
               // rejection occurred before invoking native COMMIT. This marker
@@ -522,6 +540,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
                 commitSubmitted=false;
                 throw Object.assign(new Error('COMMIT_REJECTED'),{code:error.code,cause:error,definiteCommitRejection:true});
               }
+              if(!commitAcknowledged){commitUnknown=true;terminal='UNKNOWN';}
               if(context)context.indeterminate=true;
               throw new CommitIndeterminateError();
             }finally{context?.pending.delete(token);}
@@ -539,7 +558,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         const context=currentDurableExecution();
         if(commitSubmitted&&context)context.indeterminate=true;
         let rollbackAcknowledged=false;
-        try { if(tx){await tx.rollback();rollbackAcknowledged=true;} } catch { /* closed/rolled back by storage */ }
+        try { if(tx){await rollback();rollbackAcknowledged=true;} } catch { /* closed/rolled back by storage */ }
         // Only the new fixed preparation unit can use this private marker.
         // Unknown COMMIT, parent expiry/cancellation, attempted writes/provider
         // work and unacknowledged rollback cannot authorize an independent retry.
@@ -558,7 +577,8 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         readMemo.close();activeReadMemos.delete(readMemo);
         readBudget?.signal.removeEventListener('abort',closeReadMemo);
         try {tx?.close();} finally {releaseRoot();}
-        for(const cleanup of state.completed)await cleanup();
+        const observation=terminalObservation(terminal,attempt+1);
+        for(const cleanup of state.completed)await cleanup(observation);
       }
       const { key, call } = state.deferred;
       cache.set(key, await call());
@@ -573,7 +593,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   function afterCompletion(fn) {
     const state=scope.getStore();
     if(state){state.completed.push(fn);return;}
-    return fn();
+    return fn(noRootTerminal);
   }
   if(privateRuntime&&base.protocol==='http')sourceControlStatements.set(client,(context,statement)=>{
     const state=scope.getStore(),execution=currentDurableExecution(),budget=currentExecutionBudget(),marker=currentExecutionReceiptTransactionMarker();

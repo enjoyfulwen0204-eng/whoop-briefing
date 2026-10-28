@@ -3,11 +3,27 @@
 export const PREPARED_DISPOSAL_EXPIRY='9999-12-31T23:59:59.999Z';
 const kind='PREPARED_HEALTH_DISPOSAL_V1',hex=/^[a-f0-9]{64}$/;
 const prefix=(keys,uid)=>`p4ctx:${keys.lookup(['context-tenant-v1',uid])}:prepared-disposal:`;
+const readKind='PREPARED_DERIVED_READ_DISPOSAL_V1',readPrefix=(keys,uid)=>`p4ctx:${keys.lookup(['context-tenant-v1',uid])}:prepared-read-disposal:`;
+// A separate read-only lifetime, never an execution claim, attempt, receipt,
+// producer grant or authority to publish an artifact.
+export function preparedReadDisposalFence(keys,userId,{readId,identity,owner,purgeGeneration}){
+ const fields=[purgeGeneration,readKind,readId,identity,owner],name=readPrefix(keys,userId)+readId;
+ return {name,owner:JSON.stringify([...fields,keys.lookup(['prepared-derived-read-disposal-v1',userId,name,fields])]),expiresAt:PREPARED_DISPOSAL_EXPIRY};
+}
 export function preparedDisposalFence(keys,userId,claim,purgeGeneration){
  const fields=[purgeGeneration,kind,claim.executionId,claim.identity,claim.owner,claim.generation],name=prefix(keys,userId)+claim.executionId;
  return {name,owner:JSON.stringify([...fields,keys.lookup(['prepared-health-disposal-v1',userId,name,fields])]),expiresAt:PREPARED_DISPOSAL_EXPIRY};
 }
 export function isPreparedDisposalFence(keys,userId,row,captured){
+ const namedRead=typeof row.name==='string'&&row.name.startsWith(readPrefix(keys,userId));
+ if(namedRead||captured?.[1]===readKind){
+  const fields=captured?.slice(0,5),valid=namedRead&&Array.isArray(captured)&&captured.length===6&&Number.isSafeInteger(captured[0])&&captured[0]>=0
+   &&captured[1]===readKind&&typeof captured[2]==='string'&&captured[2].length>0&&row.name===readPrefix(keys,userId)+captured[2]
+   &&hex.test(captured[3])&&typeof captured[4]==='string'&&captured[4].length>0&&row.expires_at===PREPARED_DISPOSAL_EXPIRY
+   &&captured[5]===keys.lookup(['prepared-derived-read-disposal-v1',userId,row.name,fields]);
+  if(!valid)throw Object.assign(Error('PHASE4_PREPARED_DISPOSAL_FENCE_CORRUPT'),{code:'PHASE4_PREPARED_DISPOSAL_FENCE_CORRUPT'});
+  return true;
+ }
  const named=typeof row.name==='string'&&row.name.startsWith(prefix(keys,userId));
  if(!named&&captured?.[1]!==kind)return false;
  const fields=captured?.slice(0,6),valid=named&&Array.isArray(captured)&&captured.length===7&&Number.isSafeInteger(captured[0])&&captured[0]>=0

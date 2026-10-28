@@ -56,14 +56,19 @@ try{
  phase='VERIFY';const before=await healthDigest();assert.equal(before,fixtureHealthDigest,'EXACT_IMPORTED_CANONICAL_GRAPH_REQUIRED');checked(phase);
  phase='PUBLICATION';const ctx=await core.capture('a',{executionMode:'LIVE',providerRequired:true});await publishStage8Live(core,ctx,capability);assert.equal(await verifyStage8LivePublication(core,ctx),true);checked(phase);
  const reader=createStage8DerivedReader({db,keys,admission,eligible:id=>id==='a'}),scopes=await createScopedHealthContext({db,keys,admission,derivedReader:reader}),kinds=[];
+ phase='SCOPE';const scope=await scopes.open({user:await db.getUser('a'),chatId:'10001',text:'/insights'});checked(phase);
  for(const kind of ['BODY_ENERGY','EPISODES','EVIDENCE','INSIGHTS']){
-  phase='READER_'+kind;const start=performance.now(),http=requests,scope=await scopes.open({user:await db.getUser('a'),chatId:'10001',text:'/insights'}),value=await scopes.derived(scope,kind);
+  phase='READER_'+kind;const start=performance.now(),http=requests,value=await scopes.derived(scope,kind);
   assert.equal(value.status,'CURRENT');if(kind==='EVIDENCE')assert.equal(value.items.length,8);if(kind==='EPISODES'||kind==='INSIGHTS')assert.equal(value.items.length,0,'NO_MANUFACTURED_RESULT');
   if(kind==='BODY_ENERGY')assert.ok(value.items.length>0&&value.items.every(item=>item.quality==='LIMITED'&&item.provisional===true&&item.estimated===true&&Number.isInteger(item.value)&&item.value>=0&&item.value<=100));
   const tx=checked(phase),packet={kind,status:value.status,items:value.items.length,http:requests-http,elapsedMs:performance.now()-start,transactions:tx};kinds.push(packet);console.log('R22_NATIVE_READER_KIND '+JSON.stringify(packet));
  }
+ phase='REPLY_VERIFY';const reply=await scopes.sealReply(scope,{text:'SYNTHETIC_CANONICAL_REPLY'});
+ assert.equal(reply.stage8ReplyGuard.derivedReads.length,4);
+ assert.equal(await scopes.verifyReply({userId:'a',chatId:'10001',reply}),true,'ORIGINAL_FOUR_KIND_REPLY_GUARD');checked(phase);
+ console.log('R22_NATIVE_READER_REPLY '+JSON.stringify({verified:true,kinds:4,diagnostics:reader.preparedStatus(),transactions:observer.transactions.filter(t=>t.phase===phase)}));
  phase='VERIFY';assert.equal(await healthDigest(),before,'READER_CHANGED_RETAINED_HEALTH_OR_ORIGINAL_AUTHORITY');assert.equal((await db.raw.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);checked(phase);
- report={status:'NATIVE_READER_ONLY_COMPONENT_PASS',sourceRows:17,kinds,retainedHealthAndOriginalAuthorityUnchanged:true,fixture:'EXACT_GENUINE_PROTOCOL_COMPUTATION_COPY_NOT_NATIVE_WORK',nativeWorkInvocations:0,fullProducerQualified:false,stage6HranaQualified:false,actualProviderEvidence:false,productionEvidence:false};
+ report={status:'NATIVE_READER_ONLY_COMPONENT_PASS',sourceRows:17,kinds,originalFourKindReplyGuardVerified:true,preparedDiagnostics:reader.preparedStatus(),retainedHealthAndOriginalAuthorityUnchanged:true,fixture:'EXACT_GENUINE_PROTOCOL_COMPUTATION_COPY_NOT_NATIVE_WORK',nativeWorkInvocations:0,fullProducerQualified:false,stage6HranaQualified:false,actualProviderEvidence:false,productionEvidence:false};
 }catch(error){primaryFailure=error;report={status:'NATIVE_READER_ONLY_COMPONENT_FAILED',phase,errorCode:error.code??error.name,message:String(error.message).slice(0,300),nativeWorkInvocations:0,stage6HranaQualified:false,productionEvidence:false};}
 finally{
  try{db.close();}catch(error){cleanupFailure=error;}

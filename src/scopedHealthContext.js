@@ -5,6 +5,10 @@ import {resolvePerspective,PERSPECTIVE,intentIsInherentlyPersonal} from './bot/p
 import {localDate,addDays,localMidnightUtc} from './time.js';
 import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
 import {bodyEnergyQueryPage} from './bodyEnergyPresentation.js';
+import {profileRevision} from './profileRevision.js';
+import {currentExecutionBudget,createExecutionBudget,withExecutionBudget} from './executionBudget.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
+import {databaseNowMs} from './phase4ExecutionContext.js';
 const SOURCE_SPECS=Object.freeze({sleep:['whoop_sleeps','id','health_date'],recovery:['whoop_recoveries','sleep_id','health_date'],cycle:['whoop_cycles','id','start_at'],workout:['whoop_workouts','id','start_at']});
 const fail=code=>{throw Object.assign(Error(code),{code});};
 export function selfQueryPerspective({text,intent=null,signals=null}){
@@ -27,7 +31,7 @@ export async function createScopedHealthContext({db,keys,admission,now=()=>new D
  if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)))fail('SCOPED_V34_REQUIRED');
  const scopes=new WeakMap(),client=db.raw;
  followRuntimeRenewal(client,admission,keys,db.transaction,next=>{admission=next;});
- async function state(uid){
+ async function state(uid,{readOnly=false}={}){
   const row=(await client.execute({sql:`SELECT u.id,u.status,u.timezone,u.lifecycle_generation,COALESCE(t.auth_generation,0) auth_generation,
    p.source_generation,p.purge_generation,p.pending_purge_count
    FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id JOIN phase4_user_state p ON p.user_id=u.id
@@ -35,7 +39,7 @@ export async function createScopedHealthContext({db,keys,admission,now=()=>new D
   if(!row||row.status!=='ACTIVE'||row.pending_purge_count!==0||row.auth_generation<1)fail('SCOPED_PRINCIPAL_FENCED');
   const computation=(await client.execute({sql:"SELECT input_generation,last_completed_generation,source_generation_seen,algorithm_set_version,revision FROM phase4_computation_state WHERE user_id=? AND execution_mode='LIVE'",args:[uid]})).rows[0]??null;
   const invalidation=(await client.execute({sql:"SELECT requested_generation,scope_kind,scope_revision FROM phase4_invalidations WHERE user_id=? AND execution_mode='LIVE'",args:[uid]})).rows[0]??null;
-  return {...row,profileRevision:await db.getProfileRevision(uid),locale:await db.getLocale(uid),computation,invalidation};
+  return {...row,profileRevision:readOnly?await profileRevision(client,uid,{initialize:false}):await db.getProfileRevision(uid),locale:await db.getLocale(uid),computation,invalidation};
  }
  async function assert(scope){
   const captured=scopes.get(scope);if(!captured)fail('SCOPED_CAPABILITY_REQUIRED');
@@ -96,6 +100,50 @@ export async function createScopedHealthContext({db,keys,admission,now=()=>new D
   return {...reply,stage8ReplyGuard:{...guard,signature:keys.lookup(['stage8-self-reply-v1',guard,canonicalJson(reply)])}};
  }
  async function verifyReply({userId,chatId,reply}){
+  // Evidence preparation is outside the authority transaction. Every kind in
+  // this reply is verified from ONE snapshot, and that complete preimage plus
+  // this original reply/actor/state/expiry guard share ONE short remote root.
+  try{
+   const {stage8ReplyGuard,...projection}=reply??{},{signature,...guard}=stage8ReplyGuard??{},reads=guard.derivedReads,computation=guard.state?.computation;
+   if(client.protocol==='http'&&requireRuntimeAdmission(client,admission,keys,db.transaction)===35&&typeof derivedReader?.withPreparedSnapshot==='function'
+    &&Array.isArray(reads)&&reads.some(read=>read.kind==='EVIDENCE')&&computation?.last_completed_generation===computation?.input_generation){
+    const declaration=()=>signature===keys.lookup(['stage8-self-reply-v1',guard,canonicalJson(projection)])&&guard.userId===userId&&guard.chatId===String(chatId)
+     &&now().getTime()>=guard.asOfEpochMs&&now().getTime()-guard.asOfEpochMs<=120000&&Number.isFinite(guard.expiresAt)&&now().getTime()<guard.expiresAt
+     &&reads.length<=4&&new Set(reads.map(read=>read.kind)).size===reads.length&&reads.every(read=>['BODY_ENERGY','INSIGHTS','EPISODES','EVIDENCE'].includes(read.kind));
+    const metadata=async()=>{
+     if(!declaration())return false;requireRuntimeAdmission(client,admission,keys,db.transaction);
+     if((await db.resolveUserByChatId(chatId))?.user?.id!==userId)return false;
+     await db.assertRuntimeFences?.();return JSON.stringify(await state(userId,{readOnly:true}))===JSON.stringify(guard.state);
+    };
+    if(!await db.readOnlyTransaction(metadata))return false;
+    const at=now(),scope=Object.freeze({permitted:true,userId,executionMode:'LIVE',purpose:'SELF_QA',asOfUtc:at.toISOString(),asOfEpochMs:at.getTime()});
+    let publicationWitness;
+    const accepted=await derivedReader.withPreparedSnapshot({scope,kinds:reads.map(read=>read.kind),inputGeneration:computation.input_generation},async(values,proof)=>{
+     if(!await metadata()||values.length!==reads.length)return false;
+     for(let i=0;i<reads.length;i++)if(values[i].kind!==reads[i].kind||derivedFingerprint(values[i])!==reads[i].fingerprint)return false;
+     if(!proof||!Object.hasOwn(proof,'publicationWitness'))return false;
+     publicationWitness=proof.publicationWitness;
+     return metadata();
+    });
+    if(!accepted||!declaration()||publicationWitness===undefined)return false;
+    // Physical hold cleanup is asynchronous. Revalidate the original actor,
+    // state and the SAME signed publication after it, without fetching health
+    // rows, renewing the reply or recreating the expensive canonical read.
+    const parent=currentExecutionBudget(),budget=createExecutionBudget({budgetMs:Math.max(1,Math.min(5000,parent?.remainingMs()??5000,guard.expiresAt-now().getTime())),signal:parent?.signal});
+    const current=async()=>{
+     budget.assert();if(!await metadata())return false;
+     const row=(await client.execute({sql:'SELECT * FROM stage8_live_publications WHERE user_id=? AND input_generation=?',args:[userId,computation.input_generation]})).rows[0]??null;
+     if(row?publicationWitness?.digest!==keys.lookup(['stage8-prepared-read-publication-witness-v1',canonicalJson(row)]):publicationWitness!==null)return false;
+     if(guard.derivedReads.some(read=>read.validUntil!==undefined)&&(!row||row.expires_at<=now().getTime()))return false;
+     return declaration();
+    };
+    try{return Boolean(await withExecutionBudget(budget,()=>db.readOnlyTransaction(()=>db.transaction(current,{readOnly:true,beforeCommit:readOnlyProcessingCheck(async()=>{
+     budget.assert();if(!declaration())fail('SCOPED_ASOF_EXPIRED');
+     const expiry=guard.derivedReads.some(read=>read.validUntil!==undefined)?publicationWitness?.expiresAt:null;
+     await client.execute({sql:`SELECT json(CASE WHEN ${databaseNowMs}<? AND (? IS NULL OR ${databaseNowMs}<?) THEN 'true' ELSE 'SCOPED_FINAL_READ_DEADLINE' END) verified`,args:[budget.deadlineAt,expiry??null,expiry??null]});
+    })})))&&declaration());}finally{budget.close();}
+   }
+  }catch{return false;}
   try{return await db.transaction(async()=>{
    const {stage8ReplyGuard,...projection}=reply??{};const {signature,...guard}=stage8ReplyGuard??{};
    if(signature!==keys.lookup(['stage8-self-reply-v1',guard,canonicalJson(projection)])||guard.userId!==userId||guard.chatId!==String(chatId)

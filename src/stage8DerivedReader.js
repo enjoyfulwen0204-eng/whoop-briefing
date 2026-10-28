@@ -5,6 +5,7 @@ import {buildPhase4Core} from './phase4Core.js';
 import {composePhase4Stores} from './phase4Repositories.js';
 import {issueStage8LiveAuthority} from './stage8LiveAuthority.js';
 import {PHASE4_METRICS} from './phase4IntelligenceRegistry.js';
+import {preparedStage8DerivedRead} from './stage8PreparedDerivedRead.js';
 export const STAGE8_DERIVED_CONTRACT=Object.freeze({version:'stage8-live-derived-reader-v1',mode:'LIVE',producerContract:'execution-producer-v1',kinds:Object.freeze(['BODY_ENERGY','INSIGHTS','EPISODES','EVIDENCE']),maxItems:10});
 export const STAGE8_DERIVED_SELECTIONS=Object.freeze({
  BODY_ENERGY:Object.freeze({table:'body_energy_results',id:'result_id',time:'created_at',filter:"quality_state IN ('AVAILABLE','LIMITED') AND invalidated_at IS NULL AND as_of_utc<=?"}),
@@ -61,7 +62,7 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
  if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction))||typeof eligible!=='function')throw Error('STAGE8_DERIVED_SERVER_REQUIRED');
  followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
  const updating=(scope,kind)=>({status:'ANALYSIS_UPDATING',kind,asOfUtc:scope.asOfUtc,items:[]});
- return async function read({scope,kind,inputGeneration}){
+ const canonical=async function read({scope,kind,inputGeneration}){
   if(!STAGE8_DERIVED_CONTRACT.kinds.includes(kind)||!scope?.permitted||scope.purpose!=='SELF_QA'||scope.executionMode!=='LIVE'||!eligible(scope.userId)||!Number.isSafeInteger(inputGeneration))throw Error('STAGE8_DERIVED_SCOPE_REQUIRED');
   return db.transaction(async()=>{
    requireRuntimeAdmission(db.raw,admission,keys,db.transaction);await db.assertRuntimeFences?.();
@@ -128,4 +129,13 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
    }finally{db.afterProcessingCompletion(()=>core.transaction(()=>core.contextRegistry.release(ctx),{readOnly:true}));}
   });
  };
+ let preparedStatus;
+ const withPreparedSnapshot=async(input,finish)=>{
+  if(db.raw.protocol!=='http'||requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==35)throw Error('STAGE8_PREPARED_READ_ROOT_REQUIRED');
+  const value=await preparedStage8DerivedRead({db,keys,admission,eligible,now,bodyEnergyPresentation,input,finish});preparedStatus=value.diagnostics;return value.value;
+ };
+ const read=async input=>input.kind==='EVIDENCE'&&db.raw.protocol==='http'&&requireRuntimeAdmission(db.raw,admission,keys,db.transaction)===35
+  ?withPreparedSnapshot({scope:input.scope,kinds:[input.kind],inputGeneration:input.inputGeneration},values=>values[0]):canonical(input);
+ Object.defineProperties(read,{withPreparedSnapshot:{value:withPreparedSnapshot},preparedStatus:{value:()=>preparedStatus?{...preparedStatus}:null}});
+ return Object.freeze(read);
 }

@@ -298,9 +298,13 @@ test('canonical prepared EOF supports the authenticated Evidence reader on repre
   sql:f.transport.counts.sqlStatements-beforeSql,elapsedMs:performance.now()-at,transactions:transactions.map(tx=>({http:tx.httpOperations,sql:tx.sqlOperations,ms:tx.finishedAt-tx.beginSubmittedAt,outcome:tx.outcome})),
   transport:'INSTALLED_HTTP_DRIVER_NATIVE_SQLITE_PROTOCOL_FIXTURE_NOT_NATIVE_SQLD',productionEvidence:false}));
  assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
- const negativeScope=await scopes.open({user:await f.db.getUser('a'),chatId:'10001',text:'/evidence'}),selected=(await f.db.raw.execute(stage8DerivedSelection('EVIDENCE',negativeScope,ctx.inputGeneration))).rows.map(r=>r.id),execute=f.db.raw.execute;
+ // The public HTTP reader prepares this canonical path in owned FILE memory.
+ // Inject per-artifact failures into the canonical FILE reader itself, where
+ // those reads now run, while the positive case above exercises the bridge.
+ const negativeScope=await scopes.open({user:await f.db.getUser('a'),chatId:'10001',text:'/evidence'}),canonicalReader=createStage8DerivedReader({db:f.seed,keys:f.keys,admission:await f.seed.admitRuntime(),eligible:id=>id==='a'}),
+  selected=(await f.seed.raw.execute(stage8DerivedSelection('EVIDENCE',negativeScope,ctx.inputGeneration))).rows.map(r=>r.id),execute=f.seed.raw.execute;
  assert.ok(selected.length>4,'A_LATER_GROUP_MUST_EXIST');const entered=new Set(),settled=new Set(),touched=new Set();
- f.db.raw.execute=async statement=>{
+ f.seed.raw.execute=async statement=>{
   if(typeof statement==='object'&&/^SELECT \* FROM evidence_runs WHERE user_id=\? AND execution_mode=\? AND run_id=\?$/.test(statement.sql)){
    const id=statement.args[2];touched.add(id);
    if(selected.slice(0,2).includes(id)&&!entered.has(id)){
@@ -309,8 +313,8 @@ test('canonical prepared EOF supports the authenticated Evidence reader on repre
   }
   return execute(statement);
  };
- try{await assert.rejects(scopes.derived(negativeScope,'EVIDENCE'),/SYNTHETIC_EVIDENCE_(?:SLOW|FAST)_FAILURE/);}
- finally{f.db.raw.execute=execute;}
+ try{await assert.rejects(canonicalReader({scope:negativeScope,kind:'EVIDENCE',inputGeneration:ctx.inputGeneration}),/SYNTHETIC_EVIDENCE_(?:SLOW|FAST)_FAILURE/);}
+ finally{f.seed.raw.execute=execute;}
  assert.equal(entered.size,2);assert.equal(settled.size,2,'ALL_SUBMITTED_FAILURES_MUST_SETTLE');
  assert.ok(selected.slice(4).every(id=>!touched.has(id)),'FAILED_GROUP_MUST_NOT_ENTER_NEXT_GROUP');
 });

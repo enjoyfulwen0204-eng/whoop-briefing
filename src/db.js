@@ -254,7 +254,7 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
     const operationFence=ownerUserId?await processing.transaction(async()=>{
       const captured=await privacy.capture(ownerUserId);await privacy.track(captured);return captured;
     }):null;
-    let preparedSourceGeneration,operationFrame;
+    let preparedSourceGeneration,operationFrame,committed;
     const observeSource=async()=>{
       const row=(await client.execute({sql:'SELECT source_generation FROM phase4_user_state WHERE user_id=?',args:[ownerUserId]})).rows[0];
       if(!Number.isSafeInteger(row?.source_generation)||row.source_generation<0)fail('PHASE4_RECEIPT_SNAPSHOT_REQUIRED');return row.source_generation;
@@ -286,7 +286,7 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
           fail('TELEGRAM_ORIGINAL_OPERATION_EXPIRED');
       }};
     }
-    const committed=await telegramOperationScope.run(operationFrame,async()=>{try{return await processing.transaction(async () => {
+    committed=await telegramOperationScope.run(operationFrame,async()=>{try{return await processing.transaction(async () => {
       const prior = await client.execute({
         sql: 'SELECT * FROM telegram_operations WHERE update_id = ?',
         args: [id],
@@ -380,14 +380,28 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
       }
       return result;
     }, { before: check, after: check });}finally{if(operationFrame)operationFrame.active=false;}});
-    if(committed && typeof committed==='object' && committed.reply && operationFence)replyContexts.set(committed,operationFence);
-    else await processing.transaction(()=>privacy.release(operationFence));
-    return committed;
     } catch(error) {
-      await processing.transaction(()=>privacy.release(operationFence));throw error;
+      try {await processing.transaction(()=>privacy.release(operationFence));}
+      catch(cleanupError) {
+        // Cleanup cannot replace an unknown receipt COMMIT with a definite
+        // failure. Preserve both actual errors, including a falsy original.
+        const failure=new AggregateError([error,cleanupError],'TELEGRAM_OPERATION_CLEANUP_FAILED',{cause:error});
+        if([error,cleanupError].some(value=>value?.code==='COMMIT_INDETERMINATE'))failure.code='COMMIT_INDETERMINATE';
+        else {
+          if(typeof error?.code==='string')failure.code=error.code;
+          if(error?.definiteCommitRejection===true)failure.definiteCommitRejection=true;
+        }
+        throw failure;
+      }
+      throw error;
     } finally {
       if(operationFrame)operationFrame.active=false;
     }
+    if(committed && typeof committed==='object' && committed.reply && operationFence)replyContexts.set(committed,operationFence);
+    // This cleanup has one attempt. Its rejected or unknown COMMIT must not
+    // enter the body-failure catch and silently issue a second release.
+    else await processing.transaction(()=>privacy.release(operationFence));
+    return committed;
   }
 
   async function releaseTelegramReply(result) {

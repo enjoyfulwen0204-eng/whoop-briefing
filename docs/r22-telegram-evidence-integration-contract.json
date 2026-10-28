@@ -48,10 +48,12 @@
       "runtime admission and original expiry"
     ],
     "authority": "Database-owned AsyncLocalStorage operation context with fresh asynchronous original owner/privacy/lease checks plus synchronous original budget/currentness checks before health IO; readObservationProcessingCheck is a composition mechanism, not cached successful authority.",
-    "auditOrdering": "Separate scope capture/profile initialization semantics from audit persistence; stage audit only after ticket preimage consumption and commit it atomically with original receipt. Profile initialization must have an explicit equivalent ordering.",
+    "auditOrdering": "Consume complete ticket preimage in original BEGIN IMMEDIATE root after original before/check and absent prior receipt, before dispatcher/profile/audit writes. Keep original scope audit/profile initialization semantics.",
     "terminalEvidence": "First add root completion metadata distinguishing acknowledged COMMIT, acknowledged ROLLBACK, not-started and unknown. A late ACK loss must remain unknown even if a later rollback call resolves.",
     "lifecycle": "Ticket is private, bound to one original operation, rejects cross actor/scope and reuse. A later outside retry must not erase a cached ticket and then silently prepare a new one. Only acknowledged known root outcome plus proven owned request/stream completion and erased/closed private preparation resources may release the exact original hold; root completion metadata alone is insufficient.",
-    "receipt": "Full preimage admission plus original actor/state/expiry guard share the original receipt transaction; preserve full verifyReply before any actual send."
+    "receipt": "Full preimage admission plus original actor/state/expiry guard share the original receipt transaction; preserve full verifyReply before any actual send.",
+    "terminalPreimageOrdering": "Do not compare unchanged full preimage at COMMIT after legitimate own writes; repeat original authority/state/input generation/expiry/seal checks at original root terminal.",
+    "physicalJoin": "Current pendingStreams tracks fetch promises with known baton, not all initial requests/body completion/late stream closure. Receiver ALS closure and terminal observation physicalCompletion UNKNOWN do not grant hold disposal."
   },
   "minimumTests": [
     "genuine updateProcessor/router/Stage8Runtime positive receipt and exactly one audit",
@@ -64,8 +66,8 @@
     "cancellation and original expiry",
     "known cleanup vs unknown permanent hold"
   ],
-  "nextExecutableSlice": "Private prepared ticket lifecycle, original-root full-preimage consumption before profile/audit changes, and explicit owned request/stream completion proof before any exact hold disposal.",
-  "independentReview": "Sole reviewer accepted observed failure, root/audit/fullpreimage/unknownACK boundaries. Final wording explicitly retains fresh asynchronous original fences and requires physical completion beyond terminal metadata.",
+  "nextExecutableSlice": "Private standalone prepare/consume/dispose ticket split, then bounded original receiver transport join and original receipt pre-business consumption.",
+  "independentReview": "Sole reviewer accepted original failure and latest root-first full-preimage alternative. Original before/check and absent-receipt branch must precede ticket consumption; dispatcher writes follow it. Real transport join and final send-time full guard remain required.",
   "notClaimed": [
     "Telegram Evidence fixed",
     "Strain inline keyboard delivered",
@@ -77,6 +79,8 @@
     "terminalMetadata": "52194f9: acknowledged COMMIT/ROLLBACK/UNKNOWN/NO_ROOT; physicalCompletion alwaysUNKNOWN",
     "cleanupSettlement": "checkpoint299: allcompletion observers settle on close/observer failure; unknownCOMMIT classification retained; noholdreleasegrant",
     "positiveBodyLimited": "checkpoint298: exact7ec52f6 native reader accepted, not Telegram route",
-    "originalOperationBinding": "checkpoint300: private database-owned original operation identity, stable asOf, original budget/lease, fresh authority checks, late and cross actor rejection; no prepared Evidence ticket"
-  }
+    "originalOperationBinding": "checkpoint300: private database-owned original operation identity, stable asOf, original budget/lease, fresh authority checks, late and cross actor rejection; no prepared Evidence ticket",
+    "telegramCleanup": "checkpoint301: original unknown receipt COMMIT classification retained through cleanup failure; successful no-reply cleanup issued once; no hold-disposal grant"
+  },
+  "architectureReviewUpdateUTC": "2026-10-28T11:53:24.842674+00:00"
 }

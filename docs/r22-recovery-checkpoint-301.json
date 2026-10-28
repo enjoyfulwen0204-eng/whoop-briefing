@@ -1,0 +1,78 @@
+{
+  "checkpoint": "R22-recovery-301",
+  "atUTC": "2026-10-28T11:53:24.842674+00:00",
+  "stage": "TELEGRAM_RECEIPT_UNKNOWN_ACK_CLASSIFICATION_AND_SINGLE_CLEANUP_ACCEPTED",
+  "baseCommit": "485cd8b5a76e6d2ed4bf42c45c87e6fe3346d1a2",
+  "reproducedFailures": [
+    "Privacy release failure masked the original receipt COMMIT_INDETERMINATE",
+    "Successful no-reply receipt retried rejected or unknown cleanup after entering its body catch"
+  ],
+  "changes": [
+    "Original operation failure and cleanup failure retain ordered AggregateError.errors and original cause, including falsy thrown values",
+    "Any COMMIT_INDETERMINATE takes priority and never acquires definiteCommitRejection; otherwise preserve original error classification",
+    "Move successful no-reply cleanup outside original body catch so release has only one attempt",
+    "Keep original receipt, owner/privacy/source checks, reply-context retention and original error identity when cleanup succeeds"
+  ],
+  "validation": {
+    "initialRedPassed": 1,
+    "initialRedFailed": 8,
+    "focusedPassed": 9,
+    "focusedDurationMs": 8569.287708,
+    "independentFocusedPassed": 9,
+    "independentFocusedDurationMs": 8695.345292,
+    "adjacentPassed": 45,
+    "adjacentDurationMs": 33532.487083,
+    "separateNativeSqliteReceiptCountsBeforeAfterCommitAckLoss": [
+      0,
+      1
+    ],
+    "bodyCallbacksPerRun": 1,
+    "cleanupAttemptsPerRun": 1,
+    "failuresAfterRepair": 0,
+    "beforeCommitFixtureSemantics": "The final BEFORE case explicitly rolls back on the isolated server before losing its response. The installed client still classifies the original receipt outcome UNKNOWN. Initial red BEFORE case retained the server writer and hit bounded cleanup contention; log retained unchanged."
+  },
+  "independentReview": "GO; exact source/test hashes inspected; sole reviewer independently executed 9/9 and inspected red/green logs. Adjacent45 all passed.",
+  "sourceSHA256": {
+    "src/db.js": "b3539078510435c5a526aef4a9360add581dbe9c0baaffa9db20bf4e868d51d8",
+    "test/telegram-operation-cleanup.test.mjs": "ec882e0651de2a7c046adb9044bd96b299c10317216f76611b9e570de02344fd"
+  },
+  "privateEvidenceSHA256": {
+    "recovery2-telegram-cleanup-red.tap.private": "cdabd5623096e0385ff2380474403bc7976360c7b05a59d692f780caeeb9e0b1",
+    "recovery2-telegram-cleanup-green-r1.tap.private": "652bed92ca083f15ad9bf9efaa46adc08ed377a93653c730f56f91f480cd390e",
+    "recovery2-telegram-cleanup-adjacent-r1.tap.private": "913b5b47cc72569e34822b8cb20b5822c1e988a9c93c8afcbe0922e95d0c3482"
+  },
+  "architectureReview": {
+    "selected": "Consume complete ticket preimage in original BEGIN IMMEDIATE root after original before/check and absent prior receipt, before dispatcher/profile/audit writes. Keep original scope audit/profile initialization semantics.",
+    "terminal": "Do not compare unchanged full preimage at COMMIT after legitimate own writes; repeat original authority/state/input generation/expiry/seal checks at original root terminal.",
+    "requiredSeams": [
+      "Private composeDb operation participant registry",
+      "Original root pre-business consume and private attempt identity",
+      "Derived result restricted to same original operation/actor/asOf/kinds/input generation and currently admitted root",
+      "Original beforeCommit authority/time checks",
+      "Operation completion distinct from each speculative rollback; UNKNOWN prevents ticket reuse and hold disposal"
+    ],
+    "physicalJoinBlocker": "Current pendingStreams tracks fetch promises with known baton, not all initial requests/body completion/late stream closure. Receiver ALS closure and terminal observation physicalCompletion UNKNOWN do not grant hold disposal.",
+    "minimalNextSlice": "Split standalone prepared reader into private prepare/consume/dispose ticket lifecycle while retaining its existing external behavior; prove owned bounded request/body/stream completion before Telegram wiring.",
+    "sendGuard": "Preserve original independent full send-time verifyReply; root ticket and publication witness cannot replace it."
+  },
+  "scopeLimits": [
+    "Installed HTTP/native SQLite synthetic protocol tests, not new native SQLD qualification",
+    "Real Telegram Evidence root-required failure remains unresolved; no private ticket or transport join grant wired",
+    "Strain keyboard delivery/callback not verified; not claimed fixed",
+    "Previous native qualifications remain exact historical commits in checkpoints293/295/298"
+  ],
+  "productionLastVerified": {
+    "atUTC": "2026-10-28T11:38:53.841Z",
+    "sourceSHA": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "schema": 33
+  },
+  "remoteSHA": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "nextExecutableAction": "Private standalone prepare/consume/dispose ticket split, then bounded original receiver transport join and original receipt pre-business consumption.",
+  "invariants": [
+    "F02 preserved",
+    "No Turso token modification",
+    "No Production write/migration/send/permit reset/quota bypass",
+    "No user-data sharing; commits remain local",
+    "No repeat of FILE six-job EOF or expensive full campaign"
+  ]
+}

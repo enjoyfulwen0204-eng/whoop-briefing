@@ -27,13 +27,14 @@ assert.equal(fixture.contract,'r22-canonical-synthetic-reader-fixture-v1');asser
 assert.equal(fixture.genuineWorkCalls,8);assert.equal(fixture.sourceRows,17);assert.ok(fixture.tables.length<=128);
 const q=value=>'"'+value.replaceAll('"','""')+'"';
 const observer=createPreparedNativeObserver(),nativeFetch=globalThis.fetch.bind(globalThis),url='http://127.0.0.1:18083';
-let phase='SETUP',requests=0,pending=0,errors=0,primaryFailure,cleanupFailure,failure,report;
+let phase='SETUP',requests=0,pending=0,errors=0,requestErrors=0,primaryFailure,cleanupFailure,failure,report;
 const fetchOwned=async(input,init)=>{
- const req=new Request(input,init);assert.equal(new URL(req.url).origin,url);const event=observer.submitted(await req.clone().json(),phase,performance.now());requests++;pending++;
- try{const response=await nativeFetch(req,{signal:AbortSignal.any([req.signal,AbortSignal.timeout(10000)]),redirect:'error'}),reply=await response.clone().json();
+ pending++;
+ try{const req=new Request(input,init);assert.equal(new URL(req.url).origin,url);const event=observer.submitted(await req.clone().json(),phase,performance.now());requests++;
+  const response=await nativeFetch(req,{signal:AbortSignal.any([req.signal,AbortSignal.timeout(10000)]),redirect:'error'}),reply=await response.clone().json();
   assert.ok(response.ok);observer.acknowledged(event,reply,performance.now());
   for(const item of reply.results??[]){if(item.type==='error')errors++;for(const error of item.response?.result?.step_errors??[])if(error)errors++;}return response;
- }finally{pending--;}
+ }catch(error){requestErrors++;throw error;}finally{pending--;}
 };
 globalThis.fetch=fetchOwned;const db=createDb({url,phase4Keys:keys,fetch:fetchOwned});
 const checked=name=>{const tx=observer.assertComplete(name);assert.ok(tx.every(t=>t.outcome==='COMMIT'&&t.upperBoundMs<5000),'ALL_EXPLICIT_READER_TX_BELOW_5S');return tx;};
@@ -60,7 +61,7 @@ try{
  for(const kind of ['BODY_ENERGY','EPISODES','EVIDENCE','INSIGHTS']){
   phase='READER_'+kind;const start=performance.now(),http=requests,value=await scopes.derived(scope,kind);
   assert.equal(value.status,'CURRENT');if(kind==='EVIDENCE')assert.equal(value.items.length,8);if(kind==='EPISODES'||kind==='INSIGHTS')assert.equal(value.items.length,0,'NO_MANUFACTURED_RESULT');
-  if(kind==='BODY_ENERGY')assert.ok(value.items.length>0&&value.items.every(item=>item.quality==='LIMITED'&&item.provisional===true&&item.estimated===true&&Number.isInteger(item.value)&&item.value>=0&&item.value<=100));
+  if(kind==='BODY_ENERGY')assert.ok(value.items.length===1&&value.items.every(item=>item.quality==='LIMITED'&&item.provisional===true&&item.estimated===true&&Number.isInteger(item.value)&&item.value>=0&&item.value<=100));
   const tx=checked(phase),packet={kind,status:value.status,items:value.items.length,http:requests-http,elapsedMs:performance.now()-start,transactions:tx};kinds.push(packet);console.log('R22_NATIVE_READER_KIND '+JSON.stringify(packet));
  }
  phase='REPLY_VERIFY';const reply=await scopes.sealReply(scope,{text:'SYNTHETIC_CANONICAL_REPLY'});
@@ -72,13 +73,13 @@ try{
 }catch(error){primaryFailure=error;report={status:'NATIVE_READER_ONLY_COMPONENT_FAILED',phase,errorCode:error.code??error.name,message:String(error.message).slice(0,300),nativeWorkInvocations:0,stage6HranaQualified:false,productionEvidence:false};}
 finally{
  try{db.close();}catch(error){cleanupFailure=error;}
- try{const until=performance.now()+4000;while((observer.streams.size||pending)&&performance.now()<until)await new Promise(r=>setTimeout(r,20));assertPreparedNativeFinalObservation(observer,pending);assert.equal(errors,0,'NATIVE_SQL_RESPONSE_ERRORS');}catch(error){cleanupFailure=preparedNativeFailure(cleanupFailure,error);}
+ try{const until=performance.now()+4000;while((observer.streams.size||pending)&&performance.now()<until)await new Promise(r=>setTimeout(r,20));assertPreparedNativeFinalObservation(observer,pending);assert.equal(errors,0,'NATIVE_SQL_RESPONSE_ERRORS');assert.equal(requestErrors,0,'NATIVE_REQUEST_ERRORS_EVEN_IF_RECOVERED');}catch(error){cleanupFailure=preparedNativeFailure(cleanupFailure,error);}
  failure=preparedNativeFailure(primaryFailure,cleanupFailure);
  if(!failure)try{
-  const body={contract:'r22-native-reader-only-ack-v1',manifestDigest:createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),pid:process.pid,report,transportJoined:true},file=await open(resolve(root,'..','native-reader-ack.json'),'wx',0o600);
+  const body={contract:'r22-native-reader-only-ack-v1',manifestDigest:createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),pid:process.pid,report:{...report,requestErrors,responseErrors:errors,openStreams:observer.streams.size,pendingRequests:pending,ownedMemoryPerTransaction:'UNKNOWN'},transportJoined:true},file=await open(resolve(root,'..','native-reader-ack.json'),'wx',0o600);
   try{await file.writeFile(JSON.stringify({...body,seal:keys.lookup(['r22-native-reader-only-ack-v1',body])}));await file.sync();}finally{await file.close();}
   const directory=await open(resolve(root,'..'),'r');try{await directory.sync();}finally{await directory.close();}
  }catch(error){cleanupFailure=error;failure=preparedNativeFailure(primaryFailure,cleanupFailure);}
- console.log('R22_NATIVE_READER_WORKER '+JSON.stringify({...report,status:failure?'NATIVE_READER_ONLY_COMPONENT_FAILED':report.status,primaryError:preparedNativeErrorSummary(primaryFailure),cleanupError:preparedNativeErrorSummary(cleanupFailure),failure:preparedNativeErrorSummary(failure),requests,errors,openStreams:observer.streams.size,pendingRequests:pending,transactions:observer.transactions,observation:observer.counts}));
+ console.log('R22_NATIVE_READER_WORKER '+JSON.stringify({...report,status:failure?'NATIVE_READER_ONLY_COMPONENT_FAILED':report.status,primaryError:preparedNativeErrorSummary(primaryFailure),cleanupError:preparedNativeErrorSummary(cleanupFailure),failure:preparedNativeErrorSummary(failure),requests,errors,requestErrors,openStreams:observer.streams.size,pendingRequests:pending,ownedMemoryPerTransaction:'UNKNOWN',transactions:observer.transactions,observation:observer.counts}));
 }
 if(failure)process.exitCode=1;

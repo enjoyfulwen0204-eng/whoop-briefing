@@ -355,7 +355,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if (!state) return call();
     if (state.cache.has(key)) return state.cache.get(key);
     const error = new Error('processing_external_input_required');
-    state.deferred = { key, call };
+    state.deferred = { key, call, error };
     state.failure = error;
     throw error;
   }
@@ -396,6 +396,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       const releaseRoot=await acquireRoot();
       let tx,commitSubmitted=false,commitGuardRejected=false;
       let terminal='UNKNOWN',beginAcknowledged=false,commitAcknowledged=false,commitUnknown=false;
+      let attemptFailed=false,attemptFailure;
       // Hrana rollback() resolves without SQL when its stream is already
       // closed. Only an admitted, known-open owned transaction can establish
       // an acknowledged terminal here. Unknown COMMIT is permanently sticky.
@@ -552,6 +553,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         for (const cleanup of state.committed) { try { await cleanup(); } catch { /* TTL recovery */ } }
         return result;
       } catch (error) {
+        attemptFailed=!state.deferred||error!==state.deferred.error;attemptFailure=error;
         state.syncSnapshot?.clear();
         readMemo.close();
         if(error&&typeof error==='object')rolledBackReadOnly.delete(error);
@@ -576,9 +578,29 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         if(tx){state.syncSnapshot?.note('transactionMs',performance.now()-syncStarted);state.syncSnapshot?.finish(commitSubmitted?'INDETERMINATE':'ROLLED_BACK');}
         readMemo.close();activeReadMemos.delete(readMemo);
         readBudget?.signal.removeEventListener('abort',closeReadMemo);
-        try {tx?.close();} finally {releaseRoot();}
+        const completionErrors=[];
+        try {tx?.close();} catch(error) {completionErrors.push(error);} finally {releaseRoot();}
         const observation=terminalObservation(terminal,attempt+1);
-        for(const cleanup of state.completed)await cleanup(observation);
+        // A failed close or earlier observer cannot strand another registered
+        // cleanup. Settle each after releasing the writer; this still proves
+        // neither physical completion nor permission to dispose of a hold.
+        for(const cleanup of state.completed){try{await cleanup(observation);}catch(error){completionErrors.push(error);}}
+        if(completionErrors.length){
+          // A failed cleanup revokes even a previously acknowledged readonly
+          // rollback's fallback proof, including access through error.cause.
+          if(attemptFailure&&typeof attemptFailure==='object')rolledBackReadOnly.delete(attemptFailure);
+          if(!attemptFailed&&completionErrors.length===1)throw completionErrors[0];
+          const errors=attemptFailed?[attemptFailure,...completionErrors]:completionErrors,primary=errors[0];
+          const failure=new AggregateError(errors,'PROCESSING_ROOT_COMPLETION_FAILED',{cause:primary});
+          // In particular, cleanup cannot turn lost COMMIT ACK into an ordinary
+          // failure which callers could mistake for safe uncommitted work.
+          if(errors.some(error=>error?.code==='COMMIT_INDETERMINATE'))failure.code='COMMIT_INDETERMINATE';
+          else{
+            if(typeof primary?.code==='string')failure.code=primary.code;
+            if(primary?.definiteCommitRejection===true)failure.definiteCommitRejection=true;
+          }
+          throw failure;
+        }
       }
       const { key, call } = state.deferred;
       cache.set(key, await call());

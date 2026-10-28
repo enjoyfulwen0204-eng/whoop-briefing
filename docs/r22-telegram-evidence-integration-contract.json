@@ -64,7 +64,7 @@
     "cancellation and original expiry",
     "known cleanup vs unknown permanent hold"
   ],
-  "nextExecutableSlice": "Implement and independently review additive original-root terminal metadata using focused protocol tests before wiring tickets; no Production migration or actual messaging is required.",
+  "nextExecutableSlice": "Database-owned original Telegram operation context with stable asOf and original fresh owner/privacy/lease fences, then private prepared ticket and explicit profile/audit ordering under the original receipt transaction.",
   "independentReview": "Sole reviewer accepted observed failure, root/audit/fullpreimage/unknownACK boundaries. Final wording explicitly retains fresh asynchronous original fences and requires physical completion beyond terminal metadata.",
   "notClaimed": [
     "Telegram Evidence fixed",
@@ -72,5 +72,10 @@
     "Stage8 complete runtime",
     "positive fresh Body LIMITED",
     "future sync/orphan recovery"
-  ]
+  ],
+  "foundationalSlicesCompleted": {
+    "terminalMetadata": "52194f9: acknowledged COMMIT/ROLLBACK/UNKNOWN/NO_ROOT; physicalCompletion alwaysUNKNOWN",
+    "cleanupSettlement": "checkpoint299: allcompletion observers settle on close/observer failure; unknownCOMMIT classification retained; noholdreleasegrant",
+    "positiveBodyLimited": "checkpoint298: exact7ec52f6 native reader accepted, not Telegram route"
+  }
 }

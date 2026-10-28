@@ -1,0 +1,63 @@
+{
+  "checkpoint": "R22-recovery-299",
+  "atUTC": "2026-10-28T11:19:23.851630+00:00",
+  "stage": "ORIGINAL_ROOT_COMPLETION_CLEANUP_FAILURES_SETTLED_AND_CLASSIFIED",
+  "baseCommit": "2058165",
+  "reproducedFailures": [
+    "Repeated transaction.close failure skipped every completion observer",
+    "First failed observer skipped later cleanup and masked original COMMIT_INDETERMINATE"
+  ],
+  "changes": [
+    "Release original writer before settling every registered completion observer sequentially, even after close/observer failure",
+    "Preserve original success/error identity when no cleanup fault; preserve falsy primary failure and separate private outside control sentinel",
+    "Aggregate actual failures with original cause; any COMMIT_INDETERMINATE takes classification priority; otherwise retain original code and definiteCommitRejection=true",
+    "Revoke original readonly rollback proof when completion fails, including via retained cause; never transfer proof to aggregate",
+    "Failed completion cannot enter deferred outside callback; same immutable original-root terminal observation remains physicalCompletion UNKNOWN"
+  ],
+  "validation": {
+    "redTestsFailed": 4,
+    "primaryFocusedPassed": 30,
+    "primaryFocusedDurationMs": 366.433958,
+    "independentFocusedPassed": 30,
+    "independentFocusedDurationMs": 395.589,
+    "adjacentPassed": 40,
+    "adjacentDurationMs": 14493.447208,
+    "permitClosurePassed": 2,
+    "permitClosureDurationMs": 5681.70275,
+    "installedHttpDriverBeforeAfterCommitAckLossWithObserverFailure": {
+      "separateSQLiteCommittedRows": [
+        0,
+        1
+      ],
+      "bothClassified": "COMMIT_INDETERMINATE",
+      "laterObserverSettled": true
+    },
+    "failuresAfterRepair": 0
+  },
+  "independentReview": "GO; exact two source hashes inspected and focused suite independently executed. Adjacent40 plus permitclosure2 subsequently all passed.",
+  "sourceSHA256": {
+    "src/processingTransaction.js": "242d4b292361cece0956e6c18c9feb948ccaa8e33b0571ce55801a58a57ad8a7",
+    "test/processing-terminal-observation.test.mjs": "13cffdabb9aad8df8fbd55643de7fdec110bc3503e7dd1de761fe90c9268f10f"
+  },
+  "privateEvidenceSHA256": {
+    "recovery2-completion-cleanup-red.private.mjs": "321989fcae837d6cb626b253c989d92f2c6f79ea662343b5e12f74381e3c6d70",
+    "recovery2-completion-cleanup-red.private.log": "286c0d709c6d967678c1c0abb01e32c00120fd0de9cfe2d896e464649cf7a792",
+    "recovery2-completion-cleanup-tests-red.tap.private": "cb19e14006152b603a1c3a0464bd0353eadeef536a3919013ead8bb8c2b5f571",
+    "recovery2-completion-cleanup-green-r2.tap.private": "5e77bd1c36cd0a5de295317425d656352268dcd50806c475c11a36fdf0a2d26d",
+    "recovery2-completion-adjacent-r1.tap.private": "2f58bed669798205dc28c69a4c8a22dd7f5769759bfa4cff421e04e19de7a8df",
+    "recovery2-completion-permit-closure-r1.tap.private": "0ae635bf0df86a1f884ab08952a988159aaa836ca4aa01f8e768144a53a66323"
+  },
+  "scopeLimits": [
+    "No prepared-ticket or new hold-disposal authority wired",
+    "Not physical completion proof, permission to retry unknown COMMIT, or closure of Telegram Evidence route",
+    "Previous native crash qualification remains exact65ecd2a; expired reader exact02e9dcd; positive LIMITED reader exact7ec52f6",
+    "No native campaign rerun for this error-cleanup slice"
+  ],
+  "nextExecutableAction": "Database-owned original Telegram operation context with stable asOf and original fresh owner/privacy/lease fences, then private prepared ticket and explicit profile/audit ordering under the original receipt transaction.",
+  "invariants": [
+    "F02 preserved",
+    "No Turso token modification",
+    "No Production write/migration/send/permit reset/quota bypass",
+    "No user-data sharing; commits remain local"
+  ]
+}

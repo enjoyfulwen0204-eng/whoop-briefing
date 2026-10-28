@@ -1,5 +1,21 @@
 import assert from 'node:assert/strict';
 
+// Installed SDK executeHranaBatch appends a conditional ROLLBACK. A successful
+// COMMIT skips that one step (null result, null error); no DATA/COMMIT step may
+// be skipped. Resolve stored SQL from the oracle's own stream inventory.
+export function assertOracleBatch(steps,result,sqlFor=stmt=>stmt.sql){
+ assert.equal(result.step_errors.length,steps.length);
+ assert.equal(result.step_results.length,steps.length);
+ assert.ok(result.step_errors.every(error=>error===null),'ORACLE_BATCH_SQL_ERROR');
+ for(let i=0;i<steps.length;i++)if(result.step_results[i]===null){
+  assert.equal(i,steps.length-1,'ONLY_FINAL_CONDITIONAL_ROLLBACK_MAY_SKIP');
+  assert.equal(sqlFor(steps[i].stmt).trim().toUpperCase(),'ROLLBACK');
+  assert.ok(i>0&&result.step_results[i-1]!==null,'ORACLE_COMMIT_ACK_REQUIRED');
+  assert.equal(sqlFor(steps[i-1].stmt).trim().toUpperCase(),'COMMIT');
+  assert.deepEqual(steps[i].condition,{type:'not',cond:{type:'ok',step:i-1}});
+ }
+}
+
 // Negative cold probes legitimately ROLLBACK their rejected admission. Accept
 // exactly that observed shape, never a missing or unknown terminal.
 export function assertCrashTransport(observer,{pending,requestErrors,responseErrors,cold=false,joined=false}){

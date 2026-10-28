@@ -1,0 +1,52 @@
+{
+  "checkpoint": "R22-recovery-292",
+  "atUTC": "2026-10-28T10:19:38.032574+00:00",
+  "stage": "FIRST_NATIVE_ATTEMPT_CONSUMED_FAIL_ORACLE_ASSERTION_REPAIRED",
+  "candidateBase": "a316f2d5f7cd1e76342c0d8058e50d7bfb3f9447",
+  "pushedSHA": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "production": {
+    "sha": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "schema": 33,
+    "observedAtUTC": "2026-10-28T09:55:44.835Z",
+    "readOnly": true
+  },
+  "attempt1": {
+    "status": "FAIL",
+    "applicationWorkInvoked": false,
+    "observedSetupTransactions": 6,
+    "requests": 3705,
+    "requestErrors": 0,
+    "responseErrors": 0,
+    "pendingRequests": 0,
+    "openStreams": 0,
+    "childExit": 1,
+    "serverExit": 0,
+    "forced": false,
+    "oom": false,
+    "memoryPeakBytes": 163954688,
+    "diagnosis": "Test oracle rejected null result for SDK conditional rollback; raw assertion observed, skipped-step explanation established from installed SDK source",
+    "oldScopeMayBeRedispatched": false
+  },
+  "repair": "Accept only final conditional ROLLBACK skipped after actual COMMIT, precise not(ok(previous step)) predicate; reject skipped data/BEGIN/COMMIT and any SQL errors; resolve SQL IDs from own stream",
+  "validation": {
+    "focusedHarnessPass": 15,
+    "applicationPublicationAuthorityLostAckPreviouslyPassed": 8,
+    "applicationSourceChanged": false,
+    "independentReview": "GO exact three-file repair; second scope remains same-approach attempt 2"
+  },
+  "next": "Freeze new committed source and review one-WORK crash/pending/actual-deadline-expiry scope. If attempt2 again lacks progress, stop native tuning and assess architecture.",
+  "scopeLimits": [
+    "owned-memory SQLite preparation, not disk-FILE transport",
+    "no Production changes or Telegram sends",
+    "no FILE six-job or native twenty-WORK campaign",
+    "F02 and Turso Token preserved",
+    "no qualification claim from FAIL"
+  ],
+  "evidenceDirectory": "tmp/r22-20261028.private",
+  "privateEvidenceSHA256": {
+    "recovery2-crash.private.log": "b74c6230b3a537e857ec804da93d7dd2b5f6f8927c8b35c55252e025869eab82",
+    "recovery2-crash-dispatch.private.json": "02f7d5de7aeb080ec38e87c76cb94ce1110d4e2e5693379eb5516d874f29ef63",
+    "recovery2-crash-host-config.private.json": "f294f174019f1f755d9390711e4508a52e5434a2cbf94a30d46e34c7ce97ee63",
+    "recovery2b-crash-harness-gates.tap.private": "13a392addeec4e7c1602dd0ba83589b0e69f66e3a407c402a4db08eef3fa2e93"
+  }
+}

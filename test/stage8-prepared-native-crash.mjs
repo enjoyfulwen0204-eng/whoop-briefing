@@ -18,7 +18,7 @@ import {currentExecutionBudget} from '../src/executionBudget.js';
 import {fixtureKeys as keys} from './localDb.js';
 import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {createPreparedNativeObserver} from './stage8-prepared-native-observer.mjs';
-import {assertCrashTransport,assertCrashSnapshotPreserved,coldRejectionCode} from './stage8-prepared-native-crash-gates.mjs';
+import {assertCrashTransport,assertCrashSnapshotPreserved,coldRejectionCode,assertOracleBatch} from './stage8-prepared-native-crash-gates.mjs';
 import {preparedNativeFailure,preparedNativeErrorSummary} from './stage8-prepared-native-outcome.mjs';
 import {canonicalJson} from '../src/phase4EntityStore.js';
 import {log} from '../src/logger.js';
@@ -33,13 +33,15 @@ const request={userId:'a',requestId:'r22-native-exact-prepared-crash'},url='http
 let phase='SETUP',requests=0,pending=0,requestErrors=0,responseErrors=0,baseline,original,publicationStream,witnessKey,crashStarted=false,callbackEntered=false;
 const decode=value=>value?.type==='text'?value.value:null;
 async function oracleSnapshot(){
- const batons=new Set();let active=0,oracleFailure;
+ const batons=new Set(),sql=new Map();let active=0,oracleFailure;
  const reader=createClient({url,fetch:async(input,init)=>{
   const req=new Request(input,init);assert.equal(new URL(req.url).origin,url);const body=await req.clone().json();active++;
   try{
    const response=await nativeFetch(req,{signal:AbortSignal.timeout(1500),redirect:'error'}),reply=await response.clone().json();assert.ok(response.ok);
    assert.equal(reply.results?.length,body.requests.length);assert.ok(reply.results.every(r=>r.type==='ok'));
-   for(const item of reply.results)if(item.response?.type==='batch'){assert.ok(item.response.result.step_errors.every(e=>e===null));assert.ok(item.response.result.step_results.every(r=>r!==null));}
+   for(const request of body.requests)if(request.type==='store_sql')sql.set(request.sql_id,request.sql);
+   for(let i=0;i<body.requests.length;i++)if(body.requests[i].type==='batch')assertOracleBatch(body.requests[i].batch.steps,reply.results[i].response.result,stmt=>stmt.sql??sql.get(stmt.sql_id));
+   for(const request of body.requests)if(request.type==='close_sql')sql.delete(request.sql_id);
    for(let i=0;i<body.requests.length;i++)if(body.requests[i].type==='close')assert.equal(reply.results[i].response?.type,'close');
    if(body.baton)batons.delete(body.baton);if(reply.baton)batons.add(reply.baton);return response;
   }catch(error){oracleFailure=error;throw error;}finally{active--;}

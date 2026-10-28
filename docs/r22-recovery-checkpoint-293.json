@@ -1,0 +1,79 @@
+{
+  "checkpoint": "R22-recovery-293",
+  "atUTC": "2026-10-28T10:27:53.426017+00:00",
+  "stage": "NARROW_NATIVE_COMMITTED_PROGRESS_LOST_ACK_AND_REAL_DEADLINE_REJECTION_ACCEPTED",
+  "qualifiedCommit": "65ecd2a9742fc67167ba694854a3af5256d48698",
+  "pushedSHA": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "production": {
+    "atUTC": "2026-10-28T10:22:47.043Z",
+    "sourceSHA": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "schema": 33
+  },
+  "nativeMilestone": {
+    "applicationSourceMatchesQualifiedCommit": true,
+    "approachAttempt": 2,
+    "nativeWorkInvocations": 1,
+    "canonicalOperationReceiptsAdded": 2,
+    "workReceiptsAdded": 17,
+    "originalPublicationCommitVisibleToIndependentConnection": true,
+    "applicationAckDelivered": false,
+    "producerPID": 34,
+    "producerTerminal": "SIGKILL",
+    "coldPIDs": [
+      48,
+      60
+    ],
+    "coldCallbacksEntered": 0,
+    "coldStates": [
+      "PENDING",
+      "EXPIRED"
+    ],
+    "originalDeadlineWidthMs": 45000,
+    "originalLeaseWidthMs": 60000,
+    "expiredProbeAfterDeadlineMs": 2537,
+    "leaseStillValidAtExpiredProbe": true,
+    "graphAuthorityReceiptsWitnessHoldPreserved": true,
+    "producerWorkCommitTransactions": 7,
+    "producerWorkTransactionMaximumMs": 596.193959,
+    "coldTransactionMaximumMs": 190.912584,
+    "serverExit": 0,
+    "launcherExit": 0,
+    "exactContainerAbsent": true,
+    "forced": false,
+    "oom": false,
+    "memoryPeakBytes": 206843904,
+    "independentReview": "ACCEPT_NARROW_NATIVE_COMMITTED_PROGRESS_LOST_APPLICATION_ACK_COLD_PENDING_AND_DEADLINE_EXPIRED_COMPONENT_PASS"
+  },
+  "limits": [
+    "local FILE-protocol owned-memory SQLite preparation, not disk-backed FILE or remote Production qualification",
+    "safe rejection and preservation, not resumed completion or orphan hold disposal",
+    "SQLD stayed alive; SQLD crash is not tested",
+    "operation receipts are not a measured source-ACK count",
+    "full Stage6/Hrana/runtime/Telegram integration remains unqualified",
+    "original first native failure remains consumed and unchanged"
+  ],
+  "productReadOnlyFollowup": {
+    "morningBrief": "WAITING_FOR_SLEEP / no_main_sleep",
+    "lastWhoopWebhookUTC": "2026-10-22T22:52:29.700Z",
+    "recentFiveDayWebhookCount": 0,
+    "unresolvedHistoricalEvents": 0,
+    "strain": "one LOG_ONLY event, no sent event, no journal deliveries or callbacks observed",
+    "realStrainInlineKeyboardBugClosed": false
+  },
+  "next": "Qualify distinct zero-WORK reader-only expired-Body exclusion and Evidence path using unchanged genuine fixture; keep original positive LIMITED gate. Telegram original receipt integration requires explicit ticket/audit/terminal lifecycle architecture.",
+  "invariants": {
+    "F02Preserved": true,
+    "productionWrites": 0,
+    "telegramSends": 0,
+    "permitActions": 0,
+    "TursoTokenChanges": 0,
+    "fullCampaignReruns": 0
+  },
+  "privateEvidenceSHA256": {
+    "recovery2b-crash.private.log": "d99e63bace7db9557f4318d4e0b13674749147388f2c9402d38fc0f40c464240",
+    "recovery2b-crash-independent-actual-review.private.json": "feb7775867cdf39d88b77f17cd848ecad1819bd6ee9be2152dc7f286408f2457",
+    "recovery2b-crash-host-terminal.private.json": "a7e5373c23b5daa18311d9424e17fa9bacc59ec9658c264c22bc1ad92f05f313",
+    "morning-intake-r22-recovery2-actual.private.json": "11cb665855e495000ff776f665ecbb7793b145f8b600a4d973d570ff5cbe4c7f",
+    "strain-r22-recovery2-actual.private.json": "cf8e9c11ae2234afe6e7549ac597cf623d548434b6bdd47f7591bc99baace538"
+  }
+}

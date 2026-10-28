@@ -13,6 +13,7 @@ import {authorizeStage8LiveProducer} from '../src/stage8LiveProducerAuthority.js
 import {createStage8LiveExecutionRunner} from '../src/stage8LiveExecution.js';
 import {createStage8LivePreparedWorker} from '../src/stage8LivePreparedWork.js';
 import {buildPhase4Core} from '../src/phase4Core.js';
+import {composePhase4Stores} from '../src/phase4Repositories.js';
 import {createPhase4Stage6} from '../src/phase4Reanalysis.js';
 import {currentDurableExecution,withDurableExecution} from '../src/phase4ExecutionContext.js';
 import {createPhase4ContextRegistry} from '../src/phase4Cache.js';
@@ -26,14 +27,17 @@ import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {log} from '../src/logger.js';
 for(const name of ['info','warn','error'])log[name]=()=>{};
 
-async function fixture(t){
+async function fixture(t,{days=0,recoveryDeviation=false}={}){
  const dir=await mkdtemp(join(tmpdir(),'r22-live-prepared-')),url='file:'+join(dir,'fixture.sqlite');
  const seed=createOwnedFileDb({url,phase4Keys:fixtureKeys}),control=createClient({url});let db,transport;
  t.after(async()=>{try{await db?.close();seed.close();control.close();}finally{transport?.close();await rm(dir,{recursive:true,force:true});}});
  await seed.migrate({targetVersion:35});await seed.raw.execute('PRAGMA journal_mode=WAL');
  await seed.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
  const foundation=await createPhase4Foundation({db:seed,keys:fixtureKeys,admission:await seed.admitRuntime()});await foundation.initializeTenant('a','SHADOW');
- await seed.transaction(()=>seedBodyInput(seed,bodyInput({asOf:Date.now()-1000,days:0})));
+ const input=bodyInput({asOf:Date.now()-1000,days});
+ // The existing approved Stage5 severe-single synthetic recovery pattern.
+ if(recoveryDeviation)for(const [index,row]of input.sources.recovery.entries())row.recovery_score=index===0?15:[40,45,50,55,60][(index-1)%5];
+ await seed.transaction(()=>seedBodyInput(seed,input));
  await seed.ensureOnboarding('a',{state:'READY'});await seed.linkTelegram({userId:'a',chatId:'10001'});await seed.setLocale('a','en');
  transport=hranaTransport(url,{transactionMaxMs:5000,traceTransactions:true});
  db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch:request=>transport.fetch(request)});
@@ -47,10 +51,11 @@ async function runner(f,work){
  await core.initializeTenant('a','LIVE');
  const canonicalWorker=await createPhase4Stage6({...f,admission,executionMode:'LIVE',liveProducingAuthority:capability});await canonicalWorker.rolloutAlgorithm({userId:'a'});
  const prepared=createStage8LivePreparedWorker({...f,capability});
- return createStage8LiveExecutionRunner({...f,capability,capture:id=>core.capture(id,{executionMode:'LIVE',providerRequired:true}),assertContext:ctx=>core.assertContext(ctx),work:async(id,context)=>{
+ const run=createStage8LiveExecutionRunner({...f,capability,capture:id=>core.capture(id,{executionMode:'LIVE',providerRequired:true}),assertContext:ctx=>core.assertContext(ctx),work:async(id,context)=>{
   const result=await work({prepared,userId:id,context,execution:currentDurableExecution()});
   return {outcome:result.outcome,itemsProcessed:result.processedItems,unitsCommitted:result.unitsCommitted,jobsCompleted:result.completedJobs,jobsFailed:result.failedJobs,remainingJobs:result.remainingJobs};
  }});
+ return Object.assign(run,{core});
 }
 async function graph(f){
  const tables=(await f.control.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'stage8_live_%' OR name IN ('phase4_jobs','phase4_computation_state','body_energy_results','health_insights','evidence_runs','evidence_items')) AND name NOT IN ('stage8_live_executions','stage8_live_execution_work_receipts') ORDER BY name")).rows.map(r=>r.name),out=[];
@@ -192,4 +197,68 @@ test('genuine finalized SYNC and subject ownership invoke one prepared HTTP leg 
  const progress=(await f.control.execute("SELECT value FROM telegram_state WHERE key LIKE 'stage8:sync-progress:%'")).rows.map(r=>JSON.parse(r.value));
  assert.equal(progress.length,1);assert.equal(progress[0].ordinal,1);assert.equal(progress[0].done,false);
  assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
+});
+
+test('prepared Hrana work completes both canonical jobs including legitimate empty outcomes',async t=>{
+ const f=await fixture(t),run=await runner(f,({prepared,userId,context})=>prepared.drain({userId,context}));
+ let result;
+ // Small synthetic fixture only. This cost ceiling is not an execution permit;
+ // every cycle keeps the original twelve-unit/45s/60s application contract.
+ for(let ordinal=0;ordinal<6;ordinal++){
+  result=await run({userId:'a',requestId:'r22-small-both-jobs-'+ordinal});
+  console.log('R22_SMALL_BOTH_PROGRESS '+JSON.stringify({ordinal,units:result.result.unitsCommitted,sourceACK:result.result.itemsProcessed,jobs:result.result.jobsCompleted,remaining:result.result.remainingJobs}));
+  assert.equal(result.result.jobsFailed,0);assert.ok(result.result.itemsProcessed||result.result.unitsCommitted||result.result.jobsCompleted);
+  if(result.result.remainingJobs===0)break;
+ }
+ assert.equal(result.result.remainingJobs,0);
+ const rows=(await f.db.raw.execute("SELECT state,scope_kind,full_scan_cursor,requested_generation,completed_generation,attempt,lease_owner FROM phase4_jobs WHERE user_id='a' AND execution_mode='LIVE'")).rows;
+ assert.equal(rows.length,2);assert.ok(rows.every(r=>r.state==='COMPLETED'&&r.scope_kind==='NONE'&&r.full_scan_cursor===null&&r.completed_generation===r.requested_generation&&r.attempt===0&&r.lease_owner===null));
+ assert.equal((await f.db.raw.execute("SELECT count(*) n FROM phase4_computation_state WHERE user_id='a' AND execution_mode='LIVE' AND last_completed_generation=input_generation")).rows[0].n,1);
+ assert.equal((await f.db.raw.execute("SELECT count(*) n FROM phase4_invalidations WHERE user_id='a' AND execution_mode='LIVE' AND scope_kind<>'NONE'")).rows[0].n,0);
+ assert.equal((await f.db.raw.execute("SELECT count(*) n FROM resource_locks WHERE name LIKE '%:prepared-disposal:%'")).rows[0].n,0);
+});
+
+test('terminal invalidation publication rejects a changed authoritative preimage without settling the last job',async t=>{
+ const f=await fixture(t);let calls=0,attacked=false,before,preparedWorker;
+ const state=async()=>({jobs:(await f.control.execute("SELECT * FROM phase4_jobs WHERE user_id='a' AND execution_mode='LIVE' ORDER BY job_kind")).rows,
+  computation:(await f.control.execute("SELECT * FROM phase4_computation_state WHERE user_id='a' AND execution_mode='LIVE'")).rows,
+  invalidations:(await f.control.execute("SELECT * FROM phase4_invalidations WHERE user_id='a' AND execution_mode='LIVE'")).rows,
+  completions:(await f.control.execute("SELECT * FROM stage8_live_job_completions WHERE user_id='a' ORDER BY job_kind")).rows});
+ const run=await runner(f,async({prepared,userId,context})=>{
+  calls++;const plan=await prepared.prepare({userId,context});
+  if(calls===6){
+   preparedWorker=prepared;const changed=await f.control.execute("UPDATE phase4_invalidations SET updated_at='2099-01-01T00:00:00.000Z' WHERE user_id='a' AND execution_mode='LIVE'");assert.equal(changed.rowsAffected,1);attacked=true;before=await state();
+   assert.equal(before.completions.length,1);
+   await assert.rejects(prepared.publish(plan),error=>error.code==='SQLITE_ERROR'&&f.transport.evidence.some(e=>e.event==='sql_error'&&e.assertionLabel==='SHORT_TRANSACTION_CONDITION_REJECTED'));
+   assert.deepEqual(await state(),before);throw Error('EXPECTED_CHANGED_INVALIDATION_REJECTION');
+  }
+  return prepared.publish(plan);
+ });
+ for(let ordinal=0;ordinal<5;ordinal++)await run({userId:'a',requestId:'r22-terminal-invalidation-'+ordinal});
+ await assert.rejects(run({userId:'a',requestId:'r22-terminal-invalidation-final'}),/EXPECTED_CHANGED_INVALIDATION_REJECTION/);assert.equal(attacked,true);assert.equal(calls,6);
+ const execution=(await f.control.execute("SELECT state,result_json,generation FROM stage8_live_executions WHERE execution_id='r22-terminal-invalidation-final'")).rows[0];assert.equal(execution.state,'ESTABLISHED');assert.equal(execution.result_json,null);assert.equal(execution.generation,1);
+ assert.equal(preparedWorker.status().disposal.holdReleased,false);assert.equal((await f.control.execute("SELECT count(*) n FROM resource_locks WHERE name LIKE '%:prepared-disposal:%'")).rows[0].n,1);
+});
+
+
+test('prepared canonical metric work preserves a genuine qualifying LIVE Episode and its complete revision graph',async t=>{
+ const f=await fixture(t,{days:30,recoveryDeviation:true}),run=await runner(f,({prepared,userId,context})=>prepared.drain({userId,context}));let episodes=0,calls=0;
+ for(let ordinal=0;ordinal<4;ordinal++){
+  const value=await run({userId:'a',requestId:'r22-small-qualified-episode-'+ordinal});calls++;assert.equal(value.result.jobsFailed,0);
+  assert.ok(value.result.itemsProcessed||value.result.unitsCommitted||value.result.jobsCompleted);
+  episodes=(await f.control.execute("SELECT count(*) n FROM observation_episodes WHERE user_id='a' AND execution_mode='LIVE' AND state='OPEN'")).rows[0].n;
+  if(episodes)break;
+ }
+ assert.equal(episodes,1);
+ // Stage6 uses the canonical episodes.open contract, which requires its
+ // source/evidence links, event, semantic event and signed revision. The
+ // analyzeMetric facade's optional observation/link tables are not invented.
+ for(const table of ['episode_events','episode_semantic_events','phase4_episode_revisions'])assert.ok((await f.control.execute("SELECT count(*) n FROM "+table+" WHERE user_id='a' AND execution_mode='LIVE'")).rows[0].n>0,table+' genuine graph required');
+ assert.ok((await f.control.execute("SELECT count(*) n FROM evidence_runs WHERE user_id='a' AND execution_mode='LIVE' AND state='COMPLETED' AND subject_key='recovery_score' AND sample_count=30")).rows[0].n>0);
+ const row=(await f.control.execute("SELECT episode_id FROM observation_episodes WHERE user_id='a' AND execution_mode='LIVE'")).rows[0],context=await run.core.capture('a',{executionMode:'LIVE',providerRequired:true});
+ const stores=composePhase4Stores(run.core),read=await stores.readArtifact(context,'observation_episodes',{episode_id:row.episode_id});assert.equal(read.row.episode_id,row.episode_id);assert.equal(read.row.state,'OPEN');
+ const revision=await stores.episodes.readRevision(context,{episodeId:row.episode_id,revision:read.row.revision});assert.equal(revision.row.episode_id,row.episode_id);assert.equal(revision.row.revision,read.row.revision);assert.equal(revision.row.state,'OPEN');
+ assert.equal((await f.control.execute("SELECT count(*) n FROM observation_episodes WHERE execution_mode='SHADOW'")).rows[0].n,0);
+ assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
+ console.log('R22_PREPARED_QUALIFIED_EPISODE '+JSON.stringify({calls,episodes,source:'APPROVED_SYNTHETIC_RECOVERY_PATTERN',originalAlgorithmsUnchanged:true,fullEOFQualified:false,productionEvidence:false}));
 });

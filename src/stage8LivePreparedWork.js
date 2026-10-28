@@ -7,6 +7,8 @@ import {stage6RuntimeBinding} from './stage6RuntimeBinding.js';
 import {createPhase4Stage6} from './phase4Reanalysis.js';
 import {STAGE8_LIVE_DRAIN_BUDGET} from './stage8LiveDrainPolicy.js';
 import {LIVE_TABLES} from './stage8LiveAllocation.js';
+import {V23_TABLES} from './phase4V23Schema.js';
+import {V25_TABLES} from './phase4V25Schema.js';
 import {createPreparationScheduling} from './stage6PreparationScheduling.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {readOnlyProcessingCheck} from './processingTransaction.js';
@@ -15,7 +17,9 @@ import {preparedDisposalFence} from './stage6PreparedDisposal.js';
 import {capturePreparedSnapshot,openPreparedMemory,capturePreparedPostImages,preparedImageGuards,erasePreparedSnapshot,preparedAssertion as check} from './stage6PreparedSnapshot.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 const plans=new WeakMap(),preparedExecutions=new WeakSet();
-const writable=new Set([...Object.values(LIVE_TABLES),'resource_locks','phase4_jobs','phase4_computation_state',
+// Canonical artifact families and final-job invalidation settlement are still
+// bound to the exact tenant/LIVE preimage, postimage and original work receipt.
+const writable=new Set([...Object.values(LIVE_TABLES),...V23_TABLES,...V25_TABLES,'resource_locks','phase4_jobs','phase4_computation_state','phase4_invalidations',
  'health_insights','evidence_runs','evidence_run_items','evidence_run_sources','evidence_items','phase4_source_links',
  'phase4_evidence_links','phase4_insight_links','phase4_insight_provenance','phase4_health_episodes','phase4_episode_events',
  'health_episodes','health_episode_events','body_energy_results','stage8_live_job_completions']);
@@ -89,7 +93,7 @@ export function createStage8LivePreparedWorker({db,keys,capability}){
     const sql=typeof stmt==='string'?stmt:stmt.sql;if(!/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))return;
     if(seen.has(result))return;seen.add(result);
     const table=/^\s*(?:INSERT\s+(?:OR\s+\w+\s+)?INTO|UPDATE|DELETE\s+FROM|REPLACE\s+INTO)\s+"?([a-z0-9_]+)"?/i.exec(sql)?.[1],args=typeof stmt==='string'?[]:stmt.args??[];
-    if(!writable.has(table))fail('LIVE_PREPARED_EFFECT_TARGET_REJECTED:'+table);
+    if(!writable.has(table)){const error=Object.assign(Error('LIVE_PREPARED_EFFECT_TARGET_REJECTED'),{code:'LIVE_PREPARED_EFFECT_TARGET_REJECTED',target:table});p.preparationFailure??=error;throw error;}
     if(table==='resource_locks'&&!(args[0]===`phase4-stage6-pass:${JSON.stringify([userId,'LIVE'])}`||typeof args[0]==='string'&&args[0].startsWith(prefix)))fail('LIVE_PREPARED_FOREIGN_LOCK');
     if(!Number.isSafeInteger(result.rowsAffected)||result.rowsAffected<0)fail('LIVE_PREPARED_EFFECT_ACK_REQUIRED');
     const effect={sql,args:structuredClone(args),rowsAffected:result.rowsAffected};
@@ -103,6 +107,7 @@ export function createStage8LivePreparedWorker({db,keys,capability}){
     const worker=await createPhase4Stage6({db:memory,keys,admission,executionMode:'LIVE',liveProducingAuthority:localCapability});
     result=await memory.withRuntimeFence(()=>assertOriginal(p),()=>worker.drain({userId,triggerSource:'manual',budget:STAGE8_LIVE_DRAIN_BUDGET}));
     requireSettledOperation();if(child.pending.size||child.indeterminate||child.workRejected||memory.processingTransactionActive())fail('LIVE_PREPARED_RECEIVER_UNSETTLED');
+    if(p.preparationFailure)throw p.preparationFailure;
     if(result.failedJobs||result.outcome==='FAILED')fail('LIVE_PREPARED_CALCULATION_FAILED');
     const noWork=['NO_WORK','NO_ELIGIBLE_WORK'].includes(result.outcome);
     if(!(result.processedItems||result.unitsCommitted||result.completedJobs||noWork))fail('LIVE_PREPARED_NO_COMMITTED_UNIT');

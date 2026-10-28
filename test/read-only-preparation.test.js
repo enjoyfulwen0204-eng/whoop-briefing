@@ -6,6 +6,8 @@ import {createExecutionBudget,withExecutionBudget} from '../src/executionBudget.
 import {fixture} from './v32ReviewFixture.js';
 import {reapExpiredProactiveQuestions} from '../src/proactiveReaper.js';
 import {dueForUser} from '../src/index.js';
+import {createStage6OwnedMemoryDb} from '../src/db.js';
+import {fixtureKeys} from './localDb.js';
 
 function receiver({rollbackFault=false,commitFault=null,delayRollback}={}){
  const events=[];
@@ -84,6 +86,36 @@ test('reaper empty-pass grouping cannot prefetch orphan rows across an original 
   listUnresolvableProactiveEvents:async()=>{events.push('orphans');return [];}};
  const result=await reapExpiredProactiveQuestions({db,userId:'a',now:new Date()});assert.equal(result.expired,1);assert.equal(result.noResponse,1);
  assert.deepEqual(events,['pending','expire','resolve','orphans']);
+});
+test('reaper inside an owned root retains original sequential reads and writes without a nested preparation root',async()=>{
+ const f=receiver(),events=[];let preparationRoots=0;
+ const db={...f.db,processingTransactionActive:f.p.active,readOnlyTransaction:fn=>{preparationRoots++;return f.p.readOnlyTransaction(fn);},
+  listReapablePendingQuestions:async()=>{events.push('pending');return [{id:'q',status:'OPEN',unresolvedEventId:'e'}];},
+  expirePendingQuestion:async()=>{assert.equal(f.p.active(),true);events.push('expire');return true;},
+  resolveProactiveEventIfUnresolved:async()=>{events.push('resolve');return true;},
+  listUnresolvableProactiveEvents:async()=>{events.push('orphans');return [];}};
+ const result=await f.p.transaction(()=>reapExpiredProactiveQuestions({db,userId:'a'}));
+ assert.equal(preparationRoots,0);assert.equal(result.expired,1);assert.equal(result.noResponse,1);
+ assert.deepEqual(events,['pending','expire','resolve','orphans']);assert.equal(f.events.filter(e=>e==='COMMIT').length,1);
+});
+test('nested reaper cannot bypass an existing readonly root mutation guard',async()=>{
+ const f=receiver(),db={...f.db,processingTransactionActive:f.p.active,
+  listReapablePendingQuestions:async()=>[{id:'q',status:'OPEN',unresolvedEventId:'e'}],
+  expirePendingQuestion:()=>f.p.client.execute('UPDATE forbidden SET n=1')};
+ await assert.rejects(f.p.readOnlyTransaction(()=>reapExpiredProactiveQuestions({db,userId:'a'})),/PROCESSING_READ_ONLY_CHECK_REQUIRED/);
+ assert.ok(!f.events.includes('COMMIT'));assert.ok(!f.events.some(e=>e.startsWith('UPDATE')));
+});
+test('nested reaper writes roll back together when the original terminal ownership fence fails',async t=>{
+ const owned=await createStage6OwnedMemoryDb(async client=>{
+  await client.execute('CREATE TABLE synthetic_reaper(phase INTEGER)');await client.execute('INSERT INTO synthetic_reaper VALUES(0)');
+ },fixtureKeys);t.after(()=>owned.close());let orphanRead=false;
+ const db={...owned,listReapablePendingQuestions:async()=>[{id:'q',status:'OPEN',unresolvedEventId:'e'}],
+  expirePendingQuestion:async()=>{await owned.raw.execute('UPDATE synthetic_reaper SET phase=1');return true;},
+  resolveProactiveEventIfUnresolved:async()=>{await owned.raw.execute('UPDATE synthetic_reaper SET phase=2');return true;},
+  listUnresolvableProactiveEvents:async()=>{assert.equal((await owned.raw.execute('SELECT phase FROM synthetic_reaper')).rows[0].phase,2);orphanRead=true;return [];}};
+ const failure=Error('ORIGINAL_OWNER_LOST');
+ await assert.rejects(owned.transaction(()=>reapExpiredProactiveQuestions({db,userId:'a'}),{after:()=>{throw failure;}}),error=>error===failure);
+ assert.equal(orphanRead,true);assert.equal((await owned.raw.execute('SELECT phase FROM synthetic_reaper')).rows[0].phase,0);
 });
 test('definite failed first reaper list still executes original orphan pass, and empty success shares a single unit',async()=>{
  const f=receiver();let first=0,orphans=0;

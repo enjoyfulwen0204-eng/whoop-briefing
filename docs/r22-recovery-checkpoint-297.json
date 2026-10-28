@@ -1,0 +1,34 @@
+{
+  "checkpoint": "R22-recovery-297",
+  "atUTC": "2026-10-28T10:53:15.387058+00:00",
+  "stage": "NESTED_REAPER_ORIGINAL_TRANSACTION_COMPOSITION_REPAIRED",
+  "baseCommit": "52194f9",
+  "changes": "Only processingTransactionActive()===true selects the existing independent pending read. Original orphan pass, lease-gated mutations and outer terminal fences remain in the same transaction. No new root/outside or global readonly exception.",
+  "validation": {
+    "initialFocusedPassed": 68,
+    "initialFocusedFailures": 0,
+    "finalReadOnlyPreparationPassed": 21,
+    "finalReadOnlyPreparationFailures": 0,
+    "finalOriginalOwnershipCasePassed": 1,
+    "finalOriginalOwnershipCaseFailures": 0,
+    "readOnlyMutationAndOriginalTerminalFenceRollback": true
+  },
+  "independentReview": "GO final source and21tests. Original unchanged ownership assertion subsequently passed on final ===true source.",
+  "originalFailure": "Exact baseline0290940 and pre-fix current source both failed skipped0 vs1; old logs retained.",
+  "scopeLimits": [
+    "This reaper repair is not genuine Strain inline keyboard or callback delivery",
+    "Telegram Evidence prepared ticket/profile/audit integration remains open",
+    "Previous native component passes retain their exact65ecd2a/02e9dcd source scope"
+  ],
+  "next": "One fresh single-tenant canonical synthetic fixture is justified by proved old fixture expiry; then zero-WORK native reader qualification for positive LIMITED, without repeating six-job campaign.",
+  "invariants": [
+    "F02 preserved",
+    "no Production writes/migrations/sends/permit reset/token change",
+    "no user-data sharing"
+  ],
+  "privateEvidenceSHA256": {
+    "recovery2-reaper-focused-r1.tap.private": "fba394aaa126b9f345f25ca3d96e3840edca9660d1aea45acc0f8a2df29fbddf",
+    "recovery2-reaper-final-fence-r2.tap.private": "77f8d3fdd0843cacd5c89aa00118fc27a10dcadd779a327ed31c7c1a1cc120fc",
+    "recovery2-reaper-original-owner-final.tap.private": "cfee4ce1bc5543abdb2de69ce8a6ff6c4869c94a0539db72a2e9d8c800620d6c"
+  }
+}

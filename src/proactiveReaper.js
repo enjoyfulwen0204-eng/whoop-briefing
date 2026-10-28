@@ -113,7 +113,10 @@ export async function reapExpiredProactiveQuestions({
       return {stale:rows,orphans:null};
     };
     let prepared;
-    try{prepared=await prepareReadOnly(db,async()=>{
+    // A reaper invoked by an owned answer operation already shares its
+    // transaction and ownership fences. Use the original sequential reads;
+    // opening a second readonly root would reject before the orphan pass.
+    try{prepared=db.processingTransactionActive?.()===true?await independent():await prepareReadOnly(db,async()=>{
       const rows=await pendingRead();
       // No first-pass items means no first-pass writes. Only in that case may
       // the original orphan read share this snapshot. Otherwise its read stays

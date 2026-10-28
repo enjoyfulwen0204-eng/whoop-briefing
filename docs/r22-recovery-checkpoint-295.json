@@ -1,0 +1,108 @@
+{
+  "checkpoint": "R22-recovery-295",
+  "atUTC": "2026-10-28T10:38:38.947550+00:00",
+  "stage": "TWO_NARROW_NATIVE_MILESTONES_INDEPENDENTLY_ACCEPTED_AND_REMAINING_ARCHITECTURE_RECORDED",
+  "sourceCommit": "02e9dcd32d0d1e4d0894887842808038eab33982",
+  "pushedSHA": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "production": {
+    "sha": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "schema": 33,
+    "lastVerifiedAtUTC": "2026-10-28T10:31:27.249Z",
+    "readOnly": true
+  },
+  "survivedOriginalR22": {
+    "commitsAfter8a3d32e": [
+      "247b57f",
+      "1fd75a2",
+      "15b6354",
+      "8333d4b",
+      "d4355c8",
+      "f65f4d1",
+      "75ff618"
+    ],
+    "newerUnpushedR22AtRecoveryStart": false,
+    "olderDirtyWorktreesPreserved": true,
+    "lastRecoveredDispatch": "R3 reader consumed FAIL on expired immutable Body capture; no pending operation resumed or duplicated",
+    "applicationSourcePreservedFrom75ff618": true
+  },
+  "milestones": {
+    "committedProgressLostAck": {
+      "source": "65ecd2a9742fc67167ba694854a3af5256d48698",
+      "workCalls": 1,
+      "newCanonicalOperationReceipts": 2,
+      "newWorkReceipts": 17,
+      "maximumProducerTransactionMs": 596.193959,
+      "coldPendingAndOriginalDeadlineExpired": true,
+      "originalGraphAuthorityReceiptsWitnessHoldPreserved": true,
+      "independentAcceptance": true
+    },
+    "readerOnly": {
+      "source": "02e9dcd32d0d1e4d0894887842808038eab33982",
+      "nativeWorkCalls": 0,
+      "immutableFixtureUnchanged": true,
+      "bodyExpiredItems": 0,
+      "positiveLimitedQualified": false,
+      "evidenceItems": 8,
+      "episodesItems": 0,
+      "insightsItems": 0,
+      "originalFourKindReplyGuard": true,
+      "runtimeTransactions": 42,
+      "allRuntimeTerminals": "ACKNOWLEDGED_COMMIT",
+      "maximumRuntimeTransactionMs": 1372.865709,
+      "maximumEvidenceTransactionMs": 514.004417,
+      "requests": 387,
+      "errors": 0,
+      "openStreams": 0,
+      "pendingRequests": 0,
+      "memoryPeakBytes": 258576384,
+      "childAndServerExit": 0,
+      "forced": false,
+      "oom": false,
+      "exactOwnedContainerAbsent": true,
+      "independentAcceptance": true
+    }
+  },
+  "focusedValidation": {
+    "publicationAuthorityLostAckTests": 8,
+    "crashHarnessTests": 15,
+    "readerAndProjectionTests": 40,
+    "failures": 0
+  },
+  "qualificationLimits": [
+    "Two isolated component traces, not a combined end-to-end producer/reader runtime",
+    "Local FILE-protocol owned-memory SQLite preparation, not disk-backed FILE or remote Turso/Production qualification",
+    "Lost-ACK rejection and committed-state preservation, not resumed completion or orphan disposal recovery",
+    "Positive native fresh Body LIMITED remains unqualified",
+    "Old failed scopes retained as FAIL; no FILE six-job/full native campaign repeated",
+    "Owned-memory per-transaction timings remain UNKNOWN"
+  ],
+  "remainingProductWork": {
+    "stage5": "No new qualified production intelligence results claimed; existing metadata evidence remains private",
+    "stage6": "Complete runtime, future-sync recovery and orphan hold disposal unqualified",
+    "stage7": "Genuine Strain-triggered Telegram inline delivery and callback not observed; bug remains open",
+    "stage8": "Reader component accepted; genuine Telegram operation/receipt integration and notifications remain blocked",
+    "bodyEnergy": "Expired exclusion accepted; native positive LIMITED still requires a distinct fresh genuine fixture scope",
+    "morningSource": "Read-only production/provider investigation refreshed; no user data or provider response bodies included in this checkpoint"
+  },
+  "nextExecutableAction": "Implement and independently review original-root terminal metadata, then private prepared-read ticket with explicit profile/audit ordering, original authority and full-preimage receipt atomicity; see architecture contract.",
+  "architectureContract": "docs/r22-telegram-evidence-integration-contract.json",
+  "invariants": {
+    "F02Preserved": true,
+    "productionWrites": 0,
+    "migrations": 0,
+    "telegramSends": 0,
+    "permitResets": 0,
+    "quotaBypasses": 0,
+    "TursoTokenChanges": 0,
+    "userDataShared": false
+  },
+  "evidenceDirectory": "tmp/r22-20261028.private",
+  "privateEvidenceSHA256": {
+    "recovery2b-crash-independent-actual-review.private.json": "feb7775867cdf39d88b77f17cd848ecad1819bd6ee9be2152dc7f286408f2457",
+    "recovery2-reader-independent-actual-review.private.json": "eae42723efa40fbd44b646d843daa34497097de09681008982892c2e96555119",
+    "recovery2-reader.private.log": "21ee2ddd4c12921fa9b34acd6a5eab381f8f8879641d11ea79db63b3597b24e1",
+    "recovery2-reader-host-terminal.private.json": "50aedae3f228a4ca129c39a5b1d6b718a050738eab7624d93ff7aa7ebf4bf787",
+    "morning-whoop-r22-recovery2-actual.private.json": "9eeeefd04c61a254a4a8d3e40db9aedc682d1e86b7a3a4a0c529350063c1f738",
+    "recovery2-render-branch-read.private.json": "ea12bcc1d5bae8ec65ddf9ef75913003df6c3939d599acfab06fe8b1a63857b3"
+  }
+}

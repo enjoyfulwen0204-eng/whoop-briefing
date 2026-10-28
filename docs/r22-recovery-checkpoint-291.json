@@ -1,0 +1,45 @@
+{
+  "checkpoint": "R22-recovery-291",
+  "atUTC": "2026-10-28T10:07:44.353106+00:00",
+  "stage": "CURRENT_SOURCE_CRASH_AND_EXPIRED_HARNESS_REVIEWED_NOT_EXECUTED",
+  "candidateBase": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "pushedSHA": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "production": {
+    "sha": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "schema": 33,
+    "observedAtUTC": "2026-10-28T09:55:44.835Z",
+    "readOnly": true
+  },
+  "recovery": {
+    "newerUnpushedR22AtStart": false,
+    "sevenR22CommitsPreserved": true,
+    "olderDirtyWorktreesPreserved": true,
+    "noR22ProcessesOrContainers": true,
+    "latestRecoveredOperation": "R3 reader consumed FAIL at expired immutable Body fixture; Evidence not reached"
+  },
+  "changes": [
+    "Separate crash primary and cleanup failures; latch request/SQL errors through physical close",
+    "Verify original authority, named receipt, canonical operation receipt progress and permanent disposal hold",
+    "Add real-deadline COLD_EXPIRED probe with exact original graph/receipt/owner/hold invariance"
+  ],
+  "review": "Sole independent reviewer accepted three-file source after cold-mode cleanup attribution correction; native scope still pending",
+  "focusedTests": {
+    "publicationAuthorityLostAck": 8,
+    "harnessGates": 14,
+    "failures": 0
+  },
+  "evidenceDirectory": "tmp/r22-20261028.private",
+  "privateEvidenceSHA256": {
+    "production-r22-recovery2-actual.private.json": "70512d53ffe9cd38a2c58ef0d615193811b8c3671a16f7e7f9cbfe77534756e4",
+    "recovery2-publication-authority-ack.tap.private": "06213d61e929280c3a28ab7c0091c426e3c71af479a51bdbdd0a2ae9ad0a552c",
+    "recovery2-crash-harness-gates.tap.private": "e6bf4c2c1923558b5b3c1718ad94db8e32d21be3ffb72cebee60dacb22cb7522"
+  },
+  "next": "Freeze committed source and unused one-WORK/three-process native scope; independent review before dispatch",
+  "limits": [
+    "No FILE six-job or native twenty-WORK rerun",
+    "No Production writes, migrations, permits, token changes or external delivery",
+    "Historical native PASS is scoped to its old exact source; full Hrana/runtime/orphan recovery remains unqualified",
+    "Telegram Evidence operation handoff remains an architecture-level integration blocker; Strain real inline delivery remains unverified",
+    "F02 preserved"
+  ]
+}

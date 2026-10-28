@@ -80,7 +80,13 @@ export function createStage8SelfQa({scopes,db,bodyEnergy,bodyEnergyLive,decorate
   const days=/\btoday\b|今天|今日|hôm nay/iu.test(raw)?1:explicitDays?Number(explicitDays[1]??explicitDays[2]):1;
   if(days>120||days<1||/\d{4}-\d{2}-\d{2}|上週|昨天|昨晚|yesterday|last night|last week|hôm qua|tuần trước/iu.test(raw))return {text:c.clarify};
   if(bodyEnergyLive?.isQuery(raw))return bodyEnergyLive.query({user,chatId,text:raw});
-  const scope=await scopes.open({user,chatId,text:raw,intent:intent.intent,asOf:now(),maxHealthDays:days});
+  const operation=db.getOriginalTelegramOperation?.();
+  if(operation){
+   if(operation.ownerUserId!==user.id)throw Error('SCOPED_ACTOR_FENCED');
+   await db.assertOriginalTelegramOperation(operation);
+  }
+  const scope=await scopes.open({user,chatId,text:raw,intent:intent.intent,
+   asOf:operation?new Date(operation.asOfEpochMs):now(),maxHealthDays:days});
   if(!scope.permitted)return {text:c.clarify};
   let reply;
   if(bodyEnergy&&(isBodyEnergyQuery(raw)||/^(?:\/energy)(?:\s|$)/i.test(raw)||/body energy|體能電量|能量分數/iu.test(raw))){

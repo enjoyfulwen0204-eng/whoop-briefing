@@ -29,6 +29,7 @@ import Database from 'libsql';
 import {Sqlite3Client,Sqlite3Transaction} from '@libsql/client/sqlite3';
 import {fileURLToPath} from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   GLOBAL_SCOPE, userScope, TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS,
   REPORT_DELIVERY_STATE, USER_STATUS, lifecycleActiveSql,
@@ -164,6 +165,22 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
   });
   const privacy=legacyPrivacyFence(transactionClient,phase4Keys);
   const replyContexts=new WeakMap();
+  const telegramOperationScope=new AsyncLocalStorage();
+  // Identity/time binding only. Reading this metadata is not authority to read
+  // health data, prepare outside a root, publish a receipt, or release a hold.
+  function getOriginalTelegramOperation(){
+    const frame=telegramOperationScope.getStore();if(!frame)return null;
+    frame.assertLocal();return frame.identity;
+  }
+  async function assertOriginalTelegramOperation(identity){
+    const frame=telegramOperationScope.getStore();
+    if(!frame||frame.identity!==identity)fail('TELEGRAM_ORIGINAL_OPERATION_REQUIRED');
+    const current=()=>{
+      if(telegramOperationScope.getStore()!==frame||frame.identity!==identity)fail('TELEGRAM_ORIGINAL_OPERATION_REQUIRED');
+      frame.assertLocal();
+    };
+    current();await frame.check();current();
+  }
   const compatibility=createLegacyHealthAdapter({client:transactionClient,processing,privacy,keys:phase4Keys});
   const client=compatibility.client;
   const phase4Queue=createPhase4QueueStore({client,processing,transaction:processing.transaction,keys:phase4Keys,timestamp:()=>new Date().toISOString()});
@@ -232,28 +249,44 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
   async function processTelegramOperation(updateId, { owner, ownerUserId=null, nonHealthOperation=false, now = () => new Date() }, fn) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || id < 0) throw new Error('invalid_update_id');
-    if(processing.active())fail('PHASE4_TELEGRAM_OPERATION_MUST_BE_ROOT');
+    if(processing.active()||telegramOperationScope.getStore()?.active)fail('PHASE4_TELEGRAM_OPERATION_MUST_BE_ROOT');
     const replay=await getRedactedTelegramReplay(id);if(replay)return replay;
     const operationFence=ownerUserId?await processing.transaction(async()=>{
       const captured=await privacy.capture(ownerUserId);await privacy.track(captured);return captured;
     }):null;
-    let preparedSourceGeneration;
+    let preparedSourceGeneration,operationFrame;
     const observeSource=async()=>{
       const row=(await client.execute({sql:'SELECT source_generation FROM phase4_user_state WHERE user_id=?',args:[ownerUserId]})).rows[0];
       if(!Number.isSafeInteger(row?.source_generation)||row.source_generation<0)fail('PHASE4_RECEIPT_SNAPSHOT_REQUIRED');return row.source_generation;
     };
     const check = async () => {
       const r = await client.execute({
-        sql: `SELECT update_id FROM telegram_processed_updates
+        sql: `SELECT update_id,lease_expires_at FROM telegram_processed_updates
               WHERE update_id = ? AND owner = ? AND status = 'PROCESSING' AND lease_expires_at > ?`,
         args: [id, owner, new Date(now()).toISOString()],
       });
       if (!r.rows.length) throw new Error('telegram_processing_ownership_lost');
+      if(operationFrame){
+        operationFrame.currentLeaseUntil=Date.parse(r.rows[0].lease_expires_at);
+        if(operationFrame.originalLeaseUntil===undefined)operationFrame.originalLeaseUntil=operationFrame.currentLeaseUntil;
+      }
       await privacy.assert(operationFence);await privacy.checkLease(operationFence);
       if(preparedSourceGeneration!==undefined&&await observeSource()!==preparedSourceGeneration)fail('PHASE4_RECEIPT_GENERATION_STALE');
     };
     try {
-    const committed=await processing.transaction(async () => {
+    if(ownerUserId&&operationFence){
+      const asOfEpochMs=new Date(now()).getTime(),started=performance.now(),budget=currentExecutionBudget();
+      if(!Number.isSafeInteger(asOfEpochMs))fail('TELEGRAM_ORIGINAL_OPERATION_CLOCK_REQUIRED');
+      const identity=Object.freeze({updateId:id,owner,ownerUserId,asOfEpochMs});
+      operationFrame={identity,active:true,check,originalLeaseUntil:undefined,assertLocal(){
+        if(!operationFrame.active)fail('TELEGRAM_ORIGINAL_OPERATION_CLOSED');
+        budget?.assert();currentExecutionBudget()?.assert();
+        const at=new Date(now()).getTime(),until=Math.min(asOfEpochMs+120000,operationFrame.originalLeaseUntil,operationFrame.currentLeaseUntil);
+        if(!Number.isFinite(at)||!Number.isFinite(until)||at<asOfEpochMs||at>=until||performance.now()-started>=until-asOfEpochMs)
+          fail('TELEGRAM_ORIGINAL_OPERATION_EXPIRED');
+      }};
+    }
+    const committed=await telegramOperationScope.run(operationFrame,async()=>{try{return await processing.transaction(async () => {
       const prior = await client.execute({
         sql: 'SELECT * FROM telegram_operations WHERE update_id = ?',
         args: [id],
@@ -346,12 +379,14 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
           sourceType:'TENANT_LEGACY',sourceId:ownerUserId,at:new Date(now()).toISOString(),relationship:`RECEIPT_SOURCE:${source.source_generation}`});
       }
       return result;
-    }, { before: check, after: check });
+    }, { before: check, after: check });}finally{if(operationFrame)operationFrame.active=false;}});
     if(committed && typeof committed==='object' && committed.reply && operationFence)replyContexts.set(committed,operationFence);
     else await processing.transaction(()=>privacy.release(operationFence));
     return committed;
     } catch(error) {
       await processing.transaction(()=>privacy.release(operationFence));throw error;
+    } finally {
+      if(operationFrame)operationFrame.active=false;
     }
   }
 
@@ -1841,6 +1876,8 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
     assertTelegramReplySnapshot,
     withAnswerOwnership,
     processTelegramOperation,
+    getOriginalTelegramOperation,
+    assertOriginalTelegramOperation,
     mutateForWhoopEvent,
     mutateForReconciliation,
     getTelegramOperation,

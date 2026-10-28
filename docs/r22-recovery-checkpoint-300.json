@@ -1,0 +1,58 @@
+{
+  "checkpoint": "R22-recovery-300",
+  "atUTC": "2026-10-28T11:43:34.244272+00:00",
+  "stage": "ORIGINAL_TELEGRAM_OPERATION_BINDING_REVIEWED_AND_QUALIFIED_COMPONENT",
+  "baseCommit": "0200c68",
+  "changes": [
+    "Database-owned private original-operation AsyncLocalStorage, exact frozen identity, stable original asOf, bounded original lease and budget",
+    "Fresh asynchronous original owner/status/privacy/lease checks plus local original deadline checks before and after await; closed operation cannot fall back to standalone",
+    "Nested original operations, identity clones, cross database/actor, late continuations and original lease extension rejected",
+    "Stage8 QA opens scope using original asOf after fresh original authority checks; standalone behavior preserved"
+  ],
+  "validation": {
+    "focusedPassed": 14,
+    "focusedDurationMs": 18395.492708,
+    "independentFocusedPassed": 14,
+    "independentFocusedDurationMs": 13657,
+    "adjacentPassed": 40,
+    "adjacentDurationMs": 14361.818042,
+    "failuresAfterRepair": 0,
+    "earlyTestRevision": "Two late continuation cases initially inherited a closed processing root and already failed closed; revised to actual outside continuation to exercise operation-frame closure. Original logs retained."
+  },
+  "independentReview": "GO; sole reviewer inspected exact three source hashes, independently executed 14/14 and checked adjacent40 evidence. No findings.",
+  "sourceSHA256": {
+    "src/db.js": "4f98d293f4d6f8c9c1134509976a44a7dec18edf116afd0834567e73669a45e3",
+    "src/stage8SelfQa.js": "e8cd487300491acae55894000b70c4599e502bfacf9e3dc2044611651f74e1e2",
+    "test/telegram-original-operation.test.mjs": "519646dba0318e57e8605a4ab409a1174364964e309a75a3c689ad5a4ef2211e"
+  },
+  "privateEvidenceSHA256": {
+    "recovery2-original-operation-r1.tap.private": "43dd621527160108395c396f4b14f5218b069aced4a20e6f5a0c9c7ce9cd2122",
+    "recovery2-original-operation-r2.tap.private": "826f152ba0985f96db3d7e8ca3f0a3b58750346528b0db83321fed6759ae86f9",
+    "recovery2-original-operation-r3.tap.private": "cdbba0084d891295e74da56fcfea3fae2a2f49831b1ac3f857e3706ac35b25d7",
+    "recovery2-original-operation-adjacent-r1.tap.private": "5c2ebe9aeeec32ac849aa52913fb424c94c3eda88c68dc04fed1e188a119efcf",
+    "production-r22-recovery2-final-actual.private.json": "4e0d122a0a03169647c1e82889abe9dab83278e9d418a00442c4debffe36f486"
+  },
+  "productionReadOnlyVerification": {
+    "atUTC": "2026-10-28T11:38:53.841Z",
+    "sourceSHA": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "schema": 33,
+    "databaseWrites": 0,
+    "telegramSends": 0,
+    "providerRequests": 0
+  },
+  "remoteBranch": "repair/stage6-shadow-publication-20261026",
+  "remoteSHA": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "scopeLimits": [
+    "Synthetic actual DB/installed HTTP protocol, QA audit and receipt tests; QA fixture has no prepared Evidence reader",
+    "Not STAGE8_PREPARED_READ_ROOT_REQUIRED repair, prepared ticket, full preimage receipt integration or genuine Telegram delivery",
+    "BodyEnergyLive early-return path not newly bound by this QA scope-open change",
+    "Prior native crash remains exact65ecd2a; expired reader exact02e9dcd; positive LIMITED reader exact7ec52f6; no native campaign rerun"
+  ],
+  "nextExecutableAction": "Private prepared ticket lifecycle, original-root full-preimage consumption before profile/audit changes, and explicit owned request/stream completion proof before any exact hold disposal.",
+  "invariants": [
+    "F02 preserved",
+    "No Turso token modification",
+    "No Production write/migration/send/permit reset/quota bypass",
+    "No user-data sharing; commits remain local"
+  ]
+}

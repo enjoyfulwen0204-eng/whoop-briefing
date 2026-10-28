@@ -1,6 +1,6 @@
 {
   "contract": "r22-telegram-evidence-original-receipt-integration-design-v1",
-  "status": "ARCHITECTURE_ASSESSED_NOT_IMPLEMENTED_OR_QUALIFIED",
+  "status": "FOUNDATIONS_QUALIFIED_FULL_RECEIPT_INTEGRATION_NOT_IMPLEMENTED",
   "atUTC": "2026-10-28T10:35:32.812655+00:00",
   "observedFailure": {
     "path": "updateProcessor -> processTelegramOperation -> router -> Stage8Runtime -> scopedHealthContext.derived -> preparedStage8DerivedRead",
@@ -21,7 +21,7 @@
     },
     {
       "source": "src/processingTransaction.js",
-      "fact": "outside first rolls back the speculative root, executes outside and caches the result, then replays; afterCompletion currently has no COMMIT/ROLLBACK/unknown terminal metadata."
+      "fact": "outside rolls back the speculative root, executes outside and caches the result, then replays. Historical absence of terminal metadata was addressed by checkpoint296; physical completion remains UNKNOWN."
     },
     {
       "source": "src/db.js",
@@ -64,7 +64,7 @@
     "cancellation and original expiry",
     "known cleanup vs unknown permanent hold"
   ],
-  "nextExecutableSlice": "Database-owned original Telegram operation context with stable asOf and original fresh owner/privacy/lease fences, then private prepared ticket and explicit profile/audit ordering under the original receipt transaction.",
+  "nextExecutableSlice": "Private prepared ticket lifecycle, original-root full-preimage consumption before profile/audit changes, and explicit owned request/stream completion proof before any exact hold disposal.",
   "independentReview": "Sole reviewer accepted observed failure, root/audit/fullpreimage/unknownACK boundaries. Final wording explicitly retains fresh asynchronous original fences and requires physical completion beyond terminal metadata.",
   "notClaimed": [
     "Telegram Evidence fixed",
@@ -76,6 +76,7 @@
   "foundationalSlicesCompleted": {
     "terminalMetadata": "52194f9: acknowledged COMMIT/ROLLBACK/UNKNOWN/NO_ROOT; physicalCompletion alwaysUNKNOWN",
     "cleanupSettlement": "checkpoint299: allcompletion observers settle on close/observer failure; unknownCOMMIT classification retained; noholdreleasegrant",
-    "positiveBodyLimited": "checkpoint298: exact7ec52f6 native reader accepted, not Telegram route"
+    "positiveBodyLimited": "checkpoint298: exact7ec52f6 native reader accepted, not Telegram route",
+    "originalOperationBinding": "checkpoint300: private database-owned original operation identity, stable asOf, original budget/lease, fresh authority checks, late and cross actor rejection; no prepared Evidence ticket"
   }
 }

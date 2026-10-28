@@ -1,0 +1,26 @@
+{
+  "checkpoint": "R22-recovery-294",
+  "atUTC": "2026-10-28T10:29:16.358623+00:00",
+  "stage": "EXPLICIT_EXPIRED_BODY_READER_SCOPE_SOURCE_REVIEWED_NOT_EXECUTED",
+  "baseCommit": "13221c2",
+  "nativeCrashMilestone": "Accepted at65ecd2a; see checkpoint293",
+  "changes": [
+    "Preserve default FRESH_LIMITED exact one item and fail before database connection for an expired positive fixture",
+    "Add explicit EXPIRED_LIMITED with independently calculated original freshness horizon, exact zero results and positiveLimitedQualified=false",
+    "Separate expired-body ACK contract; supervisor must independently recompute declared body scope"
+  ],
+  "fixtureSHA256": "12dd473d34067f05655bbabdd465805b93eb5295544d2f94deee9af8acd91678",
+  "focusedTests": {
+    "passed": 40,
+    "failed": 0,
+    "durationMs": 406.298167
+  },
+  "independentReview": "GO five test-only files; supervisor must bind actual scopeAsOf to original child start/end wallclock",
+  "testEvidenceSHA256": "01482e671b73d107df2aba785b444de2d17e5f11367ce7366e004344e8da7c64",
+  "next": "Freeze and independently review one unused reader-only scope, zero WORK, original immutable fixture and all original Evidence/reply/receipt/graph/5s/close gates",
+  "limits": [
+    "No positive native Body LIMITED qualification from expired-body scope",
+    "No whole runtime or genuine Telegram integration claim",
+    "No provider/Production writes, sends, migration, permit or token changes"
+  ]
+}

@@ -7,7 +7,7 @@ import {configurationProof} from './phase4ExecutionStore.js';
 import {publicBetaConfiguration} from './publicBetaConfig.js';
 import {runningReleaseSha} from './phase4Release.js';
 import {summarizeSync} from './syncResult.js';
-import {readOnlyProcessingCheck} from './processingTransaction.js';
+import {readOnlyProcessingCheck,readObservationProcessingCheck} from './processingTransaction.js';
 const fail=(code='STAGE8_FINALIZED_SYNC_REQUIRED')=>{throw Object.assign(Error(code),{code});};
 const sign=(keys,value)=>keys.lookup(['stage8-post-sync-metadata-v1',canonicalJson(value)]);
 const keyFor=(keys,id,uid)=>'stage8:sync-subject:'+keys.lookup(['stage8-sync-subject-v1',id,uid]);
@@ -62,7 +62,7 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
    owner=await db.acquireLock(lock,{ttlMs:60000,now:new Date(lockAt)});
   if(!owner)return {status:'BUSY'};
   const assertLocal=()=>{if(!enabled()||!eligible(userId)||Date.now()-row.created_at>=EXECUTION_WORK_MAX_AGE_MS||Date.now()>=lockExpiresAt)fail();};
-  const check=readOnlyProcessingCheck(async()=>{
+  const check=readObservationProcessingCheck(readOnlyProcessingCheck(async()=>{
    assertLocal();
    // These independent non-health observations share the owned transaction's
    // transport. Every original check remains fresh; settle all reads before
@@ -82,7 +82,7 @@ export function createStage8PostSync({db,keys,producer,eligible,enabled,environm
    // A batch is not an authority lease. Reject if its original local policy,
    // parent age or exact acquired lock deadline expired while reads settled.
    assertLocal();
-  });
+  }),assertLocal);
   try{
    await check();const saved=await db.getState(progressKey);let ordinal=0,done=false;
    if(saved){const {hmac,...p}=JSON.parse(saved);if(hmac!==sign(keys,{progressKey,...p})||!validProgress(p))fail();if(p.stopped)return stoppedResult();ordinal=p.ordinal;done=p.done;}

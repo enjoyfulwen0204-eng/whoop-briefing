@@ -132,6 +132,24 @@ function tableMatches(actual, expected) {
   });
 }
 
+/** Pure stricter catalog check for materialized preparation. Ordinary runtime
+ * admission remains unchanged. An unknown trigger/index/table cannot be copied
+ * into an isolated receiver and then execute outside its tenant projection. */
+export function assertCanonicalPreparedCatalog(rows,version=35){
+  const contract=contracts.get(version);if(!contract||version!==35||!Array.isArray(rows))fail('PREPARED_CANONICAL_SCHEMA_REQUIRED');
+  const seen=new Set();
+  for(const row of rows){
+    if(!row||typeof row.name!=='string'||typeof row.sql!=='string'||seen.has(row.name))fail('PREPARED_CANONICAL_SCHEMA_REQUIRED');
+    seen.add(row.name);const expected=contract.objects.get(row.name);
+    if(expected){
+      if(row.type!==expected.type||(expected.type==='table'?!tableMatches(row.sql,expected):normalizeSql(row.sql)!==normalizeSql(expected.ddl)))fail('PREPARED_CANONICAL_DEFINITION_REQUIRED',row.name);
+    }else if(row.type!=='table'||!Object.hasOwn(RETAINED_LEGACY_TABLE_DDL,row.name)||normalizeSql(row.sql)!==normalizeSql(RETAINED_LEGACY_TABLE_DDL[row.name])){
+      fail('PREPARED_UNEXPECTED_SCHEMA_OBJECT',row.name);
+    }
+  }
+  for(const name of contract.objects.keys())if(!seen.has(name))fail('PREPARED_CANONICAL_SCHEMA_REQUIRED',name);
+}
+
 export function requireRuntimeAdmission(client, capability, keys, transaction) {
   const issued = capabilities.get(capability), state = connections.get(client);
   if(state&&client.closed){state.lifetime.revoked=true;state.closed=true;}

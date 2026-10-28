@@ -1,0 +1,195 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createOwnedFileDb,createDb,createStage6OwnedMemoryDb} from '../src/db.js';
+import {createClient} from '@libsql/client/sqlite3';
+import {fixtureKeys} from './localDb.js';
+import {hranaTransport} from './hranaTransport.js';
+import {createPhase4Foundation} from '../src/phase4Foundation.js';
+import {createStage8LiveProducer} from '../src/stage8LiveProducer.js';
+import {authorizeStage8LiveProducer} from '../src/stage8LiveProducerAuthority.js';
+import {createStage8LiveExecutionRunner} from '../src/stage8LiveExecution.js';
+import {createStage8LivePreparedWorker} from '../src/stage8LivePreparedWork.js';
+import {buildPhase4Core} from '../src/phase4Core.js';
+import {createPhase4Stage6} from '../src/phase4Reanalysis.js';
+import {currentDurableExecution,withDurableExecution} from '../src/phase4ExecutionContext.js';
+import {createPhase4ContextRegistry} from '../src/phase4Cache.js';
+import {runExecutionPhase} from '../src/phase4Execution.js';
+import {configurationProof} from '../src/phase4ExecutionStore.js';
+import {runningReleaseSha} from '../src/phase4Release.js';
+import {createSync} from '../src/sync.js';
+import {recordStage8SyncSubject} from '../src/stage8PostSync.js';
+import {readOnlyProcessingCheck,readObservationProcessingCheck} from '../src/processingTransaction.js';
+import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
+import {log} from '../src/logger.js';
+for(const name of ['info','warn','error'])log[name]=()=>{};
+
+async function fixture(t){
+ const dir=await mkdtemp(join(tmpdir(),'r22-live-prepared-')),url='file:'+join(dir,'fixture.sqlite');
+ const seed=createOwnedFileDb({url,phase4Keys:fixtureKeys}),control=createClient({url});let db,transport;
+ t.after(async()=>{try{await db?.close();seed.close();control.close();}finally{transport?.close();await rm(dir,{recursive:true,force:true});}});
+ await seed.migrate({targetVersion:35});await seed.raw.execute('PRAGMA journal_mode=WAL');
+ await seed.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
+ const foundation=await createPhase4Foundation({db:seed,keys:fixtureKeys,admission:await seed.admitRuntime()});await foundation.initializeTenant('a','SHADOW');
+ await seed.transaction(()=>seedBodyInput(seed,bodyInput({asOf:Date.now()-1000,days:0})));
+ await seed.ensureOnboarding('a',{state:'READY'});await seed.linkTelegram({userId:'a',chatId:'10001'});await seed.setLocale('a','en');
+ transport=hranaTransport(url,{transactionMaxMs:5000,traceTransactions:true});
+ db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch:request=>transport.fetch(request)});
+ return {db,keys:fixtureKeys,transport,seed,control};
+}
+
+async function runner(f,work){
+ const admission=await f.db.admitRuntime(),capability=await authorizeStage8LiveProducer({...f,admission,releaseSha:'a'.repeat(40),configProof:'b'.repeat(64),enabled:()=>true,eligible:id=>id==='a'});
+ const core=await buildPhase4Core({keys:f.keys,admission,liveProducingAuthority:capability,
+  processing:{client:f.db.raw,transaction:f.db.transaction,active:f.db.processingTransactionActive,assertFences:f.db.assertRuntimeFences,afterCommit:f.db.afterProcessingCommit,afterCompletion:f.db.afterProcessingCompletion},authorizeMode(){}});
+ await core.initializeTenant('a','LIVE');
+ const canonicalWorker=await createPhase4Stage6({...f,admission,executionMode:'LIVE',liveProducingAuthority:capability});await canonicalWorker.rolloutAlgorithm({userId:'a'});
+ const prepared=createStage8LivePreparedWorker({...f,capability});
+ return createStage8LiveExecutionRunner({...f,capability,capture:id=>core.capture(id,{executionMode:'LIVE',providerRequired:true}),assertContext:ctx=>core.assertContext(ctx),work:async(id,context)=>{
+  const result=await work({prepared,userId:id,context,execution:currentDurableExecution()});
+  return {outcome:result.outcome,itemsProcessed:result.processedItems,unitsCommitted:result.unitsCommitted,jobsCompleted:result.completedJobs,jobsFailed:result.failedJobs,remainingJobs:result.remainingJobs};
+ }});
+}
+async function graph(f){
+ const tables=(await f.control.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'stage8_live_%' OR name IN ('phase4_jobs','phase4_computation_state','body_energy_results','health_insights','evidence_runs','evidence_items')) AND name NOT IN ('stage8_live_executions','stage8_live_execution_work_receipts') ORDER BY name")).rows.map(r=>r.name),out=[];
+ for(const table of tables)out.push([table,(await f.control.execute('SELECT * FROM '+table)).rows.map(r=>JSON.stringify(r)).sort()]);return out;
+}
+
+test('original LIVE producer publishes genuine prepared work through its owned Hrana processing root',async t=>{
+ const f=await fixture(t),producer=await createStage8LiveProducer({...f,admission:await f.db.admitRuntime(),userIds:['a'],enabled:()=>true,eligible:id=>id==='a'});
+ const before=(await f.db.raw.execute('SELECT count(*) n FROM stage8_live_execution_work_receipts')).rows[0].n;
+ const value=await producer.run({userId:'a',requestId:'r22-first-original-prepared'});
+ assert.equal(value.replayed,false);assert.equal(value.result.jobsFailed,0);
+ assert.ok(value.result.unitsCommitted||value.result.itemsProcessed||value.result.jobsCompleted);
+ assert.ok((await f.db.raw.execute('SELECT count(*) n FROM stage8_live_execution_work_receipts')).rows[0].n>before);
+ const row=(await f.db.raw.execute('SELECT * FROM stage8_live_executions')).rows[0];
+ assert.equal(row.state,'FINALIZED_SUCCESS');assert.equal(row.generation,1);assert.equal(row.deadline_at-row.created_at,45000);assert.equal(row.lease_until-row.created_at,60000);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
+ assert.equal((await f.db.raw.execute("SELECT count(*) n FROM system_heartbeats WHERE component LIKE 'phase4_beta_pilot_permit%'")).rows[0].n,0);
+ console.log('R22_PREPARED_FIRST '+JSON.stringify({outcome:value.result.outcome,units:value.result.unitsCommitted,items:value.result.itemsProcessed,jobs:value.result.jobsCompleted,http:f.transport.counts.httpRequests,transactions:f.transport.transactions.length,productionEvidence:false,transport:'INSTALLED_HTTP_DRIVER_WITH_NATIVE_SQLITE_PROTOCOL_FIXTURE_NOT_REAL_SQLD'}));
+});
+
+for(const attack of ['SOURCE','AUTH','PURGE','OWNER','LOCK'])test('prepared publication rejects original '+attack+' revocation before any copied graph is durable',async t=>{
+ const f=await fixture(t);let before,attempted=false;
+ const lock='stage8:synthetic-original-subject',owner=await f.db.acquireLock(lock,{ttlMs:60000}),expiry=Date.now()+59000;
+ const run=await runner(f,async({prepared,userId,context,execution})=>{
+  const plan=await prepared.prepare({userId,context});before=await graph(f);attempted=true;
+  if(attack==='SOURCE')await f.control.execute("UPDATE phase4_user_state SET source_generation=source_generation+1 WHERE user_id='a'");
+  if(attack==='AUTH')await f.control.execute("UPDATE user_whoop_tokens SET auth_generation=auth_generation+1 WHERE user_id='a'");
+  if(attack==='PURGE')await f.control.execute("UPDATE phase4_user_state SET pending_purge_count=1 WHERE user_id='a'");
+  if(attack==='OWNER'){
+   // Canonical execution ownership itself is immutable; do not disable its
+   // trigger to manufacture an authority transition which cannot occur.
+   await assert.rejects(f.control.execute({sql:'UPDATE stage8_live_executions SET owner=? WHERE execution_id=?',args:['synthetic-other-owner',execution.claim.executionId]}),/transition|immutable/i);
+   try{return await withDurableExecution({...execution,claim:{...execution.claim,owner:'synthetic-other-owner'}},()=>prepared.publish(plan));}
+   finally{await prepared.dispose(plan);}
+  }
+  if(attack==='LOCK')await f.control.execute({sql:'DELETE FROM resource_locks WHERE name=?',args:[lock]});
+  return prepared.publish(plan);
+ });
+ const fence=readObservationProcessingCheck(readOnlyProcessingCheck(async()=>{if(!await f.db.holdsLock(lock,owner))throw Error('SYNTHETIC_ORIGINAL_SUBJECT_REVOKED');}),()=>{assert.ok(Date.now()<expiry);});
+ await assert.rejects(f.db.withRuntimeFence(fence,()=>run({userId:'a',requestId:'r22-original-revoked-'+attack})),error=>{
+  if(['SOURCE','AUTH','PURGE'].includes(attack))return error.code==='SQLITE_ERROR'&&f.transport.evidence.some(e=>e.event==='sql_error'&&e.assertionLabel==='LIVE_PREPARED_AUTHORITY_REVOKED');
+  return /PREPARED_|OWNER_FENCED|PHASE4_AUTH|SYNTHETIC_ORIGINAL_SUBJECT_REVOKED/.test(error.message);
+ });
+ assert.equal(attempted,true);assert.deepEqual(await graph(f),before);
+ const execution=(await f.control.execute('SELECT state,result_json,generation FROM stage8_live_executions')).rows[0];assert.equal(execution.state,'ESTABLISHED');assert.equal(execution.result_json,null);assert.equal(execution.generation,1);
+});
+
+for(const lost of ['AFTER_COMMIT','BEFORE_COMMIT'])test('unknown '+lost+' acknowledgement never retries or finalizes the original LIVE request',async t=>{
+ const f=await fixture(t);let original,planToken,preparedWorker;
+ const run=await runner(f,async({prepared,userId,context,execution})=>{
+  original=execution;preparedWorker=prepared;planToken=await prepared.prepare({userId,context});
+  f.transport.arm({matchSql:/json_each\(\?\) AS __stage6_expected/,...(lost==='AFTER_COMMIT'?{loseAcknowledgement:true}:{before:()=>{throw Error('SYNTHETIC_UNKNOWN_BEFORE_COMMIT');}})});
+  return prepared.publish(planToken);
+ });
+ const request={userId:'a',requestId:'r22-original-unknown-'+lost};await assert.rejects(run(request),error=>error.code==='COMMIT_INDETERMINATE');
+ assert.equal(original.indeterminate,true);assert.equal(original.reconciliation.state,lost==='AFTER_COMMIT'?'PREPARED_UNIT_COMMITTED_UNFINALIZED':'RECONCILIATION_REQUIRED');
+ const before=await graph(f),row=(await f.control.execute('SELECT * FROM stage8_live_executions')).rows[0];assert.equal(row.state,'ESTABLISHED');assert.equal(row.result_json,null);assert.equal(row.generation,1);
+ await assert.rejects(preparedWorker.publish(planToken),/PLAN_REQUIRED/);
+ await assert.rejects(run(request),/REQUEST_PENDING/);assert.deepEqual(await graph(f),before);assert.deepEqual((await f.control.execute('SELECT * FROM stage8_live_executions')).rows[0],row);
+ const pending=(await f.control.execute("SELECT name,owner,expires_at FROM resource_locks WHERE name LIKE '%:prepared-disposal:%'")).rows;
+ assert.equal(pending.length,1);assert.equal(preparedWorker.status().disposal.physicalJoin,'UNKNOWN');
+ const registry=createPhase4ContextRegistry({client:f.control,keys:f.keys,now:()=>new Date('2099-01-01T00:00:00.000Z'),timestamp:()=> '2099-01-01T00:00:00.000Z',newId:()=>assert.fail('no new lease')});
+ assert.equal(await registry.pending('a',1),1);assert.deepEqual((await f.control.execute({sql:'SELECT name,owner,expires_at FROM resource_locks WHERE name=?',args:[pending[0].name]})).rows,pending);
+ console.log('R22_ACK '+JSON.stringify({lost,reconciliation:original.reconciliation.state,originalIndeterminateRetained:true,originalFinalization:false,productionEvidence:false}));
+});
+
+test('unknown cross-scope trigger is rejected before health snapshot payload is fetched',async t=>{
+ const f=await fixture(t);let observed=false;
+ const run=await runner(f,async({prepared,userId,context})=>{
+  await f.control.execute("CREATE TRIGGER foreign_prepared_side_effect AFTER INSERT ON stage8_live_operation_receipts BEGIN UPDATE users SET display_name='unexpected' WHERE id<>'a'; END");
+  const reads=f.transport.counts.byFamily.CANONICAL??0,before=await graph(f);
+  await assert.rejects(prepared.prepare({userId,context}),error=>error.code==='PREPARED_UNEXPECTED_SCHEMA_OBJECT');
+  assert.equal(f.transport.counts.byFamily.CANONICAL??0,reads);assert.deepEqual(await graph(f),before);
+  assert.equal((await f.control.execute("SELECT count(*) n FROM resource_locks WHERE name LIKE '%:prepared-disposal:%'")).rows[0].n,0);
+  observed=true;throw Error('EXPECTED_CATALOG_REJECTION');
+ });
+ await assert.rejects(run({userId:'a',requestId:'r22-unknown-trigger'}),/EXPECTED_CATALOG_REJECTION/);assert.equal(observed,true);
+});
+
+test('policy revocation at publish entry disposes prepared buffers and the known joined hold',async t=>{
+ const f=await fixture(t);let revoke=false,observed=false;
+ const fence=readObservationProcessingCheck(readOnlyProcessingCheck(async()=>{if(revoke)throw Error('SYNTHETIC_ENTRY_REVOKED');}),()=>{if(revoke)throw Error('SYNTHETIC_ENTRY_REVOKED');});
+ const run=await runner(f,async({prepared,userId,context})=>{
+  const plan=await prepared.prepare({userId,context}),before=await graph(f);revoke=true;
+  await assert.rejects(prepared.publish(plan),/SYNTHETIC_ENTRY_REVOKED/);
+  assert.deepEqual(await graph(f),before);assert.deepEqual(prepared.status().disposal,{buffersDropped:true,physicalJoin:'KNOWN',holdReleased:true,requiresPhysicalDisposalProof:false});
+  await assert.rejects(prepared.publish(plan),/PLAN_REQUIRED/);
+  assert.equal((await f.control.execute("SELECT count(*) n FROM resource_locks WHERE name LIKE '%:prepared-disposal:%'")).rows[0].n,0);
+  observed=true;throw Error('EXPECTED_ENTRY_REJECTION');
+ });
+ await assert.rejects(f.db.withRuntimeFence(fence,()=>run({userId:'a',requestId:'r22-entry-revocation'})),/EXPECTED_ENTRY_REJECTION/);assert.equal(observed,true);
+});
+
+test('cancelled pre-COMMIT health response keeps the non-expiring purge hold after the late response joins',async t=>{
+ const f=await fixture(t);let worker,delayed=false,lateJoined=false;
+ const run=await runner(f,async({prepared,userId,context})=>{
+  worker=prepared;const plan=await prepared.prepare({userId,context}),originalFetch=f.transport.fetch;
+  f.transport.fetch=async request=>{
+   const body=await request.clone().json();
+   const health=JSON.stringify(body).includes('json_each(?) AS __stage6_expected');
+   const response=await originalFetch(request);
+   if(health&&!delayed){delayed=true;await new Promise(resolve=>setTimeout(resolve,5300));lateJoined=true;}
+   return response;
+  };
+  return prepared.publish(plan);
+ });
+ await assert.rejects(run({userId:'a',requestId:'r22-precommit-delayed-health'}),error=>/SYNC_TIMEOUT|SYNC_CANCELLED|ABORT/.test(error.code??error.message));
+ assert.equal(delayed,true);
+ const until=Date.now()+2000;while(!lateJoined&&Date.now()<until)await new Promise(resolve=>setTimeout(resolve,20));assert.equal(lateJoined,true);
+ const holds=(await f.control.execute("SELECT name,owner,expires_at FROM resource_locks WHERE name LIKE '%:prepared-disposal:%'")).rows;
+ assert.equal(holds.length,1);assert.equal(worker.status().publication,null);assert.equal(worker.status().disposal.physicalJoin,'UNKNOWN');
+ const registry=createPhase4ContextRegistry({client:f.control,keys:f.keys,now:()=>new Date('2099-01-01T00:00:00.000Z'),timestamp:()=> '2099-01-01T00:00:00.000Z'});
+ assert.equal(await registry.pending('a',1),1);
+ const execution=(await f.control.execute('SELECT state,result_json,generation FROM stage8_live_executions')).rows[0];
+ assert.equal(execution.state,'ESTABLISHED');assert.equal(execution.result_json,null);assert.equal(execution.generation,1);
+ assert.equal((await f.control.execute('SELECT count(*) n FROM stage8_live_publications')).rows[0].n,0);
+});
+
+test('memory seed failure and actual receiver close failure both survive constructor cleanup',async()=>{
+ const original=Error('SYNTHETIC_SEED_FAILURE'),cleanup=Error('SYNTHETIC_CLOSE_ACK_FAILURE');let closed=false;
+ await assert.rejects(createStage6OwnedMemoryDb(async client=>{
+  const close=client.close.bind(client);client.close=()=>{close();closed=true;throw cleanup;};throw original;
+ },fixtureKeys),error=>error instanceof AggregateError&&error.cause===original&&error.errors[0]===original&&error.errors[1]===cleanup);
+ assert.equal(closed,true);
+});
+
+test('genuine finalized SYNC and subject ownership invoke one prepared HTTP leg without fabricating a parent',async t=>{
+ const f=await fixture(t),environment={PHASE4_BETA_SHADOW_RUNTIME:'off',PHASE4_PUBLIC_BETA_MODE:'off',PHASE4_STAGE8_RUNTIME:'on',PHASE4_BETA_PILOT_USER_ID:'a',STAGE8_USER_IDS:'a',STAGE8_LIVE_ANALYSIS:'on',STAGE8_POST_SYNC:'on'};
+ for(const resource of ['sleep','recovery','cycle','workout'])await f.db.saveSyncState('a',resource,{backfillComplete:true,lastSuccessAt:new Date().toISOString()});
+ const request={phase:'SYNC',triggerSource:'manual',requestId:'r22-genuine-http-sync-parent',releaseSha:runningReleaseSha(),executionMode:'OFF',configProof:configurationProof(f.keys,{runtime:'off',mode:'off'},environment)};
+ const response=await runExecutionPhase({...f,request,environment,env:{dryRun:true,timezone:'Asia/Taipei',telegramBotToken:'SYNTHETIC_NOT_A_TOKEN'},deps:{runBriefing:async()=>{
+  const whoop={sleeps:async()=>[],recoveries:async()=>[],cycles:async()=>[],workouts:async()=>[],bodyMeasurement:async()=>({})};
+  const sync=await createSync({...f,whoop,userId:'a',timezone:'Asia/Taipei',expectedLifecycleGeneration:1}).syncAll({force:true});
+  assert.equal(sync.complete,true);await recordStage8SyncSubject({...f,userId:'a',sync});return {syncComplete:true,syncOutcome:sync.outcome,users:1,failed:0};
+ }}});
+ assert.equal(response.body.syncComplete,true);assert.equal(response.body.drainAuthorized,false);
+ const executions=(await f.control.execute('SELECT state,generation FROM stage8_live_executions')).rows;
+ assert.equal(executions.length,1);assert.equal(executions[0].state,'FINALIZED_SUCCESS');assert.equal(executions[0].generation,1);
+ const progress=(await f.control.execute("SELECT value FROM telegram_state WHERE key LIKE 'stage8:sync-progress:%'")).rows.map(r=>JSON.parse(r.value));
+ assert.equal(progress.length,1);assert.equal(progress[0].ordinal,1);assert.equal(progress[0].done,false);
+ assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
+});

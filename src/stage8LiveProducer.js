@@ -13,7 +13,8 @@ import {createPhase4Stage6} from './phase4Reanalysis.js';
 import {createStage8LiveExecutionRunner} from './stage8LiveExecution.js';
 import {publishStage8Live,verifyStage8LivePublication} from './stage8LivePublication.js';
 import {createExecutionBudget,currentExecutionBudget,withExecutionBudget} from './executionBudget.js';
-import {readOnlyProcessingCheck} from './processingTransaction.js';
+import {readOnlyProcessingCheck,readObservationProcessingCheck} from './processingTransaction.js';
+import {createStage8LivePreparedWorker} from './stage8LivePreparedWork.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 /** Server composition only. No request may supply source results, receipts,
  * execution mode, SQL, transport, credentials, consent or follow relationships. */
@@ -32,6 +33,7 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
   authorizeMode(mode,client,id){if(mode!=='LIVE'||client!==db.raw||!permitted(id))fail('STAGE8_LIVE_PRINCIPAL_FENCED');}});
  const contextLeases=new AsyncLocalStorage();
  const worker=await createPhase4Stage6({db,keys,admission,executionMode:'LIVE',liveProducingAuthority:capability});
+ const prepared=db.raw.protocol==='http'?createStage8LivePreparedWorker({db,keys,capability}):null;
  async function ready(id){
   liveProducerConfiguration(capability,db.raw,keys,id);
   const row=(await db.raw.execute({sql:`SELECT u.status,o.state,COALESCE(t.auth_generation,0) auth_generation,p.pending_purge_count
@@ -42,7 +44,7 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
  const capture=async id=>{await ready(id);const ctx=await core.capture(id,{executionMode:'LIVE',providerRequired:true});contextLeases.getStore()?.push(ctx);return ctx;};
  const assertContext=async ctx=>{if(runningReleaseSha(environment)!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');await ready(ctx.userId);return core.assertContext(ctx);};
  const execute=createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,
-  work:async(userId)=>{const v=await worker.drain({userId,triggerSource:'manual',budget:STAGE8_LIVE_DRAIN_BUDGET});return {outcome:v.outcome,itemsProcessed:v.processedItems,jobsCompleted:v.completedJobs,jobsFailed:v.failedJobs,remainingJobs:v.remainingJobs,unitsCommitted:v.unitsCommitted};}});
+  work:async(userId,context)=>{const v=prepared?await prepared.drain({userId,context}):await worker.drain({userId,triggerSource:'manual',budget:STAGE8_LIVE_DRAIN_BUDGET});return {outcome:v.outcome,itemsProcessed:v.processedItems,jobsCompleted:v.completedJobs,jobsFailed:v.failedJobs,remainingJobs:v.remainingJobs,unitsCommitted:v.unitsCommitted};}});
  const alerts=subjectAlertProvider?await createStage8SubjectAlerts({core,stores:composePhase4Stores(core),db,capability,provider:subjectAlertProvider}):null;
  const executeAlerts=alerts?createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,work:async(_uid,ctx)=>alerts.produce(ctx)}):null;
  async function prepareFreshGeneration(userId){
@@ -76,7 +78,13 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
    const prior=executionId&&(await db.raw.execute({sql:'SELECT 1 FROM stage8_live_executions WHERE execution_id=?',args:[executionId]})).rows.length;
    if(!prior){await core.initializeTenant(userId,'LIVE');await worker.rolloutAlgorithm({userId});await prepareFreshGeneration(userId);}
   });
-  const result=await db.withRuntimeFence(readOnlyProcessingCheck(()=>ready(userId)),()=>execute({userId,...(requestId?{requestId:executionId}:{})}));
+  // Local preparation checks only synchronous policy; the original fresh
+  // principal check still runs before/after snapshot IO and in publication's
+  // original transaction, including its terminal/COMMIT fences.
+  const producingFence=readObservationProcessingCheck(readOnlyProcessingCheck(()=>ready(userId)),()=>{
+   if(runningReleaseSha(environment)!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');liveProducerConfiguration(capability,db.raw,keys,userId);
+  });
+  const result=await db.withRuntimeFence(producingFence,()=>execute({userId,...(requestId?{requestId:executionId}:{})}));
   const ctx=await capture(userId),{computation}=await core.assertContext(ctx);
   let publication={status:'ANALYSIS_UPDATING'};
   if(computation.last_completed_generation===ctx.inputGeneration){

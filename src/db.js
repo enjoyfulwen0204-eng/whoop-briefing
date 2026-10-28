@@ -1973,5 +1973,10 @@ export async function createStage6OwnedMemoryDb(seed,phase4Keys){
  client.transaction=async(mode='write')=>{await client.execute(mode==='write'?'BEGIN IMMEDIATE':'BEGIN');return new Sqlite3Transaction(anchor,'number');};
  privateClients.add(client);ownReceiverScopes(client);
  try{await seed(client);const db=composeDb(client,{phase4Keys});markStage6Memory(db);return db;}
- catch(error){client.close();retireReceiverScopes(client);throw error;}
+ catch(error){
+  try{client.close();}
+  catch(closeError){throw new AggregateError([error,closeError],'STAGE6_MEMORY_SEED_AND_CLOSE_FAILURE',{cause:error});}
+  finally{retireReceiverScopes(client);}
+  throw error;
+ }
 }

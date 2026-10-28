@@ -2,6 +2,7 @@ import {processingContextLeaseDataEligible} from './processingTransaction.js';
 import {CONTEXT_LEASE_DATA_SQL} from './processingInflightControlReads.js';
 import {executeCoordination} from './phase4Coordination.js';
 import { fail } from './phase4Core.js';
+import {isPreparedDisposalFence} from './stage6PreparedDisposal.js';
 
 const LIFETIME=15*60*1000;
 // Only canonical ASCII ISO TEXT has the same ordering in SQLite BINARY and
@@ -51,6 +52,10 @@ export function createPhase4ContextRegistry({client,keys,now,timestamp,newId}) {
     let count=0;
     for(const row of rows) {
       let captured;try {captured=JSON.parse(row.owner);}catch {fail('PHASE4_CACHE_LEASE_CORRUPT');}
+      if(isPreparedDisposalFence(keys,userId,row,captured)){
+        if(captured[0]<generation)count++;
+        continue; // Only physical disposal/death proof may release this hold.
+      }
       if(captured[0]>=generation)continue;
       if(row.expires_at>timestamp())count++;
       else {

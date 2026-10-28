@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,open} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createOwnedFileDb,createDb,createStage6OwnedMemoryDb} from '../src/db.js';
@@ -15,6 +15,10 @@ import {createStage8LivePreparedWorker} from '../src/stage8LivePreparedWork.js';
 import {buildPhase4Core} from '../src/phase4Core.js';
 import {composePhase4Stores} from '../src/phase4Repositories.js';
 import {createPhase4Stage6} from '../src/phase4Reanalysis.js';
+import {publishStage8Live} from '../src/stage8LivePublication.js';
+import {createStage8DerivedReader,stage8DerivedSelection} from '../src/stage8DerivedReader.js';
+import {createScopedHealthContext} from '../src/scopedHealthContext.js';
+import {issueStage8LiveAuthority} from '../src/stage8LiveAuthority.js';
 import {currentDurableExecution,withDurableExecution} from '../src/phase4ExecutionContext.js';
 import {createPhase4ContextRegistry} from '../src/phase4Cache.js';
 import {runExecutionPhase} from '../src/phase4Execution.js';
@@ -55,7 +59,7 @@ async function runner(f,work){
   const result=await work({prepared,userId:id,context,execution:currentDurableExecution()});
   return {outcome:result.outcome,itemsProcessed:result.processedItems,unitsCommitted:result.unitsCommitted,jobsCompleted:result.completedJobs,jobsFailed:result.failedJobs,remainingJobs:result.remainingJobs};
  }});
- return Object.assign(run,{core});
+ return Object.assign(run,{core,capability,admission});
 }
 async function graph(f){
  const tables=(await f.control.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'stage8_live_%' OR name IN ('phase4_jobs','phase4_computation_state','body_energy_results','health_insights','evidence_runs','evidence_items')) AND name NOT IN ('stage8_live_executions','stage8_live_execution_work_receipts') ORDER BY name")).rows.map(r=>r.name),out=[];
@@ -197,6 +201,7 @@ test('genuine finalized SYNC and subject ownership invoke one prepared HTTP leg 
  const progress=(await f.control.execute("SELECT value FROM telegram_state WHERE key LIKE 'stage8:sync-progress:%'")).rows.map(r=>JSON.parse(r.value));
  assert.equal(progress.length,1);assert.equal(progress[0].ordinal,1);assert.equal(progress[0].done,false);
  assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
+
 });
 
 test('prepared Hrana work completes both canonical jobs including legitimate empty outcomes',async t=>{
@@ -261,4 +266,80 @@ test('prepared canonical metric work preserves a genuine qualifying LIVE Episode
  assert.equal((await f.control.execute("SELECT count(*) n FROM observation_episodes WHERE execution_mode='SHADOW'")).rows[0].n,0);
  assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
  console.log('R22_PREPARED_QUALIFIED_EPISODE '+JSON.stringify({calls,episodes,source:'APPROVED_SYNTHETIC_RECOVERY_PATTERN',originalAlgorithmsUnchanged:true,fullEOFQualified:false,productionEvidence:false}));
+});
+
+test('canonical prepared EOF supports the authenticated Evidence reader on representative retained sources',async t=>{
+ const f=await fixture(t,{days:7}),run=await runner(f,({prepared,userId,context})=>prepared.drain({userId,context}));let result,calls=0;
+ for(let ordinal=0;ordinal<8;ordinal++){
+  result=await run({userId:'a',requestId:'r22-reader-profile-'+ordinal});calls++;
+  assert.equal(result.result.jobsFailed,0);assert.ok(result.result.unitsCommitted||result.result.itemsProcessed||result.result.jobsCompleted);
+  if(result.result.remainingJobs===0)break;
+ }
+ assert.equal(result.result.remainingJobs,0,'GENUINE_CANONICAL_EOF_REQUIRED');
+ // Optional isolated reader fixture: copy only actual synthetic canonical
+ // computations, before any aggregate publication. It grants no native WORK
+ // or Production qualification and never edits/creates a completion row.
+ if(process.env.STAGE8_SYNTHETIC_READER_FIXTURE_OUTPUT){
+  const schema=(await f.control.execute("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type,name")).rows.map(r=>({...r})),tables=[];
+  for(const {name}of schema.filter(r=>r.type==='table')){const value=await f.control.execute('SELECT * FROM "'+name+'"');tables.push({name,columns:value.columns,rows:value.rows.map(row=>value.columns.map(c=>row[c]))});}
+  assert.equal(tables.find(t=>t.name==='users').rows.length,1);assert.equal(tables.find(t=>t.name==='stage8_live_publications').rows.length,0);
+  assert.ok(tables.find(t=>t.name==='user_whoop_tokens').rows.every(row=>row.includes('SYNTHETIC_NOT_A_TOKEN')));
+  const payload={contract:'r22-canonical-synthetic-reader-fixture-v1',genuineWorkCalls:calls,sourceRows:17,schema,tables},file=await open(process.env.STAGE8_SYNTHETIC_READER_FIXTURE_OUTPUT,'wx',0o600);
+  try{await file.writeFile(JSON.stringify({...payload,seal:f.keys.lookup(['r22-canonical-synthetic-reader-fixture-v1',payload])}));await file.sync();}finally{await file.close();}
+ }
+ const ctx=await run.core.capture('a',{executionMode:'LIVE',providerRequired:true});
+ await publishStage8Live(run.core,ctx,run.capability);
+ const reader=createStage8DerivedReader({...f,admission:run.admission,eligible:id=>id==='a'}),scopes=await createScopedHealthContext({...f,admission:run.admission,derivedReader:reader});
+ const scope=await scopes.open({user:await f.db.getUser('a'),chatId:'10001',text:'/evidence'}),beforeHttp=f.transport.counts.httpRequests,beforeTx=f.transport.transactions.length,
+  beforeSql=f.transport.counts.sqlStatements,at=performance.now(),value=await scopes.derived(scope,'EVIDENCE');
+ assert.equal(value.status,'CURRENT');assert.equal(value.items.length,8);assert.ok(value.items.every(item=>item.evidence.length>0));
+ const transactions=f.transport.transactions.slice(beforeTx);
+ console.log('R22_CANONICAL_EVIDENCE_READER '+JSON.stringify({sources:17,originalWorkCalls:calls,items:value.items.length,http:f.transport.counts.httpRequests-beforeHttp,
+  sql:f.transport.counts.sqlStatements-beforeSql,elapsedMs:performance.now()-at,transactions:transactions.map(tx=>({http:tx.httpOperations,sql:tx.sqlOperations,ms:tx.finishedAt-tx.beginSubmittedAt,outcome:tx.outcome})),
+  transport:'INSTALLED_HTTP_DRIVER_NATIVE_SQLITE_PROTOCOL_FIXTURE_NOT_NATIVE_SQLD',productionEvidence:false}));
+ assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
+ const negativeScope=await scopes.open({user:await f.db.getUser('a'),chatId:'10001',text:'/evidence'}),selected=(await f.db.raw.execute(stage8DerivedSelection('EVIDENCE',negativeScope,ctx.inputGeneration))).rows.map(r=>r.id),execute=f.db.raw.execute;
+ assert.ok(selected.length>4,'A_LATER_GROUP_MUST_EXIST');const entered=new Set(),settled=new Set(),touched=new Set();
+ f.db.raw.execute=async statement=>{
+  if(typeof statement==='object'&&/^SELECT \* FROM evidence_runs WHERE user_id=\? AND execution_mode=\? AND run_id=\?$/.test(statement.sql)){
+   const id=statement.args[2];touched.add(id);
+   if(selected.slice(0,2).includes(id)&&!entered.has(id)){
+    entered.add(id);await new Promise(resolve=>setTimeout(resolve,id===selected[0]?80:5));settled.add(id);throw Error(id===selected[0]?'SYNTHETIC_EVIDENCE_SLOW_FAILURE':'SYNTHETIC_EVIDENCE_FAST_FAILURE');
+   }
+  }
+  return execute(statement);
+ };
+ try{await assert.rejects(scopes.derived(negativeScope,'EVIDENCE'),/SYNTHETIC_EVIDENCE_(?:SLOW|FAST)_FAILURE/);}
+ finally{f.db.raw.execute=execute;}
+ assert.equal(entered.size,2);assert.equal(settled.size,2,'ALL_SUBMITTED_FAILURES_MUST_SETTLE');
+ assert.ok(selected.slice(4).every(id=>!touched.has(id)),'FAILED_GROUP_MUST_NOT_ENTER_NEXT_GROUP');
+});
+
+for(const revoke of ['ELIGIBILITY','LEASE_CLOCK','AUTH_WRITE','SOURCE_WRITE','OTHER_CONTEXT'])test('canonical LIVE read controls reject '+revoke+' at the original terminal boundary',async t=>{
+ const f=await fixture(t);await runner(f,()=>{throw Error('NO_WORK_MUST_RUN');});
+ const admission=await f.db.admitRuntime();let enabled=true,at=Date.now();
+ const liveAuthority=issueStage8LiveAuthority({...f,admission,userIds:['a'],enabled:()=>enabled}),core=await buildPhase4Core({keys:f.keys,admission,liveAuthority,now:()=>new Date(at),
+  processing:{client:f.db.raw,transaction:f.db.transaction,withReadSnapshot:f.db.withProcessingReadSnapshot,active:f.db.processingTransactionActive,assertFences:f.db.assertRuntimeFences,afterCommit:f.db.afterProcessingCommit,afterCompletion:f.db.afterProcessingCompletion},authorizeMode(){}});
+ const leaseRows=async()=>(await f.control.execute("SELECT name,owner FROM resource_locks WHERE name LIKE 'p4ctx:%' ORDER BY name")).rows.map(row=>({...row})),priorLeases=await leaseRows();
+ const context=await core.capture('a',{executionMode:'LIVE',providerRequired:true}),contextLeases=(await leaseRows()).filter(row=>!priorLeases.some(old=>old.name===row.name));assert.equal(contextLeases.length,1);
+ const beforeOther=await leaseRows(),other=revoke==='OTHER_CONTEXT'?await core.capture('a',{executionMode:'LIVE',providerRequired:true}):null;
+ if(other){const added=(await leaseRows()).filter(row=>!beforeOther.some(old=>old.name===row.name));assert.equal(added.length,1);assert.notEqual(added[0].name,contextLeases[0].name);}
+ const originalAuth=(await f.control.execute("SELECT auth_generation FROM user_whoop_tokens WHERE user_id='a'")).rows[0].auth_generation;
+ const originalSource=(await f.control.execute("SELECT source_generation FROM phase4_user_state WHERE user_id='a'")).rows[0].source_generation;
+ const sleepId=(await f.control.execute("SELECT id FROM whoop_sleeps WHERE user_id='a' ORDER BY id LIMIT 1")).rows[0].id;
+ let callbackFinished=false;
+ await assert.rejects(f.db.transaction(async()=>{
+  for(let i=0;i<3;i++)await core.run(context,()=>core.root(context,'sleep',sleepId));
+  if(other)await core.run(other,async()=>{});
+  if(revoke==='ELIGIBILITY')enabled=false;
+  if(revoke==='LEASE_CLOCK')at+=16*60*1000;
+  if(revoke==='AUTH_WRITE')await f.db.raw.execute("UPDATE user_whoop_tokens SET auth_generation=auth_generation+1 WHERE user_id='a'");
+  if(revoke==='SOURCE_WRITE')await f.db.raw.execute("UPDATE phase4_user_state SET source_generation=source_generation+1 WHERE user_id='a'");
+  if(revoke==='OTHER_CONTEXT')assert.equal((await f.db.raw.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=?',args:[contextLeases[0].name,contextLeases[0].owner]})).rowsAffected,1);
+  callbackFinished=true;
+ }),/PHASE4_(?:LIVE_FIXTURE_MEMORY_REQUIRED|CONTEXT_EXPIRED|AUTH_FENCED|INPUT_FENCED|CONTEXT_REVOKED)/);
+ assert.equal(callbackFinished,true);assert.equal((await f.control.execute("SELECT auth_generation FROM user_whoop_tokens WHERE user_id='a'")).rows[0].auth_generation,originalAuth);
+ assert.equal((await f.control.execute("SELECT source_generation FROM phase4_user_state WHERE user_id='a'")).rows[0].source_generation,originalSource);
+ assert.ok((await leaseRows()).some(row=>row.name===contextLeases[0].name&&row.owner===contextLeases[0].owner),'REJECTED_ROOT_ROLLS_BACK_ITS_EXACT_LEASE_DELETION');
+ assert.equal((await f.control.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,0);
 });

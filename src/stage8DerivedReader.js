@@ -68,7 +68,7 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
    const completion=(await db.raw.execute({sql:"SELECT c.* FROM phase4_computation_state c JOIN phase4_user_state p ON p.user_id=c.user_id WHERE c.user_id=? AND c.execution_mode='LIVE' AND c.input_generation=? AND c.last_completed_generation=c.input_generation AND c.source_generation_seen=p.source_generation AND p.pending_purge_count=0 AND NOT EXISTS(SELECT 1 FROM phase4_invalidations i WHERE i.user_id=c.user_id AND i.execution_mode='LIVE' AND i.scope_kind<>'NONE')",args:[scope.userId,inputGeneration]})).rows[0];
    if(!completion)return updating(scope,kind);
    if(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==35)return updating(scope,kind);
-   const grant=issueStage8LiveAuthority({db,keys,admission,userIds:[scope.userId],enabled:()=>eligible(scope.userId)}),core=await buildPhase4Core({keys,admission,liveAuthority:grant,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},authorizeMode(mode,client,uid){if(mode!=='LIVE'||client!==db.raw||uid!==scope.userId||!eligible(uid))throw Error('STAGE8_DERIVED_SCOPE_REQUIRED');}});
+   const grant=issueStage8LiveAuthority({db,keys,admission,userIds:[scope.userId],enabled:()=>eligible(scope.userId)}),core=await buildPhase4Core({keys,admission,liveAuthority:grant,now,processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},authorizeMode(mode,client,uid){if(mode!=='LIVE'||client!==db.raw||uid!==scope.userId||!eligible(uid))throw Error('STAGE8_DERIVED_SCOPE_REQUIRED');}});
    const ctx=await core.capture(scope.userId,{executionMode:'LIVE',providerRequired:true});try{
    if(ctx.inputGeneration!==inputGeneration)throw Error('STAGE8_DERIVED_GENERATION_CHANGED');
    if(!await verifyStage8LivePublication(core,ctx))return updating(scope,kind);
@@ -98,22 +98,31 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
     }
    }else{
     const spec=STAGE8_DERIVED_SELECTIONS[kind],ids=(await db.raw.execute(stage8DerivedSelection(kind,scope,inputGeneration))).rows;
-    for(const {id} of ids){const value=await stores.readArtifact(ctx,spec.table,{[spec.id]:id});
+    const project=async id=>{const value=await stores.readArtifact(ctx,spec.table,{[spec.id]:id});
      let projection;
      if(kind==='BODY_ENERGY'){
       projection=stage8BodyEnergyProjection(value.row,Date.parse(scope.asOfUtc));
       if(projection&&bodyEnergyPresentation){const presentation=stage8BodyEnergyPresentationView(value.row,Date.parse(scope.asOfUtc));projection=presentation?{...projection,presentation}:null;}
      }
      else if(kind==='EPISODES'){
-      const row=value.row;if(!metric(row.subject_key)||!['HIGHER','LOWER'].includes(row.direction))continue;
-      const source=await evidence(row.latest_evidence_item_id);if(!source||source.metricKey!==row.subject_key||source.outcome!=='PERSONAL_BASELINE_COMPARISON')continue;
+      const row=value.row;if(!metric(row.subject_key)||!['HIGHER','LOWER'].includes(row.direction))return null;
+      const source=await evidence(row.latest_evidence_item_id);if(!source||source.metricKey!==row.subject_key||source.outcome!=='PERSONAL_BASELINE_COMPARISON')return null;
       expires.push(Date.parse(row.expires_at));projection={metricKey:row.subject_key,direction:row.direction,state:row.state,openedAt:row.opened_at,lastObservedAt:row.last_observed_at,resolvedAt:row.resolved_at,nonCausal:true,evidence:[source],history:await history('phase4_episode_revisions','episode_id',id)};
      }else{
       const evidenceIds=(await db.raw.execute(stage8EvidenceItemSelection(scope,inputGeneration,id))).rows,entries=[];
       for(const {evidence_item_id} of evidenceIds){const item=await evidence(evidence_item_id);if(item)entries.push(item);}projection=entries.length?{evidence:entries}:null;
      }
-     if(projection)items.push({kind,id:keys.lookup(['stage8-derived-item-v1',scope.userId,kind,id]),...projection});
-    }
+     return projection?{kind,id:keys.lookup(['stage8-derived-item-v1',scope.userId,kind,id]),...projection}:null;
+    };
+    // Independent canonical Evidence reads share this original transaction.
+    // Keep every artifact/receipt/root check, settle a bounded group before
+    // exposing results, and retain the selector's result order. The original
+    // processing root keeps its sticky failure; a failed group returns none.
+    if(kind==='EVIDENCE')for(let start=0;start<ids.length;start+=4){
+     const values=await Promise.allSettled(ids.slice(start,start+4).map(({id})=>project(id)));
+     const failure=values.find(value=>value.status==='rejected');if(failure)throw failure.reason;
+     for(const value of values)if(value.value)items.push(value.value);
+    }else for(const {id} of ids){const value=await project(id);if(value)items.push(value);}
    }
    await core.assertContext(ctx);if(!await verifyStage8LivePublication(core,ctx)||!expires.every(Number.isFinite)||Math.min(...expires)<=Date.parse(scope.asOfUtc))return updating(scope,kind);if(!eligible(scope.userId))throw Error('STAGE8_DERIVED_SCOPE_REQUIRED');return {status:'CURRENT',kind,asOfUtc:scope.asOfUtc,validUntil:Math.min(...expires),historyScope:'RETAINED_CURRENT_GENERATION_ONLY',items};
    }finally{db.afterProcessingCompletion(()=>core.transaction(()=>core.contextRegistry.release(ctx),{readOnly:true}));}

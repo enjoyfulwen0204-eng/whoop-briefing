@@ -71,7 +71,7 @@ function compareRootObservation(context,type,id,values){
  * A JSON object, a context from another connection, or a changed mode is not a
  * capability. Authority is supplied only by the owning server/fixture factory. */
 export async function buildPhase4Core({processing,keys,admission,authorizeMode:modeAuthority,liveAuthority,liveProducingAuthority,now=()=>new Date()}) {
-  const jobScope=new AsyncLocalStorage(),terminalControlChecks=new WeakMap();
+  const jobScope=new AsyncLocalStorage(),terminalControlChecks=new WeakMap(),readerControlChecks=new WeakMap();
   requirePhase4Keys(keys);
   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
   const {client,transaction}=processing;registerReceiverScopes(client,jobScope);
@@ -213,13 +213,23 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     // Intern an identical LIVE producer control callback, never its result.
     // Every nested before-check and the fresh original terminal/COMMIT checks
     // still run; one owned unit need not enqueue hundreds of identical tips.
-    const coalescible=job&&(schemaVersion===32&&context.executionMode==='SHADOW'
+    const defaultControl=['allowPurge','allowInactive','ignoreInput'].every(key=>options[key]===undefined||options[key]===false);
+    const coalescibleJob=job&&(schemaVersion===32&&context.executionMode==='SHADOW'
       ||schemaVersion===35&&liveAllocation&&context.executionMode==='LIVE'&&context.providerRequired
         &&isLiveExecution(currentDurableExecution(),client,keys,context.userId,context))
       &&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
-      &&['allowPurge','allowInactive','ignoreInput'].every(key=>options[key]===undefined||options[key]===false);
-    const prior=coalescible?terminalControlChecks.get(context)?.get(job.check):null,execution=currentDurableExecution(),budget=currentExecutionBudget();
-    const cached=prior&&prior.execution===execution&&prior.budget===budget?prior.check:null;
+      &&defaultControl;
+    // A canonical LIVE reader has no execution or job permission. Intern only
+    // its identical non-health control callback within this original root.
+    // Every nested entry and the fresh final runtime/context/lease check still
+    // execute. No successful guard, artifact or publication proof is cached.
+    const execution=currentDurableExecution(),budget=currentExecutionBudget(),marker=currentExecutionReceiptTransactionMarker(),
+      coalescibleReader=!job&&!execution&&marker&&processing.active?.()&&schemaVersion===35&&liveAllocation
+        &&context.executionMode==='LIVE'&&context.providerRequired&&defaultControl
+        &&options.workStep===undefined&&options.workStepFrom===undefined
+        &&allowsStage8LiveAuthority(liveAuthority,client,keys,context.userId),coalescible=coalescibleJob||coalescibleReader;
+    const prior=coalescibleJob?terminalControlChecks.get(context)?.get(job.check):coalescibleReader?readerControlChecks.get(context):null;
+    const cached=prior&&prior.execution===execution&&prior.budget===budget&&(!coalescibleReader||prior.marker===marker)?prior.check:null;
     const controlOptions=coalescible?Object.freeze({allowPurge:false,allowInactive:false,ignoreInput:false}):options;
     const check=cached??controlOnlyProcessingCheck(async()=>{
       // Explicitly bracket coalesced metadata checks with their enclosing
@@ -237,8 +247,9 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       for(const result of observations)if(result.status==='rejected')throw result.reason;
       await processing.assertFences?.();
     });
-    if(coalescible&&!cached){coalescibleControlProcessingCheck(check);const checks=terminalControlChecks.get(context)??new WeakMap();
-      checks.set(job.check,{check,execution,budget});terminalControlChecks.set(context,checks);}
+    if(coalescible&&!cached){coalescibleControlProcessingCheck(check);
+      if(coalescibleJob){const checks=terminalControlChecks.get(context)??new WeakMap();checks.set(job.check,{check,execution,budget});terminalControlChecks.set(context,checks);}
+      else readerControlChecks.set(context,{check,execution,budget,marker});}
     const work=()=>transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
     return processing.withReadSnapshot?processing.withReadSnapshot(context,work):work();
   }

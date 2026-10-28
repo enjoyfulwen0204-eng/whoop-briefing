@@ -1,6 +1,7 @@
 import {requireSupervisorRuntimeEpochScope,bindSupervisorRuntimeEpochOwnedClient} from './runtimeEpochScope.js';
 import {ownReceiverScopes,retireReceiverScopes} from './receiverScopeLifetime.js';
 import {isReadOnlyTelegramOperation} from './telegramReadOnlyPreparation.js';
+import {createOwnedHttpLifetime} from './ownedHttpLifetime.js';
 import {verifyBodyEnergyTelegramReplyBoundary} from './bodyEnergyTelegramReplyBoundary.js';
 import {profileRevision} from './profileRevision.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
@@ -80,13 +81,13 @@ export function isDuplicateSentError(err) {
 }
 
 const privateClients=new WeakSet(),stage6Bindings=new WeakMap(),stage6Memory=new WeakSet();
-const bindStage6Runtime=(db,base,keys)=>stage6Bindings.set(db,Object.freeze({base,keys}));
+const bindStage6Runtime=(db,base,keys,httpLifetime)=>stage6Bindings.set(db,Object.freeze({base,keys,...(httpLifetime?{httpLifetime}:{})}));
 export function stage6OwnedBinding(db){const b=stage6Bindings.get(db);if(!b||b.base.closed)throw Error('STAGE6_OWNED_RUNTIME_REQUIRED');return b;}
 export const isOwnedStage6Memory=db=>stage6Memory.has(db);
 const markStage6Memory=db=>stage6Memory.add(db);
 export function createDb({ url, authToken, phase4Keys,fetch,runtimeProfile,runtimeEpoch }) {
   if(runtimeEpoch!==undefined)requireSupervisorRuntimeEpochScope(runtimeEpoch,phase4Keys,{url});
-  const providerFetch=fetch??globalThis.fetch;
+  const httpLifetime=createOwnedHttpLifetime(fetch??globalThis.fetch),providerFetch=httpLifetime.fetch;
   const pendingStreams=new Map();
   const pendingFor=id=>Promise.allSettled([...(pendingStreams.get(id)??[])]);
   const boundedFetch=async(input,init)=>{
@@ -117,7 +118,7 @@ export function createDb({ url, authToken, phase4Keys,fetch,runtimeProfile,runti
   const nativeClient=createClient({url,authToken,fetch:boundedFetch});ownReceiverScopes(nativeClient);let client=nativeClient;
   try{
    if(runtimeEpoch!==undefined)client=bindSupervisorRuntimeEpochOwnedClient({scope:runtimeEpoch,keys:phase4Keys,base:nativeClient,url});
-   privateClients.add(client);const db=composeDb(client,{phase4Keys,runtimeProfile,runtimeEpoch});bindStage6Runtime(db,client,phase4Keys);return db;
+   privateClients.add(client);const db=composeDb(client,{phase4Keys,runtimeProfile,runtimeEpoch});bindStage6Runtime(db,client,phase4Keys,httpLifetime);return db;
   }
   catch(error){client.close();retireReceiverScopes(client);throw error;}
 }

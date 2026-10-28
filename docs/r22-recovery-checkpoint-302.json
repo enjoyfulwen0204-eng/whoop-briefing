@@ -1,0 +1,156 @@
+{
+  "checkpoint": "R22-recovery-302",
+  "atUTC": "2026-10-28T16:26:33.934806+00:00",
+  "stage": "OWNED_LOCAL_HTTP_REQUEST_BODY_LIFETIME_OBSERVATION_REVIEWED",
+  "baseCommit": "ad2742f93313a635eb5275485b8bb5021c035148",
+  "worktree": "/Users/kelvin/Desktop/whoop-briefing/tmp/session-recovery-20261026/candidate",
+  "branch": "repair/stage6-shadow-publication-20261026",
+  "pushedSHA": "75ff618c07e58028e827ca3fa37b5003b8c394c2",
+  "recoveryReconciliation": {
+    "newerUnpushedAtThisResumption": 11,
+    "recoveredLocalHead": "ad2742f93313a635eb5275485b8bb5021c035148",
+    "originalSevenR22CommitsPreserved": [
+      "247b57f",
+      "1fd75a2",
+      "15b6354",
+      "8333d4b",
+      "d4355c8",
+      "f65f4d1",
+      "75ff618"
+    ],
+    "evidenceAudit": "33 checkpoint evidence hashes, 46 native review artifact pins and1151 manifest code entries matched historical qualified commits. Historical native PASS not extended to HEAD."
+  },
+  "productionReadOnly": {
+    "atUTC": "2026-10-28T16:18:18.168Z",
+    "sourceSHA": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "deployId": "dep-dbff9r8473hc73cvbitg",
+    "schema": 33,
+    "contract": "r22-recovery3-final-production-readonly-v1",
+    "jobs": [
+      {
+        "execution_mode": "SHADOW",
+        "state": "PENDING",
+        "n": 6,
+        "with_completed_generation": 0
+      }
+    ],
+    "insights": [
+      {
+        "execution_mode": "SHADOW",
+        "status": "WEAKENED",
+        "n": 1
+      }
+    ],
+    "providerRequests": 0,
+    "rawHealthValuesRead": false,
+    "applicationAdmissionWrites": 0,
+    "sqlReads": 3,
+    "databaseWrites": 0,
+    "telegramSends": 0,
+    "maintenancePermitActions": 0,
+    "TursoTokenChanges": 0
+  },
+  "changes": [
+    "Same DB-owned provider seam tracks initial/unbudgeted/close-only/late requests before provider invocation, through body EOF or original cancellation settlement.",
+    "Persistent HTTP/body failure and cancellation counters, monotonic epoch, bounded dynamic-set join including requests added during wait. Quiet-turn result is a point-in-time observation.",
+    "Provider completion remains UNKNOWN; healthDisposalAuthorized remains false. No reader hold or receipt authority changed.",
+    "Two stale cancellation fixtures now genuinely migrate to supported isolated schema34; runtimeAdmission unchanged.",
+    "Contract distinguishes historical fresh Body LIMITED qualification from unqualified HEAD/Telegram route."
+  ],
+  "validation": {
+    "primaryFocusedPassed": 12,
+    "independentFocusedPassed": 12,
+    "adjacentPassed": 53,
+    "filteredProtocolPassed": 7,
+    "primaryFinalPassed": 72,
+    "finalFailed": 0,
+    "focusedDurationMs": 375.517416,
+    "adjacentDurationMs": 14597.86225,
+    "filteredProtocolDurationMs": 8214.727959,
+    "protocolJoinedSession": 98196,
+    "protocolExit": 0,
+    "gitDiffCheck": "PASS",
+    "initialFocusedRed": "8PASS2FAIL; fixed cancellation EOF race and explicit SDK transaction-close test; next10/10 and final12/12 passed.",
+    "initialProtocolRed": "5PASS2FAIL; schema32/34 admission error before cancellation, repaired isolated fixture only.",
+    "unfilteredRun": "INTENTIONALLY_TERMINATED_NOT_PASS: complete raw19PASS2FAIL/nofooter. Owned parent/child SIGTERM; session96206exit1. It included SYNC/small two-job EOF/Episode before stop; no original three-tenant FILE-six-job or native SQLD campaign. Not accepted as new campaign qualification.",
+    "correction": "Earlier scope-correction summary incorrectly said17PASS; explicit append-only correction-r2 retracts this and pins complete raw. Original artifact retained."
+  },
+  "independentReview": {
+    "source": "LIMITED_GO no blocking findings",
+    "contract": "GO",
+    "protocolAndFixtureSupplement": "GO",
+    "reviewers": 1,
+    "implementers": 1
+  },
+  "acceptedHistoricalMilestones": {
+    "committedProgressLostAck": {
+      "source": "65ecd2a9742fc67167ba694854a3af5256d48698",
+      "nativeWorkCalls": 1,
+      "canonicalOperationReceiptsAdded": 2,
+      "workReceiptsAdded": 17,
+      "commitIndependentlyVisibleBeforeApplicationAck": true,
+      "coldOriginalIdentity": [
+        "PENDING",
+        "EXPIRED after actual original deadline"
+      ],
+      "originalAuthorityGraphReceiptsWitnessHoldPreserved": true,
+      "maximumProducerTransactionMs": 596.193959
+    },
+    "freshBodyEvidenceReader": {
+      "source": "7ec52f6c2d78fb094d6ebe9d555989a72b4dd8cb",
+      "nativeWorkCalls": 0,
+      "body": "CURRENT1 LIMITED/provisional/estimated",
+      "evidence": "CURRENT8",
+      "episodes": "CURRENT0",
+      "insights": "CURRENT0",
+      "originalFourKindReplyGuard": true,
+      "maximumRuntimeTransactionMs": 1366.6383340000002,
+      "independentAcceptance": true
+    },
+    "limits": "Owned-memory SQLite FILE-protocol preparation and isolated LinuxARM64SQLD components, not disk-backed FILE, remote Turso or full runtime; exact historical source only."
+  },
+  "scopeLimits": [
+    "Local request/body/cancellation settlement only; JSON decoding and exact Hrana baton/provider terminal ACK not established.",
+    "Idle/epoch/quietturn cannot prove future work, erased clones/projections, remote transaction closure or hold disposal.",
+    "Adapter targets installed Hrana status/header/JSON consumer; constructed Response headers mutable and native clone URL/type differ from original fetch. Accepted compatibility limitation, not generic transparency.",
+    "Genuine Telegram prepared-ticket/full-preimage receipt integration unresolved; STAGE8_PREPARED_READ_ROOT_REQUIRED not fixed. Strain real inline keyboard delivery/callback not verified.",
+    "Stage5 production results, complete Stage6/Stage8runtime, future sync/orphan disposal, AMD64/provider capacity, notifications and missing WHOOP/Morning Brief remain open. No fabricated health/click/delivery."
+  ],
+  "nextExecutableAction": "Bind exact provider protocol/body/lateclose finality to private database owner, then private prepare/consume/dispose ticket: consume complete preimage in original receipt root after original authority+absent-receipt checks and before dispatcher/profile/audit writes. Preserve terminal authority/time and independent full send-time guard.",
+  "sourceSHA256": {
+    "src/ownedHttpLifetime.js": "9eef989e8856b62fab55f51f49dbc4a206c9eb74c6bb8f27ac2913fc4e4e2011",
+    "src/db.js": "a99fe68898c3e74e314db0c9a17fd1427eac5924f98b97322883bd6380063895",
+    "test/owned-http-lifetime.test.mjs": "52e3d89d11bd1e17c42f076d26ddf0bdd7b76d00c8d52c4cbcb759ac3d97c6c3",
+    "test/consolidated-hrana-cleanup.test.js": "96abfd6870a60ccb3d1ceba48afca7b49b48c90e88e2865cd6c95e3805b9f884",
+    "docs/r22-telegram-evidence-integration-contract.json": "ef1514e54d130127a6ef5e7f04f0c9a5d08e12f55f7e3bad1bc34263e552535d"
+  },
+  "privateEvidenceSHA256": {
+    "recovery3-http-lifetime-r1.tap.private": "982706fbfced9674745120843018548a033dd2e0aef9d823ddc08d3a04f88988",
+    "recovery3-http-lifetime-r2.tap.private": "1aa0156e23373f14a09fc25cc67999eb7a792a2bccf31ce83807371ddd7a063f",
+    "recovery3-http-lifetime-r3.tap.private": "53aa4e49de28e2a55d2a48cf2e7745cfdd9863d9a6a07635187ae6f2ba12a329",
+    "recovery3-http-lifetime-independent-r1.tap.private": "41c0741de99f1bc1cb310903e1556459f45f2349235d6b188dfb824d2d62e1f8",
+    "recovery3-http-lifetime-adjacent-r1.tap.private": "95275afa92c6d92b5f9b33a87679b24fdf8a14e3c1d0e342c586f03c2f56cee3",
+    "recovery3-http-lifetime-protocol-r1.tap.private": "2d52107299f2a98065c9eff9d97cca5ef7c1cc6164707d045a9ebe8d04fa57f3",
+    "recovery3-http-lifetime-protocol-focused-r1.tap.private": "f56a6f95effcdf8816535a400f0d33eff02a018a1c9c698c301a4e6d035e76d3",
+    "recovery3-http-lifetime-protocol-focused-r2.tap.private": "09ded1bf1cb2f72963645895b9accfd3cdc2d8fc5da9f033f5a3af43ed30090c",
+    "recovery3-http-lifetime-independent-review-r1.private.json": "983f3bf032fb68041cf8c15ab3df2137ab288e3697c487f73deaae888bd47f7c",
+    "recovery3-http-lifetime-contract-review-r1.private.json": "ea455632386a308c960fc58bdc299d6c172f22f0468e5cde04684334933d7bcd",
+    "recovery3-http-lifetime-protocol-independent-supplement-r1.private.json": "e53e99eab104557b12ac9883fc303e1ca12ea9b260dad48dca966ae1e1a212b4",
+    "recovery3-protocol-scope-correction.private.json": "519f3efbe06c176dc99466e87bbd63a95a42a8f7eb1b3ac8e483d5da3db1f053",
+    "recovery3-protocol-scope-correction-r2.private.json": "078af30d2e2ee1b0bd7d6fe785769f2622abb535752d4a514e8cc65c2d5a46d3",
+    "production-r22-recovery3-final-actual.private.json": "cf08d3fd0a3c593c706ea01d20a2100403353f9dbb6c6b3ad3598a6b4673594a"
+  },
+  "invariants": {
+    "F02Preserved": true,
+    "TursoTokenChanges": 0,
+    "productionWrites": 0,
+    "productionMigrations": 0,
+    "telegramSends": 0,
+    "permitResets": 0,
+    "quotaBypasses": 0,
+    "userDataShared": false,
+    "newNativeCampaigns": 0,
+    "originalFileSixJobCampaignReruns": 0,
+    "commitsRemainLocal": true
+  }
+}

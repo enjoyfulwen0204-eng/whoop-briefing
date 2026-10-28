@@ -4,7 +4,7 @@ import {createDb} from '../src/db.js';import {createExecutionBudget,withExecutio
 import {hranaTransport} from './hranaTransport.js';import {closeOnlyPayload} from '../src/hranaCleanup.js';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 for(const mode of ['lost-BEGIN-ack','known-baton-statement'])test('Hrana cancellation releases '+mode+' without SQL cleanup authority',async t=>{
- const {url}=await deliveryFixture(t),transport=hranaTransport(url),events=[];let armed=false,delayed=false;
+ const {url}=await deliveryFixture(t,{version:34}),transport=hranaTransport(url),events=[];let armed=false,delayed=false;
  const db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch:async request=>{
   const payload=await request.clone().json();events.push({at:Date.now(),payload});
   const response=await transport.fetch(request);

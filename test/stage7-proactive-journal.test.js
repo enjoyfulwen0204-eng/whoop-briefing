@@ -153,8 +153,8 @@ test('an own keyboard rejects cross-user and stale clicks; unsure and skip never
  reply=await f.tap(reply,f.c.edit);await f.tap(reply,f.c.skip);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
 });
-test('real Proactive detection routes its original claim to one keyboard and no new legacy pending row',async t=>{
- const f=await fixture(t),{checkAndAct}=await import('../src/proactiveAgent.js');
+test('durable Proactive detection routes its original claim through production composition and original settlement',async t=>{
+ const f=await durableProactive(t),{checkAndAct}=await import('../src/proactiveAgent.js');
  // Independent synthetic physiology: thirty-five baseline days, then two
  // persistently low HRV days. No accepted insight or episode is fabricated.
  const origin=Date.parse('2026-08-14T00:00:00Z');
@@ -170,16 +170,20 @@ test('real Proactive detection routes its original claim to one keyboard and no 
  await f.db.raw.execute("UPDATE proactive_events SET decision='LOG_ONLY' WHERE id=1");
  const telegram={send(){throw Error('PLAIN_TEXT_SELECTION_MUST_NOT_SEND');}};
  const request={db:f.db,userId:'a',timezone:'Asia/Taipei',locale:'en',chatId:'123',expectedLifecycleGeneration:1,telegram,
-  proactiveJournal:async({eventId})=>{const p=await f.proactiveJournal.prepare({user:f.user,chatId:'123',eventId});return p.deliveryId?f.dispatch(p.deliveryId):p;}};
- const first=await checkAndAct({...request,now:new Date('2026-09-18T04:00:00Z')});assert.equal(first.messageSent,false);
- await day(36);const result=await checkAndAct({...request,now:f.core.now()});
- assert.equal(result.decision,'ASK_CONTEXT');assert.equal(result.messageSent,true);assert.equal(f.provider.calls.length,1);
+  proactiveJournal:f.runtime.sendProactiveJournal};
+ const first=await f.run(()=>checkAndAct({...request,now:new Date('2026-09-18T04:00:00Z')}));assert.equal(first.messageSent,false);
+ await day(36);const result=await f.run(()=>checkAndAct({...request,now:f.core.now()}));
+ assert.equal(result.decision,'ASK_CONTEXT');assert.equal(result.messageSent,true);assert.equal(f.wire.length,1);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM pending_questions')).rows[0].n,0);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
  const event=(await f.db.raw.execute("SELECT * FROM proactive_events WHERE decision='ASK_CONTEXT'")).rows[0];
  assert.equal(event.outcome,'DELIVERED');assert.equal(JSON.parse(event.reason_json).question_target_date,'2026-09-18');
+ const settlementKey=f.run(()=>workStepKey(f.context,['named',workStepOptions('proactive.delivery-settle',['a',event.id,event.health_date]).workStep]));
+ const settled=(await f.db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE receipt_key=?',args:[settlementKey]})).rows;
+ assert.equal(settled.length,1);assert.equal(settled[0].result_json,null);assert.equal(settled[0].request_digest,f.context.claim.identity);
+ assert.equal((await f.db.getProactiveState('a')).lastCheckedHealthDate,event.health_date);
  assert.deepEqual(await f.db.listUnresolvableProactiveEvents('a',{olderThanIso:'2026-09-21T00:00:00Z'}),[]);
- await checkAndAct({...request,now:f.core.now()});assert.equal(f.provider.calls.length,1);
+ await f.run(()=>checkAndAct({...request,now:f.core.now()}));assert.equal(f.wire.length,1);
 });
 test('simultaneous original-event preparations and dispatches reserve one question and one transport',async t=>{
  const f=await fixture(t),prepared=await Promise.all([f.prepare(),f.prepare()]);
@@ -188,4 +192,66 @@ test('simultaneous original-event preparations and dispatches reserve one questi
  assert.ok(results.some(r=>r.status==='DELIVERED'));assert.equal(f.provider.calls.length,1);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_prompt_deliveries')).rows[0].n,1);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_delivery_attempts')).rows[0].n,1);
+});
+
+// Exercise the production composition under an actual claimed SYNC receipt
+// context. Only Telegram's network response is synthetic; all v33 rows,
+// processing guards, receipt transactions and provider fences stay installed.
+import {createStage7Runtime} from '../src/stage7Runtime.js';
+import {withDurableExecution,workStepKey} from '../src/phase4ExecutionContext.js';
+import {workStepOptions} from '../src/phase4WorkStep.js';
+import {request as syncRequest,claim as claimSync,authority as fixtureAuthority} from './v32ReviewFixture.js';
+async function durableProactive(t,{outcome='DELIVERED'}={}){
+ const f=await fixture(t),wire=[];
+ t.mock.method(globalThis,'fetch',async(url,options)=>{
+  assert.equal(url,'https://api.telegram.org/botsynthetic-stage7/sendMessage');
+  assert.equal(f.db.processingTransactionActive(),false,'TELEGRAM_IO_MUST_STAY_OUTSIDE_TRANSACTION');
+  wire.push(JSON.parse(options.body));
+  if(outcome==='AMBIGUOUS')throw Error('SYNTHETIC_ACCEPTANCE_UNKNOWN');
+  return new Response(JSON.stringify({ok:true,result:{message_id:701,date:1789790400,chat:{id:123,type:'private'}}}),{status:200});
+ });
+ const runtime=await createStage7Runtime({db:f.db,keys:f.keys,admission:await f.db.admitRuntime(),now:f.core.now,
+  env:{telegramBotToken:'synthetic-stage7',dryRun:false},environment:{STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'a',PHASE4_BETA_PILOT_USER_ID:'a'}});
+ const claim=await claimSync(f.db,syncRequest()),context={claim,keys:f.keys,pending:new Set(),authority:fixtureAuthority};
+ const run=fn=>withDurableExecution(context,fn),send=()=>runtime.sendProactiveJournal({userId:'a',chatId:'123',eventId:f.claim.id});
+ return {...f,runtime,context,run,send,wire};
+}
+test('durable SYNC proactive path prepares, constructs keyboard wire outside TX and settles original receipt once',async t=>{
+ const f=await durableProactive(t);
+ const result=await f.run(f.send);assert.equal(result.status,'DELIVERED');
+ assert.equal(f.wire.length,1);assert.equal(f.wire[0].chat_id,'123');
+ assert.ok(f.wire[0].reply_markup.inline_keyboard.flat().every(b=>/^j7:[A-Za-z0-9_-]{32}$/.test(b.callback_data)));
+ assert.match(f.wire[0].text,/2026-09-17/);
+ assert.equal((await f.run(f.send)).status,'DELIVERED','RECEIPT_REPLAY_READS_CANONICAL_STATE_WITHOUT_RESENDING');
+ assert.equal(f.wire.length,1);
+ await f.run(()=>f.db.markProactiveEventSent('a',f.claim.id,{}, {now:f.core.now()}));
+ const delivery=(await f.db.raw.execute('SELECT * FROM journal_prompt_deliveries')).rows[0];
+ const interaction=(await f.db.raw.execute('SELECT * FROM quick_action_interactions')).rows[0];
+ assert.equal(delivery.state,'DELIVERED');assert.equal(delivery.message_id,'701');assert.equal(interaction.message_id,'701');assert.equal(interaction.target_date,'2026-09-17');
+ const receipts=(await f.db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=?',args:[f.context.claim.executionId]})).rows;
+ assert.equal(receipts.length,5);assert.ok(receipts.every(r=>r.request_digest===f.context.claim.identity&&r.scope_key===f.context.claim.scopeKey&&r.generation===f.context.claim.generation));
+ assert.equal(receipts.filter(r=>r.result_json===null).length,4,'NEW_STAGE7_ROOTS_DISCARD_CARDS_AND_ACTOR_AUTHORITY');
+ assert.ok(receipts.every(r=>r.result_json===null||typeof JSON.parse(r.result_json)==='boolean'||typeof JSON.parse(r.result_json)==='number'),'RECEIPTS_CONTAIN_NO_CARDS_ACTOR_AUTHORITY_OR_HEALTH_TEXT');
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);assert.equal((await f.db.raw.execute('SELECT count(*) n FROM pending_questions')).rows[0].n,0);
+ assert.ok((await f.db.raw.execute('SELECT sent_at FROM proactive_events')).rows[0].sent_at);
+});
+test('durable SYNC reuses committed preparation without replaying an actor or making a second ambiguous send',async t=>{
+ const f=await durableProactive(t,{outcome:'AMBIGUOUS'});
+ // A committed preparation can survive an interrupted caller and be read by
+ // the separate production composition with newly captured actor authority.
+ const prepared=await f.run(f.prepare);assert.equal(prepared.status,'PROPOSED');assert.equal(f.wire.length,0);
+ const result=await f.run(f.send);assert.equal(result.status,'AMBIGUOUS');assert.equal(f.wire.length,1);
+ assert.equal((await f.run(f.send)).status,'AMBIGUOUS');assert.equal(f.wire.length,1);
+ const row=(await f.db.raw.execute('SELECT * FROM journal_prompt_deliveries')).rows[0];assert.equal(row.attempt_count,1);assert.equal(row.message_id,null);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_delivery_attempts')).rows[0].n,1);
+ assert.equal((await f.db.raw.execute('SELECT sent_at FROM proactive_events')).rows[0].sent_at,null);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
+});
+test('durable SYNC final proactive permission fence blocks Telegram before any network request',async t=>{
+ const f=await durableProactive(t),enabled=f.db.isProactiveEnabled;let checks=0;
+ t.mock.method(f.db,'isProactiveEnabled',async(...args)=>{const allowed=await enabled(...args);return ++checks===3?false:allowed;});
+ assert.equal((await f.run(f.send)).status,'FAILED_DEFINITE');assert.equal(checks,3);assert.equal(f.wire.length,0);
+ assert.equal((await f.run(f.send)).status,'FAILED_DEFINITE');assert.equal(f.wire.length,0);
+ assert.equal((await f.db.raw.execute('SELECT sent_at FROM proactive_events')).rows[0].sent_at,null);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
 });

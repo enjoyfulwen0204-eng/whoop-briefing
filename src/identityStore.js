@@ -244,13 +244,9 @@ export function createIdentityStore(client, { transaction = null } = {}) {
         ],
       });
 
-      // 舊啟用期的認領不可以繼續佔住新啟用期的格子。刪掉**還沒送出**的
-      // 報告認領：已經送出的（telegram_sent_at 有值）是歷史證據，留著。
-      await client.execute({
-        sql: `DELETE FROM report_claims
-               WHERE user_id = ? AND telegram_sent_at IS NULL`,
-        args: [uid],
-      });
+      // Preserve every original report claim across lifecycle transitions.
+      // claimReport may atomically take over pre-send CLAIMED only; uncertain
+      // DELIVERY_STARTED/AMBIGUOUS must retain their original identity forever.
       // 分析認領同理：釋放租約，讓新啟用期可以重新認領。
       await client.execute({
         sql: `UPDATE analytics_work_state

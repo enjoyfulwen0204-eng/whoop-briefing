@@ -1,5 +1,6 @@
 import {resolveRecipientName} from './recipientIdentity.js';
 import {randomBytes} from 'node:crypto';
+import {profileRevision} from './profileRevision.js';
 import {fail,readableRow} from './phase4Core.js';
 import {addPrivacyLink} from './phase4V22Backfill.js';
 import {localMidnightUtc,addDays} from './time.js';
@@ -12,7 +13,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  if(![33,34,35].includes(core.schemaVersion)||!Number.isSafeInteger(answerWindowMs)||answerWindowMs<3600000||answerWindowMs>7*86400000)fail('STAGE7_V33_CONFIG_REQUIRED');
  const {client,keys,timestamp,transaction}=core;
  const hash=token=>keys.lookup(['stage7-callback',token]);
- async function authenticate({user,chatId,callback=null,allowPendingPurge=false}){
+ async function authenticate({user,chatId,callback=null,allowPendingPurge=false,initializeProfile=true}){
   const chat=String(chatId);
   if(!/^\d+$/.test(chat))fail('STAGE7_PRIVATE_ACTOR_REQUIRED');
   if(callback&&(typeof callback.id!=='string'||callback.id.length<1||callback.id.length>128||String(callback.from?.id)!==chat||callback.from?.is_bot||callback.message?.chat?.type!=='private'||String(callback.message.chat.id)!==chat))fail('STAGE7_PRIVATE_ACTOR_REQUIRED');
@@ -20,7 +21,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   if(!current||current.id!==user?.id||current.lifecycleGeneration!==user.lifecycleGeneration)fail('STAGE7_ACTOR_FENCED');
   const control=await core.captureControl(current.id),state=await core.assertControl(control);
   if(state.pending_purge_count!==0&&!allowPendingPurge)fail('PHASE4_PURGE_FENCED');
-  return {control,state,user:current,chat,profileRevision:await db.getProfileRevision(current.id)};
+  return {control,state,user:current,chat,profileRevision:initializeProfile?await db.getProfileRevision(current.id):await profileRevision(client,current.id,{initialize:false})};
  }
  const privacyFields=state=>({privacy_artifact_id:core.newId(),content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:state.purge_generation});
  async function link(table,row,sourceType='USER',sourceId=row.user_id){

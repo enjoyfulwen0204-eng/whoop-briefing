@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {pathToFileURL} from 'node:url';
 
 export function webhookEntryMode(environment=process.env){
@@ -22,6 +23,7 @@ export function webhookEntryFatalCode(error){
  return typeof code==='string'&&(/^(?:WHOOP_BRIDGE_|PHASE4_PRIVACY_|SUPERVISOR_|PRODUCTION_|SCHEMA_TRANSITION_|STAGE8_|EPOCH_|RELEASE_)[A-Z0-9_]{1,120}$/.test(code)||nativeCodes.includes(code))?code:'WEBHOOK_ENTRY_START_FAILED';
 }
 export async function main(){
+ requireRecoveryScope('legacy-webhook');
  const mode=webhookEntryMode();
  if(mode==='supervisor')return (await import('../productionSupervisorStartup.js')).main();
  if(mode==='whoop-only')return (await import('../maintenanceWhoopIngressStartup.js')).main();

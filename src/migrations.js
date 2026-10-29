@@ -92,6 +92,8 @@ export async function inspectReshape(client) {
 export async function runMigrations(client, { allowRebuild = true, targetVersion,
   privacyKeys, experimentAttestations = [],
 } = {}) {
+  // Recovery artifacts have no remote migration authority. Local file fixtures only.
+  if(client.protocol!=='file')throw new Phase4SchemaError('RECOVERY_OPERATOR_MIGRATION_ONLY');
   const from = await currentVersion(client);
   targetVersion??=(from===LATEST_SCHEMA_VERSION?from:SCHEMA_VERSION);
   if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > LATEST_SCHEMA_VERSION

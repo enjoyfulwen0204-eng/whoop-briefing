@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createBusinessWebhookLifecycle} from '../businessWebhookLifecycle.js';
 import {createCompanionCoachContext} from '../companionCoachContext.js';
 import {createStage8PresentationSender} from '../stage8PresentationSender.js';
@@ -427,6 +428,7 @@ export function createWebhookServer(opts) {
  * 狀態，詳見 docs/telegram-webhook.md。
  */
 export async function createBusinessWebhookRuntime({environment=process.env,runtimeEpoch}={}) {
+ requireRecoveryScope('business');
   // A trusted supervisor captures this opaque scope ONCE. Every primary and
   // secondary below retains it; no connection adopts a later DB registry epoch.
   const selectedEnvironment=Object.freeze({...environment});

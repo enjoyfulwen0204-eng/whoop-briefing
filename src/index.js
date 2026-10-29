@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {requireRecoveryScope} from './recoveryPolicy.js';
 import {recordStage8SyncSubject} from './stage8PostSync.js';
 import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
 import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
@@ -648,6 +649,7 @@ async function runForUserOwned({
 }
 
 export async function runBriefing({ now = new Date(), deps = {}, triggerSource = 'manual', executionPhase='SYNC' } = {}) {
+ requireRecoveryScope('scheduler');
   if(executionPhase!=='SYNC')throw new Error('EXECUTION_PHASE_INVALID');
   requireTriggerSource(triggerSource);
   const { guardian = runGuardian } = deps;

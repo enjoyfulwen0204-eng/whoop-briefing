@@ -865,13 +865,5 @@ export function loadEnv({ require: requireList = REQUIRED_ENV, environment = pro
  * 使用者明明填好了 .env 卻會收到「缺少環境變數」這種完全誤導的訊息。
  */
 export function loadDotEnvIfPresent() {
-  try {
-    process.loadEnvFile('.env');
-  } catch (err) {
-    if (err?.code === 'ENOENT') return; // 沒有 .env，正常
-    throw new Error(
-      `.env 存在但載入失敗（${err?.code ?? err?.name ?? 'unknown'}）：${err?.message ?? err}`,
-      { cause: err },
-    );
-  }
+  throw Object.assign(new Error('RECOVERY_EXPLICIT_ENTRY_REQUIRED'),{code:'RECOVERY_EXPLICIT_ENTRY_REQUIRED'});
 }

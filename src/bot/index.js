@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createCompanionCoachContext} from '../companionCoachContext.js';
 import {createStage8PresentationSender} from '../stage8PresentationSender.js';
 import {createStage7PresentationSender} from '../stage7PresentationSender.js';
@@ -102,6 +103,7 @@ export function createSendReply({ db, api }) {
 }
 
 export async function main({ maxIterations = Infinity } = {}) {
+ requireRecoveryScope('polling');
   loadDotEnvIfPresent();
   const env = loadEnv();
 

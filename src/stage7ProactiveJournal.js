@@ -4,6 +4,7 @@ import {inCompanionQuietHours} from './companionTimingPolicy.js';
 import {TOPICS} from './stage7Registry.js';
 import {readableRow} from './phase4Core.js';
 import {localDate,localMidnightUtc,addDays} from './time.js';
+import {workStepOptions} from './phase4WorkStep.js';
 
 const SOURCE='legacy-proactive-journal-v1';
 const decode=value=>{try{return JSON.parse(value??'null');}catch{return null;}};
@@ -65,7 +66,14 @@ export function createStage7ProactiveJournal({core,db,companion}){
    await companion.interactions.link('journal_prompt_deliveries',delivery,'quick_action_interactions',issued.row.privacy_artifact_id);
    await companion.interactions.link('journal_prompt_deliveries',delivery,'proactive_events',proof.event.privacy_artifact_id);
    return {status:'PROPOSED',deliveryId:delivery.delivery_id};
-  });
+  },workStepOptions('stage7.proactive.prepare',[user.id,String(chatId),eventId],{discardResult:true,replay:async()=>{
+   // A work receipt never serializes an actor, card or grant. Recover only the
+   // canonical delivery handle under fresh actor/original-event authority.
+   const actor=await companion.interactions.authenticate({user,chatId,initializeProfile:false}),proof=await original(actor,eventId);
+   if(!proof)return {status:'UNSUPPORTED_OR_FENCED_QUESTION'};
+   const previous=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND semantic_key=?',args:[user.id,semantic(user.id,eventId)]})).rows[0];
+   return previous?{status:'EXISTING',deliveryId:previous.delivery_id}:{status:'RECONCILIATION_REQUIRED'};
+  }}));
  }
  return {prepare,authorized};
 }

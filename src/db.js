@@ -1,3 +1,4 @@
+import {requireRecoveryScope} from './recoveryPolicy.js';
 import {requireSupervisorRuntimeEpochScope,bindSupervisorRuntimeEpochOwnedClient} from './runtimeEpochScope.js';
 import {ownReceiverScopes,retireReceiverScopes} from './receiverScopeLifetime.js';
 import {isReadOnlyTelegramOperation} from './telegramReadOnlyPreparation.js';
@@ -84,6 +85,7 @@ export function stage6OwnedBinding(db){const b=stage6Bindings.get(db);if(!b||b.b
 export const isOwnedStage6Memory=db=>stage6Memory.has(db);
 const markStage6Memory=db=>stage6Memory.add(db);
 export function createDb({ url, authToken, phase4Keys,fetch,runtimeProfile,runtimeEpoch }) {
+ requireRecoveryScope('database');
   if(runtimeEpoch!==undefined)requireSupervisorRuntimeEpochScope(runtimeEpoch,phase4Keys,{url});
   const providerFetch=fetch??globalThis.fetch;
   const pendingStreams=new Map();
@@ -1517,7 +1519,7 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
    *                                               不可以自動再送（需要人工處置）
    *   { granted:false }                         → 別人正握著（claim 未過期）
    *
-   * ## 同一啟用期只接手 CLAIMED；新啟用期可接手舊的 DELIVERY_STARTED
+   * ## 所有啟用期都只接手 CLAIMED
    *
    * CLAIMED 的定義是「拿到權限了，但**還沒有任何外部副作用**」——
    * 抓歷史、算 baseline、問模型全都在這個狀態裡，重做一次不會有任何代價。
@@ -1526,8 +1528,8 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
    * 一旦跨過 authorizeReportDelivery（=可能已經打到 Telegram），狀態就變成
    * DELIVERY_STARTED，而那是**終局**：租約過不過期都不再授予任何人。
    * 「租約過期」永遠不可以變成「再送一次」的理由。
-   * 已知的不同啟用世代可回收未確認送達的 DELIVERY_STARTED；
-   * AMBIGUOUS 與已確認送達的歷史列仍然不在自動接手範圍內。
+   * 跨啟用世代也不能回收 DELIVERY_STARTED。它與 AMBIGUOUS 都可能已送達；
+   * 原 owner、attempt、時間與不確定狀態必須保留。
    */
   async function claimReport({
     userId, reportType, localDateKey, ttlMs, owner = randomUUID(),
@@ -1561,7 +1563,7 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
             WHERE report_claims.telegram_sent_at IS NULL
               AND ((report_claims.delivery_state = ? AND report_claims.expires_at <= excluded.claimed_at)
                 -- ★ R2：兩邊都知道而且不同時才接手（NULL = 出處不明，維持互斥）
-                OR (report_claims.delivery_state IN ('CLAIMED', 'DELIVERY_STARTED')
+                OR (report_claims.delivery_state = 'CLAIMED'
                     AND report_claims.lifecycle_generation IS NOT NULL
                     AND excluded.lifecycle_generation IS NOT NULL
                     AND report_claims.lifecycle_generation <> excluded.lifecycle_generation))`,

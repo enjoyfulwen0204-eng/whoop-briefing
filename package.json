@@ -8,7 +8,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node src/recoveryEntry.js",
     "migrate": "node scripts/migrate.js",
     "migrate:phase4": "node scripts/phase4-migrate.js",
     "authorize": "node scripts/authorize.js",
@@ -22,7 +22,7 @@
     "phase0": "node scripts/phase0-status.js",
     "admin": "node scripts/admin.js",
     "bot": "node src/bot/index.js",
-    "bot:webhook": "node src/bot/webhook-entry.js",
+    "bot:webhook": "node src/recoveryEntry.js",
     "telegram:webhook:status": "node scripts/telegram-webhook.js status",
     "telegram:webhook:set": "node scripts/telegram-webhook.js set",
     "telegram:webhook:delete": "node scripts/telegram-webhook.js delete",

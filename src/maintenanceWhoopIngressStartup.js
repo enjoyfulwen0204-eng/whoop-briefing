@@ -1,8 +1,10 @@
+import {requireRecoveryScope} from './recoveryPolicy.js';
 import http from 'node:http';
 import {phase4AuthorityKeys} from './phase4EnvironmentKeys.js';
 import {initializeWhoopRenderIngressBridge} from './maintenanceWhoopIngress.js';
 
 export async function main(){
+ requireRecoveryScope('maintenance');
  const environment=process.env,port=Number(environment.PORT??3000),encoded=environment.KHOS_MAINTENANCE_INGRESS_BINDING;
  if(!Number.isSafeInteger(port)||port<1||port>65535||typeof encoded!=='string'||Buffer.byteLength(encoded)>16*1024)
   throw Object.assign(Error('WHOOP_BRIDGE_STARTUP_CONFIG_REQUIRED'),{code:'WHOOP_BRIDGE_STARTUP_CONFIG_REQUIRED'});

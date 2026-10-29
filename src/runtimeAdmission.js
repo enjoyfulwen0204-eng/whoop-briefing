@@ -187,6 +187,7 @@ async function admitChecked(client, keys,stats) {
     :"SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')");
   const versions=(await read('SELECT version,note FROM schema_version')).rows;
   const version=Math.max(0,...versions.map(r=>Number(r.version)));
+   if(version!==33)fail('RECOVERY_V33_REQUIRED');
   if(version<SCHEMA_VERSION&&!(version===33&&state.runtimeProfile!==undefined))fail('PHASE4_CONTROLLED_MIGRATION_REQUIRED',`${version}/${SCHEMA_VERSION}`);
   if(state.runtimeProfile!==undefined&&![33,35].includes(version))fail('SCHEMA_TRANSITION_COMMITTED_VERSION_REQUIRED');
   if (!contracts.has(version)) fail('phase4_schema_version_mismatch', `${version}/${SCHEMA_VERSION}`);

@@ -5,6 +5,7 @@ import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {log} from './logger.js';
 import {fail,readableRow} from './phase4Core.js';
 import {presentationLocale} from './stage7Registry.js';
+import {workStepOptions} from './phase4WorkStep.js';
 const synthetic=new WeakSet();
 /** No function/URL/token/provider supplied by caller is executed. */
 export function createSyntheticJournalTelegram({outcomes=[]}={}){
@@ -48,7 +49,13 @@ export function createStage7Dispatcher({core,db,companion,provider,invitations=n
    // Refresh presentation from the current canonical locale without changing answer semantics.
    const card=weekly?.card??invitation?.card??await companion.card(actor,interaction);
    return {status:'STARTED',actor,attemptId,card,interactionId:interaction?.interaction_id??null,weeklyProjectionDigest:weekly?.projectionDigest??null};
-  });
+  },workStepOptions('stage7.delivery.start',[user.id,deliveryId],{discardResult:true,replay:async()=>{
+   // Replayed STARTED authority must never cause a second provider request.
+   // Canonical state may prove settlement; an unfinished start stays closed.
+   const actor=await companion.interactions.authenticate({user,chatId,initializeProfile:false}),row=(await client.execute({sql:'SELECT * FROM journal_prompt_deliveries WHERE user_id=? AND delivery_id=?',args:[user.id,deliveryId]})).rows[0];
+   if(!readableRow(row)||row.chat_id!==actor.chat||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation)return {status:'SUPPRESSED'};
+   return {status:['DELIVERY_STARTED','DELIVERED','AMBIGUOUS','SUPPRESSED','FAILED_DEFINITE'].includes(row.state)?row.state:'RECONCILIATION_REQUIRED'};
+  }}));
   if(started.status!=='STARTED')return started;
   let state,messageId=null;
   try{const result=await provider.send({...started.card,chatId:String(chatId)},{userId:user.id,chatId:String(chatId),deliveryId,actor:started.actor,interactionId:started.interactionId,weeklyProjectionDigest:started.weeklyProjectionDigest});if(!/^\d+$/.test(result?.messageId??''))state='AMBIGUOUS';else{state='DELIVERED';messageId=result.messageId;}}
@@ -59,7 +66,7 @@ export function createStage7Dispatcher({core,db,companion,provider,invitations=n
    await client.execute({sql:"UPDATE journal_delivery_attempts SET state=?,settled_at=?,message_id=? WHERE user_id=? AND attempt_id=? AND state='DELIVERY_STARTED'",args:[state,timestamp(),messageId,user.id,started.attemptId]});
    await client.execute({sql:"UPDATE journal_prompt_deliveries SET state=?,message_id=?,revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=? AND state='DELIVERY_STARTED'",args:[state,messageId,timestamp(),user.id,deliveryId]});
    if(state==='DELIVERED'&&started.interactionId){try{await companion.interactions.bind(started.actor,started.interactionId,messageId);}catch{/* no health read or resend after lifecycle transition */}}
-  });
+  },workStepOptions('stage7.delivery.settle',[user.id,deliveryId,started.attemptId,state,messageId],{discardResult:true}));
   return {status:state,messageId,...(started.weeklyProjectionDigest?{deliveredNow:state==='DELIVERED'}:{})};
  }
  async function recover({user,chatId,deliveryId}){

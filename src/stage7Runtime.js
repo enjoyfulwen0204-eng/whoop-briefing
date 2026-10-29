@@ -16,6 +16,7 @@ import {labelForCategory} from './journal.js';
 import {requireUserId} from './userContext.js';
 import {localDate} from './time.js';
 import {createStage7ReplyAuthority} from './stage7ReplyAuthority.js';
+import {workStepOptions} from './phase4WorkStep.js';
 export function stage7Configuration(environment={}){
  const mode=environment.STAGE7_COMPANION??'off',raw=environment.STAGE7_COMPANION_USER_IDS??'',automatic=environment.STAGE7_AUTOMATIC??'off';
  if(!['off','on'].includes(mode)||!['off','on'].includes(automatic)||automatic==='on'&&mode!=='on'||typeof raw!=='string')fail('STAGE7_CONFIG_INVALID');
@@ -64,7 +65,11 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    const current=await companion.weekly.due(actor,row);
    if(current.status!=='READY'||current.projectionDigest!==authority.weeklyProjectionDigest)fail('STAGE7_DELIVERY_FENCED');
   }
- });
+ },workStepOptions('stage7.delivery.authorize',[authority.userId,authority.deliveryId,authority.interactionId],{discardResult:true,replay:()=>{
+  // A recorded fence is never a reusable grant to send. A replayed start must
+  // reconcile canonical state; it cannot replay actor authority into Telegram.
+  fail('STAGE7_DELIVERY_FENCED');
+ }}));
  const provider=createStage7ProductionProvider({db,core,keys,admission,env,userIds:config.userIds,beforeSend}),dispatcher=createStage7Dispatcher({core,db,companion,provider,invitations,proactiveJournal});
  async function stage7Inbound(input){
   if(!eligible(input.user))return null;

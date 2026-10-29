@@ -1,4 +1,5 @@
 import {looksLikeQuestion} from './bot/conversation.js';
+import {extractMetric,METRIC_KEYWORDS} from './bot/intent.js';
 import {captureStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
@@ -11,6 +12,22 @@ import {readableRow,fail} from './phase4Core.js';
 import {TOPICS,DETAILS,DAILY_POLICY_VERSION,registryQuestion,normalizeJournalNote,JOURNAL_COPY,presentationLocale} from './stage7Registry.js';
 import {isJournalCallback} from './stage7Cards.js';
 import {localDate,addDays,localMidnightUtc} from './time.js';
+
+// Only implicit answers to an unanswered proactive card use this routing
+// guard. An explicit NOTE action still owns the user's verbatim note. A bare
+// metric query is distinct from context such as "HRV was low after work".
+function implicitJournalQuery(text){
+ const value=text.trim();
+ if(looksLikeQuestion(value)||/^(why|how|what|when|where|which|can|could|should|is|are|do|does)\b|^(tại sao|vì sao|thế nào|làm sao|khi nào|có phải)\b/iu.test(value))return true;
+ if(/^(?:show|display|check|tell me|cho tôi xem|cho tôi biết|kiểm tra)(?:\s|$)|^(?:看一下|看看|查看|查一下|幫我看)/iu.test(value))return true;
+ const metric=extractMetric(value);if(!metric)return false;
+ let remaining=value;for(const pattern of METRIC_KEYWORDS[metric])remaining=remaining.replace(pattern,' ');
+ // Consume one anchored token at a time: neither free-standing measurements
+ // nor an overlapping quantified regex can turn a short note into a query.
+ const token=/^(?:\s+|[?.!？。！,:：]|(?:last|past|over(?:\s+the)?)\s+\d{1,3}\s+(?:days?|weeks?)\b|(?:最近|近)\s*\d{1,3}\s*天|my\b|recent\b|today(?:'s)?\b|yesterday(?:'s)?\b|trend(?:s)?\b|last\b|past\b|over\b|the\b|day(?:s)?\b|week(?:s)?\b|please\b|xu hướng|của tôi|hôm nay|gần đây|我的|我|最近|今天|今日|昨天|的|趨勢|近|天)/iu;
+ while(remaining.length){const match=token.exec(remaining);if(!match)return false;remaining=remaining.slice(match[0].length);}
+ return true;
+}
 
 export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,onWeekly=null,...options}){
  const interactions=createStage7InteractionStore({core,db,...options}),{client,transaction,timestamp}=core;
@@ -176,7 +193,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(rows.length!==1)return null;const row=rows[0];
    // A direct answer may add context to the original dated question, but is
    // never parsed as a YES/NO fact. Unrelated questions keep normal routing.
-   if(row.state==='ISSUED'&&(looksLikeQuestion(text)||/^(why|how|what|when|where|which|can|could|should|is|are|do|does)\b|^(tại sao|vì sao|thế nào|làm sao|khi nào|có phải)\b/iu.test(text.trim())))return null;
+   if(row.state==='ISSUED'&&implicitJournalQuery(text))return null;
    if(!readableRow(row)||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation||row.timezone!==actor.state.timezone||JSON.parse(row.diagnostics_json??'null')?.profileRevision!==actor.profileRevision)return null;
    let note;try{note=normalizeJournalNote(text);}catch{return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))].invalidNote};}
    return card(actor,await interactions.update(actor,row,{note,state:['YES','NO'].includes(row.selected_choice)?'CONFIRM':'ISSUED'}));

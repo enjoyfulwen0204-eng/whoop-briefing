@@ -106,6 +106,32 @@ test('unpunctuated unrelated questions keep normal routing and direct answers pr
  assert.match(reply.text,/2026-09-17/);assert.ok(reply.text.includes(f.c.questions[1]));
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
 });
+for(const [locale,queries,context] of [
+ ['zh-TW',['看一下我的 HRV','我最近的 HRV','我最近7天的 HRV'],'我的 HRV 下班後很低'],
+ ['en',['show my HRV','my HRV trend','HRV over the last 7 days'],'HRV was low after work'],
+ ['vi',['cho tôi xem HRV','xu hướng HRV'],'Strain cao sau buổi tập'],
+])test(`implicit Journal notes preserve metric query routing and explicit note intent (${locale})`,async t=>{
+ const f=await fixture(t,{locale}),p=await f.prepare();await f.dispatch(p.deliveryId);
+ const original=(await f.db.raw.execute('SELECT * FROM quick_action_interactions')).rows;
+ for(const text of queries){
+  assert.equal(await f.companion.handleNote({user:f.user,chatId:'123',text}),null,'UNRELATED_METRIC_QUERY_MUST_REACH_NORMAL_ROUTER');
+  assert.deepEqual((await f.db.raw.execute('SELECT * FROM quick_action_interactions')).rows,original,'UNANSWERED_ORIGINAL_QUESTION_UNCHANGED');
+ }
+ for(const text of ['HRV 42','Strain 16.2','my HRV 42',`HRV ${'1'.repeat(80)}X`]){
+  const start=performance.now(),reply=await f.companion.handleNote({user:f.user,chatId:'123',text});assert.ok(reply,'MEASUREMENT_AND_NON_QUERY_CONTEXT_MUST_REMAIN_NOTES');
+  assert.ok(performance.now()-start<5000,'SHORT_CONTEXT_MUST_NOT_BLOCK_ROUTING');
+  const current=(await f.db.raw.execute('SELECT * FROM quick_action_interactions')).rows[0];assert.equal(current.note,text);assert.equal(current.target_date,original[0].target_date);
+ }
+ const card=await f.companion.handleNote({user:f.user,chatId:'123',text:context});assert.ok(card);
+ const noted=(await f.db.raw.execute('SELECT * FROM quick_action_interactions')).rows[0];
+ assert.equal(noted.note,context);assert.equal(noted.state,'ISSUED');assert.equal(noted.target_date,original[0].target_date);
+ const explicit=await f.tap(card,f.c.note);assert.ok(explicit);
+ const reply=await f.companion.handleNote({user:f.user,chatId:'123',text:queries[0]});assert.ok(reply,'EXPLICIT_NOTE_MODE_RETAINS_USER_TEXT');
+ const after=(await f.db.raw.execute('SELECT * FROM quick_action_interactions')).rows[0];
+ assert.equal(after.note,queries[0]);assert.equal(after.selected_choice,null);assert.equal(after.target_date,original[0].target_date);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM pending_questions')).rows[0].n,0);assert.equal(f.provider.calls.length,1);
+});
 test('reactive broad follow-up offers topic navigation without assuming a fact or overriding old questions',async t=>{
  const f=await fixture(t),card=await f.companion.prepareContextQuestion({user:f.user,chatId:'123',healthDate:'2026-09-18'});
  assert.equal(card.replyMarkup.inline_keyboard.length>5,true);

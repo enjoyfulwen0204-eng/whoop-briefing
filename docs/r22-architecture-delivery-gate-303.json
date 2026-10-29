@@ -1,0 +1,185 @@
+{
+  "contract": "kelvin-health-os-r22-architecture-and-delivery-gate-v1",
+  "checkpoint": 303,
+  "atUTC": "2026-10-29T02:04:47.113173+00:00",
+  "sourceCommit": "d7e2602d753ddd31ea989b7a6e4dfc3971a52f1f",
+  "terminalHranaGate": "FAIL",
+  "holdRecoveryGate": "FAIL",
+  "milestoneComplete": false,
+  "choice": "C",
+  "decision": "Keep advanced analytics fail-closed. Deliver only independently eligible v33 functionality. Preserve B as a specific unqualified server-ownership alternative; stop open-ended A foundations/debugging.",
+  "protectedRecovery": {
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/architecture-gate-20261029.private/recovery-d7e2602",
+    "all12CommitIds": [
+      "a316f2d5f7cd1e76342c0d8058e50d7bfb3f9447",
+      "65ecd2a9742fc67167ba694854a3af5256d48698",
+      "13221c20963ea5d3fd3bf2c0a0ceb3fad70f8ea5",
+      "02e9dcd32d0d1e4d0894887842808038eab33982",
+      "02909408045204daec0e94c9a5cdf958722f2150",
+      "52194f95d6e34336ea7d84d9ad4f9957e168a4ff",
+      "7ec52f6c2d78fb094d6ebe9d555989a72b4dd8cb",
+      "205816561a4616dd7e7255e169e836aac7f6ab9d",
+      "0200c68be3dfc7728372091de09be4e34d7a5dda",
+      "485cd8b5a76e6d2ed4bf42c45c87e6fe3346d1a2",
+      "ad2742f93313a635eb5275485b8bb5021c035148",
+      "d7e2602d753ddd31ea989b7a6e4dfc3971a52f1f"
+    ],
+    "completeHistoryBundleSHA256": "4206d4fbca9680e8cdacb37fca6722c75ea771e8618390cf94755100b84cee07",
+    "offlineBareRestoreVerified": true,
+    "protection": "directory0700; bundle/manifest/checkpoint0400",
+    "published": false,
+    "pushed": false
+  },
+  "comparison": {
+    "A": {
+      "choice": "Finish existing prepared-ticket / Hrana publication",
+      "currentQualification": "FAIL",
+      "boundedCompleteClosureAvailable": false,
+      "evidence": [
+        "Historical native65ecd2a proves authorized preparation, independently visible durable publication and exact receipts/generation before lost application ACK. It does not prove recovery finalization or hold disposal.",
+        "src/stage8LiveExecution.js31-36: same original interrupted RID returns PENDING or EXPIRED. Lines56-62: aggregate work/finalization are later guarded roots.",
+        "src/stage8LivePreparedWork.js132-143: reconciliation only reports PREPARED_UNIT_COMMITTED_UNFINALIZED or RECONCILIATION_REQUIRED. It grants no finalization.",
+        "src/stage6PreparedDisposal.js1-3 and src/phase4Cache.js55-57: signed hold is permanent; requires physical disposal/death proof, never ordinary TTL cleanup.",
+        "src/ownedHttpLifetime.js7-9: providerCompletion UNKNOWN and healthDisposalAuthorized false. Byte EOF/cancel/idle/epoch cannot prove provider terminal, erased clones, or dead orphan.",
+        "The Telegram prepared ticket/full-preimage original-receipt integration is separately unimplemented."
+      ],
+      "oneCycleDecision": "Do not start an implementation cycle without a credible full acceptance closure. Closing the missing server-session/orphan ownership trust boundary is an architectural prerequisite, not one more bounded client-tracker patch. No A implementation/native campaign started in this decision cycle.",
+      "prohibitedShortcuts": [
+        "Convert PENDING/EXPIRED into success or legitimate completed-empty output",
+        "Renew old RID/lease/deadline or reset permit/quota",
+        "Delete permanent hold on TTL/client idle/SDK close/cold client exit",
+        "Relabel historical component native PASS as newest HEAD terminal PASS"
+      ]
+    },
+    "B": {
+      "choice": "Replace blocking client lifecycle with server-owned durable atomic unit publication and reconciliation",
+      "currentQualification": "NOT_QUALIFIED",
+      "specificMechanism": [
+        "A bounded server-owned attempt/session is durably registered and identifiable before any health payload; a supervisor owns its immutable process epoch and every reader/clone/late command.",
+        "One short original-authority transaction atomically validates full authoritative source/generation/privacy/lease preimage, applies bounded effects, appends original receipts and stores the signed unit terminal outcome/journal. Partial work is explicitly partial; no artificial EOF.",
+        "Lost ACK reads the same original durable journal by original identity and validates its receipt digest/signature/generation. It never reruns work, renews original authority, or emits expired/private health output.",
+        "An orphan reaper obtains affirmative server terminal/no-future-command evidence plus local worker/dependent-health-copy disposal proof before removing the exact signed hold. Unknown remains fail-closed. Cleanup grants erasure authority only, not new work/finalization."
+      ],
+      "hardDependency": "Current evidence provides no Turso server-session termination/finality guarantee suitable for orphan disposal. If unavailable, B requires an owner-approved deployment/topology with an owned database worker/service that provides this proof. No infrastructure move or Production migration is authorized by this decision.",
+      "whyNotCurrentDelivery": "Requires a new server ownership contract and targeted qualification, not an already reviewed implementation. No substitute TTL is accepted."
+    },
+    "C": {
+      "choice": "Current delivery choice: fail-closed analytics, independent v33 user functionality",
+      "currentQualification": "EXISTING_V33_SCOPE_ONLY_NOT_USER_ACCEPTANCE_PASS",
+      "productionAdvancedPolicy": {
+        "PHASE4_STAGE8_RUNTIME": "UNSET",
+        "STAGE8_LIVE_ANALYSIS": "UNSET",
+        "STAGE8_POST_SYNC": "UNSET",
+        "STAGE8_SUBJECT_ALERTS": "UNSET",
+        "STAGE8_MORNING_BRIEF": "UNSET",
+        "BODY_ENERGY_PUBLICATION": "off",
+        "BODY_ENERGY_ALERTS": "off"
+      },
+      "configurationChanged": false,
+      "preserved": [
+        "Existing schema33 and original permissions/preferences/quiet hours/quotas/ownership",
+        "Advanced Stage6/Stage8/Body Energy activation remains off or unset; no roll-forward to d7e2602",
+        "Original signed holds and all historical RIDs remain unchanged"
+      ],
+      "nextDeliverableId": "V33_STRAIN_EMOJI_JOURNAL_REAL_DELIVERY_ACCEPTANCE_PACKET",
+      "nextDeliverable": "Read-only causal trace for a genuinely eligible natural Strain event on existing v33, linking original event/decision and journal interaction to actual Telegram inline-keyboard evidence and a genuine callback with its action-correct durable transition/receipt. If evidence exposes a defect, prepare only the smallest independently reviewed v33-compatible fix from Production9a8c951; no whole R22 deployment.",
+      "sourceScope": "Existing Stage7 runtime/interactive journal supports schema33. Core Stage7/proactive/router/updateProcessor paths match Production; proactiveReaper has a separate local delta and is not assumed deployed.",
+      "acceptance": [
+        "Natural canonical Strain trigger under existing opt-in/quiet-hour/rate/identity guards; no synthetic user event or historical RID/quota reset",
+        "Existing service delivery must have a typed Bot API message_id plus inline_keyboard evidence for that same actual message: Bot API Message.reply_markup, genuine callback.message.reply_markup, or actual UI evidence. A message_id alone, local request payload or stub send is insufficient.",
+        "A genuine Telegram callback bound to the delivered message/actor/revision must perform the correct original interaction transition and idempotent callback receipt. Only an explicitly completed confirm may create the original journal fact. NOT_SURE/SKIPPED must create no fact/negative exposure and preserve original retraction semantics for any prior fact; topic selection alone is not a confirmed health fact.",
+        "Expired/foreign/duplicate callback checks and suppression must preserve existing authority; no fabricated clicks",
+        "No new manual health message, forced trigger, deployment, migration or feature activation is implied"
+      ],
+      "itemStatus": "OPEN",
+      "currentRealTelegramSuccess": "NOT_VERIFIED",
+      "notClaimed": [
+        "Strain interactive bug closed",
+        "Real buttons delivered",
+        "User clicked",
+        "Full Stage6/Stage8/Hrana runtime qualified"
+      ]
+    }
+  },
+  "acceptanceLedger": {
+    "authorizedWorkPreparation": {
+      "status": "HISTORICAL_COMPONENT_PASS_ONLY",
+      "source": "65ecd2a"
+    },
+    "realHranaDurableCommit": {
+      "status": "HISTORICAL_COMPONENT_PASS_ONLY",
+      "source": "65ecd2a; second connection-visible real commit"
+    },
+    "originalReceiptAndGenerationAuthority": {
+      "status": "HISTORICAL_COMPONENT_PASS_ONLY",
+      "source": "65ecd2a; original graph/2canonical operation receipts/17work receipts preserved"
+    },
+    "terminalFinalizationOrLegitimateNoResult": {
+      "status": "FAIL",
+      "reason": "Crash counterexample remains original ESTABLISHED/PENDING then EXPIRED; safety rejection is not finalized recovery or completed no-result."
+    },
+    "lostAckReconciliation": {
+      "status": "PARTIAL_NOT_ACCEPTANCE_PASS",
+      "reason": "Durability observation and safe no-rerun rejection proved; terminal replay and orphan closure not proved."
+    },
+    "safeHoldCleanupOrExpiry": {
+      "status": "FAIL",
+      "reason": "Original signed permanent hold remains after crash; no qualified orphan physical-disposal proof or legitimate expiry."
+    },
+    "noFabricatedSuccessOrPermitBypass": {
+      "status": "PRESERVED",
+      "source": "No production mutation, RID reset, quota reset, token/F02 change or manufactured result/click/delivery."
+    }
+  },
+  "productionReadOnly": {
+    "atUTC": "2026-10-29T02:01:07.678Z",
+    "sourceSHA": "9a8c951deee42ad9f6fd9c5828edad44f246d5f7",
+    "deployId": "dep-dbff9r8473hc73cvbitg",
+    "schema": 33,
+    "contract": "r22-architecture-production-sha-schema-readonly-v1",
+    "providerRequests": 0,
+    "rawHealthValuesRead": false,
+    "sqlReads": 1,
+    "databaseWrites": 0,
+    "telegramSends": 0,
+    "maintenancePermitActions": 0,
+    "TursoTokenChanges": 0
+  },
+  "productionPolicyReadOnlySHA256": "ac81c75e34701093d370fa2c0acafd1a6277722b4070b7ad94de5f03233d02dc",
+  "sourceSHA256": {
+    "src/stage8LiveExecution.js": "c1ff368f11a502631914c2f633bad1699fa0ed3982fc5d61896fecd461eb730f",
+    "src/stage8LivePreparedWork.js": "6da94a4a7d413d4450a0dd23537597667088d0213cbbd8c3d515a5a64e45eeea",
+    "src/stage6PreparedDisposal.js": "57233453865410e260bebe8893e87258e05e009080645dfcfd112593351b63d5",
+    "src/phase4Cache.js": "70f1973fe556e2dfaa7073efb494905414427ff6580e1e385d60b7235d8c9661",
+    "src/ownedHttpLifetime.js": "9eef989e8856b62fab55f51f49dbc4a206c9eb74c6bb8f27ac2913fc4e4e2011",
+    "src/hranaCleanup.js": "15ace293cd4cb5f465b9dab85f6a2120d651cb0fd0f4027e7fd7dfe1ee150c2f",
+    "src/stage8PreparedDerivedRead.js": "31aa5e0673a0eeb33ae8e706f098394686faa086432277842ef4b55be90dc501",
+    "src/stage8PostSync.js": "0b54cff459954ea872a9cbd2a49546b47b69546bf479c6d58af61280891c87d7",
+    "src/stage7Runtime.js": "65e99e5b582d9abc4c3b10e265651cb7862b1fc718f762335c3525b6e0ee7439",
+    "src/stage7TransportAuthority.js": "6cf18322170f7e124066bd6865296d0d06b0638ced046d5b260eb0510decea36",
+    "src/proactiveAgent.js": "36d04fbf69ed78ad601e2c80ceb28091a9138af837eb20d67b59b29b403c1c13"
+  },
+  "existingEvidenceSHA256": {
+    "recovery2b-crash-independent-actual-review.private.json": "feb7775867cdf39d88b77f17cd848ecad1819bd6ee9be2152dc7f286408f2457",
+    "recovery3-http-lifetime-independent-review-r1.private.json": "983f3bf032fb68041cf8c15ab3df2137ab288e3697c487f73deaae888bd47f7c",
+    "recovery3-http-lifetime-protocol-independent-supplement-r1.private.json": "e53e99eab104557b12ac9883fc303e1ca12ea9b260dad48dca966ae1e1a212b4",
+    "strain-r22-recovery2-actual.private.json": "cf8e9c11ae2234afe6e7549ac597cf623d548434b6bdd47f7591bc99baace538"
+  },
+  "independentReview": {
+    "method": "Detached exact-SHA256 review seal; no circular embedded hash",
+    "artifact": "/Users/kelvin/Desktop/whoop-briefing/tmp/architecture-gate-20261029.private/independent-decision-review.private.json",
+    "acceptance": "Review must say GO and pin this exact decision file SHA256. No terminal or user-delivery qualification is implied by architecture review."
+  },
+  "operationsThisCycle": {
+    "stage6ImplementationCyclesStarted": 0,
+    "newNativeCampaigns": 0,
+    "newSyntheticCampaigns": 0,
+    "productionWrites": 0,
+    "migrations": 0,
+    "manualTelegramSends": 0,
+    "permitOrQuotaResets": 0,
+    "TursoTokenChanges": 0,
+    "F02Changes": 0,
+    "pushes": 0
+  }
+}

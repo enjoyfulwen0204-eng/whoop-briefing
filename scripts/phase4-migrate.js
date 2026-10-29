@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {requireRecoveryScope} from '../src/recoveryPolicy.js';
 /** Controlled historical v20→v31 or narrow v31→v32 migration. No dotenv loading. */
 import { createClient } from '@libsql/client';
 import { execFileSync } from 'node:child_process';
@@ -91,6 +92,7 @@ function assertHealthy(check) {
 
 /** Exported so tests can exercise the same control path on isolated file databases. */
 export async function controlledMigration(client, { apply, keys, targetVersion=31 }) {
+  if(client.protocol!=='file')fail('RECOVERY_OPERATOR_MIGRATION_ONLY');
   if(targetVersion===34&&apply&&client.protocol!=='file')fail('MIGRATION_V34_LOCAL_ONLY');
   const from = await currentVersion(client);
   if(![31,32,33,34].includes(targetVersion))fail('MIGRATION_VERSION_OUT_OF_RANGE');
@@ -145,6 +147,7 @@ function options(argv) {
 }
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
+ requireRecoveryScope('maintenance');
   if (Number(process.versions.node.split('.')[0]) !== 22) fail('MIGRATION_NODE22_REQUIRED');
   const opt = options(argv);
   const targetVersion = Number(opt['target-version'] ?? 31);

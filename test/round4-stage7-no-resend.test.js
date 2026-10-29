@@ -42,7 +42,6 @@ async function fixture(t,{outcomes=[],locale='en',hour='04',category='alcohol',t
  }
  return {...f,user,actor,companion,proactiveJournal,provider,dispatcher,prepare,dispatch,tap,claim,c:JOURNAL_COPY[locale]};
 }
-for(const locale of ['zh-TW','en','vi'])
 import {createStage7Runtime} from '../src/stage7Runtime.js';
 import {withDurableExecution,workStepKey} from '../src/phase4ExecutionContext.js';
 import {workStepOptions} from '../src/phase4WorkStep.js';

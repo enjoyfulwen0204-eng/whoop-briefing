@@ -33,10 +33,11 @@ export function requireRecoveryScope(kind){
 }
 /** Only the fixed business factory is selected, after all local policy checks.
  * Its original trusted profile and full v33 Admission still run before listen. */
-export async function startRecoveryBusiness(environment){
+export async function startRecoveryBusiness(environment,{listen=true}={}){
+ if(typeof listen!=='boolean')fail('RECOVERY_LISTEN_OPTION_INVALID');
  const frozen=Object.freeze({...environment});assertRecoveryConfiguration(frozen);
  return scope.run({environment:frozen},async()=>{
   const {main}=await import('./bot/webhook.js');
-  return main({environment:frozen});
+  return main({environment:frozen,listen});
  });
 }

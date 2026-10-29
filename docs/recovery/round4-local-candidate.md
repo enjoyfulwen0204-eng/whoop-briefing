@@ -8,7 +8,11 @@ canonical production DB identity, the original trusted STAGE8_SCHEMA_TRANSITION 
 Advanced OFF and sync-only continuation. Existing business and signed scheduler paths
 retain their original Admission and privacy/tenant/lifecycle authority. Polling,
 supervisor, maintenance and legacy startup reject before creating clients. Remote
-migration is refused before SQL. Local file migration exists only to seed synthetic
+migration is refused before SQL at runMigrations and legacy controlledMigration;
+legacy and Stage8 migration CLI main entries reject before opening clients. Retained
+operator helper modules are not selected by recovery entry; this is not a sandbox
+against arbitrary newly written JavaScript importing raw database clients.
+Local file migration exists only to seed synthetic
 fixtures; this artifact contains no production index-remediation operator.
 
 Runtime Admission is restricted to v33; its canonical catalog/retired-object/key checks

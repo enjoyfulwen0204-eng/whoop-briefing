@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {requireRecoveryScope} from '../src/recoveryPolicy.js';
 import {fileURLToPath} from 'node:url';
 import {dirname,join,resolve} from 'node:path';
 import {open,readFile,mkdtemp,chmod,rm,link,unlink,lstat} from 'node:fs/promises';
@@ -169,6 +170,7 @@ function parse(argv){
  for(const key of ['mode','--expected-commit','--source-commit','--inventory-file','--observation-file'])if(!options[key])fail('STAGE8_ARGUMENT_REQUIRED');return options;
 }
 export async function main(argv=process.argv.slice(2),environment=process.env,windowContext){
+ requireRecoveryScope('maintenance');
  const options=parse(argv);
  if(windowContext!==undefined&&options.mode==='apply'&&(options['--from-version']!=='33'||options['--target-version']!=='35'))fail('STAGE8_BOUNDED_ATOMIC33_TO35_REQUIRED');
  return withStage8Maintenance(windowContext,options.mode==='observe'?'OBSERVE_WRITERS':'MIGRATE_35',maintenance=>mainInternal(argv,environment,maintenance));

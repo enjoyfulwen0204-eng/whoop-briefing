@@ -33,13 +33,13 @@ test('v33 preserves original key continuity, marker and checkpoint requirements'
  await assert.rejects(db.admitRuntime({fresh:true}),/VERSION_AUTHORITY_INCOMPLETE/);
 });
 test('wrong version, forged profile, wrong key identity, release and Advanced ON fail closed',async t=>{
- const {db}=await recoveryFixture(t);
+ const {db,dir}=await recoveryFixture(t);
  await db.raw.execute('UPDATE schema_version SET version=34 WHERE version=33');
  await assert.rejects(db.admitRuntime({fresh:true}),/RECOVERY_V33_REQUIRED/);
- assert.throws(()=>createOwnedFileDb({url:'file::memory:',phase4Keys:fixtureKeys,runtimeProfile:{}}),/TRUSTED_PROFILE_REQUIRED/);
+ assert.throws(()=>createOwnedFileDb({url:'file:'+dir+'/rejected-profile.db',phase4Keys:fixtureKeys,runtimeProfile:{}}),/TRUSTED_PROFILE_REQUIRED/);
  const wrong=createPhase4Keys({lookupKey:Buffer.alloc(32,3),auditKey:Buffer.alloc(32,4)});
  const p=createSchemaTransitionRuntimeProfile({environment:profileEnvironment(),keys:fixtureKeys});
- assert.throws(()=>createOwnedFileDb({url:'file::memory:',phase4Keys:wrong,runtimeProfile:p}),/TRUSTED_PROFILE_REQUIRED/);
+ assert.throws(()=>createOwnedFileDb({url:'file:'+dir+'/rejected-keys.db',phase4Keys:wrong,runtimeProfile:p}),/TRUSTED_PROFILE_REQUIRED/);
  assert.throws(()=>createSchemaTransitionRuntimeProfile({environment:{...profileEnvironment(),PHASE4_RELEASE_SHA:'a'.repeat(40)},keys:fixtureKeys}),/CHECKOUT_MISMATCH/);
  assert.throws(()=>createSchemaTransitionRuntimeProfile({environment:{...profileEnvironment(),STAGE8_LIVE_ANALYSIS:'on'},keys:fixtureKeys}),/NEW_FEATURES_OFF_REQUIRED/);
 });

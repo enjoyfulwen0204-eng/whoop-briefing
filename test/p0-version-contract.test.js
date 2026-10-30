@@ -101,10 +101,18 @@ for(const state of ['DELIVERY_STARTED','AMBIGUOUS','DELIVERED'])test('actual run
  await f.db.authorizeReportDelivery({...key,owner:claim.owner,expectedLifecycleGeneration:1});
  if(state==='AMBIGUOUS')await f.db.markClaimAmbiguous({...key,owner:claim.owner});
  if(state==='DELIVERED')await f.db.markClaimSent({...key,owner:claim.owner,messageId:940001});
- // Only the synthetic original claim belongs to a prior lifecycle. The current
- // user/token/link stay eligible so rejection must come from the claim fence.
- await f.db.raw.execute('UPDATE report_claims SET lifecycle_generation=0');
- const original=await rows(f,'report_claims');await f.start();
+ const original=await rows(f,'report_claims');
+ await f.db.transitionUserLifecycle({userId:syntheticUser,targetStatus:'PAUSED'});
+ await f.db.transitionUserLifecycle({userId:syntheticUser,targetStatus:'ACTIVE'});
+ const generation=(await f.db.getUser(syntheticUser)).lifecycleGeneration;
+ assert.equal(generation,3);assert.equal(original[0].lifecycle_generation,1);
+ // Re-establish eligible current evidence only in this synthetic fixture;
+ // never rewrite the original Claim or inherit old lifecycle authority.
+ await f.db.saveTokens(syntheticUser,{accessToken:'synthetic-new-access',refreshToken:'synthetic-new-refresh',expiresAt:new Date(Date.now()+3600000),whoopUserId:'920001'});
+ await f.db.saveCapabilities(syntheticUser,[{key:'sleep',status:'SUPPORTED'}],{expectedLifecycleGeneration:generation});
+ await f.db.setOnboardingState(syntheticUser,'READY',{expectedLifecycleGeneration:generation,requireActiveLifecycle:true});
+ assert.deepEqual(await rows(f,'report_claims'),original);
+ await f.start();
  if(state==='DELIVERED')await invoke(f.workerEnvironment,{fetchImpl:f.fetchWorker});
  else {
   await assert.rejects(invoke(f.workerEnvironment,{fetchImpl:f.fetchWorker}),e=>e.category==='sync_incomplete');
@@ -133,7 +141,7 @@ test('synthetic Telegram lost ACK stays AMBIGUOUS through a fresh Worker invocat
  assert.equal(f.counts.telegram,1);assert.deepEqual(await rows(f,'report_claims'),original);
 });
 
-test('candidate local admission closure rejects new work and drains without clearing durable state',async t=>{
+test('candidate idle local admission closure rejects new work without clearing durable state',async t=>{
  const f=await p0Harness(t);await f.start();await invoke(f.workerEnvironment,{fetchImpl:f.fetchWorker});
  const original=await rows(f,'report_claims'),receipts=await rows(f,'phase4_execution_work_receipts');
  f.runtime.closeAdmission('synthetic_p0_maintenance_01');

@@ -37,7 +37,13 @@ export async function startRecoveryBusiness(environment,{listen=true}={}){
  if(typeof listen!=='boolean')fail('RECOVERY_LISTEN_OPTION_INVALID');
  const frozen=Object.freeze({...environment});assertRecoveryConfiguration(frozen);
  return scope.run({environment:frozen},async()=>{
-  const {main}=await import('./bot/webhook.js');
+  const {main,schedulerConfiguration}=await import('./bot/webhook.js');
+  const {loadEnv}=await import('./config.js');
+  // This release restores the canonical scheduler as well as the webhook.
+  // Reuse its exact gate before opening any DB or listener: a live webhook
+  // with scheduler_unavailable must not count as a recovery startup.
+  if(!schedulerConfiguration(loadEnv({environment:frozen,require:[]}),frozen.BRIEFING_TRIGGER_SECRET).enabled)
+   fail('RECOVERY_SCHEDULER_CONFIGURATION_REQUIRED');
   return main({environment:frozen,listen});
  });
 }

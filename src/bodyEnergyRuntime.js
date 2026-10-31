@@ -1,3 +1,4 @@
+import {createOnDemandBodyEnergy,onDemandBodyEnabled} from './onDemandBodyEnergy.js';
 import {BODY_ENERGY_PROVISIONAL_POLICY} from './bodyEnergyProvisionalPolicy.js';
 import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile} from './schemaTransitionProfile.js';
 import {createPhase4Foundation} from './phase4Foundation.js';
@@ -23,6 +24,7 @@ export function bodyEnergyConfiguration(environment={}){
 export async function createBodyEnergyRuntime({db,keys,admission,environment={},env,now=()=>new Date()}={}){
   const config=bodyEnergyConfiguration(environment);
   const stores=await createPhase4Foundation({db,keys,admission:admission??await db.admitRuntime()});
+  if(onDemandBodyEnabled(environment))return Object.freeze({bodyEnergy:createOnDemandBodyEnergy({db,stores,keys,environment,now}),bodyEnergyAlerts:null,publicationQualified:false,configuration:config});
   let publicationCapability=null;
   if(config.publication==='on'){
     if(config.qualificationId===BODY_ENERGY_PROVISIONAL_POLICY.version){

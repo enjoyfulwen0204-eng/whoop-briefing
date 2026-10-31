@@ -1,3 +1,4 @@
+import {onDemandBodyEnabled} from './onDemandBodyEnergy.js';
 import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
 import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
 import {createDb} from './db.js';
@@ -53,7 +54,7 @@ export async function runMorningReadiness({request,environment=process.env,db:pr
    fence();stopFollowing=followRuntimeRenewal(db.raw,admission,keys,db.transaction,value=>{admission=value;});
    return db.withRuntimeFence(fence,async()=>{
     let bodyEnergy=deps.bodyEnergy;
-    if(!bodyEnergy&&bodyEnergyConfiguration(environment).publication==='on')
+    if(!bodyEnergy&&(bodyEnergyConfiguration(environment).publication==='on'||onDemandBodyEnabled(environment)))
      bodyEnergy=(await createBodyEnergyRuntime({db,keys,admission,environment,env})).bodyEnergy;
     const morning=environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE?null:
      deps.morning??await createStage8MorningRuntime({db,keys,admission,environment,env,now});

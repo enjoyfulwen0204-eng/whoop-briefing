@@ -1,3 +1,5 @@
+import {proactiveQuota,proactiveSlotAllowed} from './proactiveQuota.js';
+import {isProactiveJournalDelivery} from './stage7ProactiveJournal.js';
 import {TOPICS,JOURNAL_COPY,presentationLocale} from './stage7Registry.js';
 import {completedWeeks,localDate,localWeekday,localHour,localMidnightUtc,addDays} from './time.js';
 import {t} from './localization.js';
@@ -90,14 +92,10 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
   if(brief)await companion.interactions.link('journal_prompt_deliveries',row,brief.reportType,brief.reportSource);
  }
  async function optionalSlotAvailable(actor,row){
-  const state=await core.assertControl(actor.control),day=localDate(core.now(),state.timezone);
-  const counts=(await core.client.execute({sql:`SELECT count(DISTINCT d.delivery_id) counted,COALESCE(MAX(d.kind='WEEKLY'),0) weekly FROM journal_delivery_attempts a
-   JOIN journal_prompt_deliveries d ON d.user_id=a.user_id AND d.delivery_id=a.delivery_id
-   WHERE a.user_id=? AND d.delivery_id IS NOT ? AND a.state IN ('DELIVERY_STARTED','DELIVERED','AMBIGUOUS')
-   AND a.started_at>=? AND a.started_at<?`,args:[actor.control.userId,row?.delivery_id??null,
-    localMidnightUtc(day,state.timezone).toISOString(),localMidnightUtc(addDays(day,1),state.timezone).toISOString()]})).rows[0];
-  // Every optional delivery shares this ceiling, including unknown sends.
-  return Number(counts.counted)<COMPANION_DEFAULTS.optionalDailyMaximum;
+   const state=await core.assertControl(actor.control);
+  const legacy=isProactiveJournalDelivery(row),eventId=legacy?JSON.parse(row.schedule_json).eventId:null;
+  const counts=await proactiveQuota(core.client,{userId:actor.control.userId,timezone:state.timezone,now:core.now(),excludeDeliveryId:row?.delivery_id??null,excludeEventId:eventId});
+  return proactiveSlotAllowed(counts,legacy?'ASK_CONTEXT':row?.kind??'WEEKLY');
  }
  async function prepare(actor,{automatic=false}={}){
   return core.transaction(async()=>{

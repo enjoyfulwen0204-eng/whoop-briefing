@@ -212,6 +212,15 @@ export function createBodyEnergyStore(core,entities,queue) {
       tickets.set(ticket,{context,cacheKey,refs});return ticket;
     });
   }
+  async function calculateReadOnly(context,options){
+    const ticket=await prepare(context,options),captured=tickets.get(ticket);
+    return core.run(context,async()=>{
+      await core.revalidateSources(context,captured.refs);
+      const value=core.contextRegistry.get(context,captured.cacheKey);
+      if(!value)fail('BODY_ENERGY_CAPTURE_EVICTED');
+      return structuredClone({calculation:value.calculation,healthDate:value.manifest.health_date,wakeAt:value.manifest.wake_at_utc});
+    });
+  }
   async function persist(context,ticket) {
     const captured=tickets.get(ticket);
     if(!captured||captured.context!==context)fail('BODY_ENERGY_CAPTURE_REQUIRED');
@@ -360,7 +369,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       return {row:{...row},result};
     });
   }
-  return Object.freeze({prepare,persist,compute,audit,readExact,readLatestCurrent,readLatestPublicationCandidate,checkpoint,auditCheckpoint,auditPlan,compareAuditSource,
+  return Object.freeze({prepare,calculateReadOnly,persist,compute,audit,readExact,readLatestCurrent,readLatestPublicationCandidate,checkpoint,auditCheckpoint,auditPlan,compareAuditSource,
     privacyDependencies:(userId,row)=>{
       if(row.user_id!==userId)fail('PHASE4_PURGE_AUTHORITY_INVALID');
       const {manifest}=reproduceHistorical(row),refs=[];

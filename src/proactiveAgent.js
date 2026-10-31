@@ -1,3 +1,5 @@
+import {healthReminderTiming} from './healthReminderPolicy.js';
+import {localDate,localMidnightUtc} from './time.js';
 import {journalCard} from './stage7Cards.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {prepareReadOnly,settledReadPreparation} from './readOnlyPreparation.js';
@@ -96,14 +98,17 @@ export function fingerprintOf(anchorRow, metrics = MONITORED_METRICS) {
 export async function checkAndAct({
   db, userId, timezone, locale = 'zh-TW', telegram, chatId, expectedLifecycleGeneration, now = new Date(), proactiveJournal = null,
 }) {
+  const started=Date.now(),currentTime=()=>new Date(now.getTime()+Date.now()-started);
   const uid = requireUserId(userId, 'checkAndAct');
   db = lifecycleOutputDb(db, { userId: uid, expectedLifecycleGeneration, writers: [
     'claimProactiveEvent', 'setProactiveState', 'openPendingQuestion', 'markProactiveEventSent',
   ] });
   const check = () => db.assertAccountActive(uid, expectedLifecycleGeneration);
   await check();
+  const timing=await healthReminderTiming(db,uid,timezone,now);
+  if(timing.paused||timing.quiet)return {triggered:false,reason:timing.paused?'notifications_paused':'quiet_deferred'};
   const owned = { now, expectedLifecycleGeneration };
-  telegram = withDeliveryAuthorization(telegram, () => check().then(() => true, () => false), {
+  telegram = withDeliveryAuthorization(telegram, async () => {try{await check();if(localDate(currentTime(),timezone)!==localDate(now,timezone))return false;const gate=await healthReminderTiming(db,uid,timezone,currentTime());return !gate.paused&&!gate.quiet&&await db.isProactiveEnabled(uid);}catch{return false;}}, {
     userId: uid, expectedLifecycleGeneration,
   });
 
@@ -123,6 +128,7 @@ export async function checkAndAct({
   }
 
   const anchorDate = latestHealthDate;
+  if(anchorDate<addDays(localDate(now,timezone),-1)||anchorDate>localDate(now,timezone))return {triggered:false,reason:'stale_health_data'};
 
   // ---- 便宜的變更偵測：只抓錨點附近幾天，算出生理內容指紋 ----
   // 沒變就在這裡結束，不會去載入 120 天的完整歷史。
@@ -246,6 +252,8 @@ export async function checkAndAct({
   let decision = decide({
     signals,
     now,
+    healthDate:anchorDate,
+    sharedHealthQuota:true,
     recentEvents,
     hasOpenQuestion: Boolean(openQuestion),
     journalCoversHealthDate: journalToday.length > 0,
@@ -315,6 +323,10 @@ export async function checkAndAct({
     }
   }
 
+  if(decision.decision===PROACTIVE_DECISION.ASK_CONTEXT){
+    const occupied=(await db.raw.execute({sql:"SELECT 1 FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND day_key IS NOT NULL AND created_at>=? AND created_at<? LIMIT 1",args:[uid,localMidnightUtc(localDate(now,timezone),timezone).toISOString(),localMidnightUtc(addDays(localDate(now,timezone),1),timezone).toISOString()]})).rows.length;
+    if(occupied)decision=downgradeAskToNotify(decision,{reason:'daily_question_already_reserved'});
+  }
   let messageText = null;
   let questionCategory = null;
   // ★ R2-M-02：這一題在問哪一天的行為。與訊號的 health_date 分開儲存。

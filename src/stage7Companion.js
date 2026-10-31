@@ -1,3 +1,5 @@
+import {createBodyEnergyNotificationControl} from './bodyEnergyNotificationControl.js';
+import {proactiveQuota,proactiveSlotAllowed} from './proactiveQuota.js';
 import {looksLikeQuestion} from './bot/conversation.js';
 import {extractMetric,METRIC_KEYWORDS} from './bot/intent.js';
 import {captureStage7Enrollment} from './stage7Enrollment.js';
@@ -30,6 +32,7 @@ function implicitJournalQuery(text){
 }
 
 export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,onWeekly=null,...options}){
+ const healthControls=createBodyEnergyNotificationControl({db,keys:core.keys,now:core.now});
  const interactions=createStage7InteractionStore({core,db,...options}),{client,transaction,timestamp}=core;
  async function preferences(actor){
   const state=await core.assertControl(actor.control);
@@ -41,7 +44,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   }
   if(!readableRow(row))fail('STAGE7_PREFERENCE_FENCED');
   if(row.lifecycle_generation!==state.lifecycle_generation){await client.execute({sql:'UPDATE journal_tracking_preferences SET lifecycle_generation=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?',args:[state.lifecycle_generation,timestamp(),actor.control.userId,row.revision]});row=(await client.execute({sql:'SELECT * FROM journal_tracking_preferences WHERE user_id=?',args:[actor.control.userId]})).rows[0];}
-  return row;
+  return {...row,proactive_enabled:await db.isProactiveEnabled(actor.control.userId)?1:0,low_energy_enabled:(await healthControls.read(actor.control.userId)).alertsEnabled?1:0};
  }
  async function changePreferences(actor,expected,patch){
   const state=await core.assertControl(actor.control),fields=Object.keys(patch);
@@ -131,7 +134,12 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
     if(action!=='cancel'){
      const parts=action.split(':'),kind=parts[1],value=Number(parts.at(-2)),revision=Number(parts.at(-1));
      if(parts[0]!=='prefs'||![0,1].includes(value)||!Number.isSafeInteger(revision)||revision!==prefs.revision)return interactions.expired(actor);
-     if(parts.length===4&&['daily','weekly','coach'].includes(kind))patch={[`${kind}_enabled`]:value};
+     if(parts.length===4&&['proactive','lowEnergy'].includes(kind)){
+      if(kind==='proactive')await db.setProactiveEnabled(user.id,value===1,{now:core.now()});
+      else await healthControls.handle({text:'/energy alerts '+(value?'on':'off'),user,chatId});
+      patch={daily_enabled:prefs.daily_enabled}; // one shared preference revision fences old callbacks/sends
+     }
+     else if(parts.length===4&&['daily','weekly','coach'].includes(kind))patch={[`${kind}_enabled`]:value};
      else if(parts.length===4&&kind==='pause'&&value===1)patch={daily_enabled:0,weekly_enabled:0,coach_enabled:0};
      else if(parts.length===5&&kind==='coachTopic'&&COACH_TOPICS.includes(parts[2])){const values=new Set(JSON.parse(prefs.coach_topics_json??'[]'));value?values.add(parts[2]):values.delete(parts[2]);patch={coach_topics_json:JSON.stringify([...values].sort())};}
      else if(parts.length===5&&kind==='quiet'&&['22-08','23-07','21-09'].includes(parts[2])){const [quiet_start,quiet_end]=parts[2].split('-').map(v=>v+':00');patch={quiet_start,quiet_end};}
@@ -139,7 +147,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
       const field=kind==='topic'?'topics_json':'excluded_topics_json',values=new Set(JSON.parse(prefs[field]));value?values.add(parts[2]):values.delete(parts[2]);patch={[field]:JSON.stringify([...values].sort())};
      }else return interactions.expired(actor);
     }
-    if(patch){await changePreferences(actor,prefs,patch);if(action.startsWith('prefs:pause:'))await db.setProactiveEnabled(user.id,false,{now:core.now()});row=await interactions.update(actor,row,{});return card(actor,row);}
+    if(patch){await changePreferences(actor,prefs,patch);if(action.startsWith('prefs:pause:')){await db.setProactiveEnabled(user.id,false,{now:core.now()});await healthControls.handle({text:'/energy alerts off',user,chatId});}row=await interactions.update(actor,row,{});return card(actor,row);}
    }
    if(action.startsWith('category:')&&row.category===null&&TOPICS.includes(action.slice(9))){
     const category=action.slice(9);row=await interactions.update(actor,row,{category,registry_id:registryQuestion(category),question_identity:registryQuestion(category),state:'ISSUED'});
@@ -224,6 +232,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(priorDay){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND interaction_id=?',args:[user.id,priorDay.interaction_id]})).rows[0];return {status:'EXISTING',deliveryId:existing?.delivery_id??null};}
    const previous=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND semantic_key=?',args:[user.id,semantic]})).rows[0];
    if(previous)return {status:'EXISTING',deliveryId:previous.delivery_id};
+   if(!proactiveSlotAllowed(await proactiveQuota(client,{userId:user.id,timezone:actor.state.timezone,now:core.now()}),'DAILY'))return {status:'OPTIONAL_DAILY_LIMIT'};
    // Retained daily barriers suppress duplicates even after source erasure.
    const proof=await confirmedMorningReceipt({core,actor,day:healthDay});
    if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};

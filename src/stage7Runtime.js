@@ -1,3 +1,8 @@
+import {checkAndAct} from './proactiveAgent.js';
+import {createTelegram} from './telegram.js';
+import {checkLowEnergy} from './onDemandBodyAlerts.js';
+import {createBodyEnergyRuntime} from './bodyEnergyRuntime.js';
+import {onDemandBodyEnabled} from './onDemandBodyEnergy.js';
 import {createStage7ProactiveJournal,isProactiveJournalDelivery} from './stage7ProactiveJournal.js';
 import {captureStage7Enrollment,assertStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
@@ -133,13 +138,22 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   if(!stage7Configuration(environment).automatic)return {status:'AUTOMATIC_DISABLED'};
   const day=localDate(now(),user.timezone),actor=await companion.interactions.authenticate({user,chatId});
   if(!await captureStage7Enrollment({core,db,actor}))return {status:'ENROLLMENT_NOT_READY'};
+  const locale=await db.getLocale(user.id),telegram=createTelegram({botToken:env.telegramBotToken,chatId,db,locale,dryRun:env.dryRun});
+  // Health decisions precede all optional work; the shared durable count also
+  // covers the separately running SYNC producer and uncertain delivery.
+  const health=await checkAndAct({db,userId:user.id,timezone:user.timezone,locale,telegram,chatId,expectedLifecycleGeneration:user.lifecycleGeneration,now:now(),proactiveJournal:sendProactiveJournal});
+  let low=null;
+  if(onDemandBodyEnabled(environment)){
+   const runtime=await createBodyEnergyRuntime({db,keys,admission,environment,env,now});
+   low=await checkLowEnergy({db,bodyEnergy:runtime.bodyEnergy,keys,user,telegram,now:now()});
+  }
   const daily=await companion.prepareAfterBrief({user,chatId,healthDay:day});
   const dailyResult=daily.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:daily.deliveryId}):daily;
   const weekly=await companion.weekly.prepare(actor,{automatic:true}),weeklyResult=weekly.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:weekly.deliveryId}):weekly;
   // Defer Coach for this tick after a new weekly send, without changing its
   // original schedule or manufacturing a Coach interaction for the review.
   const invitation=weeklyResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId}),coachResult=invitation.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
-  return {daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
+  return {health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
  async function contextJournal({userId,chatId,healthDate,answer}){
   const user=await db.getUser(userId);if(!eligible(user))return null;

@@ -343,7 +343,7 @@ export function composePhase4Stores(core) {
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),
     experiments:Object.freeze(experiments),
-    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,computeForCurrentDrain,readForCurrentDrain,checkpoint:bodyCheckpoint,
+    bodyEnergy:Object.freeze({calculateReadOnly:body.calculateReadOnly,prepare:body.prepare,compute:bodyCompute,computeForCurrentDrain,readForCurrentDrain,checkpoint:bodyCheckpoint,
       readForPublication:bodyPublication.readCurrent,
       readDropCandidate:bodyPublication.readDropCandidate,
       persist:(context,ticket)=>operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.persist(context,ticket)))(context,body.describeTicket(context,ticket)),

@@ -49,9 +49,9 @@ export async function runCompanionService({request,environment=process.env,db:pr
     const chatId=await db.getActiveChatIdForUser(id,{expectedLifecycleGeneration:user.lifecycleGeneration});if(!chatId)continue;
     try{
      const result=await runtime.tick({user,chatId});checked++;
-     const statuses=[result.status,result.daily,result.coach,result.weekly].filter(Boolean);
+     const statuses=[result.status,result.daily,result.coach,result.weekly,result.low].filter(Boolean);
      for(const status of statuses)outcomes[status]=(outcomes[status]??0)+1;
-     if(statuses.some(status=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS'].includes(status)))failed++;
+     if(statuses.some(status=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(status)))failed++;
     }catch{fence();failed++;}
    }
    let ownerChecked=0;

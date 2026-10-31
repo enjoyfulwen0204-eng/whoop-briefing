@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {onDemandBodyEnabled} from './onDemandBodyEnergy.js';
 import {requireRecoveryScope} from './recoveryPolicy.js';
 import {recordStage8SyncSubject} from './stage8PostSync.js';
 import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
@@ -665,7 +666,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
   });
 
   const authorityKeys = deps.phase4AuthorityKeys ?? ((!deps.db
-    || !deps.bodyEnergy&&bodyEnergyConfiguration(process.env).publication==='on')
+    || !deps.bodyEnergy&&(bodyEnergyConfiguration(process.env).publication==='on'||onDemandBodyEnabled(process.env)))
     ? phase4AuthorityKeys(process.env) : undefined);
   if(process.env.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(process.env);
   const db = deps.db ?? createDb({ url: env.tursoUrl, authToken: env.tursoToken,
@@ -696,7 +697,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     else if (db.raw) throw new Error('PHASE4_RUNTIME_ADMISSION_REQUIRED');
     // Body display prepares independently from Beta presentation. A pending
     // empirical registration never enables numeric output or new live workers.
-    if(!deps.bodyEnergy&&db.raw&&bodyEnergyConfiguration(process.env).publication==='on'){
+    if(!deps.bodyEnergy&&db.raw&&(bodyEnergyConfiguration(process.env).publication==='on'||onDemandBodyEnabled(process.env))){
       const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,
         admission:deps.runtimeAdmission,environment:process.env,env});
       deps={...deps,bodyEnergy:bodyRuntime.bodyEnergy};

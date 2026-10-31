@@ -16,10 +16,10 @@ const open=async(f,c,id)=>tap(f,await f.command(),c.preferences,id);
 
 test('independent daily cards retain desired values and reject global preference ABA',async t=>{
  const f=await stage7Fixture(t);await f.db.setLocale('a','en',{now:f.core.now()});const c=JOURNAL_COPY.en;
- const old=await open(f,c,501);let current=await open(f,c,502);current=await tap(f,current,c.enable);
- assert.equal((await prefs(f)).daily_enabled,1);assert.equal((await tap(f,old,c.enable)).text,c.expired);assert.equal((await prefs(f)).daily_enabled,1);
- current=await tap(f,current,c.disable);const before=await prefs(f);assert.equal(before.daily_enabled,0);
- assert.equal((await tap(f,old,c.enable)).text,c.expired);assert.equal((await prefs(f)).revision,before.revision);assert.equal((await prefs(f)).daily_enabled,0);
+ const old=await open(f,c,501);let current=await open(f,c,502);current=await tap(f,current,c.daily);
+ assert.equal((await prefs(f)).daily_enabled,1);assert.equal((await tap(f,old,c.daily)).text,c.expired);assert.equal((await prefs(f)).daily_enabled,1);
+ current=await tap(f,current,c.daily);const before=await prefs(f);assert.equal(before.daily_enabled,0);
+ assert.equal((await tap(f,old,c.daily)).text,c.expired);assert.equal((await prefs(f)).revision,before.revision);assert.equal((await prefs(f)).daily_enabled,0);
 });
 
 for(const locale of ['zh-TW','vi','en'])test(`tracking, exclusions and weekly choices preserve localized displayed intent: ${locale}`,async t=>{
@@ -27,15 +27,15 @@ for(const locale of ['zh-TW','vi','en'])test(`tracking, exclusions and weekly ch
  current=await tap(f,current,c.topics[0]);assert.deepEqual(JSON.parse((await prefs(f)).topics_json),['caffeine']);
  assert.equal((await tap(f,old,c.topics[0])).text,c.expired);assert.deepEqual(JSON.parse((await prefs(f)).topics_json),['caffeine']);
  current=await tap(f,current,current.replyMarkup.inline_keyboard[0][1]);assert.deepEqual(JSON.parse((await prefs(f)).excluded_topics_json),['caffeine']);
- current=await tap(f,current,c.weeklyEnable);assert.equal((await prefs(f)).weekly_enabled,1);
- current=await tap(f,current,c.weeklyDisable);assert.equal((await prefs(f)).weekly_enabled,0);
- assert.equal((await tap(f,old,c.weeklyEnable)).text,c.expired);
+ current=await tap(f,current,c.weekly);assert.equal((await prefs(f)).weekly_enabled,1);
+ current=await tap(f,current,c.weekly);assert.equal((await prefs(f)).weekly_enabled,0);
+ assert.equal((await tap(f,old,c.weekly)).text,c.expired);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0,'preferences never assert daily health facts');
  assert.equal((await f.db.raw.execute("SELECT count(*) n FROM journal_tracking_preferences WHERE user_id='b'")).rows[0].n,0);
 });
 
 test('concurrent preference cards commit one displayed intent at their shared revision',async t=>{
  const f=await stage7Fixture(t);await f.db.setLocale('a','en',{now:f.core.now()});const c=JOURNAL_COPY.en,first=await open(f,c,501),second=await open(f,c,502);
- const results=await Promise.all([tap(f,first,c.enable),tap(f,second,c.weeklyEnable)]),p=await prefs(f);
+ const results=await Promise.all([tap(f,first,c.daily),tap(f,second,c.weekly)]),p=await prefs(f);
  assert.equal(p.daily_enabled+p.weekly_enabled,1);assert.equal(p.revision,1);assert.equal(results.filter(r=>r.text===c.expired).length,1);
 });

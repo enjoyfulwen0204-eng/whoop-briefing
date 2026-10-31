@@ -1,3 +1,4 @@
+import {addDays} from './time.js';
 /**
  * Attention Engine（PA5／PA6）。
  *
@@ -16,14 +17,8 @@ import { DEVIATION } from './analytics/anomaly.js';
 
 const LEVEL_RANK = { NORMAL: 0, MILD: 1, NOTABLE: 2, STRONG: 3 };
 
-/**
- * 有幾個**互相獨立**的生理領域同時出狀況。
- *
- * ⚠️ 稽核修正：以前直接用 signals.length。但 WHOOP 的 recovery 本來就是
- * 用 hrv 與 rhr 算出來的——「HRV 低 + RHR 高 + 恢復低」是同一件事被數了
- * 三次，不是三個獨立證據。用領域數當佐證單位，才不會讓任何一個狀況差的
- * 日子都自動「多重訊號佐證成立」。
- */
+/** Retain domain diagnostics; the Owner's reminder policy counts distinct
+ * monitored metrics, without claiming that correlated metrics are independent. */
 function distinctDomains(signals) {
   return new Set(
     signals.map((s) => SIGNAL_POLICY.METRIC_DOMAIN[s.metric] ?? `metric:${s.metric}`),
@@ -41,7 +36,7 @@ function distinctDomains(signals) {
  */
 export function decide({
   signals = [], now = new Date(), recentEvents = [],
-  hasOpenQuestion = false, journalCoversHealthDate = false,
+  hasOpenQuestion = false, journalCoversHealthDate = false, healthDate=null, sharedHealthQuota=false,
 }) {
   const domains = distinctDomains(signals);
   const factors = {
@@ -50,8 +45,8 @@ export function decide({
     domains: [...domains].sort(),
     top_code: signals[0]?.code ?? null,
     top_level: signals[0]?.level ?? null,
-    // 佐證的單位是「不同的生理領域」，不是訊號筆數。
-    multi_signal_confirmation: domains.size >= ATTENTION_POLICY.MULTI_SIGNAL_CONFIRMATION_MIN,
+    // Owner policy: distinct metrics (not multiple signal codes for one metric).
+    multi_signal_confirmation: new Set(signals.map(s=>s.metric)).size >= ATTENTION_POLICY.MULTI_SIGNAL_CONFIRMATION_MIN,
     persistent: false,
     novel: true,
     context_already_known: journalCoversHealthDate,
@@ -95,7 +90,7 @@ export function decide({
   factors.daily_cap_reached = messagesToday >= ANTI_SPAM_POLICY.DAILY_PROACTIVE_CAP;
   factors.topic_cooldown_active = factors.masked_by_cooldown.length > 0;
 
-  if (factors.daily_cap_reached) {
+  if (!sharedHealthQuota && factors.daily_cap_reached) {
     return { decision: PROACTIVE_DECISION.LOG_ONLY, reason: 'daily_cap_reached', factors };
   }
   if (!evaluated) {
@@ -110,7 +105,7 @@ export function decide({
   const novelCutoff = nowMs - ATTENTION_POLICY.NOVELTY_WINDOW_DAYS * 86_400_000;
   const persistCutoff = nowMs - ATTENTION_POLICY.PERSISTENCE_MIN_DAYS * 86_400_000;
   factors.novel = !sameTopicRecent.some((e) => Date.parse(e.createdAt) >= novelCutoff);
-  factors.persistent = sameTopicRecent.some((e) => Date.parse(e.createdAt) >= persistCutoff);
+  factors.persistent = sameTopicRecent.some((e) => healthDate?e.healthDate===addDays(healthDate,-1):Date.parse(e.createdAt) >= persistCutoff);
 
   if (factors.context_already_known) {
     return withSignal(PROACTIVE_DECISION.LOG_ONLY, 'context_already_explained');

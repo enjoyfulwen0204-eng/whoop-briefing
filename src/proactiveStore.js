@@ -1,3 +1,4 @@
+import {proactiveQuota,proactiveSlotAllowed} from './proactiveQuota.js';
 /**
  * Proactive Agent 的持久化層（PA3／PA9）。
  *
@@ -7,7 +8,7 @@
  */
 
 import { PROACTIVE_OUTCOME } from './schema.js';
-import { PROACTIVE_PROCESSING_LEASE, ANTI_SPAM_POLICY } from './proactivePolicy.js';
+import { PROACTIVE_PROCESSING_LEASE } from './proactivePolicy.js';
 import { log } from './logger.js';
 import {BODY_ENERGY_NOTIFICATION_POLICY as BODY_POLICY} from './bodyEnergyNotificationPolicy.js';
 import { requireUserId } from './userContext.js';
@@ -100,29 +101,24 @@ export function createProactiveStore(client) {
     healthDate, idempotencyKey, signals, decision, reason, policyVersion, messageText,
   }, { now = new Date(), expectedLifecycleGeneration = null } = {}) {
     const uid = requireUserId(userId, 'claimProactiveEvent');
+    const user=(await client.execute({sql:'SELECT timezone FROM users WHERE id=?',args:[uid]})).rows[0];
+    if(!user)throw Error('PROACTIVE_USER_REQUIRED');
+    if(['ASK_CONTEXT','NOTIFY'].includes(decision)&&!proactiveSlotAllowed(await proactiveQuota(client,{userId:uid,timezone:user.timezone,now}),decision==='ASK_CONTEXT'?'ASK_CONTEXT':'HEALTH'))
+      return {claimed:false,id:null,lifecycleGeneration:expectedLifecycleGeneration,suppression:'RATE_LIMITED'};
+    // Preserve the legacy publication path's independent topic cooldown.
+    if(policyVersion===BODY_POLICY.version&&(await client.execute({sql:"SELECT 1 FROM proactive_events WHERE user_id=? AND policy_version=? AND decision='NOTIFY' AND julianday(created_at)>=julianday(?) LIMIT 1",args:[uid,BODY_POLICY.version,nowIso(new Date(now.getTime()-BODY_POLICY.topicCooldownMs))]})).rows.length)
+      return {claimed:false,id:null,lifecycleGeneration:expectedLifecycleGeneration,suppression:'RATE_LIMITED'};
     const rs = await client.execute({
       sql: `INSERT INTO proactive_events
               (user_id, health_date, idempotency_key, signals_json, decision, reason_json,
                policy_version, message_text, created_at, lifecycle_generation)
             SELECT ?,?,?,?,?,?,?,?,?,?
-             WHERE (? NOT IN ('ASK_CONTEXT','NOTIFY') OR
-               (SELECT COUNT(*) FROM proactive_events WHERE user_id=?
-                  AND (? IS NULL OR lifecycle_generation IS ?)
-                  AND julianday(created_at)>=julianday(?)
-                  AND decision IN ('ASK_CONTEXT','NOTIFY'))<?)
-            AND (?<>? OR NOT EXISTS (SELECT 1 FROM proactive_events WHERE user_id=?
-              AND (? IS NULL OR lifecycle_generation IS ?) AND policy_version=?
-              AND decision='NOTIFY' AND julianday(created_at)>=julianday(?)))
             ON CONFLICT(user_id, idempotency_key) DO NOTHING`,
       args: [
         uid, healthDate, idempotencyKey,
         signals ? JSON.stringify(signals) : null,
         decision, reason ? JSON.stringify(reason) : null,
         policyVersion, messageText ?? null, nowIso(now), expectedLifecycleGeneration,
-        decision,uid,expectedLifecycleGeneration,expectedLifecycleGeneration,
-        nowIso(new Date(now.getTime()-24*60*60_000)),ANTI_SPAM_POLICY.DAILY_PROACTIVE_CAP,
-        policyVersion,BODY_POLICY.version,uid,expectedLifecycleGeneration,expectedLifecycleGeneration,
-        BODY_POLICY.version,nowIso(new Date(now.getTime()-BODY_POLICY.topicCooldownMs)),
       ],
     });
     if (Number(rs.rowsAffected) > 0) {

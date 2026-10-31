@@ -1,3 +1,4 @@
+import {DAILY_PROACTIVE_MAXIMUM} from './proactiveQuota.js';
 /**
  * Proactive Agent 的「產品政策」集中地（PA1 review 要求）。
  *
@@ -151,7 +152,7 @@ export const ANTI_SPAM_POLICY = {
   // 同一個「話題」（例如同一個 metric 的偏離）多久之內不能再問一次。
   TOPIC_COOLDOWN_HOURS: 24,
   // 一個使用者一天最多收到幾則主動訊息（ASK_CONTEXT + NOTIFY 合計）。
-  DAILY_PROACTIVE_CAP: 2,
+  DAILY_PROACTIVE_CAP: DAILY_PROACTIVE_MAXIMUM,
   // 同時間最多開幾個未回答的 proactive 問題（目前先固定 1：
   // 「一次只問一件事」，不要讓使用者同時欠好幾筆債）。
   MAX_OPEN_QUESTIONS: 1,

@@ -1,6 +1,7 @@
+import {DAILY_PROACTIVE_MAXIMUM} from './proactiveQuota.js';
 import {localDate} from './time.js';
 export const COMPANION_DEFAULTS=Object.freeze({version:'companion-defaults-v1',journalDailyMaximum:1,coachDailyMaximum:1,
- optionalDailyMaximum:2,coachAfterWakeMinimumHours:4,coachAfterWakeMaximumHours:6,journalGapHours:2,
+ optionalDailyMaximum:DAILY_PROACTIVE_MAXIMUM,coachAfterWakeMinimumHours:4,coachAfterWakeMaximumHours:6,journalGapHours:2,
  quietStart:'22:00',quietEnd:'08:00'});
 const hm=value=>{if(typeof value!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))throw Error('COMPANION_QUIET_HOURS_INVALID');return Number(value.slice(0,2))*60+Number(value.slice(3));};
 export function inCompanionQuietHours(instant,timezone,start=COMPANION_DEFAULTS.quietStart,end=COMPANION_DEFAULTS.quietEnd){

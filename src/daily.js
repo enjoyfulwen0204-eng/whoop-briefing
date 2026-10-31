@@ -306,7 +306,7 @@ export async function runDaily({
     text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid), locale });
     ordinaryText=text;
     if(bodyEnergy){
-      try{bodyEnergySection=await bodyEnergy.currentSection({userId:uid,healthDate,requestedAt:liveNow()});
+      try{bodyEnergySection=await bodyEnergy.currentSection({userId:uid,healthDate,requestedAt:liveNow(),morning:true});
         if(bodyEnergySection&&bodyEnergySection.status!=='QUALIFICATION_PENDING')text+='\n\n'+bodyEnergySection.message;
         else bodyEnergySection=null;
       }catch{bodyEnergySection=null;}

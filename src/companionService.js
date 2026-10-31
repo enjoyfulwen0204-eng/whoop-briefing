@@ -13,6 +13,15 @@ export const COMPANION_PATH='/internal/briefing/companion';
 export const COMPANION_KIND='COMPANION_V1';
 export const COMPANION_BUDGET_MS=45000;
 const fail=code=>{throw Object.assign(Error(code),{code});};
+const diagnosticFailureStates=new Set(['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN','FENCED']);
+const diagnosticCode=error=>{
+ const value=typeof error?.code==='string'?error.code:typeof error?.name==='string'?error.name:'UNKNOWN';
+ return /^[A-Za-z][A-Za-z0-9_:-]{0,127}$/.test(value)?value:'REDACTED_CODE';
+};
+// Diagnostics must never change delivery, fencing or failure-count semantics.
+const diagnosticLog=value=>{try{console.log(JSON.stringify(value));}catch{}};
+const diagnosticUser=(keys,id)=>{try{return keys.lookup(['companion-diagnostic-user-v1',id]);}catch{return 'UNKNOWN';}};
+const diagnosticFailure=(keys,id,step,status,error)=>diagnosticLog({event:'companion_user_failed',user:diagnosticUser(keys,id),step,status,code:diagnosticCode(error)});
 export function validateCompanionRequest(request){
  if(!request||Object.keys(request).sort().join(',')!=='configProof,executionMode,kind,releaseSha,requestId,triggerSource'
   ||request.kind!==COMPANION_KIND||request.triggerSource!=='cloudflare'
@@ -36,14 +45,16 @@ export async function runCompanionService({request,environment=process.env,db:pr
  const env=providedEnv??loadEnv(),db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys,
   runtimeProfile:schemaTransitionRuntimeProfileFor({environment,keys})});
  const budget=createExecutionBudget({budgetMs,startedAtMs});let unfollow;
+ let checked=0,failed=0;const outcomes={},userDurations=[];
  try{return await withExecutionBudget(budget,()=>budget.run(async()=>{
   let admission=await db.admitRuntime({source:'cloudflare',fresh:true});
   const fence=()=>{budget.assert();requireRuntimeAdmission(db.raw,admission,keys,db.transaction);if(proof()!==request.configProof)fail('EXECUTION_CONFIG_CHANGED');};
   unfollow=followRuntimeRenewal(db.raw,admission,keys,db.transaction,value=>{admission=value;});
   return db.withRuntimeFence(fence,async()=>{
    const runtime=automatic?await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now}):null;
-   let checked=0,failed=0;const outcomes={};
    for(const id of runtime?cohort.userIds:[]){
+    const userStartedAtMs=Date.now();
+    try{
     fence();const user=await db.getUser(id);
     if(!user||user.status!=='ACTIVE'||(await db.getOnboarding(id))?.state!=='READY')continue;
     const chatId=await db.getActiveChatIdForUser(id,{expectedLifecycleGeneration:user.lifecycleGeneration});if(!chatId)continue;
@@ -51,11 +62,15 @@ export async function runCompanionService({request,environment=process.env,db:pr
      const result=await runtime.tick({user,chatId});checked++;
      const statuses=[result.status,result.daily,result.coach,result.weekly,result.low].filter(Boolean);
      for(const status of statuses)outcomes[status]=(outcomes[status]??0)+1;
+     for(const [step,status] of [['exception',result.status],['daily',result.daily],['coach',result.coach],['weekly',result.weekly],['low',result.low]])
+      if(diagnosticFailureStates.has(status))diagnosticFailure(keys,id,step,status,result.error);
      if(statuses.some(status=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(status)))failed++;
-    }catch{fence();failed++;}
+    }catch(error){diagnosticFailure(keys,id,'exception','EXCEPTION',error);fence();failed++;}
+    }finally{userDurations.push({user:diagnosticUser(keys,id),duration_ms:Date.now()-userStartedAtMs});}
    }
    let ownerChecked=0;
    if(ownerEnabled){
+    const ownerStartedAtMs=Date.now();
     try{
      fence();const ownerRuntime=await (deps.createStage8Runtime??createStage8Runtime)({db,keys,env,environment,now});
      const user=await db.getUser(stage8Config.ownerId);
@@ -63,13 +78,18 @@ export async function runCompanionService({request,environment=process.env,db:pr
       const chatId=await db.getActiveChatIdForUser(user.id,{expectedLifecycleGeneration:user.lifecycleGeneration});
       if(chatId&&ownerRuntime?.owner){
        const result=await ownerRuntime.owner.tick({user,chatId});ownerChecked=result.checked;
+       for(const row of result.results??[])if(diagnosticFailureStates.has(row.status))diagnosticFailure(keys,stage8Config.ownerId,'owner',row.status,row.error);
        if(result.results?.some(row=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','FENCED'].includes(row.status)))failed++;
       }
      }
-    }catch{fence();failed++;}
+    }catch(error){diagnosticFailure(keys,stage8Config.ownerId,'owner','EXCEPTION',error);fence();failed++;}
+    finally{userDurations.push({user:diagnosticUser(keys,stage8Config.ownerId),step:'owner',duration_ms:Date.now()-ownerStartedAtMs});}
    }
    fence();if(!failed)await db.recordHeartbeat('global','companion_v1',{now:now(),detail:`checked=${checked}`});
    return {status:failed?503:200,body:{ok:failed===0,...base,enabled:true,checked,ownerChecked,failed,outcomes}};
   });
- }));}finally{unfollow?.();budget.close();if(!providedDb)db.close();}
+ }));}finally{
+  try{unfollow?.();budget.close();if(!providedDb)db.close();}
+  finally{diagnosticLog({event:'companion_tick_summary',checked,failed,outcomes,duration_ms:Date.now()-startedAtMs,users:userDurations});}
+ }
 }

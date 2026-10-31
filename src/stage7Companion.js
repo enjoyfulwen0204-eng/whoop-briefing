@@ -15,6 +15,10 @@ import {TOPICS,DETAILS,DAILY_POLICY_VERSION,registryQuestion,normalizeJournalNot
 import {isJournalCallback} from './stage7Cards.js';
 import {localDate,addDays,localMidnightUtc} from './time.js';
 
+// Same stale-reference allowlist as stage8MorningIntelligence. These codes are
+// recoverable only when raised by the optional daily-selection context below.
+const optionalContextCodes=new Set(['PHASE4_PARENT_STALE','PHASE4_PARENT_NOT_FOUND','CONTENT_REDACTED','PHASE4_SOURCE_DELETED','PHASE4_SOURCE_NOT_FOUND','PHASE4_SOURCE_NOT_CURRENT','PHASE4_RESOURCE_FENCED','PHASE4_CAPABILITY_FENCED','PHASE4_INCOMPLETE_PROVENANCE','PHASE4_PARENT_LINK_MISSING','PHASE4_SOURCE_LINK_REQUIRED']);
+
 // Only implicit answers to an unanswered proactive card use this routing
 // guard. An explicit NOTE action still owns the user's verbatim note. A bare
 // metric query is distinct from context such as "HRV was low after work".
@@ -32,6 +36,7 @@ function implicitJournalQuery(text){
 }
 
 export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,onWeekly=null,...options}){
+ const optionalContextFailures=new WeakSet();
  const healthControls=createBodyEnergyNotificationControl({db,keys:core.keys,now:core.now});
  const interactions=createStage7InteractionStore({core,db,...options}),{client,transaction,timestamp}=core;
  async function preferences(actor){
@@ -219,7 +224,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    return card(actor,issued.row);
   });
  }
- async function prepareAfterBrief({user,chatId,healthDay,signal=null,metricSeries=[]}){
+ async function prepareAfterBriefAttempt({user,chatId,healthDay,signal=null,metricSeries=[]},omitOptionalContext=false){
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId}),prefs=await preferences(actor);
    if(!prefs.daily_enabled)return {status:'DISABLED'};
@@ -246,7 +251,8 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    // new physiological computation runs after the briefing. Explicit inputs are
    // internal synthetic/server composition only, never Telegram payloads.
    const contextSources=[];
-   if(!signal)await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>{
+   if(!signal&&!omitOptionalContext)await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>{
+    try{
     const typed=await stores.betaSummary.readCurrent(context,{asOfUtc:timestamp()});
     for(const entry of [...typed.episodes].sort((a,b)=>b.severity-a.severity||a.metricKey.localeCompare(b.metricKey))){
      const episode=await stores.readArtifact(context,'observation_episodes',{episode_id:entry.resultId});
@@ -269,6 +275,10 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
      }
      contextSources.push(item.row.privacy_artifact_id);break;
     }
+    }catch(error){
+     if(error&&typeof error==='object'&&optionalContextCodes.has(error.code??error.message))optionalContextFailures.add(error);
+     throw error;
+    }
    });
    const selected=selectDailyQuestion({topics:TOPICS,trackingTopics:JSON.parse(prefs.topics_json),excludedTopics:JSON.parse(prefs.excluded_topics_json),history,knownFacts:facts,healthDay,targetDate,signal,metricSeries});
    if(!selected)return {status:'NO_APPROPRIATE_QUESTION'};
@@ -286,6 +296,19 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    await interactions.link('journal_prompt_deliveries',delivery,'quick_action_interactions',issued.row.privacy_artifact_id);
    return {status:'PROPOSED',deliveryId:delivery.delivery_id,interactionId:issued.row.interaction_id,selection:selected};
   });
+ }
+ async function prepareAfterBrief(request){
+  try{return await prepareAfterBriefAttempt(request);}
+  catch(error){
+   // A failed nested source read poisons its original transaction. Only after
+   // that transaction exits may one fresh preparation omit the whole context.
+   // No dispatch occurs here. Reauthenticate and reread every necessary gate;
+   // never carry a partial signal/source link into the fresh attempt.
+   if(!optionalContextFailures.has(error)||typeof db.processingTransactionActive!=='function'||db.processingTransactionActive())throw error;
+   optionalContextFailures.delete(error);
+   try{console.log(JSON.stringify({event:'companion_optional_context_skipped',step:'daily_context',code:error.code??error.message,user:core.keys.lookup(['companion-diagnostic-user-v1',request.user.id])}));}catch{/* logging cannot grant or remove authority */}
+   return prepareAfterBriefAttempt(request,true);
+  }
  }
  return {handle,handleNote,prepareContextQuestion,prepareAfterBrief,preferences,changePreferences,interactions,ownFacts,card};
 }

@@ -32,7 +32,7 @@ import { resolvePerspective, PERSPECTIVE } from '../src/bot/perspective.js';
 import { educationAnswer, detectTopic, detectAspect } from '../src/bot/healthEducation.js';
 import { validateTimePrecision, textSupportedPrecision } from '../src/bot/timePrecision.js';
 import { temporalRelation } from '../src/healthQuery.js';
-import { assessUrgency } from '../src/bot/triage.js';
+import { assessUrgency, urgentReply } from '../src/bot/triage.js';
 import { isSelfRecallQuestion, isExplicitLogCommand } from '../src/bot/conversation.js';
 
 const NOW = new Date('2026-09-11T09:05:00Z');
@@ -435,7 +435,7 @@ test('★★★ 語氣：個人化回答維持對話長度', async () => {
     assert.doesNotMatch(reply, /你的不正常|\balcohol\b|previous_day_strain/, '★ 不可以有壞措辭或內部鍵');
     assert.doesNotMatch(reply, /目前這一天的數字：/, '★ 不可以是報表格式');
     // 一般疲倦不自動附加急診警語（那是 triage 的職責）
-    assert.doesNotMatch(reply, /立刻尋求協助|緊急醫療服務/, '★ 輕微疲倦不要自動附急診指引');
+    assert.notEqual(reply, urgentReply('zh-TW'), '★ 輕微疲倦不要自動附急診指引');
   } finally { cleanup(); }
 });
 
@@ -500,7 +500,7 @@ test('★★★ 安全：緊急優先於視角與衛教兩條新路徑', async (
     const { db, user, cleanup } = await seed();
     try {
       const reply = await bot(db, user)(text);
-      assert.match(reply, /醫療|協助|安全/, `★ 「${text}」要先講安全`);
+      assert.equal(reply, urgentReply('zh-TW'), `★ 「${text}」要先講安全`);
       assert.doesNotMatch(reply, /每個人的差異很大/, `★ 「${text}」不可以被衛教路徑吃掉`);
       assert.doesNotMatch(reply, PERSONAL_VALUE, `★ 「${text}」不可以列數據`);
       assert.equal((await rows(db, user.id)).length, 0, `★ 「${text}」不可以寫 journal`);

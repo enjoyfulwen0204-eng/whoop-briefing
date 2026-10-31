@@ -27,7 +27,8 @@ import {
 } from '../src/bot/journalAuthorization.js';
 import { assessSync, SYNC_VERDICT, STALE_AFTER_MS } from '../src/syncTruth.js';
 import { renderSyncAnswer } from '../src/bot/answer.js';
-import { assessUrgency } from '../src/bot/triage.js';
+import { assessUrgency, urgentReply } from '../src/bot/triage.js';
+import { emergencyKeywordHit } from '../src/bot/emergencyKeywords.js';
 import { resolvePerspective, PERSPECTIVE } from '../src/bot/perspective.js';
 import { deterministicIntent } from '../src/bot/intent.js';
 import { educationAnswer } from '../src/bot/healthEducation.js';
@@ -512,14 +513,14 @@ test('★★★ D1: 真正的緊急一個都不能漏（含第三人稱轉述）
   }
 });
 
-test('★★★ D2: 譬喻／衛教／否定／已緩解一律不觸發急診回應', () => {
+test('★★★ D2: 原語意分類保留；最終攔截另加 S1 關鍵字保險', () => {
   for (const t of MUST_NOT_BE_URGENT) {
     const r = assessUrgency(t);
     assert.equal(r.urgent, false, `★ 「${t}」不該是緊急（matched=${r.matched}）`);
   }
 });
 
-test('★★★ D3: 端到端 —— 誤判的句子不會收到急診指引', async () => {
+test('★★★ D3: 端到端 —— 提及 S1 關鍵字一律提醒，其餘保留原路由', async () => {
   // ⚠️「運動後有點喘，休息後好了」確實在報告一件可記錄的事（運動），所以它
   // 會寫入一筆是**正確的**。這個測試驗的是 triage，不是寫入授權（那在 B 組）。
   const NO_EVENT = MUST_NOT_BE_URGENT.filter((t) => !t.includes('運動後'));
@@ -527,7 +528,8 @@ test('★★★ D3: 端到端 —— 誤判的句子不會收到急診指引', a
     const { db, user, cleanup } = await seed();
     try {
       const reply = await bot(db, user, rawCoach(validParse()))(t);
-      assert.doesNotMatch(reply, /立刻尋求醫療協助|緊急醫療服務/, `★ 「${t}」不該收到急診指引`);
+      if (emergencyKeywordHit(t)) assert.equal(reply, urgentReply('zh-TW'));
+      else assert.notEqual(reply, urgentReply('zh-TW'));
       if (NO_EVENT.includes(t)) {
         assert.equal((await rows(db, user.id)).length, 0, `★ 「${t}」不該寫 journal`);
       }
@@ -535,14 +537,14 @@ test('★★★ D3: 端到端 —— 誤判的句子不會收到急診指引', a
   }
 });
 
-test('★★★ D3b: 症狀類問題得到安全回覆 —— 不是急診指引，也不是指令清單', async () => {
+test('★★★ D3b: 含關鍵字的衛教問題也只回 S1 提醒，不寫入', async () => {
   const { isSymptomEducationQuestion } = await import('../src/bot/triage.js');
   for (const t of ['我想知道胸痛通常是什麼', '胸痛通常有哪些原因？', '「喘不過氣」是什麼意思？']) {
     assert.equal(isSymptomEducationQuestion(t), true, `★ 「${t}」應該是症狀類問題`);
     const r = await route(t, validParse());
-    assert.doesNotMatch(r.reply, /立刻尋求醫療協助/, `★ 「${t}」不是急診`);
+    assert.equal(r.reply, urgentReply('zh-TW'));
     assert.doesNotMatch(r.reply, /我不太確定你想問什麼/, `★ 「${t}」不可以回指令清單`);
-    assert.match(r.reply, /沒辦法幫你判斷/, '★ 要說明界線');
+    assert.match(r.reply, /沒辦法判斷/, '★ 要說明界線');
     // 刻意不給成因清單 —— 那會讓人自己排除掉危險的可能
     assert.doesNotMatch(r.reply, /常見原因包括|可能的原因有|第一|第二/, '★ 不可以列成因');
     assert.equal(r.delta, 0);
@@ -557,7 +559,7 @@ test('★★★ D4: 緊急仍然排在寫入之前', async () => {
   const { db, user, cleanup } = await seed();
   try {
     const reply = await bot(db, user, rawCoach(validParse()))('我喝酒後胸痛又喘不過氣');
-    assert.match(reply, /立刻尋求醫療協助/);
+    assert.equal(reply, urgentReply('zh-TW'));
     assert.equal((await rows(db, user.id)).length, 0, '★ 緊急時零寫入');
   } finally { cleanup(); }
 });

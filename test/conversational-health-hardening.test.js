@@ -19,7 +19,7 @@ import path from 'node:path';
 
 import { createDb } from './localDb.js';
 import { createRouter, parseNaturalJournal } from '../src/bot/router.js';
-import { assessUrgency } from '../src/bot/triage.js';
+import { assessUrgency, urgentReply } from '../src/bot/triage.js';
 import { deterministicIntent } from '../src/bot/intent.js';
 import { looksLikeQuestion, isExplicitLogCommand } from '../src/bot/conversation.js';
 import { labelForCategory } from '../src/journal.js';
@@ -245,7 +245,7 @@ test('★★★ REPAIR 2: 緊急訊息優先，而且escalation 之前零寫入'
       assert.equal(assessUrgency(text).urgent, true, `★ 「${text}」必須判為緊急`);
       const reply = await bot(db, user)(text);
       assert.equal((await rows(db, user.id)).length, 0, `★ 「${text}」不可以寫 journal`);
-      assert.match(reply, /醫療|協助|安全/, `★ 「${text}」要優先講安全`);
+      assert.equal(reply, urgentReply('zh-TW'), `★ 「${text}」要優先講安全`);
       assert.doesNotMatch(reply, /66ms|54bpm|7h16m|基準|z=/, `★ 「${text}」不可以列數據`);
       assert.doesNotMatch(reply, /已記錄|幫你記下/);
       assert.ok(reply.length < 300, '★ 要簡潔');
@@ -259,7 +259,7 @@ test('★★★ REPAIR 2: 一般疲倦不會被誤判成緊急', async () => {
     const { db, user, cleanup } = await seed();
     try {
       const reply = await bot(db, user)(text);
-      assert.doesNotMatch(reply, /立刻尋求醫療協助|緊急醫療服務/, `★ 「${text}」不該被警告`);
+      assert.notEqual(reply, urgentReply('zh-TW'), `★ 「${text}」不該被警告`);
     } finally { cleanup(); }
   }
 });

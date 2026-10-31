@@ -27,6 +27,7 @@ import { loadDailyMetrics } from '../dailyMetrics.js';
 import {
   assessUrgency, urgentReply, isSymptomEducationQuestion, symptomEducationReply,
 } from './triage.js';
+import { emergencyKeywordHit } from './emergencyKeywords.js';
 import { labelForCategory } from '../journal.js';
 import { log, describeError } from '../logger.js';
 import { resolveIntent, parseCommand } from './intent.js';
@@ -417,7 +418,7 @@ export function createRouter({
     const userId = requireUserId(user?.id, 'router.handle');
     if (typeof db.getLocale !== 'function' && db.raw) throw new Error('LOCALIZATION_STORE_UNAVAILABLE');
     const locale = typeof db.getLocale === 'function' ? await db.getLocale(userId) : 'zh-TW';
-    if (assessUrgency(text).urgent) return urgentReply(locale??'en');
+    if (assessUrgency(text).urgent || emergencyKeywordHit(text)) return urgentReply(locale??'en');
     if (isSymptomEducationQuestion(text)) return symptomEducationReply(locale??'en');
     if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
@@ -540,7 +541,7 @@ export function createRouter({
     //
     // 刻意不呼叫 LLM：分類器不可用或判錯都不該影響安全。攔下來之後
     // **不寫入任何東西**。
-    if (assessUrgency(text).urgent) {
+    if (assessUrgency(text).urgent || emergencyKeywordHit(text)) {
       log.warn('urgent_symptom_intercepted', { user_id: userId });
       return urgentReply(locale);
     }

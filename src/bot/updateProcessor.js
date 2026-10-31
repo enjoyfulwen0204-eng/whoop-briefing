@@ -1,4 +1,5 @@
-import {assessUrgency,urgentReply,TRIAGE_DECISION} from './triage.js';
+import {assessUrgency,urgentReply} from './triage.js';
+import {emergencyKeywordHit} from './emergencyKeywords.js';
 import {isJournalCallback} from '../stage7Cards.js';
 import {isSettingsCallback} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
@@ -571,7 +572,12 @@ export function createUpdateProcessor({
         }
       }
 
-      if (claimed && c.kind === 'ok' && phase4JournalControl) {
+      // After authentication/ownership, before any text-consuming business
+      // handler (including privacy commands and unlinked onboarding).
+      const triage=(c.kind==='ok'||c.kind==='unlinked')&&!update.callback_query?assessUrgency(c.text):null;
+      const urgent=triage!==null&&(triage.urgent||emergencyKeywordHit(c.text));
+
+      if (claimed && c.kind === 'ok' && !urgent && phase4JournalControl) {
         const control = await phase4JournalControl({user:c.user,updateId,owner:attemptId,text:c.text});
         if (control?.handled) {
           if (!control.complete) return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'privacy_completion_pending',replied:false};
@@ -583,13 +589,11 @@ export function createUpdateProcessor({
 
       // Transport authentication and durable ownership already hold. Select
       // safety before any identity capture, Journal note or Settings consumer.
-      const triage=c.kind==='ok'&&!c.callback?assessUrgency(c.text):null;
-      const urgent=triage!==null&&triage.decision!==TRIAGE_DECISION.CLEARLY_NONURGENT;
       if(c.kind==='ok'&&authenticatedIdentity&&!urgent)await authenticatedIdentity(c);
       const journalResult=c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {
         if (c.kind === 'unlinked') {
-          const reply = handleUnlinked ? await handleUnlinked({
+          const reply = urgent ? {text:urgentReply('en')} : handleUnlinked ? await handleUnlinked({
             text: c.text, chatId: c.chatId, message: c.message, isPrivateChat: true,
           }) : null;
           return { chatId: c.chatId, reply, userId: null };

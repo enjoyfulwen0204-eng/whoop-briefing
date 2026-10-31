@@ -117,7 +117,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   if(settings){
    const issued=await companion.interactions.issue(actor,{kind:'QUICK',diagnostics:{settingsEntry:true}}),base=await companion.card(actor,issued.row),c=COACH_COPY[presentationLocale(await db.getLocale(user.id))];
    const button=await companion.interactions.button(actor,issued.row,{text:c.preferences,action:'preferences'});
-   return replies.seal(actor,{...base,text:typeof reply==='string'?reply:reply.text,replyMarkup:{inline_keyboard:[...(reply.replyMarkup?.inline_keyboard??[]),[button]]},stage7View:'SETTINGS_LINK'});
+   return replies.seal(actor,{...base,...(reply.familySession?{familySession:reply.familySession}:{}),text:typeof reply==='string'?reply:reply.text,replyMarkup:{inline_keyboard:[...(reply.replyMarkup?.inline_keyboard??[]),[button]]},stage7View:'SETTINGS_LINK'});
   }
   const navigation=await coach.issue(actor);return replies.seal(actor,{...(typeof reply==='object'?reply:{}),...navigation,text:typeof reply==='string'?reply:reply.text});
  }

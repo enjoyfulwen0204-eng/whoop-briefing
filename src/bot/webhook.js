@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createFamilySharing} from '../familySharing.js';
 import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createBusinessWebhookLifecycle} from '../businessWebhookLifecycle.js';
 import {createCompanionCoachContext} from '../companionCoachContext.js';
@@ -485,6 +486,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
+  const family=createFamilySharing({db,keys:authorityKeys,environment:selectedEnvironment,env});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
   //
@@ -504,8 +506,13 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
     authenticatedIdentity:stage8?.captureIdentity,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
-      const settingReply=await settings({text,chatId,user,callback});
-      if(settingReply!==null)return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
+      const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
+      if(familyReply!==null)return familyReply;
+      let settingReply=await settings({text,chatId,user,callback});
+      if(settingReply!==null){
+       if(family)settingReply=await family.ui.decorate({user,chatId,text,reply:settingReply});
+       return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
+      }
       // 上線還沒走完的人：只給狀態與下一步，**不執行任何健康處理**
       // （他的資料還沒進來，任何答案都會是假的）。
       if (onboardingConfigured) {
@@ -524,7 +531,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: sendPresentation,
+    sendReply: family?family.ui.wrapSender(sendPresentation):sendPresentation,
     // updateProcessor bounds its own callback wait; retain ownership of the
     // underlying local API promise even if that wait finishes first.
     answerCallback: id=>lifecycle.fork(()=>api.answerCallbackQuery(id)),

@@ -1,3 +1,4 @@
+import {isFamilyCallback} from '../familySharingUi.js';
 import {STAGE8_SETTINGS_MODES,STAGE8_SETTINGS_ACTIONS,stage8SettingsRender,stage8SettingsMenu,stage8SettingsAction} from '../stage8Settings.js';
 import {randomBytes,createHash} from 'node:crypto';
 import {LOCALES} from '../localization.js';
@@ -23,7 +24,7 @@ export function normalizeSettingsName(value){
  return normalized;
 }
 const callbackPattern=new RegExp('^sv1:([A-Za-z0-9_-]{22})\\.(\\d{1,4})\\.(language|name|back|cancel|tw|en|vi|confirm|save|edit|'+STAGE8_SETTINGS_ACTIONS+')$');
-export const isSettingsCallback=value=>typeof value==='string'&&Buffer.byteLength(value,'utf8')<=64&&callbackPattern.test(value);
+export const isSettingsCallback=value=>typeof value==='string'&&Buffer.byteLength(value,'utf8')<=64&&(callbackPattern.test(value)||isFamilyCallback(value));
 function session(raw,uid,chatId,life,at){
  let s;try{s=JSON.parse(raw);}catch{return null;}
  if(!s||s.version!==1||s.uid!==uid||s.chatId!==chatId||s.lifecycle!==life||!Number.isSafeInteger(s.expiresAt)||s.expiresAt<=at
@@ -55,7 +56,7 @@ export function createSettings({db,stage8=null,now=()=>new Date(),nonce=()=>rand
  return async function handleSettings({text,chatId,user,callback}={}){
   const command=typeof text==='string'?text.trim().match(/^\/(settings|language|name)(?:@[A-Za-z0-9_]+)?\s*$/i):null;
   const data=callback?.data;
-  if(callback&&!isSettingsCallback(data))return null;
+  if(callback&&!callbackPattern.test(data))return null;
   if(!command&&!callback&&(!text||text.trim().startsWith('/')))return null;
   return db.transaction(async()=>{
    const uid=requireUserId(user?.id,'settings'),chat=String(chatId),resolved=await db.resolveUserByChatId(chat),current=resolved?.user??resolved;

@@ -1,3 +1,4 @@
+import {createFamilySharing} from './familySharing.js';
 import {createStage8Runtime,stage8Configuration} from './stage8Runtime.js';
 import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
 import {createDb} from './db.js';
@@ -67,6 +68,17 @@ export async function runCompanionService({request,environment=process.env,db:pr
      if(statuses.some(status=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(status)))failed++;
     }catch(error){diagnosticFailure(keys,id,'exception','EXCEPTION',error);fence();failed++;}
     }finally{userDurations.push({user:diagnosticUser(keys,id),duration_ms:Date.now()-userStartedAtMs});}
+   }
+   const family=(deps.createFamily??createFamilySharing)({db,keys,environment,env,now});
+   if(family){
+    const familyStarted=Date.now();
+    try{
+     const result=await family.tick();
+     for(const row of result.results){outcomes[row.status]=(outcomes[row.status]??0)+1;
+      const timing=userDurations.find(u=>u.user===row.user);if(timing)timing.duration_ms+=row.duration_ms;else userDurations.push({user:row.user,duration_ms:row.duration_ms});
+      if(['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(row.status)){failed++;diagnosticLog({event:'companion_user_failed',user:row.user,step:row.step,status:row.status,code:'UNKNOWN'});}}
+    }catch(error){diagnosticLog({event:'companion_user_failed',user:'FAMILY',step:'family',status:'EXCEPTION',code:diagnosticCode(error)});fence();failed++;}
+    finally{diagnosticLog({event:'companion_family_summary',duration_ms:Date.now()-familyStarted});}
    }
    let ownerChecked=0;
    if(ownerEnabled){

@@ -67,6 +67,7 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
   if(!['dual','cloudflare_morning_only'].includes(environment.BRIEFING_SCHEDULER_TOPOLOGY))fail('SCHEDULER_TOPOLOGY_INVALID');
   profile.push(['scheduler-topology-v1',environment.BRIEFING_SCHEDULER_TOPOLOGY]);
  }
+ if(environment.FAMILY_SHARING!==undefined||environment.FAMILY_GROUP_USER_IDS!==undefined)profile.push(['family-sharing-v1',environment.FAMILY_SHARING??'off',(environment.FAMILY_GROUP_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean).sort()]);
  const scope=continuationScope(environment,config.runtime==='on'?'SHADOW':'OFF');
  if(scope)profile.push(['phase4-continuation-scope-v1',scope]);
  return keys.lookup(profile);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createFamilySharing} from '../familySharing.js';
 import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createCompanionCoachContext} from '../companionCoachContext.js';
 import {createStage8PresentationSender} from '../stage8PresentationSender.js';
@@ -144,6 +145,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
+  const family=createFamilySharing({db,keys:authorityKeys,environment:process.env,env});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
   const onboardingConfigured = Boolean(
@@ -161,8 +163,13 @@ export async function main({ maxIterations = Infinity } = {}) {
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
-      const settingReply=await settings({text,chatId,user,callback});
-      if(settingReply!==null)return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
+      const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
+      if(familyReply!==null)return familyReply;
+      let settingReply=await settings({text,chatId,user,callback});
+      if(settingReply!==null){
+       if(family)settingReply=await family.ui.decorate({user,chatId,text,reply:settingReply});
+       return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
+      }
       // 上線還沒走完的人：只給狀態與下一步（與 webhook 那條路同一份邏輯）。
       if (onboardingConfigured) {
         const onboardingReply = await handleOnboardingMessage({ db, user, text, ...onboardingArgs });
@@ -175,7 +182,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: sendPresentation,
+    sendReply: family?family.ui.wrapSender(sendPresentation):sendPresentation,
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

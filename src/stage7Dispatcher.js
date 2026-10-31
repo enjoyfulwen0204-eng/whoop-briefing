@@ -1,5 +1,5 @@
 import {isProactiveJournalDelivery} from './stage7ProactiveJournal.js';
-import {inCompanionQuietHours} from './companionTimingPolicy.js';
+import {inStage7QuietHours as inCompanionQuietHours} from './companionTimingPolicy.js';
 import {isStage7ProductionProvider} from './stage7TransportAuthority.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {log} from './logger.js';

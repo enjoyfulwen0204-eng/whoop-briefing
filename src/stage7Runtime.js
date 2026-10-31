@@ -10,7 +10,7 @@ import {createStage7ProductionProvider} from './stage7TransportAuthority.js';
 import {createCompanionCoach,COACH_COPY} from './companionCoach.js';
 import {createCompanionInvitation} from './companionInvitation.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
-import {COMPANION_DEFAULTS,inCompanionQuietHours} from './companionTimingPolicy.js';
+import {COMPANION_DEFAULTS,inStage7QuietHours as inCompanionQuietHours} from './companionTimingPolicy.js';
 import {presentationLocale,JOURNAL_COPY} from './stage7Registry.js';
 import {labelForCategory} from './journal.js';
 import {requireUserId} from './userContext.js';

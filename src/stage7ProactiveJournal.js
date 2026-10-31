@@ -1,6 +1,6 @@
 import {captureStage7Enrollment,assertStage7Enrollment} from './stage7Enrollment.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
-import {inCompanionQuietHours} from './companionTimingPolicy.js';
+import {inStage7QuietHours as inCompanionQuietHours} from './companionTimingPolicy.js';
 import {TOPICS} from './stage7Registry.js';
 import {readableRow} from './phase4Core.js';
 import {localDate,localMidnightUtc,addDays} from './time.js';

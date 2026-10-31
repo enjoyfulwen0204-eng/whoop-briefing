@@ -5,9 +5,14 @@ import {WEEKLY} from './config.js';
 import {captureStage7Enrollment,assertStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
-import {COMPANION_DEFAULTS,inCompanionQuietHours} from './companionTimingPolicy.js';
+import {COMPANION_DEFAULTS,inStage7QuietHours as inCompanionQuietHours} from './companionTimingPolicy.js';
 import {readableRow,fail} from './phase4Core.js';
 
+export const JOURNAL_WEEK_TIMEZONE='Asia/Taipei';
+export function journalWeeklyWindow(instant){
+ const day=localDate(instant,JOURNAL_WEEK_TIMEZONE);
+ return localWeekday(day)<=WEEKLY.CATCHUP_DAYS&&localHour(instant,JOURNAL_WEEK_TIMEZONE)>=9;
+}
 const AUTOMATIC_WEEKLY_VERSION='stage7-weekly-auto-v1';
 const hasRecords=summary=>summary.daysRecorded>0||['YES','NO','NOT_SURE','SKIPPED'].some(choice=>summary.responses[choice]>0);
 
@@ -40,7 +45,7 @@ export function renderJournalWeek(summary,locale){
 export function createStage7WeeklyReview({core,stores,db,companion}){
  async function build(actor){
   return core.transaction(async()=>{
-   const state=await core.assertControl(actor.control),week=completedWeeks(core.now(),state.timezone).last,prefs=await companion.preferences(actor),facts=await companion.ownFacts(actor,{fromDate:week.startDate,toDate:week.endDate});
+   const state=await core.assertControl(actor.control),week=completedWeeks(core.now(),JOURNAL_WEEK_TIMEZONE).last,prefs=await companion.preferences(actor),facts=await companion.ownFacts(actor,{fromDate:week.startDate,toDate:week.endDate});
    if(facts.length===500)throw Error('STAGE7_WEEKLY_HISTORY_BOUNDS');
    const history=(await core.client.execute({sql:"SELECT privacy_artifact_id,target_date,selected_choice,state,answered_at,revision FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND target_date>=? AND target_date<=? AND content_state='PRESENT' ORDER BY interaction_id LIMIT 501",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
    if(history.length>500)fail('STAGE7_WEEKLY_HISTORY_BOUNDS');
@@ -68,9 +73,9 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
   if(!enrollment)return {status:'ENROLLMENT_NOT_READY'};
   if(inCompanionQuietHours(core.now(),state.timezone,prefs.quiet_start,prefs.quiet_end))return {status:'QUIET_HOURS'};
   const today=localDate(core.now(),state.timezone);
-  // Reuse the established weekly catch-up days. Noon keeps this optional
-  // review out of the Morning Brief/Journal burst; it never wakes a user.
-  if(localWeekday(today)>WEEKLY.CATCHUP_DAYS||localHour(core.now(),state.timezone)<WEEKLY.FALLBACK_SEND_AFTER_HOUR)return {status:'NOT_DUE'};
+  // The calendar is Taiwan-wide; quiet hours and the confirmed daily brief
+  // still belong to the recipient. Keep the existing catch-up day count.
+  if(!journalWeeklyWindow(core.now()))return {status:'NOT_DUE'};
   const paused=(await core.client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[actor.control.userId]})).rows[0];
   if(paused?.notifications_paused)return {status:'NOTIFICATIONS_PAUSED'};
   if(await companionEngagementBusy({core,db,actor}))return {status:'INTERACTION_BUSY'};
@@ -91,9 +96,8 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
    WHERE a.user_id=? AND d.delivery_id IS NOT ? AND a.state IN ('DELIVERY_STARTED','DELIVERED','AMBIGUOUS')
    AND a.started_at>=? AND a.started_at<?`,args:[actor.control.userId,row?.delivery_id??null,
     localMidnightUtc(day,state.timezone).toISOString(),localMidnightUtc(addDays(day,1),state.timezone).toISOString()]})).rows[0];
-  // Preserve the existing Daily/Coach-only behavior. A weekly review shares
-  // their existing optional two-message daily ceiling, including unknown sends.
-  return !(row?.kind==='WEEKLY'||Number(counts.weekly))||Number(counts.counted)<COMPANION_DEFAULTS.optionalDailyMaximum;
+  // Every optional delivery shares this ceiling, including unknown sends.
+  return Number(counts.counted)<COMPANION_DEFAULTS.optionalDailyMaximum;
  }
  async function prepare(actor,{automatic=false}={}){
   return core.transaction(async()=>{
@@ -115,7 +119,7 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
    }
    const schedule=automatic?JSON.stringify({version:AUTOMATIC_WEEKLY_VERSION,enrollment:ready.enrollment,weekStart:result.summary.startDate,weekEnd:result.summary.endDate,
     timezone:state.timezone,projectionDigest:result.projectionDigest,briefSource:ready.brief.reportSource,briefType:ready.brief.reportType}):null;
-   const expiry=automatic?localMidnightUtc(addDays(result.summary.endDate,WEEKLY.CATCHUP_DAYS+1),state.timezone).toISOString():new Date(core.now().getTime()+7*86400000).toISOString();
+   const expiry=automatic?localMidnightUtc(addDays(result.summary.endDate,WEEKLY.CATCHUP_DAYS+1),JOURNAL_WEEK_TIMEZONE).toISOString():new Date(core.now().getTime()+7*86400000).toISOString();
    if(!row){
     const at=core.timestamp();row={user_id:actor.control.userId,delivery_id:core.newId(),semantic_key:semantic,kind:'WEEKLY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify({text:result.text}),
      schedule_json:schedule,lifecycle_generation:state.lifecycle_generation,auth_generation:state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:expiry,...companion.interactions.privacyFields(state)};

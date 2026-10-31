@@ -2,7 +2,7 @@ import {captureStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {fail,readableRow} from './phase4Core.js';
 import {localDate} from './time.js';
-import {selectCompanionInvitation,inCompanionQuietHours} from './companionTimingPolicy.js';
+import {selectCompanionInvitation,inStage7QuietHours as inCompanionQuietHours} from './companionTimingPolicy.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {COACH_TOPICS} from './companionCoach.js';
 /** Coarse provider ticks select once, then read one due-state row. No LLM,

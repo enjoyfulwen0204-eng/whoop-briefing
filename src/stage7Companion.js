@@ -4,7 +4,7 @@ import {captureStage7Enrollment} from './stage7Enrollment.js';
 import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {COACH_TOPICS} from './companionCoach.js';
-import {inCompanionQuietHours} from './companionTimingPolicy.js';
+import {inStage7QuietHours as inCompanionQuietHours} from './companionTimingPolicy.js';
 import {labelForCategory} from './journal.js';
 import {createStage7InteractionStore} from './stage7InteractionStore.js';
 import {selectDailyQuestion} from './questionEngine.js';
@@ -132,13 +132,14 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
      const parts=action.split(':'),kind=parts[1],value=Number(parts.at(-2)),revision=Number(parts.at(-1));
      if(parts[0]!=='prefs'||![0,1].includes(value)||!Number.isSafeInteger(revision)||revision!==prefs.revision)return interactions.expired(actor);
      if(parts.length===4&&['daily','weekly','coach'].includes(kind))patch={[`${kind}_enabled`]:value};
+     else if(parts.length===4&&kind==='pause'&&value===1)patch={daily_enabled:0,weekly_enabled:0,coach_enabled:0};
      else if(parts.length===5&&kind==='coachTopic'&&COACH_TOPICS.includes(parts[2])){const values=new Set(JSON.parse(prefs.coach_topics_json??'[]'));value?values.add(parts[2]):values.delete(parts[2]);patch={coach_topics_json:JSON.stringify([...values].sort())};}
      else if(parts.length===5&&kind==='quiet'&&['22-08','23-07','21-09'].includes(parts[2])){const [quiet_start,quiet_end]=parts[2].split('-').map(v=>v+':00');patch={quiet_start,quiet_end};}
      else if(parts.length===5&&['topic','exclude'].includes(kind)&&TOPICS.includes(parts[2])){
       const field=kind==='topic'?'topics_json':'excluded_topics_json',values=new Set(JSON.parse(prefs[field]));value?values.add(parts[2]):values.delete(parts[2]);patch={[field]:JSON.stringify([...values].sort())};
      }else return interactions.expired(actor);
     }
-    if(patch){await changePreferences(actor,prefs,patch);row=await interactions.update(actor,row,{});return card(actor,row);}
+    if(patch){await changePreferences(actor,prefs,patch);if(action.startsWith('prefs:pause:'))await db.setProactiveEnabled(user.id,false,{now:core.now()});row=await interactions.update(actor,row,{});return card(actor,row);}
    }
    if(action.startsWith('category:')&&row.category===null&&TOPICS.includes(action.slice(9))){
     const category=action.slice(9);row=await interactions.update(actor,row,{category,registry_id:registryQuestion(category),question_identity:registryQuestion(category),state:'ISSUED'});
@@ -244,7 +245,19 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
      if(age<0||age>48*3600000||entry.severity<2)continue;
      const item=await stores.readArtifact(context,'evidence_items',{evidence_item_id:episode.row.latest_evidence_item_id});
      if(!['LIMITED','AVAILABLE'].includes(item.row.quality))continue;
-     signal={metric:entry.metricKey,level:entry.severity>=3?'STRONG':'NOTABLE',health_date:healthDay};
+     signal={metric:entry.metricKey,level:entry.severity>=3?'STRONG':'NOTABLE',health_date:healthDay,relevantTopics:[]};
+     // Prefer only factors backed by the same current, verified association
+     // contract as the Journal decision path. This never invents a cause.
+     for(const insight of typed.insights.filter(i=>i.status==='SUPPORTED')){
+      const verified=await stores.insights.read(context,insight.resultId,{asOfUtc:timestamp()});
+      for(const id of JSON.parse(verified.revision.supporting_evidence_ids_json)){
+       const related=await stores.readArtifact(context,'evidence_items',{evidence_item_id:id}),p=JSON.parse(related.row.provenance_json??'{}');
+       if(p.outcome_metric===entry.metricKey&&p.lag_days===1&&TOPICS.includes(p.factor)&&related.row.causal_status==='ASSOCIATION_ONLY'
+        &&related.row.direction===episode.row.direction){
+        signal.relevantTopics.push(p.factor);contextSources.push(related.row.privacy_artifact_id);
+       }
+      }
+     }
      contextSources.push(item.row.privacy_artifact_id);break;
     }
    });

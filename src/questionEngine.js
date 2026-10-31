@@ -167,12 +167,13 @@ export function selectDailyQuestion({topics,trackingTopics=[],excludedTopics=[],
    const covered=new Set(knownFacts.filter(f=>f.category===category&&f.health_date>=addDays(targetDate,-13)&&f.health_date<=targetDate&&['EXPOSED','CONFIRMED_UNEXPOSED'].includes(f.exposure_state)).map(f=>f.health_date)).size;
    const information=scoreCandidate({category,signal:signal??{level:'MILD'},journalEvents:knownFacts,metricSeries});
    const rotation=Math.min(age,14)/14,tracking=trackingTopics.includes(category)?1:0,missingness=1-Math.min(covered,14)/14;
+   const relevant=Boolean(signal?.relevantTopics?.includes(category));
    const relevance=signal?information.score:0;
-   const reason=tracking?'PERSONAL_TRACKING':signal&&relevance>=0.5?'MISSING_CONTEXT':'ROTATION_NEUTRAL';
+   const reason=relevant?'MISSING_CONTEXT':tracking?'PERSONAL_TRACKING':signal&&relevance>=0.5?'MISSING_CONTEXT':'ROTATION_NEUTRAL';
    const score=0.45*rotation+0.25*tracking+0.15*missingness+0.15*relevance;
    const stable=(Date.parse(healthDay)/86400000+topics.indexOf(category))%topics.length;
-   return {category,reason,score,rotation,tracking,missingness,relevance,lastAsked:last??null,tie:stable};
-  }).filter(Boolean).sort((a,b)=>b.score-a.score||a.tie-b.tie||a.category.localeCompare(b.category));
+   return {category,reason,score,rotation,tracking,missingness,relevance,relevant,lastAsked:last??null,tie:stable};
+  }).filter(Boolean).sort((a,b)=>Number(b.relevant)-Number(a.relevant)||b.score-a.score||a.tie-b.tie||a.category.localeCompare(b.category));
  if(!candidates.length)return null;
  return {...candidates[0],targetDate,candidates,sampling:'ADAPTIVE_OBSERVATIONAL',policyVersion:'smart-daily-v1'};
 }

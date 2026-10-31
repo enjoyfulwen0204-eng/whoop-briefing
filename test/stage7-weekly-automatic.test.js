@@ -84,7 +84,7 @@ test('quiet hours and incomplete/missing-current-Morning windows defer without c
  const f=await fixture(t),p=await f.prepare(),provider=createSyntheticJournalTelegram(),dispatcher=createStage7Dispatcher({...f,provider});
  f.setTime('2026-09-21T14:10:00Z');
  assert.equal((await dispatcher.dispatch({...f.request,deliveryId:p.deliveryId})).status,'QUIET_HOURS');
- f.setTime('2026-09-22T03:50:00Z');assert.equal((await f.prepare()).status,'NOT_DUE');
+ f.setTime('2026-09-22T00:59:00Z');assert.equal((await f.prepare()).status,'NOT_DUE');
  f.setTime('2026-09-22T04:10:00Z');assert.equal((await f.prepare()).status,'BRIEF_NOT_CONFIRMED');
  await f.brief();const again=await f.prepare();assert.equal(again.deliveryId,p.deliveryId);
  assert.equal((await f.read(p.deliveryId)).attempt_count,0);assert.equal(provider.calls.length,0);
@@ -171,5 +171,5 @@ test('historical optional attempts cannot hide weekly participation beyond the f
  }
  assert.equal(await f.companion.weekly.optionalSlotAvailable(await f.freshActor(),{kind:'COACH',delivery_id:'synthetic-next-coach'}),false);
  await f.db.raw.execute("UPDATE journal_delivery_attempts SET started_at='2026-09-20T00:00:00Z' WHERE delivery_id IN (SELECT delivery_id FROM journal_prompt_deliveries WHERE kind='WEEKLY')");
- assert.equal(await f.companion.weekly.optionalSlotAvailable(await f.freshActor(),{kind:'COACH',delivery_id:'synthetic-next-coach'}),true,'Daily/Coach-only historical behavior remains unchanged');
+ assert.equal(await f.companion.weekly.optionalSlotAvailable(await f.freshActor(),{kind:'COACH',delivery_id:'synthetic-next-coach'}),false,'Daily and Coach also share the two-message ceiling without a weekly attempt');
 });

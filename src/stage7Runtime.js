@@ -22,6 +22,7 @@ import {requireUserId} from './userContext.js';
 import {localDate} from './time.js';
 import {createStage7ReplyAuthority} from './stage7ReplyAuthority.js';
 import {workStepOptions} from './phase4WorkStep.js';
+import {runCompanionStep} from './companionStep.js';
 export function stage7Configuration(environment={}){
  const mode=environment.STAGE7_COMPANION??'off',raw=environment.STAGE7_COMPANION_USER_IDS??'',automatic=environment.STAGE7_AUTOMATIC??'off';
  if(!['off','on'].includes(mode)||!['off','on'].includes(automatic)||automatic==='on'&&mode!=='on'||typeof raw!=='string')fail('STAGE7_CONFIG_INVALID');
@@ -142,17 +143,28 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   // Health decisions precede all optional work; the shared durable count also
   // covers the separately running SYNC producer and uncertain delivery.
   const health=await checkAndAct({db,userId:user.id,timezone:user.timezone,locale,telegram,chatId,expectedLifecycleGeneration:user.lifecycleGeneration,now:now(),proactiveJournal:sendProactiveJournal});
+  const step=(name,run)=>runCompanionStep({db,keys,userId:user.id,step:name,run});
   let low=null;
   if(onDemandBodyEnabled(environment)){
-   const runtime=await createBodyEnergyRuntime({db,keys,admission,environment,env,now});
-   low=await checkLowEnergy({db,bodyEnergy:runtime.bodyEnergy,keys,user,telegram,now:now()});
+   low=await step('low',async()=>{
+    const runtime=await createBodyEnergyRuntime({db,keys,admission,environment,env,now});
+    return checkLowEnergy({db,bodyEnergy:runtime.bodyEnergy,keys,user,telegram,now:now()});
+   });
   }
-  const daily=await companion.prepareAfterBrief({user,chatId,healthDay:day});
-  const dailyResult=daily.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:daily.deliveryId}):daily;
-  const weekly=await companion.weekly.prepare(actor,{automatic:true}),weeklyResult=weekly.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:weekly.deliveryId}):weekly;
+  const dailyResult=await step('daily',async()=>{
+   const daily=await companion.prepareAfterBrief({user,chatId,healthDay:day});
+   return daily.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:daily.deliveryId}):daily;
+  });
+  const weeklyResult=await step('weekly',async()=>{
+   const weekly=await companion.weekly.prepare(actor,{automatic:true});
+   return weekly.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:weekly.deliveryId}):weekly;
+  });
   // Defer Coach for this tick after a new weekly send, without changing its
   // original schedule or manufacturing a Coach interaction for the review.
-  const invitation=weeklyResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId}),coachResult=invitation.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
+  const coachResult=await step('coach',async()=>{
+   const invitation=weeklyResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId});
+   return invitation.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
+  });
   return {health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
  async function contextJournal({userId,chatId,healthDate,answer}){

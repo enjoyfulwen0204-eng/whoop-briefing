@@ -1,0 +1,16 @@
+// Same source-validation failures as stage8MorningIntelligence. A failed
+// optional step is skipped, never retried with replacement data or authority.
+const recoverable=new Set(['PHASE4_PARENT_STALE','PHASE4_PARENT_NOT_FOUND','CONTENT_REDACTED','PHASE4_SOURCE_DELETED','PHASE4_SOURCE_NOT_FOUND','PHASE4_SOURCE_NOT_CURRENT','PHASE4_RESOURCE_FENCED','PHASE4_CAPABILITY_FENCED','PHASE4_INCOMPLETE_PROVENANCE','PHASE4_PARENT_LINK_MISSING','PHASE4_SOURCE_LINK_REQUIRED']);
+const steps=new Set(['daily','coach','weekly','low']);
+export async function runCompanionStep({db,keys,userId,step,run}){
+ if(!steps.has(step))throw Object.assign(Error('COMPANION_STEP_INVALID'),{code:'COMPANION_STEP_INVALID'});
+ try{return await run();}
+ catch(error){
+  const code=error?.code??error?.message;
+  // Nested source failures poison their transaction. Continue only after the
+  // step has unwound it; never clear the failure or reuse a caller transaction.
+  if(!recoverable.has(code)||typeof db.processingTransactionActive!=='function'||db.processingTransactionActive())throw error;
+  try{console.log(JSON.stringify({event:'companion_step_skipped',step,code,user:keys.lookup(['companion-diagnostic-user-v1',userId])}));}catch{/* Diagnostics cannot change authority. */}
+  return {status:'SKIPPED'};
+ }
+}

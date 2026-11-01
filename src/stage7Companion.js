@@ -253,7 +253,8 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(!omitOptionalContext&&options.associations){
     try{
      const view=await options.associations.inspect(user.id);
-     if(!view)return {status:'DEFERRED_BUDGET'};
+     // Association priority is optional; lack of budget must not block daily rotation.
+     if(!view)signal=null;
      if(view){
       signal??=view.signals[0]?{...view.signals[0],health_date:healthDay}:null;
       if(signal)signal={...signal,relevantTopics:view.topics.filter(r=>r.metrics.some(m=>m.metric===signal.metric&&m.direction===signal.direction)).map(r=>r.topic)};

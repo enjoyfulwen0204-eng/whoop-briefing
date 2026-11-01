@@ -13,6 +13,16 @@ import {createStage7Runtime,stage7Configuration} from './stage7Runtime.js';
 export const COMPANION_PATH='/internal/briefing/companion';
 export const COMPANION_KIND='COMPANION_V1';
 export const COMPANION_BUDGET_MS=45000;
+// Sequential slots for the existing UTC cron: */10 0-3, then hourly 04-23.
+// A plain ten-minute counter would advance by six at each hourly tick and
+// permanently favor the same first user in a three-person cohort.
+export function companionUserOrder(userIds,at){
+ if(!userIds.length)return [];
+ const hour=at.getUTCHours(),slot=Math.floor(at.getTime()/86400000)*44+
+  (hour<4?hour*6+Math.floor(at.getUTCMinutes()/10):24+hour-4);
+ const start=((slot%userIds.length)+userIds.length)%userIds.length;
+ return [...userIds.slice(start),...userIds.slice(0,start)];
+}
 const fail=code=>{throw Object.assign(Error(code),{code});};
 const diagnosticFailureStates=new Set(['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN','FENCED']);
 const diagnosticCode=error=>{
@@ -53,7 +63,7 @@ export async function runCompanionService({request,environment=process.env,db:pr
   unfollow=followRuntimeRenewal(db.raw,admission,keys,db.transaction,value=>{admission=value;});
   return db.withRuntimeFence(fence,async()=>{
    const runtime=automatic?await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now}):null;
-   for(const id of runtime?cohort.userIds:[]){
+   for(const id of companionUserOrder(runtime?cohort.userIds:[],now())){
     const userStartedAtMs=Date.now();
     try{
     fence();const user=await db.getUser(id);

@@ -9,10 +9,10 @@ import {configurationProof} from '../src/phase4ExecutionStore.js';
 import {publicBetaConfiguration} from '../src/publicBetaConfig.js';
 import {runningReleaseSha} from '../src/phase4Release.js';
 
-// This test process has one synthetic tenant. Never substitute production IDs
+// This test process uses only synthetic tenants. Never substitute production IDs
 // or relax the actual production rollout policy.
 registerHooks({load(url,context,next){
- if(url.endsWith('/src/stage7Cohort.js'))return {format:'module',source:'export const isApprovedStage7Three=ids=>ids.length===1&&ids[0]==="a";',shortCircuit:true};
+ if(url.endsWith('/src/stage7Cohort.js'))return {format:'module',source:'export const isApprovedStage7Three=ids=>["a","a,b"].includes(ids.join(","));',shortCircuit:true};
  return next(url,context);
 }});
 const {createStage7Runtime}=await import('../src/stage7Runtime.js');
@@ -80,7 +80,7 @@ test('low step and exact recoverable allowlist: one call, sanitized skip, no ret
  const logs=[];t.mock.method(console,'log',value=>logs.push(JSON.parse(value)));let calls=0;
  const args={db:{processingTransactionActive:()=>false},keys:{lookup:()=>'synthetic-hash'},userId:'synthetic-private',step:'low'};
  for(const code of codes('companionStep.js'))assert.deepEqual(await runCompanionStep({...args,run:async()=>{calls++;throw Object.assign(Error('PRIVATE_SENTINEL'),{code});}}),{status:'SKIPPED'});
- assert.equal(calls,codes('companionStep.js').length);assert.equal(logs.length,calls);
+ assert.equal(calls,codes('companionStep.js').length);assert.equal(logs.filter(x=>x.event==='companion_step_skipped').length,calls);assert.equal(logs.filter(x=>x.event==='companion_step_timing').length,calls);
  assert.ok(logs.every(x=>x.step==='low'&&x.user==='synthetic-hash'));
  assert.doesNotMatch(JSON.stringify(logs),/PRIVATE_SENTINEL|synthetic-private/);
 });
@@ -102,4 +102,18 @@ test('uncertain returned delivery states remain unchanged and are not retried',a
 test('diagnostic failure cannot grant delivery or prevent a safe skip',async t=>{
  t.mock.method(console,'log',()=>{throw Error('LOG_FAILED');});
  assert.deepEqual(await runCompanionStep({db:{processingTransactionActive:()=>false},keys:{lookup:()=>'synthetic'},userId:'a',step:'coach',run:async()=>{throw Object.assign(Error('PRIVATE_SENTINEL'),{code:'PHASE4_SOURCE_NOT_CURRENT'});}}),{status:'SKIPPED'});
+});
+
+
+test('actual admitted service visits every eligible user once and rotates the first at consecutive hourly ticks',async t=>{
+ const f=await fixture(t),env={...environment,STAGE7_COMPANION_USER_IDS:'a,b'};
+ await f.db.saveTokens('b',{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date('2026-12-01'),scope:'offline',whoopUserId:'synthetic-b'},{now:at});
+ await f.db.linkTelegram({userId:'b',chatId:'456',now:at});await f.db.ensureOnboarding('b',{state:'READY',now:at});
+ const releaseSha=runningReleaseSha(env),request={kind:COMPANION_KIND,requestId:'synthetic-rotation-request-01',releaseSha,configProof:configurationProof(f.keys,publicBetaConfiguration(env),env,releaseSha),triggerSource:'cloudflare',executionMode:'OFF'};
+ const orders=[];
+ for(const timestamp of ['2026-10-31T11:10:00Z','2026-10-31T12:10:00Z']){
+  const order=[];const result=await runCompanionService({db:f.db,keys:f.keys,environment:env,env:{},request,now:()=>new Date(timestamp),deps:{createRuntime:async()=>({tick:async({user})=>{order.push(user.id);return {daily:'DISABLED'};}})}});
+  assert.equal(result.status,200);assert.equal(result.body.checked,2);assert.equal(result.body.failed,0);assert.deepEqual([...order].sort(),['a','b']);orders.push(order);
+ }
+ assert.notEqual(orders[0][0],orders[1][0]);assert.equal(f.networkCalls(),0);
 });

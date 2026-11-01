@@ -10,6 +10,7 @@ import {addDays} from '../src/time.js';
 import {createRouter} from '../src/bot/router.js';
 import {createExecutionBudget,withExecutionBudget} from '../src/executionBudget.js';
 import {createStage7Composition} from '../src/stage7Composition.js';
+import {createStage7Dispatcher,createSyntheticJournalTelegram} from '../src/stage7Dispatcher.js';
 import {confirmedLegacyBrief} from './confirmedLegacyBriefFixture.js';
 import {renderJournalWeek,summarizeJournalWeek} from '../src/stage7WeeklyReview.js';
 const instant=new Date('2026-11-01T06:00:00Z'),today='2026-11-01';
@@ -68,12 +69,12 @@ test('weekly renderer uses same numeric non-causal calculation, not saved Stage5
  const summary=summarizeJournalWeek({facts:[],history:[],topics:[],startDate:'2026-10-19',endDate:'2026-10-25'});summary.onDemand=calculateAssociations(input());for(const locale of ['zh-TW','en','vi'])assert.ok(renderJournalWeek(summary,locale).text.includes(renderAssociations(summary.onDemand,locale)));
 });
 test('notification once weekly, ordinary shared quota, retained unknown delivery, no numeric result storage',async t=>{
- const f=await fixture(t),sent=[];const args={db:f.db,reader:f.reader,user:f.user,locale:'en',now:instant,telegram:{send:async text=>{sent.push(text);return {messageId:9};}}};
- assert.equal((await notifyAssociation(args)).status,'DELIVERED');assert.equal((await notifyAssociation(args)).status,'ALREADY_RESERVED');assert.equal(sent.length,1);assert.deepEqual(await proactiveQuota(f.db.raw,{userId:'a',timezone:f.user.timezone,now:instant}),{total:1,health:0,ask:0});
+ const f=await fixture(t),sent=[];const args={db:f.db,keys:f.keys,reader:f.reader,user:f.user,locale:'en',now:instant,telegram:{send:async text=>{sent.push(text);return {messageId:9};}}};
+ assert.equal((await notifyAssociation(args)).status,'DELIVERED');assert.equal((await notifyAssociation(args)).status,'ALREADY_CHECKED_TODAY');assert.equal(sent.length,1);assert.deepEqual(await proactiveQuota(f.db.raw,{userId:'a',timezone:f.user.timezone,now:instant}),{total:1,health:0,ask:0});
  const row=(await f.db.raw.execute('SELECT message_text,reason_json FROM proactive_events')).rows[0];assert.equal(row.message_text,null);assert.doesNotMatch(row.reason_json,/difference|33\.3|60/);
 });
 test('quiet/paused and budget defer without computing or reserving',async t=>{
- const f=await fixture(t);let reads=0;const args={db:f.db,reader:{inspect:()=>{reads++;throw Error('NOT_ALLOWED');}},user:f.user,now:new Date('2026-11-01T15:00:00Z')};assert.equal((await notifyAssociation(args)).status,'QUIET_OR_PAUSED');
+ const f=await fixture(t);let reads=0;const args={db:f.db,keys:f.keys,reader:{inspect:()=>{reads++;throw Error('NOT_ALLOWED');}},user:f.user,now:new Date('2026-11-01T15:00:00Z')};assert.equal((await notifyAssociation(args)).status,'QUIET_OR_PAUSED');
  const b=createExecutionBudget({budgetMs:1000});try{assert.equal((await withExecutionBudget(b,()=>notifyAssociation({...args,now:instant}))).status,'DEFERRED_BUDGET');}finally{b.close();}assert.equal(reads,0);
 });
 test('production composition uses one reader in daily/weekly/Coach and insight after weekly before Coach; no Advanced toggle',()=>{
@@ -81,7 +82,7 @@ test('production composition uses one reader in daily/weekly/Coach and insight a
  for(const name of ['onDemandAssociations','associationNotifications','accountSelfService'])assert.doesNotMatch(readFileSync(new URL('../src/'+name+'.js',import.meta.url),'utf8'),/DELETE FROM|migrate\(|BODY_ENERGY_PUBLICATION\s*=|PHASE4_STAGE8_RUNTIME\s*=/);
 });
 test('uncertain association delivery retains weekly barrier and cannot consume health exception',async t=>{
- const f=await fixture(t);let sends=0;const args={db:f.db,reader:f.reader,user:f.user,locale:'en',now:instant,telegram:{send:async()=>{sends++;return {};}}};
+ const f=await fixture(t);let sends=0;const args={db:f.db,keys:f.keys,reader:f.reader,user:f.user,locale:'en',now:instant,telegram:{send:async()=>{sends++;return {};}}};
  assert.equal((await notifyAssociation(args)).status,'UNKNOWN');assert.equal((await notifyAssociation(args)).status,'ALREADY_RESERVED');assert.equal(sends,1);
  const a=await f.db.transaction(()=>f.db.claimProactiveEvent('a',{healthDate:today,idempotencyKey:'optional-2',decision:'NOTIFY',policyVersion:'on-demand-association-v1'},{now:instant,expectedLifecycleGeneration:f.user.lifecycleGeneration}));assert.equal(a.claimed,true);
  const third=await f.db.transaction(()=>f.db.claimProactiveEvent('a',{healthDate:today,idempotencyKey:'optional-3',decision:'NOTIFY',policyVersion:'on-demand-association-v1'},{now:instant,expectedLifecycleGeneration:f.user.lifecycleGeneration}));assert.equal(third.claimed,false);
@@ -89,17 +90,23 @@ test('uncertain association delivery retains weekly barrier and cannot consume h
  assert.deepEqual(await proactiveQuota(f.db.raw,{userId:'a',timezone:f.user.timezone,now:instant}),{total:3,health:1,ask:0});
 });
 
-test('daily and weekly defer without reservations when association budget is unavailable; daily priority consumes same result',async t=>{
+for(const available of [false,true])test(`daily uses ${available?'association priority':'neutral rotation'}; weekly still defers without association budget`,async t=>{
  const f=await fixture(t);let view=null,reads=0;
  const c=await createStage7Composition({...f,associations:{inspect:async()=>{reads++;return view;}}});
  const actor=await c.interactions.authenticate({user:f.user,chatId:'123'});
  await f.db.transaction(async()=>c.changePreferences(actor,await c.preferences(actor),{daily_enabled:1,weekly_enabled:1}));
  await f.db.raw.execute({sql:"INSERT INTO report_claims(user_id,report_type,local_date,owner,claimed_at,expires_at,lifecycle_generation,delivery_state,telegram_message_id) VALUES('a','daily',?,'synthetic',?,?,?,'DELIVERED',11)",args:[today,f.core.timestamp(),f.core.timestamp(),f.user.lifecycleGeneration]});
  await confirmedLegacyBrief({...f,companion:c},{day:today});
- assert.equal((await c.prepareAfterBrief({user:f.user,chatId:'123',healthDay:today})).status,'DEFERRED_BUDGET');
  assert.equal((await c.weekly.prepare(actor)).status,'DEFERRED_BUDGET');
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_prompt_deliveries')).rows[0].n,0);
- view={today,topics:[{topic:'alcohol',status:'ASSOCIATION',metrics:[{metric:'hrv',direction:'low'}]}],signals:[{metric:'hrv',direction:'low',level:'STRONG'}]};
+ if(available)view={today,topics:[{topic:'alcohol',status:'ASSOCIATION',metrics:[{metric:'hrv',direction:'low'}]}],signals:[{metric:'hrv',direction:'low',level:'STRONG'}]};
  const daily=await c.prepareAfterBrief({user:f.user,chatId:'123',healthDay:today});
- assert.equal(daily.status,'PROPOSED');assert.equal(daily.selection.category,'alcohol');assert.equal(daily.selection.relevant,true);assert.equal(reads,3);
+ assert.equal(daily.status,'PROPOSED');
+ if(available){assert.equal(daily.selection.category,'alcohol');assert.equal(daily.selection.relevant,true);}
+ else assert.ok(!daily.selection.relevant);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_prompt_deliveries')).rows[0].n,1);assert.equal(reads,2);
+ const provider=createSyntheticJournalTelegram(),dispatcher=createStage7Dispatcher({...f,companion:c,provider});
+ const request={user:f.user,chatId:'123',deliveryId:daily.deliveryId};
+ assert.equal((await dispatcher.dispatch(request)).status,'DELIVERED');
+ await dispatcher.dispatch(request);assert.equal(provider.calls.length,1);
 });

@@ -112,7 +112,7 @@ export async function createStage7Composition({core,stores,db,...options}){
   }
  };
  companion=createStage7Companion({core,stores,db,...options,onAccept:accepted,onUndo:undo,onWeekly:actor=>weekly.prepare(actor)});
- const weekly=createStage7WeeklyReview({core,stores,db,companion});
+ const weekly=createStage7WeeklyReview({core,stores,db,companion,associations:options.associations});
  const handle=companion.handle,handleNote=companion.handleNote;
  async function resumePending({user,chatId,callback=null}){
   const actor=await core.transaction(()=>companion.interactions.authenticate({user,chatId,callback,allowPendingPurge:true}));

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createAccountSelfService} from '../accountSelfService.js';
 import {createFamilySharing} from '../familySharing.js';
 import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createCompanionCoachContext} from '../companionCoachContext.js';
@@ -140,12 +141,13 @@ export async function main({ maxIterations = Infinity } = {}) {
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env,coachContext});
   stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
   const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8,phase4Reader,journalFollowUp:stage7?.contextJournal });
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,associations:stage7?.associations,stage8,phase4Reader,journalFollowUp:stage7?.contextJournal });
   const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
   const family=createFamilySharing({db,keys:authorityKeys,environment:process.env,env});
+  const accountControl=createAccountSelfService({db,keys:authorityKeys,family});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
   const onboardingConfigured = Boolean(
@@ -161,12 +163,14 @@ export async function main({ maxIterations = Infinity } = {}) {
     botToken: env.telegramBotToken,
     api,
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
+    accountControl,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
       if(familyReply!==null)return familyReply;
       let settingReply=await settings({text,chatId,user,callback});
       if(settingReply!==null){
+       settingReply=await accountControl.decorate({user,chatId,text,reply:settingReply});
        if(family)settingReply=await family.ui.decorate({user,chatId,text,reply:settingReply});
        return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
       }
@@ -182,7 +186,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: family?family.ui.wrapSender(sendPresentation):sendPresentation,
+    sendReply: accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

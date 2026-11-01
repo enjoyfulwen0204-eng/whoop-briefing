@@ -358,7 +358,7 @@ export function createWhoopClient({
   async function loadTokens() {
     if (cached) return bindPhaseAuthorization(cached);
     const t = assertGeneration(await db.getTokens(uid));
-    if (!t) {
+    if (!t || (!t.accessToken && !t.refreshToken)) {
       throw new WhoopAuthError(
         `這個使用者（${uid}）在 Turso 裡沒有 WHOOP token。`
         + '請先跑 `npm run authorize -- --user=<userId>` 完成授權。',

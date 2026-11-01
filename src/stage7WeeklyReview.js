@@ -1,3 +1,4 @@
+import {renderAssociations} from './onDemandAssociations.js';
 import {proactiveQuota,proactiveSlotAllowed} from './proactiveQuota.js';
 import {isProactiveJournalDelivery} from './stage7ProactiveJournal.js';
 import {TOPICS,JOURNAL_COPY,presentationLocale} from './stage7Registry.js';
@@ -39,32 +40,25 @@ export function renderJournalWeek(summary,locale){
   ...Object.entries(summary.coverage).map(([topic,n])=>`${c.coverage}: ${name(topic)} · ${n}/7`),
   `🤔 ${c.unsure}: ${summary.responses.NOT_SURE} · ⏭ ${c.skip}: ${summary.responses.SKIPPED}`,
   `${c.unknown}: ${summary.responses.NO_RESPONSE} · ${c.notAsked}: ${summary.responses.NOT_ASKED}`,c.missing];
- if(!summary.associations.length)lines.push(c.insufficient);
+ if(summary.onDemand)lines.push(renderAssociations(summary.onDemand,l));
+ else if(!summary.associations.length)lines.push(c.insufficient);
  for(const a of summary.associations)lines.push(`${c.association}: ${name(a.factor)} / ${t(l,`metric.${a.metric}`)}`);
  if(summary.next)lines.push(`🔎 ${c.next}: ${name(summary.next)}`);
  return {text:lines.join('\n'),summary};
 }
-export function createStage7WeeklyReview({core,stores,db,companion}){
+export function createStage7WeeklyReview({core,stores,db,companion,associations:associationReader=null}){
  async function build(actor){
   return core.transaction(async()=>{
    const state=await core.assertControl(actor.control),week=completedWeeks(core.now(),JOURNAL_WEEK_TIMEZONE).last,prefs=await companion.preferences(actor),facts=await companion.ownFacts(actor,{fromDate:week.startDate,toDate:week.endDate});
    if(facts.length===500)throw Error('STAGE7_WEEKLY_HISTORY_BOUNDS');
    const history=(await core.client.execute({sql:"SELECT privacy_artifact_id,target_date,selected_choice,state,answered_at,revision FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND target_date>=? AND target_date<=? AND content_state='PRESENT' ORDER BY interaction_id LIMIT 501",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
    if(history.length>500)fail('STAGE7_WEEKLY_HISTORY_BOUNDS');
-   const associations=[];
-   await stores.withContext(actor.control.userId,{executionMode:'SHADOW'},async context=>{
-    const typed=await stores.betaSummary.readCurrent(context,{asOfUtc:core.timestamp()});
-    for(const insight of typed.insights.filter(i=>i.status==='SUPPORTED')){
-     const verified=await stores.insights.read(context,insight.resultId,{asOfUtc:core.timestamp()});
-     for(const id of JSON.parse(verified.revision.supporting_evidence_ids_json)){
-      const item=await stores.readArtifact(context,'evidence_items',{evidence_item_id:id}),p=JSON.parse(item.row.provenance_json??'{}');
-      if(TOPICS.includes(p.factor)&&p.method==='EXPOSED_VS_CONFIRMED_UNEXPOSED'&&item.row.causal_status==='ASSOCIATION_ONLY')associations.push({factor:p.factor,metric:p.outcome_metric,evidencePrivacyId:item.row.privacy_artifact_id});
-     }
-    }
-   });
+   const associations=[],onDemand=associationReader?await associationReader.inspect(actor.control.userId):null;
+   if(associationReader&&!onDemand)return {status:'DEFERRED_BUDGET'};
    const summary=summarizeJournalWeek({facts,history,topics:JSON.parse(prefs.topics_json),startDate:week.startDate,endDate:week.endDate,associations});
+   if(onDemand)summary.onDemand={today:onDemand.today,topics:onDemand.topics};
    const rendered=renderJournalWeek(summary,await db.getLocale(actor.control.userId));
-   return {...rendered,projectionDigest:core.keys.lookup(['stage7-weekly-projection-v1',actor.control.userId,rendered,facts,history]),sourceInteractionIds:history.map(h=>h.privacy_artifact_id),sourceEvidenceIds:associations.map(a=>a.evidencePrivacyId),sourceFactIds:facts.filter(f=>f.health_date>=week.startDate&&f.health_date<=week.endDate).map(f=>f.privacy_artifact_id)};
+   return {...rendered,projectionDigest:core.keys.lookup(['stage7-weekly-projection-v1',actor.control.userId,rendered,facts,history]),sourceInteractionIds:history.map(h=>h.privacy_artifact_id),sourceEvidenceIds:associations.map(a=>a.evidencePrivacyId),sourceFactIds:[...new Set([...(onDemand?.factIds??[]),...facts.filter(f=>f.health_date>=week.startDate&&f.health_date<=week.endDate).map(f=>f.privacy_artifact_id)])]};
   });
  }
  async function readiness(actor){
@@ -101,6 +95,7 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
   return core.transaction(async()=>{
    const ready=automatic?await readiness(actor):null;if(ready&&ready.status!=='READY')return ready;
    const state=ready?.state??await core.assertControl(actor.control),prefs=ready?.prefs??await companion.preferences(actor),result=await build(actor);
+   if(result.status==='DEFERRED_BUDGET')return result;
    if(automatic&&!hasRecords(result.summary))return {status:'NO_RECORDS'};
    const semantic=core.keys.lookup(['weekly-journal-v1',actor.control.userId,result.summary.startDate,'weekly-review-v1']);
    let row=(await core.client.execute({sql:'SELECT * FROM journal_prompt_deliveries WHERE user_id=? AND semantic_key=?',args:[actor.control.userId,semantic]})).rows[0];
@@ -139,6 +134,7 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
     ||row.preference_revision!==ready.prefs.revision||row.expires_at<=core.timestamp()||schedule?.version!==AUTOMATIC_WEEKLY_VERSION)return {status:'FENCED'};
    await assertStage7Enrollment({core,db,actor,row});
    const result=await build(actor);
+   if(result.status==='DEFERRED_BUDGET')return result;
    if(!hasRecords(result.summary)||schedule.weekStart!==result.summary.startDate||schedule.weekEnd!==result.summary.endDate||schedule.timezone!==ready.state.timezone
     ||schedule.projectionDigest!==result.projectionDigest||schedule.briefSource!==ready.brief.reportSource
     ||(schedule.briefType??'report_runs')!==ready.brief.reportType||JSON.parse(row.payload_json??'null')?.text!==result.text)return {status:'FENCED'};

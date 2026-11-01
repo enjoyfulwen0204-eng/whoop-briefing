@@ -407,7 +407,7 @@ export function unavailableReply(result, locale = 'zh-TW') {
 }
 
 export function createRouter({
-  db, coachFor,bodyEnergy,stage8,phase4Reader,journalFollowUp=null, now = () => new Date(), lookbackDays = 120,
+  db, coachFor,bodyEnergy,associations,stage8,phase4Reader,journalFollowUp=null, now = () => new Date(), lookbackDays = 120,
 }) {
   /**
    * 處理一則訊息，回傳要送出去的文字。
@@ -435,6 +435,10 @@ export function createRouter({
       if(control!==null)return {reply:control.message,bodyEnergyReplyGuard:control.replyGuard};
       const body=selfQueryPerspective({text}).usePersonalData?await bodyEnergy.query({text,userId,requestedAt:t}):null;
       if(body)return {reply:body.message,bodyEnergyReplyGuard:body.replyGuard};
+    }
+    if(associations&&['self','ambiguous'].includes(selfQueryPerspective({text}).perspective)){
+      const topic=associations.question(text);
+      if(topic){const reply=await associations.reply(userId,locale,topic);if(reply)return reply;}
     }
     const provider = coachFor(userId);
     const wrapProvider=target=>target&&db.outsideProcessingTransaction?new Proxy(target,{

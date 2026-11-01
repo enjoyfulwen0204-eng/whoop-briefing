@@ -9,7 +9,7 @@ export const isHealthKind=kind=>kind==='HEALTH'||kind==='ASK_CONTEXT';
 export async function proactiveQuota(client,{userId,timezone,now=new Date(),excludeDeliveryId=null,excludeEventId=null}){
  const day=localDate(now,timezone),start=localMidnightUtc(day,timezone).toISOString(),end=localMidnightUtc(addDays(day,1),timezone).toISOString();
  const result=await client.execute({sql:`WITH counted AS (
-  SELECT 'p:'||id identity,1 health,decision='ASK_CONTEXT' ask FROM proactive_events
+  SELECT 'p:'||id identity,policy_version<>'on-demand-association-v1' health,decision='ASK_CONTEXT' ask FROM proactive_events
    WHERE user_id=? AND decision IN ('ASK_CONTEXT','NOTIFY') AND id IS NOT ? AND created_at>=? AND created_at<?
   UNION ALL
   SELECT 'j:'||d.delivery_id,COALESCE(json_extract(d.schedule_json,'$.source'),'')='legacy-proactive-journal-v1',COALESCE(json_extract(d.schedule_json,'$.source'),'')='legacy-proactive-journal-v1' FROM journal_prompt_deliveries d

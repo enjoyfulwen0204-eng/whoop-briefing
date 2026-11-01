@@ -36,11 +36,12 @@ export function createFamilyStore({db,keys,environment,now=()=>new Date()}){
  async function members(){
   assertConfig();
   const rows=(await db.raw.execute({sql:`SELECT u.id,u.display_name,u.timezone,u.lifecycle_generation,
-   t.auth_generation,p.purge_generation,p.source_generation,g.telegram_chat_id,
+   COALESCE((t.access_token<>'' AND o.state='READY'),0) connected,t.auth_generation,p.purge_generation,p.source_generation,g.telegram_chat_id,
    COALESCE(n.notifications_paused,0) paused,COALESCE(j.quiet_start,'22:00') quiet_start,
    COALESCE(j.quiet_end,'08:00') quiet_end
    FROM users u JOIN user_whoop_tokens t ON t.user_id=u.id
    JOIN phase4_user_state p ON p.user_id=u.id
+   LEFT JOIN user_onboarding o ON o.user_id=u.id
    JOIN user_telegram g ON g.user_id=u.id AND g.status='ACTIVE'
    LEFT JOIN user_notification_preferences n ON n.user_id=u.id
    LEFT JOIN journal_tracking_preferences j ON j.user_id=u.id AND j.lifecycle_generation=u.lifecycle_generation
@@ -57,7 +58,7 @@ export function createFamilyStore({db,keys,environment,now=()=>new Date()}){
  function allowed(s,rows,source,recipient,category){
   if(!FAMILY_CLASSES.includes(category)||source===recipient)return false;
   const a=rows.find(r=>r.id===source),b=rows.find(r=>r.id===recipient),g=s.grants[pair(source,recipient)];
-  return Boolean(a&&b&&g&&same(g.source,familyIdentity(a))&&same(g.recipient,familyIdentity(b))&&g[category]===true
+  return Boolean(a&&b&&b.connected!==0&&(a.connected!==0||category==='daily')&&g&&same(g.source,familyIdentity(a))&&same(g.recipient,familyIdentity(b))&&g[category]===true
    &&s.mutes[pair(source,recipient)]?.all!==true&&s.mutes[pair(source,recipient)]?.[category]!==true);
  }
  const grantVisible=(s,rows,a,b,c)=>{const clean={...s,mutes:{}};return allowed(clean,rows,a,b,c);};
@@ -84,6 +85,20 @@ export function createFamilyStore({db,keys,environment,now=()=>new Date()}){
   }
   s.revision++;await write('consent','',s);return s;
  }
+ async function revokeMember(id){
+  const s=await state();
+  for(const g of Object.values(s.grants))if(g.source?.[0]===id||g.recipient?.[0]===id)for(const c of FAMILY_CLASSES)g[c]=false;
+  for(const [k,v] of Object.entries(s.invites))if(v.requester?.[0]===id||v.target?.[0]===id)delete s.invites[k];
+  s.revision++;await write('consent','',s);
+ }
+ async function disconnectMember(id,previousAuthGeneration){
+  // Explicit disconnect preserves only a white daily placeholder. Reconnect
+  // advances auth again, so old grants cannot expose newly authorized data.
+  const s=await state(),row=(await members()).find(r=>r.id===id);if(!row)return;
+  const original=familyIdentity(row);original[2]=previousAuthGeneration;
+  for(const g of Object.values(s.grants))if(g.source?.[0]===id){if(same(g.source,original))g.source=familyIdentity(row);g.alert=false;g.weekly=false;}
+  s.revision++;await write('consent','',s);
+ }
  const transaction=(kind,facts,run)=>db.transaction(run,workStepOptions('family.'+kind,facts,{discardResult:true,replay:()=>familyFail('FAMILY_OPERATION_REPLAY_FENCED')}));
- return Object.freeze({config,group,key,read,write,state,members,allowed,grantVisible,pair,authenticate,change,transaction,assertConfig});
+ return Object.freeze({config,group,key,read,write,state,members,allowed,grantVisible,pair,authenticate,change,revokeMember,disconnectMember,transaction,assertConfig});
 }

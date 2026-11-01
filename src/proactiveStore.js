@@ -103,7 +103,7 @@ export function createProactiveStore(client) {
     const uid = requireUserId(userId, 'claimProactiveEvent');
     const user=(await client.execute({sql:'SELECT timezone FROM users WHERE id=?',args:[uid]})).rows[0];
     if(!user)throw Error('PROACTIVE_USER_REQUIRED');
-    if(['ASK_CONTEXT','NOTIFY'].includes(decision)&&!proactiveSlotAllowed(await proactiveQuota(client,{userId:uid,timezone:user.timezone,now}),decision==='ASK_CONTEXT'?'ASK_CONTEXT':'HEALTH'))
+    if(['ASK_CONTEXT','NOTIFY'].includes(decision)&&!proactiveSlotAllowed(await proactiveQuota(client,{userId:uid,timezone:user.timezone,now}),policyVersion==='on-demand-association-v1'?'INSIGHT':decision==='ASK_CONTEXT'?'ASK_CONTEXT':'HEALTH'))
       return {claimed:false,id:null,lifecycleGeneration:expectedLifecycleGeneration,suppression:'RATE_LIMITED'};
     // Preserve the legacy publication path's independent topic cooldown.
     if(policyVersion===BODY_POLICY.version&&(await client.execute({sql:"SELECT 1 FROM proactive_events WHERE user_id=? AND policy_version=? AND decision='NOTIFY' AND julianday(created_at)>=julianday(?) LIMIT 1",args:[uid,BODY_POLICY.version,nowIso(new Date(now.getTime()-BODY_POLICY.topicCooldownMs))]})).rows.length)

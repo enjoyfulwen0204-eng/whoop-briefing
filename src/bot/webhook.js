@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createAccountSelfService} from '../accountSelfService.js';
 import {createFamilySharing} from '../familySharing.js';
 import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createBusinessWebhookLifecycle} from '../businessWebhookLifecycle.js';
@@ -481,12 +482,13 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:selectedEnvironment,coachContext});
   stage8=profile===SCHEMA_TRANSITION_PROFILE?null:await createStage8Runtime({db,keys:authorityKeys,environment:selectedEnvironment,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
   const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:selectedEnvironment});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8,phase4Reader,journalFollowUp:stage7?.contextJournal });
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,associations:stage7?.associations,stage8,phase4Reader,journalFollowUp:stage7?.contextJournal });
   const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
   const family=createFamilySharing({db,keys:authorityKeys,environment:selectedEnvironment,env});
+  const accountControl=createAccountSelfService({db,keys:authorityKeys,family});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
   //
@@ -504,12 +506,14 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
     db,
     ...(stage7?{stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply}:{}),
     authenticatedIdentity:stage8?.captureIdentity,
+    accountControl,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
       if(familyReply!==null)return familyReply;
       let settingReply=await settings({text,chatId,user,callback});
       if(settingReply!==null){
+       settingReply=await accountControl.decorate({user,chatId,text,reply:settingReply});
        if(family)settingReply=await family.ui.decorate({user,chatId,text,reply:settingReply});
        return stage7?stage7.decorate({user,chatId,text,reply:settingReply}):settingReply;
       }
@@ -531,7 +535,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: family?family.ui.wrapSender(sendPresentation):sendPresentation,
+    sendReply: accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),
     // updateProcessor bounds its own callback wait; retain ownership of the
     // underlying local API promise even if that wait finishes first.
     answerCallback: id=>lifecycle.fork(()=>api.answerCallbackQuery(id)),

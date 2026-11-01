@@ -138,6 +138,7 @@ export function createUpdateProcessor({
   /** Default-off dedicated control path, before the ordinary action/receipt
    * transaction. No production entry point supplies this foundation adapter. */
   phase4JournalControl = null,
+  accountControl = null,
   /** Default-null Stage 7 development adapter. Business corrections run before
    * the receipt root; presentation is revalidated inside that root. */
   stage7Inbound = null,
@@ -590,8 +591,10 @@ export function createUpdateProcessor({
       // Transport authentication and durable ownership already hold. Select
       // safety before any identity capture, Journal note or Settings consumer.
       if(c.kind==='ok'&&authenticatedIdentity&&!urgent)await authenticatedIdentity(c);
-      const journalResult=c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
+      const accountAction=c.kind==='ok'&&!urgent&&accountControl?.matches(c.callback?.data);
+      const journalResult=!accountAction&&c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {
+        if(accountAction)return {chatId:c.chatId,userId:null,reply:await accountControl.handle(c)};
         if (c.kind === 'unlinked') {
           const reply = urgent ? {text:urgentReply('en')} : handleUnlinked ? await handleUnlinked({
             text: c.text, chatId: c.chatId, message: c.message, isPrivateChat: true,
@@ -651,8 +654,8 @@ export function createUpdateProcessor({
       const operation=c.kind==='ok'&&/^\/help(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(c.text)
         ?readOnlyTelegramOperation(dispatch):dispatch;
       const execute = () => claimed && db.processTelegramOperation
-        ? db.processTelegramOperation(updateId, { owner: attemptId, ownerUserId:c.kind==='ok'?c.user.id:null,
-          nonHealthOperation:c.kind!=='ok',now }, operation)
+        ? db.processTelegramOperation(updateId, { owner: attemptId, ownerUserId:c.kind==='ok'&&!accountAction?c.user.id:null,
+          nonHealthOperation:c.kind!=='ok'||Boolean(accountAction),now }, operation)
         : dispatch();
       const typingEligible = c.kind === 'ok' && isNaturalLanguage(c.text);
       const startup = typingEligible ? claimStartupFeedback() : false;

@@ -27,8 +27,8 @@ const METRICS={
 const mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
 const number=x=>Number.isFinite(x)?x.toFixed(1):'—';
 const arrow=(a,b)=>!Number.isFinite(a)||!Number.isFinite(b)?'—':Math.abs(a-b)<.05?'→':a>b?'↗':'↘';
-const quiet=(row,at)=>row.paused===1||inStage7QuietHours(at,row.timezone,row.quiet_start,row.quiet_end);
-const freshStamp=row=>row?[...familyIdentity(row),row.source_generation,row.display_name,row.timezone,row.paused,row.quiet_start,row.quiet_end]:null;
+const quiet=(row,at)=>row.connected===0||row.paused===1||inStage7QuietHours(at,row.timezone,row.quiet_start,row.quiet_end);
+const freshStamp=row=>row?[...familyIdentity(row),row.source_generation,row.connected,row.display_name,row.timezone,row.paused,row.quiet_start,row.quiet_end]:null;
 
 /** On-demand, explicitly allowlisted projection. No Journal/Q&A reader is
  * reachable from this module; no summary or provider payload is persisted. */
@@ -46,6 +46,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
  const room=(needed=10000)=>!currentExecutionBudget()||currentExecutionBudget().remainingMs()>needed+6000;
  async function snapshot(){const rows=await store.members(),state=await store.state();return {rows,state};}
  async function loadSummary(source,at,{daily}){
+  if(source.connected===0)return {today:null,energy:null,current:{recovery:null,sleep:null},previous:{recovery:null,sleep:null}};
   const date=localDate(at,source.timezone),{day}=taipeiParts(at),monday=dayShift(day,-((new Date(day+'T00:00:00Z').getUTCDay()+6)%7));
   const from=dayShift(monday,-14),to=date;
   const [sleeps,recoveries]=await Promise.all([db.getSleeps(source.id,{from,to}),db.getRecoveries(source.id,{from,to})]);

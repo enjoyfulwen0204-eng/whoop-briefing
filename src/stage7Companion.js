@@ -247,39 +247,19 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(pending)return {status:'INTERACTION_BUSY'};
    const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor,{fromDate:addDays(targetDate,-179),toDate:targetDate}),history=(await client.execute({sql:"SELECT privacy_artifact_id,category,target_date FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
    if(facts.length===500)fail('STAGE7_DAILY_HISTORY_BOUNDS');
-   // Use already-computed, receipt-verified current evidence. No WHOOP sync or
-   // new physiological computation runs after the briefing. Explicit inputs are
-   // internal synthetic/server composition only, never Telegram payloads.
+   // Reuse this tick's read-only association calculation. No background
+   // insights, provider request or inferred negative Journal day is used.
    const contextSources=[];
-   if(!signal&&!omitOptionalContext)await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>{
+   if(!omitOptionalContext&&options.associations){
     try{
-    const typed=await stores.betaSummary.readCurrent(context,{asOfUtc:timestamp()});
-    for(const entry of [...typed.episodes].sort((a,b)=>b.severity-a.severity||a.metricKey.localeCompare(b.metricKey))){
-     const episode=await stores.readArtifact(context,'observation_episodes',{episode_id:entry.resultId});
-     const age=core.now().getTime()-Date.parse(episode.row.last_observed_at);
-     if(age<0||age>48*3600000||entry.severity<2)continue;
-     const item=await stores.readArtifact(context,'evidence_items',{evidence_item_id:episode.row.latest_evidence_item_id});
-     if(!['LIMITED','AVAILABLE'].includes(item.row.quality))continue;
-     signal={metric:entry.metricKey,level:entry.severity>=3?'STRONG':'NOTABLE',health_date:healthDay,relevantTopics:[]};
-     // Prefer only factors backed by the same current, verified association
-     // contract as the Journal decision path. This never invents a cause.
-     for(const insight of typed.insights.filter(i=>i.status==='SUPPORTED')){
-      const verified=await stores.insights.read(context,insight.resultId,{asOfUtc:timestamp()});
-      for(const id of JSON.parse(verified.revision.supporting_evidence_ids_json)){
-       const related=await stores.readArtifact(context,'evidence_items',{evidence_item_id:id}),p=JSON.parse(related.row.provenance_json??'{}');
-       if(p.outcome_metric===entry.metricKey&&p.lag_days===1&&TOPICS.includes(p.factor)&&related.row.causal_status==='ASSOCIATION_ONLY'
-        &&related.row.direction===episode.row.direction){
-        signal.relevantTopics.push(p.factor);contextSources.push(related.row.privacy_artifact_id);
-       }
-      }
+     const view=await options.associations.inspect(user.id);
+     if(!view)return {status:'DEFERRED_BUDGET'};
+     if(view){
+      signal??=view.signals[0]?{...view.signals[0],health_date:healthDay}:null;
+      if(signal)signal={...signal,relevantTopics:view.topics.filter(r=>r.metrics.some(m=>m.metric===signal.metric&&m.direction===signal.direction)).map(r=>r.topic)};
      }
-     contextSources.push(item.row.privacy_artifact_id);break;
-    }
-    }catch(error){
-     if(error&&typeof error==='object'&&optionalContextCodes.has(error.code??error.message))optionalContextFailures.add(error);
-     throw error;
-    }
-   });
+    }catch(error){if(error&&typeof error==='object'&&optionalContextCodes.has(error.code??error.message))optionalContextFailures.add(error);throw error;}
+   }
    const selected=selectDailyQuestion({topics:TOPICS,trackingTopics:JSON.parse(prefs.topics_json),excludedTopics:JSON.parse(prefs.excluded_topics_json),history,knownFacts:facts,healthDay,targetDate,signal,metricSeries});
    if(!selected)return {status:'NO_APPROPRIATE_QUESTION'};
    const issued=await interactions.issue(actor,{kind:'DAILY',semanticKey:semantic,dayKey,category:selected.category,targetDate,reason:selected.reason,diagnostics:selected}),reply=await card(actor,issued.row),at=timestamp();

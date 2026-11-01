@@ -1,3 +1,5 @@
+import {createOnDemandAssociations,withAssociationTick} from './onDemandAssociations.js';
+import {notifyAssociation} from './associationNotifications.js';
 import {checkAndAct} from './proactiveAgent.js';
 import {createTelegram} from './telegram.js';
 import {checkLowEnergy} from './onDemandBodyAlerts.js';
@@ -42,7 +44,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
   authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
  if(![33,34,35].includes(core.schemaVersion))fail('STAGE7_V33_CONFIG_REQUIRED');
- const stores=composePhase4Stores(core),companion=await createStage7Composition({core,stores,db}),coach=createCompanionCoach({core,stores,db,companion,coachContext}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
+ const stores=composePhase4Stores(core),associations=createOnDemandAssociations({db,core,stores,now}),companion=await createStage7Composition({core,stores,db,associations}),coach=createCompanionCoach({core,stores,db,companion,coachContext}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
  const proactiveJournal=createStage7ProactiveJournal({core,db,companion});
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
  const replies=createStage7ReplyAuthority({core,db,companion});
@@ -78,7 +80,8 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  }}));
  const provider=createStage7ProductionProvider({db,core,keys,admission,env,userIds:config.userIds,beforeSend}),dispatcher=createStage7Dispatcher({core,db,companion,provider,invitations,proactiveJournal});
  async function stage7Inbound(input){
-  if(!eligible(input.user))return null;
+  if(!eligible(input.user)||(await db.getOnboarding(input.user.id))?.state!=='READY')return null;
+  if(!input.callback&&associations.question(input.text))return null;
   const request={...input,requestKey:String(input.updateId)},reply=await coach.handle({...request,deferQuery:true})??await companion.handle(request)??await companion.handleNote(input);
   return reply?{handled:true,reply}:null;
  }
@@ -109,7 +112,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   return replies.seal(actor,reply);
  }
  async function decorate({user,chatId,text,reply}){
-  if(!eligible(user)||!reply||typeof reply!=='string'&&(reply.stage7ReplyGuard||reply.bodyEnergyReplyGuard||reply.stage8ReplyGuard||reply.stage5PresentationGuard))return reply;
+  if(!eligible(user)||!reply||typeof reply!=='string'&&(reply.associationGuard||reply.stage7ReplyGuard||reply.bodyEnergyReplyGuard||reply.stage8ReplyGuard||reply.stage5PresentationGuard))return reply;
   const settings=typeof text==='string'&&/^\/settings(?:@[A-Za-z0-9_]+)?\s*$/i.test(text.trim());
   const natural=typeof text==='string'&&!text.trim().startsWith('/')&&/[?？]|睡|恢復|運動|sleep|recovery|exercise|ngủ|phục hồi|vận động|tập luyện/i.test(text);
   if(!settings&&!natural)return reply;
@@ -117,11 +120,12 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   if(settings){
    const issued=await companion.interactions.issue(actor,{kind:'QUICK',diagnostics:{settingsEntry:true}}),base=await companion.card(actor,issued.row),c=COACH_COPY[presentationLocale(await db.getLocale(user.id))];
    const button=await companion.interactions.button(actor,issued.row,{text:c.preferences,action:'preferences'});
-   return replies.seal(actor,{...base,...(reply.familySession?{familySession:reply.familySession}:{}),text:typeof reply==='string'?reply:reply.text,replyMarkup:{inline_keyboard:[...(reply.replyMarkup?.inline_keyboard??[]),[button]]},stage7View:'SETTINGS_LINK'});
+   return replies.seal(actor,{...base,...(reply.familySession?{familySession:reply.familySession}:{}),...(reply.accountSession?{accountSession:reply.accountSession}:{}),text:typeof reply==='string'?reply:reply.text,replyMarkup:{inline_keyboard:[...(reply.replyMarkup?.inline_keyboard??[]),[button]]},stage7View:'SETTINGS_LINK'});
   }
   const navigation=await coach.issue(actor);return replies.seal(actor,{...(typeof reply==='object'?reply:{}),...navigation,text:typeof reply==='string'?reply:reply.text});
  }
  async function sendReply(send,input){
+  if(input.reply?.associationGuard){const beforeSend=async()=> (!input.beforeSend||await input.beforeSend())&&await associations.verifyReply(input);return await beforeSend()?send({...input,beforeSend}):{sent:false,messageId:null,reason:'association_changed'};}
   const protectedReply=input.reply?.stage7ReplyGuard||input.reply?.stage7InteractionId||input.reply?.stage7View||input.reply?.stage7CoachContextGuard;
   const beforeSend=async()=>(!input.beforeSend||await input.beforeSend())
    &&(!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply}))
@@ -159,13 +163,14 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    const weekly=await companion.weekly.prepare(actor,{automatic:true});
    return weekly.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:weekly.deliveryId}):weekly;
   });
+  const insightResult=await step('insight',()=>notifyAssociation({db,reader:associations,user,telegram,locale,now:now()}));
   // Defer Coach for this tick after a new weekly send, without changing its
   // original schedule or manufacturing a Coach interaction for the review.
   const coachResult=await step('coach',async()=>{
-   const invitation=weeklyResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId});
+   const invitation=weeklyResult.deliveredNow||insightResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId});
    return invitation.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
   });
-  return {health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
+  return {insight:insightResult.status,health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
  async function contextJournal({userId,chatId,healthDate,answer}){
   const user=await db.getUser(userId);if(!eligible(user))return null;
@@ -179,5 +184,5 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   const prepared=await proactiveJournal.prepare({user,chatId,eventId});
   return prepared.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:prepared.deliveryId}):prepared;
  }
- return Object.freeze({contextJournal,sendProactiveJournal,stage7Inbound,stage7Reply,decorate,sendReply,tick,config,companion,coach,invitations,dispatcher});
+ return Object.freeze({contextJournal,sendProactiveJournal,stage7Inbound,stage7Reply,decorate,sendReply,tick:input=>withAssociationTick(()=>tick(input)),associations,config,companion,coach,invitations,dispatcher});
 }

@@ -40,7 +40,7 @@ async function fixture(t){
 test('original Coach Sleep/Recovery missing: actual runtime skips Coach, service returns 200, no send or receipt rewrite',async t=>{
  const f=await fixture(t),before=(await f.db.raw.execute("SELECT * FROM report_runs WHERE user_id='a'")).rows,claims=(await f.db.raw.execute("SELECT * FROM report_claims WHERE user_id='a'")).rows;
  const result=await f.app.tick(f.input);
- assert.deepEqual(result,{health:'no_health_data',low:'DISABLED',daily:'DISABLED',weekly:'DISABLED',coach:'SKIPPED'});
+ assert.deepEqual(result,{health:'no_health_data',low:'DISABLED',daily:'DISABLED',weekly:'DISABLED',coach:'SKIPPED',insight:'NO_NEW_ASSOCIATION'});
  assert.equal(f.db.processingTransactionActive(),false);
  const response=await f.service();
  assert.equal(response.status,200);assert.equal(response.body.failed,0);assert.equal(response.body.checked,1);

@@ -27,7 +27,7 @@ import { loadDailyMetricsDetailed, seriesOf } from './dailyMetrics.js';
 import { assessJournalAssociation, READINESS_STATUS } from './readiness.js';
 import { journalAssociation } from './analytics/correlation.js';
 import {
-  recordInsight, reviseInsight, INSIGHT_STATUS, EVIDENCE_SOURCE,
+  INSIGHT_STATUS,statusFromEvidence,nextStatusFor,
 } from './healthMemory.js';
 import { decideFollowUp } from './attention.js';
 import { buildFollowUpMessage, guardProactiveMessage } from './proactiveMessages.js';
@@ -143,42 +143,13 @@ export async function reanalyzeAfterAnswer({
 
   let changed = false;
   let fromStatus = null;
-  let toStatus = null;
+  const toStatus = current
+    ? evidenceComplete?nextStatusFor(current.status,{sampleCount:assoc.n,effectSize:assoc.pearson,previousEffectSize:current.effect_size}):current.status
+    : statusFromEvidence({sampleCount:assoc.n,effectSize:assoc.pearson});
 
-  if (!current) {
-    const created = await recordInsight(db, uid, {
-      insightType: 'journal_association',
-      subject,
-      statement,
-      evidence: assoc,
-      sampleCount: assoc.n,
-      effectSize: assoc.pearson,
-    }, { now });
-    toStatus = created.status;
-    // 第一次建立、而且證據已經到 EMERGING 以上，才算「有新東西可以講」；
-    // 剛建立就是 HYPOTHESIS 的話，那不是一個值得主動告知的變化。
-    changed = created.status !== INSIGHT_STATUS.HYPOTHESIS;
-    fromStatus = null;
-  } else {
-    // ★ M-01：資料來源不完整時，這一輪的證據**不足以**改變一個長期信念。
-    //
-    // 少了這一步，一次 recovery 查詢失敗就會讓樣本數縮水，看起來像
-    // 「關係變弱了」，於是系統把一個其實仍然成立的規律降級。
-    // 那是用基礎建設故障偽造出來的生理結論。
-    const revised = await reviseInsight(db, uid, current.id, {
-      statement, evidence: assoc, sampleCount: assoc.n, effectSize: assoc.pearson,
-    }, {
-      now,
-      evidenceSource: evidenceComplete
-        ? EVIDENCE_SOURCE.AVAILABLE : EVIDENCE_SOURCE.UNAVAILABLE,
-    });
-    if (revised.ok) {
-      changed = revised.changed;
-      fromStatus = current.status;
-      toStatus = revised.status;
-    }
-  }
-
+  // Night analytics is now the sole insight writer. The existing answer
+  // interpretation remains read-only. Preserve its immediate answer outcome;
+  // only the nightly writer and daytime notifier may announce belief changes.
   // ---- 這一次的異常，到底有沒有被解釋？（稽核修正）----
   //
   // 舊版是 `changed ? EXPLAINED : STILL_UNEXPLAINED`，把「信念狀態有沒有

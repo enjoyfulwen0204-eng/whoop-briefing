@@ -66,7 +66,7 @@ test('Coach natural association response is deterministic, owner-only and bypass
  for(const q of ['咖啡對睡眠有影響嗎','How does alcohol affect me?','ruou anh huong toi the nao'])assert.ok(associationQuestion(q));
 });
 test('weekly renderer uses same numeric non-causal calculation, not saved Stage5 insight',()=>{
- const summary=summarizeJournalWeek({facts:[],history:[],topics:[],startDate:'2026-10-19',endDate:'2026-10-25'});summary.onDemand=calculateAssociations(input());for(const locale of ['zh-TW','en','vi'])assert.ok(renderJournalWeek(summary,locale).text.includes(renderAssociations(summary.onDemand,locale)));
+ const summary=summarizeJournalWeek({facts:[],history:[],topics:[],startDate:'2026-10-19',endDate:'2026-10-25'});summary.onDemand=calculateAssociations(input());for(const locale of ['zh-TW','en','vi']){const text=renderJournalWeek(summary,locale).text;for(const row of summary.onDemand.topics.filter(r=>r.status==='ASSOCIATION'))assert.ok(text.includes(renderAssociations({topics:[row]},locale).split('\n').slice(1).join('\n')));}
 });
 test('notification once weekly, ordinary shared quota, retained unknown delivery, no numeric result storage',async t=>{
  const f=await fixture(t),sent=[];const args={db:f.db,keys:f.keys,reader:f.reader,user:f.user,locale:'en',now:instant,telegram:{send:async text=>{sent.push(text);return {messageId:9};}}};

@@ -94,7 +94,7 @@ async function seedHistory(db, user, n, exposedDayIndexes) {
   }
 }
 
-test('★★★ PA13: 對照組不足時（1-2 個曝露日）絕不建立 insight；累積到真正的門檻才形成，且冪等', async () => {
+test('★★★ PA13: 舊文字回答維持分析回覆，但任何樣本數都不再寫入洞察', async () => {
   const { db, cleanup } = tempDb();
   try {
     await db.migrate();
@@ -137,10 +137,9 @@ test('★★★ PA13: 對照組不足時（1-2 個曝露日）絕不建立 insig
       category: 'alcohol', metric: 'hrv', healthDate: dateAt(19),
     });
     assert.equal(third.outcome, PROACTIVE_OUTCOME.EXPLAINED);
-    assert.equal(third.insightChanged, true);
+    assert.equal(third.insightChanged, false);
     let insights = await db.getActiveInsights(user.id, {});
-    assert.equal(insights.length, 1, '對照組剛好足夠時，應該恰好形成一筆 insight');
-    assert.notEqual(insights[0].status, INSIGHT_STATUS.RETIRED);
+    assert.equal(insights.length, 0, '只有夜間 B2 明確正反組的 writer 可以建立洞察');
 
     // 冪等：同一個錨點再分析一次，不該生出第二筆 insight（reviseInsight
     // 的 reconfirm 分支——同一個 subject 永遠只有一筆非 RETIRED 的列）。
@@ -149,7 +148,7 @@ test('★★★ PA13: 對照組不足時（1-2 個曝露日）絕不建立 insig
       category: 'alcohol', metric: 'hrv', healthDate: dateAt(19),
     });
     insights = await db.getActiveInsights(user.id, {});
-    assert.equal(insights.length, 1, '重跑同一個分析不該產生重複的 insight');
+    assert.equal(insights.length, 0, '重跑文字回答仍不得建立洞察');
   } finally {
     await db.close();
     cleanup();

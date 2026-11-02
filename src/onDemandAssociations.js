@@ -1,4 +1,5 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {pearson} from './analytics/correlation.js';
 import {mean,stddev} from './analytics/statistics.js';
 import {addDays,localDate} from './time.js';
 import {TOPICS,TOPIC_ICONS,JOURNAL_COPY} from './stage7Registry.js';
@@ -20,13 +21,14 @@ export function calculateAssociations({facts,days,today}){
    if(!exposure.has(date))exposure.set(date,new Set());exposure.get(date).add(f.exposure_state);
   }
   const yes=[],no=[];for(const [date,states] of exposure)if(states.size===1)(states.has('EXPOSED')?yes:no).push(byDate.get(date));
-  let eligibleMetrics=0;const metrics=[];
+  let eligibleMetrics=0;const metrics=[],evidence=[];
   for(const metric of ASSOCIATION_METRICS){const a=yes.map(d=>d[metric]).filter(Number.isFinite),b=no.map(d=>d[metric]).filter(Number.isFinite),base=[...byDate.values()].filter(d=>d.health_date>=baselineFrom).map(d=>d[metric]).filter(Number.isFinite),sd=stddev(base);
    if(a.length<5||b.length<5||sd===null)continue;
-   eligibleMetrics++;const delta=mean(a)-mean(b);if(delta===0||Math.abs(delta)<sd*.5||metric==='hrv'&&mean(b)<=0)continue;
+   eligibleMetrics++;const delta=mean(a)-mean(b);
+   evidence.push({metric,n:a.length+b.length,exposed:a.length,unexposed:b.length,effectSize:pearson([...a.map(()=>1),...b.map(()=>0)],[...a,...b]),difference:metric==='hrv'&&mean(b)>0?delta/mean(b)*100:delta});if(delta===0||Math.abs(delta)<sd*.5||metric==='hrv'&&mean(b)<=0)continue;
    metrics.push({metric,difference:metric==='hrv'?delta/mean(b)*100:delta,direction:delta>0?'high':'low',exposed:a.length,unexposed:b.length});
   }
-  return {topic,exposed:yes.length,unexposed:no.length,status:yes.length<5||no.length<5||eligibleMetrics===0?'INSUFFICIENT':metrics.length?'ASSOCIATION':'NO_DIFFERENCE',metrics};
+  return {topic,exposed:yes.length,unexposed:no.length,status:yes.length<5||no.length<5||eligibleMetrics===0?'INSUFFICIENT':metrics.length?'ASSOCIATION':'NO_DIFFERENCE',metrics,evidence};
  });
  const signals=ASSOCIATION_METRICS.map(metric=>deviationSignal({metric,anchorDate:today,series:[...byDate.values()].map(d=>({date:d.health_date,value:d[metric]})).filter(d=>Number.isFinite(d.value)),capabilityStatus:'SUPPORTED'})).filter(Boolean);
  return {today,topics:result,signals};

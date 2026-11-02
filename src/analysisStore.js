@@ -420,6 +420,13 @@ export function createAnalysisStore(client) {
     return rowsOf(rs);
   }
 
+  async function getRecentInsights(userId) {
+    const uid=requireUserId(userId,'getRecentInsights');
+    return rowsOf(await client.execute({sql:`SELECT * FROM health_insights WHERE user_id=?${await legacyInsightScope()}
+      AND NOT EXISTS (SELECT 1 FROM health_insights newer WHERE newer.user_id=? AND newer.subject=health_insights.subject AND newer.id>health_insights.id)
+      ORDER BY id DESC LIMIT 501`,args:[uid,uid]}));
+  }
+
   /** 版本鏈：從某一列往回追它取代了誰。 */
   async function getInsightHistory(userId, id) {
     const uid = requireUserId(userId, 'getInsightHistory');
@@ -577,6 +584,7 @@ export function createAnalysisStore(client) {
     getInsight,
     getActiveInsights,
     getInsightHistory,
+    getRecentInsights,
     createExperiment,
     updateExperiment,
     getExperiment,

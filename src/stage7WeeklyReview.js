@@ -1,7 +1,8 @@
+import {latestMemory,memoryEvidence,INSIGHT_ICONS} from './associationMemory.js';
 import {renderAssociations} from './onDemandAssociations.js';
 import {proactiveQuota,proactiveSlotAllowed} from './proactiveQuota.js';
 import {isProactiveJournalDelivery} from './stage7ProactiveJournal.js';
-import {TOPICS,JOURNAL_COPY,presentationLocale} from './stage7Registry.js';
+import {TOPICS,TOPIC_ICONS,JOURNAL_COPY,presentationLocale} from './stage7Registry.js';
 import {completedWeeks,localDate,localWeekday,localHour,localMidnightUtc,addDays} from './time.js';
 import {t} from './localization.js';
 import {WEEKLY} from './config.js';
@@ -33,16 +34,28 @@ export function summarizeJournalWeek({facts,history,topics,startDate,endDate,ass
  const next=topics.filter(c=>coverage[c]<4).sort((a,b)=>coverage[a]-coverage[b]||a.localeCompare(b))[0]??null;
  return {startDate,endDate,daysRecorded:dates.size,frequency,coverage,responses,next,associations,sampling:'ADAPTIVE_OBSERVATIONAL'};
 }
+const WEEK_COPY={
+ 'zh-TW':{empty:'這週還沒有生活紀錄',days:'天',other:'其他主題還沒有紀錄',link:'🔍 生活習慣 × 健康',accumulating:'還在累積資料，目前最接近的是：'},
+ en:{empty:'No lifestyle records this week',days:'days',other:'Other topics have no records yet',link:'🔍 Habits × health',accumulating:'Still gathering data. Closest so far:'},
+ vi:{empty:'Chưa có ghi chép sinh hoạt tuần này',days:'ngày',other:'Các chủ đề khác chưa có ghi chép',link:'🔍 Thói quen × sức khỏe',accumulating:'Đang tích lũy dữ liệu. Gần đủ nhất:'},
+};
 export function renderJournalWeek(summary,locale){
- const l=presentationLocale(locale),c=JOURNAL_COPY[l],name=category=>c.topics[TOPICS.indexOf(category)];
- const lines=[`🗓 ${c.weekTitle} · ${summary.startDate}–${summary.endDate}`,`📔 ${c.recorded}: ${summary.daysRecorded}/7`,
-  ...Object.entries(summary.frequency).filter(([,n])=>n>0).map(([topic,n])=>`${c.observed}: ${name(topic)} · ${n}`),
-  ...Object.entries(summary.coverage).map(([topic,n])=>`${c.coverage}: ${name(topic)} · ${n}/7`),
-  `🤔 ${c.unsure}: ${summary.responses.NOT_SURE} · ⏭ ${c.skip}: ${summary.responses.SKIPPED}`,
-  `${c.unknown}: ${summary.responses.NO_RESPONSE} · ${c.notAsked}: ${summary.responses.NOT_ASKED}`,c.missing];
- if(summary.onDemand)lines.push(renderAssociations(summary.onDemand,l));
- else if(!summary.associations.length)lines.push(c.insufficient);
- for(const a of summary.associations)lines.push(`${c.association}: ${name(a.factor)} / ${t(l,`metric.${a.metric}`)}`);
+ const l=presentationLocale(locale),c=JOURNAL_COPY[l],w=WEEK_COPY[l],name=category=>`${TOPIC_ICONS[category]} ${c.topics[TOPICS.indexOf(category)]}`;
+ const date=d=>`${Number(d.slice(5,7))}/${Number(d.slice(8,10))}`;
+ const recorded=Object.entries(summary.frequency).filter(([,n])=>n>0);
+ const lines=[`🗓 ${c.weekTitle}（${date(summary.startDate)}–${date(summary.endDate)}）`,`📔 ${c.recorded}: ${summary.daysRecorded}/7`,
+  recorded.length?recorded.map(([topic,n])=>`${name(topic)} ${n} ${w.days}`).join('｜')+(recorded.length<TOPICS.length?`｜${w.other}`:''):w.empty];
+ if(summary.responses.NOT_SURE>0)lines.push(`🤔 ${c.unsure}: ${summary.responses.NOT_SURE}`);
+ if(summary.responses.SKIPPED>0)lines.push(`⏭ ${c.skip}: ${summary.responses.SKIPPED}`);
+ lines.push('',w.link);
+ if(summary.onDemand){
+  const topics=summary.onDemand.topics,found=topics.filter(r=>r.status==='ASSOCIATION');
+  const selected=found.length?found:topics.filter(r=>r.exposed+r.unexposed>0).sort((a,b)=>(b.exposed+b.unexposed)-(a.exposed+a.unexposed)||TOPICS.indexOf(a.topic)-TOPICS.indexOf(b.topic)).slice(0,2);
+  if(!found.length)lines.push(w.accumulating);
+  if(!selected.length)lines.push(c.insufficient);
+  for(const row of selected){const icon=INSIGHT_ICONS[summary.insightStatuses?.[row.topic]];
+   lines.push((icon?icon+' ':'')+renderAssociations({topics:[row]},l).split('\n').slice(1).join('\n'));}
+ }else lines.push(c.insufficient);
  if(summary.next)lines.push(`🔎 ${c.next}: ${name(summary.next)}`);
  return {text:lines.join('\n'),summary};
 }
@@ -57,6 +70,7 @@ export function createStage7WeeklyReview({core,stores,db,companion,associations:
    if(associationReader&&!onDemand)return {status:'DEFERRED_BUDGET'};
    const summary=summarizeJournalWeek({facts,history,topics:JSON.parse(prefs.topics_json),startDate:week.startDate,endDate:week.endDate,associations});
    if(onDemand)summary.onDemand={today:onDemand.today,topics:onDemand.topics};
+   summary.insightStatuses=Object.fromEntries((await latestMemory(db,actor.control.userId)).filter(r=>r.status!=='HYPOTHESIS').map(r=>[memoryEvidence(r).topic,r.status]));
    const rendered=renderJournalWeek(summary,await db.getLocale(actor.control.userId));
    return {...rendered,projectionDigest:core.keys.lookup(['stage7-weekly-projection-v1',actor.control.userId,rendered,facts,history]),sourceInteractionIds:history.map(h=>h.privacy_artifact_id),sourceEvidenceIds:associations.map(a=>a.evidencePrivacyId),sourceFactIds:[...new Set([...(onDemand?.factIds??[]),...facts.filter(f=>f.health_date>=week.startDate&&f.health_date<=week.endDate).map(f=>f.privacy_artifact_id)])]};
   });

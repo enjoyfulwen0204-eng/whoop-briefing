@@ -52,7 +52,7 @@ test('explicit skipped Journal records remain missingness and global notificatio
  assert.equal((await f.read(p.deliveryId)).attempt_count,0);assert.equal(provider.calls.length,0);
 });
 
-for(const locale of ['zh-TW','en','vi'])test(`automatic weekly uses actual own completed-week records and explicit missingness in ${locale}`,async t=>{
+for(const locale of ['zh-TW','en','vi'])test(`automatic weekly uses actual own completed-week counts with compact presentation in ${locale}`,async t=>{
  const f=await fixture(t,{locale}),proposal=await f.prepare(),row=await f.read(proposal.deliveryId);
  assert.equal(proposal.status,'PROPOSED');assert.equal(proposal.summary.daysRecorded,1);assert.equal(proposal.summary.responses.NOT_ASKED,7);
  assert.equal(row.kind,'WEEKLY');assert.equal(row.execution_mode,'SHADOW');assert.equal(row.interaction_id,null);
@@ -62,7 +62,7 @@ for(const locale of ['zh-TW','en','vi'])test(`automatic weekly uses actual own c
  const provider=createSyntheticJournalTelegram(),dispatcher=createStage7Dispatcher({...f,provider});
  const result=await dispatcher.dispatch({...f.request,deliveryId:row.delivery_id});
  assert.equal(result.status,'DELIVERED');assert.equal(result.deliveredNow,true);
- assert.match(provider.calls[0].text,/2026-09-14–2026-09-20/);assert.ok(provider.calls[0].text.includes(JOURNAL_COPY[locale].missing));
+ assert.match(provider.calls[0].text,/9\/14–9\/20/);assert.equal(provider.calls[0].text.includes(JOURNAL_COPY[locale].missing),false);
  assert.equal(provider.calls[0].text.includes('undefined'),false);assert.deepEqual(provider.calls[0].replyMarkup,{inline_keyboard:[]});
  assert.equal((await f.read(row.delivery_id)).message_id,result.messageId);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,1);

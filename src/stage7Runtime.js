@@ -1,5 +1,5 @@
 import {createOnDemandAssociations,withAssociationTick} from './onDemandAssociations.js';
-import {notifyAssociation} from './associationNotifications.js';
+import {notifyMemory} from './insightNotifications.js';
 import {checkAndAct} from './proactiveAgent.js';
 import {createTelegram} from './telegram.js';
 import {checkLowEnergy} from './onDemandBodyAlerts.js';
@@ -163,7 +163,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    const weekly=await companion.weekly.prepare(actor,{automatic:true});
    return weekly.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:weekly.deliveryId}):weekly;
   });
-  const insightResult=await step('insight',()=>notifyAssociation({db,keys,reader:associations,user,telegram,locale,now:now()}));
+  const insightResult=await step('insight',()=>notifyMemory({db,keys,user,telegram,locale,now:now()}));
   // Defer Coach for this tick after a new weekly send, without changing its
   // original schedule or manufacturing a Coach interaction for the review.
   const coachResult=await step('coach',async()=>{

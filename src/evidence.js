@@ -275,7 +275,7 @@ export function fromInsight(row, { recalculatedAt = null } = {}) {
   } catch { /* 壞掉的 JSON 就當沒有 */ }
 
   return makeEvidenceCard({
-    metric: row.subject,
+    metric: evidence?.version==='b2-memory-v1'?evidence.metric:row.subject,
     sampleCount: row.sample_count === null || row.sample_count === undefined
       ? null : Number(row.sample_count),
     method: row.insight_type ?? 'insight',

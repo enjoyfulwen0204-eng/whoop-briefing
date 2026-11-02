@@ -23,7 +23,7 @@ import { createRouter } from '../src/bot/router.js';
 import { decide as decideFn } from '../src/attention.js';
 import { ANTI_SPAM_POLICY } from '../src/proactivePolicy.js';
 import { PROACTIVE_DECISION, PROACTIVE_OUTCOME, SCHEMA_VERSION } from '../src/schema.js';
-import { INSIGHT_STATUS } from '../src/healthMemory.js';
+import { INSIGHT_STATUS,recordInsight } from '../src/healthMemory.js';
 import { fakeTelegram } from './fakes.js';
 import { ALICE, BOB, seedAliceAndBob, seedSingleUser } from './users.js';
 
@@ -218,7 +218,8 @@ test('★★★ 稽核 #2: 已經 SUPPORTED 的規律被再次佐證時，不可
     }
     const anchor = healthDateOf(user, 44);
 
-    // 第一次：建立 insight（此時 changed=true）
+    // 既有洞察由獨立 writer 建立；文字回答不再寫入。
+    await recordInsight(db,user.id,{insightType:'journal_association',subject:'alcohol_vs_hrv',statement:'synthetic',evidence:{},sampleCount:45,effectSize:-0.8});
     const first = await reanalyzeAfterAnswer({
       db, userId: user.id, timezone: user.timezone,
       category: 'alcohol', metric: 'hrv', healthDate: anchor,

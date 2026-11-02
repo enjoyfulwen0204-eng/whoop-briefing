@@ -1924,7 +1924,7 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
     ...compatibility.wrap(createAnalysisStore(compatibility.client),['saveHealthspanMetrics','getLatestHealthspanMetrics',
       'saveHealthspanSnapshot','getHealthspanSnapshots','savePrediction','recordPredictionActual','getPredictions','getPredictionActualDates','savePredictionModel',
       'getLatestPredictionModel','getPredictionModels','createInsight','supersedeInsight','reconfirmInsight','updateInsightStatus',
-      'getInsight','getActiveInsights','getInsightHistory']),
+      'getInsight','getActiveInsights','getInsightHistory','getRecentInsights']),
     ...legacyExperimentAdapter({client,keys:phase4Keys,foundation:privacyFoundation,transaction:processing.transaction,privacy}),
     ...compatibility.wrap(createProactiveStore(compatibility.client),['getProactiveState','setProactiveState','claimProactiveEvent',
       'releaseSuppressedProactiveEvent','resolveProactiveEvent','resolveProactiveEventIfUnresolved','listUnresolvableProactiveEvents',

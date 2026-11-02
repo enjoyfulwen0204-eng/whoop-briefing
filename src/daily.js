@@ -1,3 +1,4 @@
+import {morningCoachFooter} from './morningCoachFooter.js';
 /**
  * 每日簡報流程。
  *
@@ -311,6 +312,7 @@ export async function runDaily({
         else bodyEnergySection=null;
       }catch{bodyEnergySection=null;}
     }
+    text+=await morningCoachFooter({text,briefing,locale,coach,db,userId:uid});
     // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
     // 不是執行當下的日期 —— 使用者要知道這是哪一天的報告。
 

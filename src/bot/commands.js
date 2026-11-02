@@ -1,3 +1,4 @@
+import {latestMemory,renderMemory} from '../associationMemory.js';
 /**
  * 指令處理。
  *
@@ -247,60 +248,9 @@ export async function handleJournal({ db, userId, argsText, timezone, now, local
 // /insights [history]
 // ---------------------------------------------------------------------------
 export async function handleInsights({ db, userId, argsText, locale = 'zh-TW' }) {
-  const wantHistory = /^history$/i.test(String(argsText ?? '').trim());
-
-  let all = [];
-  try {
-    all = await db.getActiveInsights(userId, {});
-  } catch { /* 沒表就當空的 */ }
-
-  // 預設只顯示 SUPPORTED / EMERGING / HYPOTHESIS，不顯示 RETIRED
-  const visible = all.filter((i) => [
-    INSIGHT_STATUS.SUPPORTED, INSIGHT_STATUS.EMERGING, INSIGHT_STATUS.HYPOTHESIS,
-  ].includes(i.status));
-
-
-    const lines = [t(locale, 'bot.insights.title'), ''];
-    if (!visible.length) return `${lines.join('\n')}${t(locale, 'bot.insights.empty')}`;
-    for (const i of visible) {
-      const match = /^([a-z_]+)_vs_([a-z_]+)$/.exec(String(i.subject ?? ''));
-      const factor = match && ({ late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' })[match[1]]
-        || match?.[1];
-      const metric = match?.[2];
-      const factorKey = factor && `factor.${factor}`;
-      const metricKey = metric && `metric.${metric}`;
-      if (!factorKey || !metricKey || !Object.hasOwn({
-        alcohol:1,caffeine:1,stress:1,lateMeal:1,lateSleep:1,sickness:1,travel:1,
-        exercise:1,sauna:1,supplement:1,medication:1,flight:1,location:1,massage:1,food:1,custom:1,
-      }, factor) || !Object.hasOwn({ hrv:1,rhr:1,recovery:1,respiratory_rate:1 }, metric)) {
-        lines.push(t(locale, 'bot.insights.unavailable'));
-        continue;
-      }
-      const direction = !Number.isFinite(i.effect_size)
-        ? 'Unknown' : i.effect_size > 0 ? 'Positive' : 'Negative';
-      const statement = t(locale, 'bot.insights.line', {
-        factor: t(locale, factorKey), metric: t(locale, metricKey),
-        direction: t(locale, `bot.insights.direction${direction}`),
-        effect: Number.isFinite(i.effect_size) ? formatNumber(locale, i.effect_size, 2) : '—',
-        count: Number.isFinite(i.sample_count) ? formatNumber(locale, i.sample_count) : '—',
-        status: t(locale, `bot.insights.status.${i.status}`),
-      });
-      lines.push(statement, t(locale, 'bot.insights.meta', {
-        count: Number.isFinite(i.sample_count) ? formatNumber(locale, i.sample_count) : '—',
-        version: i.version,
-      }));
-      if (wantHistory && Number(i.supersedes_id)) {
-        const chain = await db.getInsightHistory(userId, Number(i.id)).catch(() => []);
-        for (const old of chain.slice(1)) lines.push(t(locale, 'bot.insights.history', {
-          version: old.version, status: t(locale, `bot.insights.status.${old.status}`),
-          statement: t(locale, 'bot.insights.unavailable'),
-        }));
-      }
-      lines.push('');
-    }
-    lines.push(t(locale, 'bot.insights.note'));
-    if (!wantHistory) lines.push(t(locale, 'bot.insights.historyHint'));
-    return lines.join('\n');
+  const rows=await latestMemory(db,userId);
+  const visible=rows.filter(r=>r.status!=='HYPOTHESIS').sort((a,b)=>({SUPPORTED:0,EMERGING:1,WEAKENED:2,RETIRED:3}[a.status]??9)-({SUPPORTED:0,EMERGING:1,WEAKENED:2,RETIRED:3}[b.status]??9));
+  return visible.map(row=>renderMemory(row,locale)).filter(Boolean).join('\n\n')||t(locale,'bot.insights.empty');
 }
 
 // ---------------------------------------------------------------------------

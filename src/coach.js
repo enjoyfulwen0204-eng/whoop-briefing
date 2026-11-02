@@ -574,6 +574,14 @@ export function createCoach({
       }
     },
 
+    async footerPlan(fragments, {locale='zh-TW'}={}) {
+      const text=await complete({system:NARRATIVE_PLAN_SYSTEM,
+        userMessage:`Locale: ${locale}. Select exactly 2–3 supplied sentences for a short coach footer (Chinese: at most 120 characters). Return only {"order":[ids]}.\n`
+          +fragments.map(f=>`${f.id}: ${f.text}`).join('\n'),
+        maxTokens:COACH.NARRATIVE_PLAN_MAX_TOKENS,purpose:AI_PURPOSE.DAILY,promptVersion:PROMPT_VERSIONS.DAILY});
+      return extractJson(text);
+    },
+
     /** 失敗回 null → 上層走 fallback（照樣發數據簡報）。 */
     async daily(briefing) {
       try {

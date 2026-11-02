@@ -101,10 +101,17 @@ export function selectBodyEnergyInputs(input) {
     if(synced>asOf||updated!==null&&updated>asOf){exclude(type,row,'SOURCE_AFTER_AS_OF');notReproducible=true;return false;}
     return true;
   }
-  function observe(type,row,day=null) {
+  function observe(type,row,day=null,matchedSleep=null) {
     reference(type,row);
     if(row.updated_at==null)warnings.add('SOURCE_VERSION_UNKNOWN');
-    if(day!==null&&row.health_date!==day)warnings.add('HEALTH_DATE_REALIGNMENT');
+    if(day!==null&&row.health_date!==day) {
+      // Recovery dates are a delayed copy of the sleep date in store.js.
+      // Only recoveryFor's exact, validated sleep_id pairing can make that
+      // copy informational; the sleep's own date still has to be consistent.
+      const linkedRecovery=type==='recovery'&&matchedSleep!==null
+        &&String(row.sleep_id)===String(matchedSleep.id)&&matchedSleep.health_date===day;
+      (linkedRecovery?reasons:warnings).add('HEALTH_DATE_REALIGNMENT');
+    }
     return project(row,fields[type]);
   }
   function synchronization(type) {
@@ -155,7 +162,7 @@ export function selectBodyEnergyInputs(input) {
   if(!main)reasons.add('MAIN_SLEEP_MISSING');
   if(main&&!recovery)reasons.add('MATCHED_RECOVERY_MISSING');
   const mainSnapshot=main?observe('sleep',main,healthDate):null;
-  const recoverySnapshot=recovery?observe('recovery',recovery,healthDate):null;
+  const recoverySnapshot=recovery?observe('recovery',recovery,healthDate,main):null;
   for(const [raw,name,valid] of [[main?.sleep_performance_percentage,'SLEEP_PERFORMANCE',x=>x>=0&&x<=100],
     [recovery?.hrv_rmssd_milli,'HRV',x=>x>0],[recovery?.resting_heart_rate,'RHR',x=>x>0]])
     if(raw!=null&&(!finite(raw)||!valid(raw))){warnings.add(`${name}_INVALID`);failedRequired=true;}
@@ -171,7 +178,7 @@ export function selectBodyEnergyInputs(input) {
     for(const [component,field] of [['hrv','hrv_rmssd_milli'],['rhr','resting_heart_rate']]) {
       if(baseline[component].length>=C.baselineTarget)continue;
       if(!finite(recovery[field])||recovery[field]<=0){exclude('recovery',recovery,`BASELINE_${component.toUpperCase()}_INVALID`);continue;}
-      baseline[component].push({health_date:day,value:recovery[field],sleep:observe('sleep',sleep,day),recovery:observe('recovery',recovery,day)});
+      baseline[component].push({health_date:day,value:recovery[field],sleep:observe('sleep',sleep,day),recovery:observe('recovery',recovery,day,sleep)});
     }
   }
   let load={kind:'NONE',rows:[],sync:null},naps=[];

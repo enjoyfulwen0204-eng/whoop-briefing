@@ -14,7 +14,7 @@ export async function notifyMemory({db,keys,user,telegram,locale,now=new Date()}
  if(history.length>500)throw Error('INSIGHT_NOTIFICATION_HISTORY_BOUNDS');
  if(history.some(row=>row.created_at>=since))return {status:'ALREADY_RESERVED'};
  const notified=new Set(history.map(r=>{try{return JSON.parse(r.reason_json).insightVersion;}catch{return null;}}));
- const selected=selectMemoryChange(await latestMemory(db,user.id),week,notified);
+ const selected=selectMemoryChange(await latestMemory(db,user.id),since,notified);
  if(!selected)return {status:'NO_NEW_INSIGHT'};
  const identity=`${selected.id}:${selected.version}`,started=Date.now(),clock=()=>new Date(now.getTime()+Date.now()-started);
  const verify=async()=>{

@@ -1,4 +1,4 @@
-import {recordInsight,reviseInsight} from './healthMemory.js';
+import {recordInsight,reviseInsight,nextStatusFor} from './healthMemory.js';
 import {localDate} from './time.js';
 import {renderAssociations} from './onDemandAssociations.js';
 import {currentExecutionBudget} from './executionBudget.js';
@@ -35,6 +35,8 @@ export async function updateAssociationMemory({db,user,reader,view,now=new Date(
     difference:metric.difference,view:{today:view.today,topics:[{...topic,evidence:undefined,metrics:shown}]}};
    const payload={insightType:'journal_association',subject,statement:renderAssociations(evidence.view,'en'),
     evidence,sampleCount:metric.n,effectSize:shown.length?metric.effectSize:0};
+   const unchanged=current&&nextStatusFor(current.status,{sampleCount:payload.sampleCount,effectSize:payload.effectSize,previousEffectSize:current.effect_size})===current.status;
+   evidence.statusChangedAt=unchanged?memoryEvidence(current)?.statusChangedAt??null:now.toISOString();
    if(current){
     const revised=await reviseInsight(db,user.id,current.id,payload,{now});
     if(!revised.ok)throw Object.assign(Error('INSIGHT_REVISION_FENCED'),{code:'INSIGHT_REVISION_FENCED'});
@@ -53,6 +55,7 @@ export function renderMemory(row,locale='zh-TW',now=new Date()){
   ...(row.status==='RETIRED'?[`${c.retired} ${String(row.retired_at??row.last_recalculated_at).slice(0,10)}`]:[]),c.caution].join('\n');
 }
 export function selectMemoryChange(rows,weekStart,notified=new Set()){
- return rows.filter(r=>INSIGHT_ICONS[r.status]&&!notified.has(`${r.id}:${r.version}`))
+ return rows.filter(r=>INSIGHT_ICONS[r.status]&&!notified.has(`${r.id}:${r.version}`)
+   &&Date.parse(memoryEvidence(r)?.statusChangedAt)>=Date.parse(weekStart))
   .sort((a,b)=>INSIGHT_PRIORITY[a.status]-INSIGHT_PRIORITY[b.status]||a.id-b.id)[0]??null;
 }

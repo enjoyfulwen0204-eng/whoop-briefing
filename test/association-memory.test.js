@@ -26,8 +26,10 @@ test('weekly notification prioritizes supported/retired; retains unknown ACK res
  const args={db:f.db,keys:f.keys,user:f.user,locale:'en',now:at,telegram:{send:async()=>{sends++;return {};}}};
  assert.equal((await notifyMemory(args)).status,'UNKNOWN');assert.equal((await notifyMemory(args)).status,'ALREADY_RESERVED');assert.equal(sends,1);
  assert.deepEqual(await proactiveQuota(f.db.raw,{userId:'a',timezone:f.user.timezone,now:at}),{total:1,health:0,ask:0});
- assert.equal(selectMemoryChange([{id:1,version:1,status:'WEAKENED'},{id:2,version:1,status:'EMERGING'},{id:3,version:1,status:'RETIRED'}],'2026-01-01').id,3);
- assert.equal(selectMemoryChange([{id:3,version:1,status:'RETIRED'}],'2026-01-01',new Set(['3:1'])),null);
+ const rows=[{id:1,version:1,status:'WEAKENED'},{id:2,version:1,status:'EMERGING'},{id:3,version:1,status:'RETIRED'}].map(r=>({...r,evidence_json:JSON.stringify({version:'b2-memory-v1',statusChangedAt:at.toISOString()})}));
+ assert.equal(selectMemoryChange(rows,'2026-09-14').id,3);
+ assert.equal(selectMemoryChange([rows[2]],'2026-09-14',new Set(['3:1'])),null);
+ assert.equal(selectMemoryChange(rows,'2026-09-21'),null,'unchosen changes do not become next week’s notifications');
 });
 test('night is sole automatic memory writer and B2 old notifier is disconnected; prediction policy remains closed',()=>{
  const r=readFileSync(new URL('../src/proactiveReanalysis.js',import.meta.url),'utf8');assert.doesNotMatch(r,/await (?:recordInsight|reviseInsight|retireInsight)\(/);
@@ -43,4 +45,5 @@ test('memory notifications respect quiet/pause and revalidate the selected versi
  await f.db.raw.execute({sql:'UPDATE user_notification_preferences SET notifications_paused=0 WHERE user_id=?',args:['a']});
  const guardedDb={...f.db,getInsight:async()=>null};
  assert.equal((await notifyMemory({...args,db:guardedDb})).status,'ALREADY_RESERVED_OR_LIMITED');assert.equal(sends,0);
+ assert.equal((await notifyMemory({...args,now:new Date('2026-09-21T06:00:00Z')})).status,'NO_NEW_INSIGHT');assert.equal(sends,0);
 });

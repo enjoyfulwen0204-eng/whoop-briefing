@@ -7,6 +7,38 @@ For the Phase 4 v31 transition, [deployment control](phase4-deployment-control.m
 Its checked-in Worker target is `*/10 0-3 * * *` UTC. The live provider trigger is
 unverified here and remains unchanged until a separately authorized deployment.
 
+## 用 Render SSH 計算 Config Proof
+
+以下是恢復版本的操作步驟；不執行下方歷史版本的 migration 或金鑰輪替。
+
+1. 先取得部署與 SSH 存取授權。若 Web Shell 不穩定，使用專用
+   `~/.ssh/render_whoop` Ed25519 金鑰；不得覆蓋既有金鑰、輸出或複製私鑰。
+   只將 `.pub` 公鑰加入 Render Account Settings → SSH Public Keys，名稱
+   `whoop-codex`。這是帳戶層級存取，僅用於本服務。
+2. 從 `srv-dahs71qd0e5s738n94c0` 服務的 Connect → SSH 複製當前連線目標，
+   使用 `ssh -i ~/.ssh/render_whoop -o IdentitiesOnly=yes <Dashboard 顯示的目標>`。
+   首次連線須核對 [Render 官方區域 fingerprint](https://render.com/docs/ssh#renders-public-key-fingerprints)，
+   不得停用 host-key verification；不要使用 ephemeral shell。
+3. 等自然 cron 完成後開始變更窗口。只儲存 `PHASE4_RELEASE_SHA`，部署指定 commit，
+   核對 live SHA、`/health` 和啟動錯誤，再重新 SSH 到新 instance。
+4. 在遠端專案根目錄核對 `git rev-parse HEAD`、`RENDER_GIT_COMMIT` 與
+   `PHASE4_RELEASE_SHA` 全部等於已批准的完整 SHA，並確認 `RENDER_SERVICE_ID`
+   是上述服務。任何不符立即停止，不計算 proof。
+5. 只在遠端 Node 程序內，以現有 `phase4AuthorityKeys(process.env)`、
+   `publicBetaConfiguration(process.env)` 呼叫
+   `configurationProof(keys, config, process.env)`；不啟動 App、資料庫、migration、
+   runtime admission 或任何 provider。不要輸出環境變數、message 或 stack；
+   失敗只回傳固定錯誤碼。
+6. Proof 只經 SSH 回傳到當次操作的記憶體，直接套用 Cloudflare 的
+   `BRIEFING_CONFIG_PROOF`，同時更新 `BRIEFING_RELEASE_SHA`；不要寫入 shell history、
+   repo、文件、報告或應用程式 log，也不可把 Render 環境值搬到本機計算。
+   其餘 Worker 設定與 secret 維持原值。
+7. 部署 Worker 後等下一次自然 cron，核對 readiness 200、companion 200 與失敗 0 人；
+   不手動觸發、不發測試訊息。若失敗，依該次 Owner 批准的已知 SHA／proof 配對回退，
+   保留 main 與原資料，不自行修改程式或金鑰。
+
+本小節的文件 commit 與執行版本分開；僅文件變更不需要重新部署。
+
 ## V1.2 scheduler facts
 
 | Item | Value |

@@ -127,7 +127,7 @@ export function selectBodyEnergyInputs(input) {
   for(const type of ['sleep','recovery']) {
     const age=sync[type].age_ms;
     if(age===null||age>C.requiredSyncMaxHours*3600000){reasons.add(`${type.toUpperCase()}_SYNC_${age===null?'MISSING':'EXPIRED'}`);failedRequired=true;}
-    else if(age>C.freshMinutes*60000)warnings.add(`${type.toUpperCase()}_STALE`);
+    else if(age>C.freshMinutes*60000)reasons.add(`${type.toUpperCase()}_STALE`);
   }
   const candidates=[];
   for(const row of sources.sleep) {
@@ -224,7 +224,7 @@ export function selectBodyEnergyInputs(input) {
     }
   }
   if(load.kind==='NONE')warnings.add('LOAD_UNAVAILABLE');
-  else if(load.sync.age_ms>C.freshMinutes*60000)warnings.add(`${load.kind==='CYCLE'?'CYCLE':'WORKOUT'}_STALE`);
+  else if(load.sync.age_ms>C.freshMinutes*60000)(load.kind==='CYCLE'?reasons:warnings).add(`${load.kind==='CYCLE'?'CYCLE':'WORKOUT'}_STALE`);
   for(const code of warnings)reasons.add(code);
   const manifest={manifest_version:C.manifest,algorithm_version:C.algorithm,constants_version:C.constants,baseline_version:C.baseline,
     constants_hash:BODY_ENERGY_CONSTANTS_HASH,
@@ -240,4 +240,14 @@ export function selectBodyEnergyInputs(input) {
     warnings:[...warnings].sort(),reasons:[...reasons].sort(),
     exclusions:exclusions.sort((a,b)=>binaryCompare(canonicalJson(a),canonicalJson(b)))};
   return {manifest,notReproducible,references:[...references.values()].sort((a,b)=>binaryCompare(canonicalJson(a),canonicalJson(b)))};
+}
+
+/** Presentation metadata only, from the same validated capture as the score.
+ * Unselected workout/cycle resources cannot make its timestamp older. */
+export function bodyEnergyDataTime(manifest) {
+  if(!manifest.reasons.some(code=>['SLEEP_STALE','RECOVERY_STALE','CYCLE_STALE','WORKOUT_STALE'].includes(code)))return null;
+  const resources=[manifest.sync.sleep,manifest.sync.recovery,...(manifest.load.sync?[manifest.load.sync]:[])];
+  const times=resources.map(row=>instant(row.last_success_at));
+  if(times.some(value=>value===null))return null;
+  return exactBodyInstant(Math.min(...times));
 }

@@ -1,6 +1,6 @@
 import {currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import { BODY_ENERGY as C, bodyEnergyVersion } from './bodyEnergyRegistry.js';
-import { selectBodyEnergyInputs, exactBodyInstant, validHealthDate } from './bodyEnergyInputs.js';
+import { selectBodyEnergyInputs, exactBodyInstant, validHealthDate, bodyEnergyDataTime } from './bodyEnergyInputs.js';
 import { calculateBodyEnergy } from './bodyEnergy.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { fail, readableRow } from './phase4Core.js';
@@ -218,7 +218,8 @@ export function createBodyEnergyStore(core,entities,queue) {
       await core.revalidateSources(context,captured.refs);
       const value=core.contextRegistry.get(context,captured.cacheKey);
       if(!value)fail('BODY_ENERGY_CAPTURE_EVICTED');
-      return structuredClone({calculation:value.calculation,healthDate:value.manifest.health_date,wakeAt:value.manifest.wake_at_utc});
+      return structuredClone({calculation:value.calculation,healthDate:value.manifest.health_date,wakeAt:value.manifest.wake_at_utc,
+        dataAsOfUtc:bodyEnergyDataTime(value.manifest),timezone:value.manifest.timezone});
     });
   }
   async function persist(context,ticket) {

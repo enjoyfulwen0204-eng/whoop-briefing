@@ -13,13 +13,17 @@ const COPY={
  en:{missing:'Insufficient data',limited:'(reference estimate)',wake:'(at wake-up)',baseline:'At least 7 days of usable, varying HRV and resting heart rate are needed',other:'Fresh, scored sleep and recovery with valid access are needed',initial:'Wake-up',time:'Time',load:'Activity today',nap:'Nap'},
  vi:{missing:'Chưa đủ dữ liệu',limited:'(giá trị tham khảo)',wake:'(khi thức dậy)',baseline:'Cần ít nhất 7 ngày HRV và nhịp tim nghỉ hợp lệ, có biến thiên',other:'Cần dữ liệu giấc ngủ và phục hồi mới, đã chấm điểm và còn quyền truy cập',initial:'Thức dậy',time:'Thời gian',load:'Hoạt động hôm nay',nap:'Ngủ ngắn'},
 };
-export function renderOnDemandBody(calculation,{locale='zh-TW',morning=false,details=false}={}){
+export function renderOnDemandBody(calculation,{locale='zh-TW',morning=false,details=false,dataAsOfUtc=null,timezone}={}){
  const c=COPY[locale]??COPY['zh-TW'],d=calculation?.drivers,value=morning?d?.initial_charge:calculation?.value;
  if(!['AVAILABLE','LIMITED'].includes(calculation?.quality_state)||!Number.isFinite(value)){
   const baseline=calculation?.reasons?.some(r=>['INSUFFICIENT_BASELINE','BASELINE_SCALE_UNAVAILABLE'].includes(r));
   return `🔋 Body Energy：${c.missing}。${baseline?c.baseline:c.other}`;
  }
  let text=`🔋 Body Energy：${value}/100${morning?c.wake:''}${calculation.quality_state==='LIMITED'?c.limited:''}`;
+ if(calculation.reasons?.some(code=>/^(SLEEP|RECOVERY|CYCLE|WORKOUT)_STALE$/.test(code))&&Number.isFinite(Date.parse(dataAsOfUtc))&&timezone){
+  const time=new Intl.DateTimeFormat('en-GB',{timeZone:timezone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(dataAsOfUtc));
+  text+=locale==='en'?` (data as of ${time})`:locale==='vi'?` (dữ liệu lúc ${time})`:`（${time} 的資料）`;
+ }
  if(details&&!morning){
   const n=x=>Number(x.toFixed(1));
   text+=`\n${c.initial} ${d.initial_charge} → ${c.time} −${n(d.time_depletion)} → ${c.load} −${n(d.load_depletion)}`;
@@ -44,7 +48,7 @@ export function createOnDemandBodyEnergy({db,stores,keys,environment,now=()=>new
  }
  async function currentSection({userId,healthDate,requestedAt=new Date(now()),morning=false,details=false}){
   const result=await inspect({userId,healthDate,requestedAt});
-  const message=renderOnDemandBody(result.calculation,{locale:result.locale,morning,details});
+  const message=renderOnDemandBody(result.calculation,{locale:result.locale,morning,details,dataAsOfUtc:result.dataAsOfUtc,timezone:result.timezone});
   const recipe={version:'on-demand-body-v1',at:requestedAt.toISOString(),healthDate:result.healthDate,morning,details,
    proof:keys.lookup(['on-demand-body-v1',userId,result,message])};
   return {message,status:result.calculation.quality_state,replyGuard:recipe,verifyCurrent:()=>verifyReplyGuard(recipe,userId)};
@@ -55,7 +59,7 @@ export function createOnDemandBodyEnergy({db,stores,keys,environment,now=()=>new
   const age=new Date(now()).getTime()-Date.parse(recipe.at);
   if(age<0||age>90000)throw Error('BODY_ENERGY_REPLY_EXPIRED');
   const result=await inspect({userId,healthDate:recipe.healthDate,requestedAt:new Date(recipe.at)});
-  const message=renderOnDemandBody(result.calculation,{locale:result.locale,morning:recipe.morning,details:recipe.details});
+  const message=renderOnDemandBody(result.calculation,{locale:result.locale,morning:recipe.morning,details:recipe.details,dataAsOfUtc:result.dataAsOfUtc,timezone:result.timezone});
   if(keys.lookup(['on-demand-body-v1',userId,result,message])!==recipe.proof)throw Error('BODY_ENERGY_CURRENTNESS_FENCED');
   return true;
  }

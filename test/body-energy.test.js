@@ -65,7 +65,8 @@ test('Required-domain missingness, invalidity, calibration and quality precedenc
   }
   const six=bodyInput({days:6});assert.equal(calculate(six).quality_state,'WARMING_UP');assert.equal(calculate(six).value,null);
   six.sync.find(r=>r.resource==='recovery').last_success_at=iso(six.asOfEpochMs-2*hour);
-  assert.equal(calculate(six).quality_state,'DEGRADED');assert.equal(calculate(six).value,null);
+  assert.equal(calculate(six).quality_state,'WARMING_UP');assert.equal(calculate(six).value,null);
+  assert.ok(calculate(six).reasons.includes('RECOVERY_STALE'));
   six.capabilities[0].status='APP_ONLY_UNAVAILABLE_TO_API';assert.equal(calculate(six).quality_state,'UNAVAILABLE');
   const zero=bodyInput();for(const r of zero.sources.recovery)r.hrv_rmssd_milli=50;
   assert.equal(calculate(zero).quality_state,'WARMING_UP');assert.ok(calculate(zero).reasons.includes('BASELINE_SCALE_UNAVAILABLE'));
@@ -123,7 +124,7 @@ test('Earlier-only baselines select one daily main, latest 30/45 days and per-co
 
 test('Required sync and selected-load freshness boundaries are independent of physiological age',()=>{
   assert.equal(bodyFreshness(90*60000),1);assert.equal(bodyFreshness(6*hour),0.5);assert.equal(bodyFreshness(24*hour),0.2);assert.equal(bodyFreshness(24*hour+1),0);
-  for(const [age,state,numeric] of [[90*60000,'AVAILABLE',true],[90*60000+1,'DEGRADED',true],[2*hour,'DEGRADED',true],[24*hour,'DEGRADED',true],[24*hour+1,'NO_DATA',false]]) {
+  for(const [age,state,numeric] of [[90*60000,'AVAILABLE',true],[90*60000+1,'AVAILABLE',true],[2*hour,'AVAILABLE',true],[24*hour,'AVAILABLE',true],[24*hour+1,'NO_DATA',false]]) {
     const input=bodyInput();input.sync.find(r=>r.resource==='recovery').last_success_at=iso(input.asOfEpochMs-age);
     const result=calculate(input);assert.equal(result.quality_state,state);assert.equal(result.value!==null,numeric);
   }

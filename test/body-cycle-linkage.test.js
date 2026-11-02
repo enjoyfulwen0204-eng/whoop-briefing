@@ -32,7 +32,7 @@ test('linked cycle still respects source ownership, access, tombstones, fresh sy
   i=>i.sync.find(r=>r.resource==='cycle').last_success_at=iso(i.asOfEpochMs-6*hour-1)]){
   const input=linked();mutate(input);assert.equal(select(input).manifest.load.kind,'NONE');assert.notEqual(calc(input).quality_state,'AVAILABLE');
  }
- const stale=linked();for(const row of stale.sync)row.last_success_at=iso(stale.asOfEpochMs-91*60000);assert.equal(calc(stale).quality_state,'DEGRADED');
+ const stale=linked();for(const row of stale.sync)row.last_success_at=iso(stale.asOfEpochMs-91*60000);assert.equal(calc(stale).quality_state,'AVAILABLE');
  const calibrating=linked();calibrating.sources.recovery[0].user_calibrating=1;assert.equal(calc(calibrating).quality_state,'DEGRADED');
  const immature=linked();immature.sources.recovery.splice(28);assert.equal(calc(immature).quality_state,'LIMITED');
 });

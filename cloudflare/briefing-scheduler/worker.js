@@ -239,8 +239,17 @@ export async function invokeCompanion(env,{fetchImpl=fetch,now=Date.now,signImpl
 export default {
  scheduled(event,env,ctx){ctx.waitUntil((async()=>{
   if(![READINESS_CRON,MORNING_CRON].includes(event.cron))throw error('unsupported_cron',true);
-  try{return await (event.cron===READINESS_CRON?invokeReadiness(env):invoke(env));}
-  finally{if(env.BRIEFING_COMPANION_ENABLED==='on')try{await invokeCompanion(env);}catch(e){console.error(JSON.stringify({event:'companion_tick_failed',category:e.category??'unknown'}));}}
+  const started=Date.now();let syncFinished=started,syncStatus=null,companionStatus=null;
+  try{
+   // Both natural schedules perform canonical SYNC. Stage 6 still requires
+   // its independent scope/mode and server-side morning-window admission.
+   const result=await invoke(env);syncStatus=result.status;return result;
+  }finally{
+   syncFinished=Date.now();
+   if(env.BRIEFING_COMPANION_ENABLED==='on')try{await invokeCompanion(env);companionStatus=200;}catch(e){console.error(JSON.stringify({event:'companion_tick_failed',category:e.category??'unknown'}));}
+   console.log(JSON.stringify({event:'scheduled_tick_completed',schedule:event.cron===MORNING_CRON?'morning':'hourly',
+    sync_status:syncStatus,companion_status:companionStatus,sync_duration_ms:syncFinished-started,total_duration_ms:Date.now()-started}));
+  }
  })().catch(e=>{console.error(JSON.stringify({event:'briefing_trigger_failed',category:e.category??'unknown',retryable:!e.nonRetryable}));throw e;}));},
  async fetch(request,env={}){
   const path=request?.url?new URL(request.url).pathname:'/';

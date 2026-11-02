@@ -72,15 +72,15 @@ test('Worker companion transport is disabled by default; when enabled it signs o
  }});assert.equal(calls,1);
  await assert.rejects(invokeCompanion(env,{fetchImpl:async()=>{calls++;return new Response('{}',{status:503});}}),/companion_failed/);assert.equal(calls,2);
 });
-test('daytime cron preserves readiness then invokes companion once without entering SYNC',async t=>{
+test('hourly cron completes SYNC then invokes companion once',async t=>{
  const request=requestFor(automatic),env={BRIEFING_COMPANION_ENABLED:'on',BRIEFING_ENDPOINT_URL:'https://synthetic.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:'s'.repeat(32),BRIEFING_RELEASE_SHA:request.releaseSha,BRIEFING_CONFIG_PROOF:request.configProof,BRIEFING_EXECUTION_MODE:'OFF'};
  const calls=[];let pending;
  t.mock.method(globalThis,'fetch',async url=>{const path=new URL(url).pathname;calls.push(path);
-  return new Response(JSON.stringify(path===COMPANION_PATH?{ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha:request.releaseSha,drainAuthorized:false,enabled:true}:{ok:true,kind:'MORNING_READINESS_V1',source:'cloudflare',releaseSha:request.releaseSha,readinessChecked:true,syncComplete:false,drainAuthorized:false}),{status:200});});
+  return new Response(JSON.stringify(path===COMPANION_PATH?{ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha:request.releaseSha,drainAuthorized:false,enabled:true}:{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{settlementState:'FINALIZED_SUCCESS'}}),{status:200});});
  worker.scheduled({cron:COMPANION_CRON},env,{waitUntil:p=>{pending=p;}});await pending;
- assert.deepEqual(calls,['/internal/briefing/readiness',COMPANION_PATH]);
+ assert.deepEqual(calls,['/internal/briefing/run',COMPANION_PATH]);
  calls.length=0;worker.scheduled({cron:COMPANION_CRON},{...env,BRIEFING_COMPANION_ENABLED:'off'},{waitUntil:p=>{pending=p;}});await pending;
- assert.deepEqual(calls,['/internal/briefing/readiness']);
+ assert.deepEqual(calls,['/internal/briefing/run']);
 });
 
 

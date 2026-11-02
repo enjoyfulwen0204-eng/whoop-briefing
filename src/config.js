@@ -531,7 +531,7 @@ export const WHOOP_SYNC = {
   // 增量同步的重疊天數：WHOOP 會重新評分或事後修正，所以每次都重抓最近幾天
   INCREMENTAL_OVERLAP_DAYS: 5,
   // 增量同步的節流：canonical runner 可能每 10 分鐘進來，但不需要每次都同步。
-  MIN_INTERVAL_MS: 60 * 60_000,
+  MIN_INTERVAL_MS: 50 * 60_000,
   // 同步失敗絕不能讓簡報掛掉
   RESOURCES: ['sleep', 'recovery', 'cycle', 'workout', 'body_measurement'],
 };

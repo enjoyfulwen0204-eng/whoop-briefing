@@ -9,7 +9,7 @@ export function morningServiceSlotOrdinal(at=new Date()) {
  const hour=at.getUTCHours(),minute=at.getUTCMinutes();
  return Math.floor(at.getTime()/86400000)*44+(hour<4?hour*6+Math.floor(minute/10):24+hour-4);
 }
-/** Service cadence is separate from the unchanged full SYNC / Stage 6 window. */
+/** Daily/SYNC service cadence is separate from the unchanged Stage 6 window. */
 export function morningServiceProviderState(heartbeat,provider,now=new Date()) {
  if(!['cloudflare','github'].includes(provider))throw new Error('SCHEDULER_PROVIDER_REQUIRED');
  const raw=heartbeat?.lastOkAt??heartbeat?.last_ok_at,age=raw?now.getTime()-Date.parse(raw):null;

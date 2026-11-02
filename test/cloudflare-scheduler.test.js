@@ -27,7 +27,7 @@ const base = (overrides = {}) => ({
   path: BRIEFING_TRIGGER.PATH, body: '{}', ...overrides,
 });
 
-test('reviewed Worker schedules preserve morning SYNC and add bounded all-wake readiness', () => {
+test('reviewed Worker schedules preserve 24 morning and 20 hourly ticks', () => {
   const config = readFileSync(new URL('../cloudflare/briefing-scheduler/wrangler.toml', import.meta.url), 'utf8');
   assert.match(config, /crons = \["\*\/10 0-3 \* \* \*", "10 4-23 \* \* \*"\]/);
   assert.doesNotMatch(config, /crons = \["\*\/10 \* \* \* \*"\]/);

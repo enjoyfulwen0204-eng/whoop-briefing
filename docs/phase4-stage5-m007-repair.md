@@ -96,7 +96,7 @@ These classifications cover application test processes. Separately, one document
 
 Four earlier successful processes (39 tests) preceded the final v26/orphan inventory additions and are retained as superseded history, not added to the accepted total. The final selection reruns all applicable files on the final implementation. The T001 nested timeout is an intentional negative probe; its outer test passes only after both descendants are gone. Prior repair failures remain in their untouched earlier evidence.
 
-The final default process budget is 300 seconds, with 600 seconds declared for the full lifecycle file. Earlier exploratory runs used 600 seconds. Every actual budget and elapsed duration is recorded in [the evidence index](evidence/stage5-m007/README.md).
+The final default process budget is 300 seconds, with 600 seconds declared for the full lifecycle file. Earlier exploratory runs used 600 seconds. Every actual budget and elapsed duration is recorded in [the evidence index](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-m007/README.md).
 
 ## PRODUCTION ISOLATION
 

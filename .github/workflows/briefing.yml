@@ -1,3 +1,5 @@
+# HISTORICAL ONLY (2026-11-04): disabled in GitHub; repository secrets removed.
+# Current scheduling is Cloudflare -> v33 recovery. Do not enable or dispatch.
 # Deployment artifact only. Do not install on main until the reviewed release SHA
 # replaces dfffbfb73fe844cfddcab2f357a8f7b5a84d4e54 and the workflow is disabled/read back.
 name: WHOOP 早晨簡報

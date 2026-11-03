@@ -106,7 +106,7 @@ Fresh install, v26→v27 and v20→v27 preserve existing data, create zero histo
 
 ## FULL CLOSURE MATRIX
 
-**A–N: PASS.** The [machine-readable final summary](evidence/stage5-closure/final-summary.json) retains the exact selected runs. Test categories overlap; their counts must not be added as if they were disjoint.
+**A–N: PASS.** The [machine-readable final summary](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final-summary.json) retains the exact selected runs. Test categories overlap; their counts must not be added as if they were disjoint.
 
 | Gate | Result | Principal executable evidence |
 | --- | --- | --- |
@@ -129,62 +129,62 @@ Fresh install, v26→v27 and v20→v27 preserve existing data, create zero histo
 
 **564/564 tests passed across 50 separate serial processes; 0 failed, 0 canceled, 0 skipped.** All selected processes exited 0 with no signal. Static syntax checks passed for the 61 changed/new JavaScript files, and `git diff --check` passed. Source/test fingerprints match the committed runtime/test content.
 
-Complete selected TAP logs, exact per-file counts, process durations and command batches are retained in [the evidence directory](evidence/stage5-closure/README.md). These are Node-reported test counts, including reported subtests, not assertion-call counts. The final gate combines `current-18`, `final-19`, `final-20`, `final-21` and the authorized fake-provider `loopback-17` rerun, choosing the latest passing verified fixture for each file.
+Complete selected TAP logs, exact per-file counts, process durations and command batches are retained in [the evidence directory](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/README.md). These are Node-reported test counts, including reported subtests, not assertion-call counts. The final gate combines `current-18`, `final-19`, `final-20`, `final-21` and the authorized fake-provider `loopback-17` rerun, choosing the latest passing verified fixture for each file.
 
 Historical tracked iterations retain 34 assertion-failure processes, 1 reviewed harness defect, 8 native SIGSEGV processes, 1 environment EPERM and 1 timeout, plus 48 superseded passing processes. They are excluded from the final totals. The harness defect was a canceled unawaited nested test; moving it to the top level preserved its assertions. The two loopback EPERM assertions passed in the isolated authorized rerun. Every native crash remains a failed process even where all application assertions had passed; no failed run was relabeled as successful.
 
 | Selected test file | Passed / reported |
 | --- | --- |
-| [body-energy-store.test.js](evidence/stage5-closure/final/body-energy-store.test.tap) | 11 / 11 |
-| [body-energy.test.js](evidence/stage5-closure/final/body-energy.test.tap) | 13 / 13 |
-| [concurrency.test.js](evidence/stage5-closure/final/concurrency.test.tap) | 11 / 11 |
-| [evidence-user-scope.test.js](evidence/stage5-closure/final/evidence-user-scope.test.tap) | 10 / 10 |
-| [insights-integration.test.js](evidence/stage5-closure/final/insights-integration.test.tap) | 9 / 9 |
-| [phase4-association-store.test.js](evidence/stage5-closure/final/phase4-association-store.test.tap) | 15 / 15 |
-| [phase4-experiment-store.test.js](evidence/stage5-closure/final/phase4-experiment-store.test.tap) | 3 / 3 |
-| [phase4-foundation-isolation.test.js](evidence/stage5-closure/final/phase4-foundation-isolation.test.tap) | 6 / 6 |
-| [phase4-foundation-migration.test.js](evidence/stage5-closure/final/phase4-foundation-migration.test.tap) | 2 / 2 |
-| [phase4-foundation-privacy.test.js](evidence/stage5-closure/final/phase4-foundation-privacy.test.tap) | 8 / 8 |
-| [phase4-insight-store.test.js](evidence/stage5-closure/final/phase4-insight-store.test.tap) | 4 / 4 |
-| [phase4-intelligence-store.test.js](evidence/stage5-closure/final/phase4-intelligence-store.test.tap) | 25 / 25 |
-| [phase4-intelligence.test.js](evidence/stage5-closure/final/phase4-intelligence.test.tap) | 22 / 22 |
-| [phase4-interaction.test.js](evidence/stage5-closure/final/phase4-interaction.test.tap) | 8 / 8 |
-| [phase4-journal-answers.test.js](evidence/stage5-closure/final/phase4-journal-answers.test.tap) | 11 / 11 |
-| [phase4-journal-inbound.test.js](evidence/stage5-closure/final/phase4-journal-inbound.test.tap) | 5 / 5 |
-| [phase4-journal-inventory.test.js](evidence/stage5-closure/final/phase4-journal-inventory.test.tap) | 1 / 1 |
-| [phase4-journal-store.test.js](evidence/stage5-closure/final/phase4-journal-store.test.tap) | 11 / 11 |
-| [phase4-native-stability.test.js](evidence/stage5-closure/final/phase4-native-stability.test.tap) | 2 / 2 |
-| [phase4-privacy.test.js](evidence/stage5-closure/final/phase4-privacy.test.tap) | 8 / 8 |
-| [phase4-stage5-bounds.test.js](evidence/stage5-closure/final/phase4-stage5-bounds.test.tap) | 2 / 2 |
-| [phase4-stage5-closure.test.js](evidence/stage5-closure/final/phase4-stage5-closure.test.tap) | 12 / 12 |
-| [phase4-stage5-contracts.test.js](evidence/stage5-closure/final/phase4-stage5-contracts.test.tap) | 13 / 13 |
-| [phase4-stage5-discovery.test.js](evidence/stage5-closure/final/phase4-stage5-discovery.test.tap) | 11 / 11 |
-| [phase4-stage5-lifecycle.test.js](evidence/stage5-closure/final/phase4-stage5-lifecycle.test.tap) | 4 / 4 |
-| [phase4-stage5-lineage.test.js](evidence/stage5-closure/final/phase4-stage5-lineage.test.tap) | 29 / 29 |
-| [phase4-stage5-operation-surface.test.js](evidence/stage5-closure/final/phase4-stage5-operation-surface.test.tap) | 3 / 3 |
-| [phase4-stage5-privacy-oracle.test.js](evidence/stage5-closure/final/phase4-stage5-privacy-oracle.test.tap) | 2 / 2 |
-| [phase4-stage5-rc2.test.js](evidence/stage5-closure/final/phase4-stage5-rc2.test.tap) | 10 / 10 |
-| [phase4-stage5-rc3-diagnostics.test.js](evidence/stage5-closure/final/phase4-stage5-rc3-diagnostics.test.tap) | 1 / 1 |
-| [phase4-stage5-rc4-blockers.test.js](evidence/stage5-closure/final/phase4-stage5-rc4-blockers.test.tap) | 5 / 5 |
-| [phase4-stage5-rc4.test.js](evidence/stage5-closure/final/phase4-stage5-rc4.test.tap) | 13 / 13 |
-| [phase4-stage5-rc6-reproductions.test.js](evidence/stage5-closure/final/phase4-stage5-rc6-reproductions.test.tap) | 3 / 3 |
-| [phase4-stage5-rc6.test.js](evidence/stage5-closure/final/phase4-stage5-rc6.test.tap) | 23 / 23 |
-| [phase4-stage5-rc7.test.js](evidence/stage5-closure/final/phase4-stage5-rc7.test.tap) | 23 / 23 |
-| [phase4-stage5-readers.test.js](evidence/stage5-closure/final/phase4-stage5-readers.test.tap) | 25 / 25 |
-| [phase4-stores.test.js](evidence/stage5-closure/final/phase4-stores.test.tap) | 3 / 3 |
-| [phase4-transport-store.test.js](evidence/stage5-closure/final/phase4-transport-store.test.tap) | 4 / 4 |
-| [phase4-v21.test.js](evidence/stage5-closure/final/phase4-v21.test.tap) | 9 / 9 |
-| [phase4-v22.test.js](evidence/stage5-closure/final/phase4-v22.test.tap) | 9 / 9 |
-| [phase4-v23.test.js](evidence/stage5-closure/final/phase4-v23.test.tap) | 9 / 9 |
-| [phase4-v24.test.js](evidence/stage5-closure/final/phase4-v24.test.tap) | 9 / 9 |
-| [phase4-v25.test.js](evidence/stage5-closure/final/phase4-v25.test.tap) | 25 / 25 |
-| [phase4-v26.test.js](evidence/stage5-closure/final/phase4-v26.test.tap) | 22 / 22 |
-| [phase4-v27.test.js](evidence/stage5-closure/final/phase4-v27.test.tap) | 32 / 32 |
-| [proactive-insight-lifecycle.test.js](evidence/stage5-closure/final/proactive-insight-lifecycle.test.tap) | 1 / 1 |
-| [proactive-processing-lease.test.js](evidence/stage5-closure/final/proactive-processing-lease.test.tap) | 12 / 12 |
-| [r3-processing-ownership.test.js](evidence/stage5-closure/final/r3-processing-ownership.test.tap) | 9 / 9 |
-| [r3-update-processing-state.test.js](evidence/stage5-closure/final/r3-update-processing-state.test.tap) | 23 / 23 |
-| [whoop-webhook-processing.test.js](evidence/stage5-closure/final/whoop-webhook-processing.test.tap) | 33 / 33 |
+| [body-energy-store.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/body-energy-store.test.tap) | 11 / 11 |
+| [body-energy.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/body-energy.test.tap) | 13 / 13 |
+| [concurrency.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/concurrency.test.tap) | 11 / 11 |
+| [evidence-user-scope.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/evidence-user-scope.test.tap) | 10 / 10 |
+| [insights-integration.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/insights-integration.test.tap) | 9 / 9 |
+| [phase4-association-store.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-association-store.test.tap) | 15 / 15 |
+| [phase4-experiment-store.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-experiment-store.test.tap) | 3 / 3 |
+| [phase4-foundation-isolation.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-foundation-isolation.test.tap) | 6 / 6 |
+| [phase4-foundation-migration.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-foundation-migration.test.tap) | 2 / 2 |
+| [phase4-foundation-privacy.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-foundation-privacy.test.tap) | 8 / 8 |
+| [phase4-insight-store.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-insight-store.test.tap) | 4 / 4 |
+| [phase4-intelligence-store.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-intelligence-store.test.tap) | 25 / 25 |
+| [phase4-intelligence.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-intelligence.test.tap) | 22 / 22 |
+| [phase4-interaction.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-interaction.test.tap) | 8 / 8 |
+| [phase4-journal-answers.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-journal-answers.test.tap) | 11 / 11 |
+| [phase4-journal-inbound.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-journal-inbound.test.tap) | 5 / 5 |
+| [phase4-journal-inventory.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-journal-inventory.test.tap) | 1 / 1 |
+| [phase4-journal-store.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-journal-store.test.tap) | 11 / 11 |
+| [phase4-native-stability.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-native-stability.test.tap) | 2 / 2 |
+| [phase4-privacy.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-privacy.test.tap) | 8 / 8 |
+| [phase4-stage5-bounds.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-bounds.test.tap) | 2 / 2 |
+| [phase4-stage5-closure.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-closure.test.tap) | 12 / 12 |
+| [phase4-stage5-contracts.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-contracts.test.tap) | 13 / 13 |
+| [phase4-stage5-discovery.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-discovery.test.tap) | 11 / 11 |
+| [phase4-stage5-lifecycle.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-lifecycle.test.tap) | 4 / 4 |
+| [phase4-stage5-lineage.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-lineage.test.tap) | 29 / 29 |
+| [phase4-stage5-operation-surface.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-operation-surface.test.tap) | 3 / 3 |
+| [phase4-stage5-privacy-oracle.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-privacy-oracle.test.tap) | 2 / 2 |
+| [phase4-stage5-rc2.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-rc2.test.tap) | 10 / 10 |
+| [phase4-stage5-rc3-diagnostics.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-rc3-diagnostics.test.tap) | 1 / 1 |
+| [phase4-stage5-rc4-blockers.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-rc4-blockers.test.tap) | 5 / 5 |
+| [phase4-stage5-rc4.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-rc4.test.tap) | 13 / 13 |
+| [phase4-stage5-rc6-reproductions.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-rc6-reproductions.test.tap) | 3 / 3 |
+| [phase4-stage5-rc6.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-rc6.test.tap) | 23 / 23 |
+| [phase4-stage5-rc7.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-rc7.test.tap) | 23 / 23 |
+| [phase4-stage5-readers.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stage5-readers.test.tap) | 25 / 25 |
+| [phase4-stores.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-stores.test.tap) | 3 / 3 |
+| [phase4-transport-store.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-transport-store.test.tap) | 4 / 4 |
+| [phase4-v21.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-v21.test.tap) | 9 / 9 |
+| [phase4-v22.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-v22.test.tap) | 9 / 9 |
+| [phase4-v23.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-v23.test.tap) | 9 / 9 |
+| [phase4-v24.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-v24.test.tap) | 9 / 9 |
+| [phase4-v25.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-v25.test.tap) | 25 / 25 |
+| [phase4-v26.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-v26.test.tap) | 22 / 22 |
+| [phase4-v27.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/phase4-v27.test.tap) | 32 / 32 |
+| [proactive-insight-lifecycle.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/proactive-insight-lifecycle.test.tap) | 1 / 1 |
+| [proactive-processing-lease.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/proactive-processing-lease.test.tap) | 12 / 12 |
+| [r3-processing-ownership.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/r3-processing-ownership.test.tap) | 9 / 9 |
+| [r3-update-processing-state.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/r3-update-processing-state.test.tap) | 23 / 23 |
+| [whoop-webhook-processing.test.js](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-closure/final/whoop-webhook-processing.test.tap) | 33 / 33 |
 
 ## NATIVE PROCESS STABILITY
 

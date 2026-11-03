@@ -25,13 +25,13 @@ The remaining raw DOMAIN fixture still takes 41.192 s / 296 HTTP / 4,641 SQL and
 Run the narrow positive evidence:
 
 ```sh
-RAW_PROFILE_LEGS=5 node --test test/stage6-raw-capacity-profile.test.js
+RAW_PROFILE_LEGS=5 node --test test/legacy/stage6-raw-capacity-profile.test.js
 ```
 
 Run the concrete remaining failing capacity gate:
 
 ```sh
-RAW_AFTER_AUTH=1 node --test test/stage6-raw-capacity-profile.test.js
+RAW_AFTER_AUTH=1 node --test test/legacy/stage6-raw-capacity-profile.test.js
 ```
 
 The normal seven-leg invocation is also strict and fails on zero-progress DOMAIN. It must not be represented as a passing capacity test. Six-job convergence, valid raw DOMAIN/family completion, source cursor completion, final job settlement and actual process-crash continuation through the complete sequence remain unproven. Primary focused source/currentness/lease/generation/tenant tests pass 11/11. Eight independent retained-delta safety scenarios were verified, including raw unit chain/immutable replay, missing DOMAIN ACK, invalid producer/finalization, forged run clock, lost COMMIT ACK, serial/parallel capture equality and resource/content rejection. This is safety-only review, not whole-capacity approval.

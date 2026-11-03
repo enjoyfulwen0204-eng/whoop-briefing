@@ -1,3 +1,34 @@
+# WHOOP Health OS（目前的 v33 recovery）
+
+正式入口是 `src/recoveryEntry.js`（`npm start` / `npm run bot:webhook`）。目前使用 Render **Starter**、Oregon、1 instance，Auto Deploy OFF；正式 DB 仍為 v33。不要由舊文件執行 migration 或切換舊入口。
+
+## 排程與功能
+
+- Cloudflare：UTC `*/10 0-3 * * *`（台北 08:00–11:50）及 `10 4-23 * * *`（其餘每小時 :10），共 44 次／日。
+- 兩種排程都先跑完整 SYNC，再跑 companion（45 秒）、extras（45 秒）；UTC 19:10／20:10／21:10 另外跑 analytics（90 秒）。不是 keepalive。
+- GitHub 的兩份 workflow 是停用的歷史檔案，repo secrets 已移除；不是現行備援。
+- 晨報依已評分主睡眠、配對 Recovery 與起床條件判定；短於個人基準 60% 時在當地 10:00 前等待，更新為正常長度則回到一般規則。
+- Stage 7、輕量家人分享、B1/B2 現算與夜間分析已接入；Stage 8 LIVE、舊 Body Energy publication/alerts 維持 OFF。
+- 家人每日摘要只在台北 09:30–12:00；週摘要週一 09:00 起到週三補送，每週一次。
+
+## 安全離線測試
+
+```sh
+npm ci --offline --no-audit --no-fund
+npm test                  # 同 test:current，現行 v33 與近期功能
+npm run test:current
+npm run test:legacy -- --list  # 歷史套件清單
+npm run test:legacy        # 歷史 schema/fixture 套件；不是發布 gate
+```
+
+兩個測試 runner 都清空繼承環境；macOS 使用 sandbox 封鎖外部網路及 `.env`，只允許 localhost fixture。歷史測試保留於 `test/legacy/`，共用 fixture 留在 `test/`。不要用真實憑證執行測試。
+
+部署只依 [Cloudflare / Render runbook](docs/cloudflare-briefing-runbook.md)，必須另有 Owner 授權。不要直接套用 tracked Wrangler placeholder 或啟用歷史 GitHub workflow。
+
+歷史 evidence、checkpoint、review 附件完整保留於 [archive/evidence-20261104](https://github.com/enjoyfulwen0204-eng/whoop-briefing/tree/archive/evidence-20261104)。runbook 或現有工具仍引用的附件繼續保留。以下是歷史產品說明，不是目前部署操作指南。
+
+<details><summary>歷史 README（舊架構、數量與操作指令，勿用於目前 production）</summary>
+
 # WHOOP 每日 AI 恢復簡報
 
 每天在你「真正起床後 30 分鐘」，抓 WHOOP 數據、跟你自己的個人基準比較，由 AI（走 OpenRouter，預設 Claude Sonnet 5）用溫和女教練的口吻寫成一則簡報，推到 Telegram。每週一另外發一則上週回顧；數據連續走低時會在當天簡報裡加上趨勢預警。
@@ -757,3 +788,5 @@ npm run health-status
 - 冷卻 **24 小時**：每個 canonical scheduler tick 都會檢查，但一天最多只提醒一則。
 - 這個檢查放在「有沒有事要做」的判斷**之前**，所以沒事做的那些 run 也會檢查。
 - **提醒失敗絕不影響簡報** —— 所有錯誤在 `maintenance.js` 內部吞掉並寫 log。
+
+</details>

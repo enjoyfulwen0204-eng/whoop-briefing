@@ -16,7 +16,7 @@ git rev-parse --verify 'HEAD^{commit}' >/dev/null
 command -v isolated-sqld >/dev/null
 command -v timeout >/dev/null
 node --input-type=module -e 'import assert from "node:assert/strict";import{readdirSync}from"node:fs";assert.deepEqual(readdirSync("/sys/class/net").sort(),["lo"]);'
-node test/stage8-live-linux-preflight.test.js --check initial
+node test/legacy/stage8-live-linux-preflight.test.js --check initial
 mkdir /qualification/empty /qualification/dense
 server_pid=
 stop_server(){
@@ -34,7 +34,7 @@ trap 'exit 143' TERM INT
 run_profile(){
  profile_name=$1
  profile_limit=$2
- node test/stage8-live-linux-preflight.test.js --check profile "$profile_name"
+ node test/legacy/stage8-live-linux-preflight.test.js --check profile "$profile_name"
  isolated-sqld -d "/qualification/$profile_name/physical" --http-listen-addr 127.0.0.1:18080 --no-welcome > "/qualification/$profile_name/sqld.log" 2>&1 &
  server_pid=$!
  node --input-type=module -e 'for(let n=0;n<50;n++){try{const r=await fetch("http://127.0.0.1:18080/v2/pipeline",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({requests:[{type:"execute",stmt:{sql:"SELECT 1",want_rows:false}},{type:"close"}]}),signal:AbortSignal.timeout(250)});if(r.ok&&(await r.json()).results?.[0]?.type==="ok")process.exit(0);}catch{}await new Promise(r=>setTimeout(r,100));}throw Error("FRESH_SQLD_NOT_READY");'

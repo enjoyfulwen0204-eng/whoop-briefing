@@ -1,3 +1,5 @@
+# HISTORICAL ONLY (2026-11-04): disabled in GitHub; repository secrets removed.
+# Current scheduling is Cloudflare -> v33 recovery. Do not enable or dispatch.
 name: Stage8 isolated Linux HTTP qualification
 
 on:

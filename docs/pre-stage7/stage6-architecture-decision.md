@@ -2,7 +2,7 @@
 
 Status: **STAGE6_RAW_SOURCE_CAPACITY_REPAIR_PARTIAL**. Stage 6 code capacity **NO-GO**; Production **NO-GO**. Stop increasing execution budgets. Do not implement a speculative DOMAIN ledger migration. This checkpoint retains the accepted runtime `src` byte-for-byte from `88cc17e41c3a30cb2723ca37c19adf42a23cb08d` (tree `15815638667e502f57eef1a807abde34dc6cb50c`), with verified `9770553` ancestry. The seven-file experiment is a test-only, explicitly loaded memory overlay, not a release change. Stage 7 v33, Stage 8 v34, F02, tokens and other worktrees are unchanged.
 
-Machine-readable measurements and exact synthetic DOMAIN receipt/producer identities are in [stage6-architecture-decision-evidence.json](stage6-architecture-decision-evidence.json). Exploratory measurements loaded release 88cc17e with the recorded working variant; they are not mislabelled as frozen-HEAD tests. Frozen verification is recorded separately after the local checkpoint commit.
+Machine-readable measurements and exact synthetic DOMAIN receipt/producer identities are in [stage6-architecture-decision-evidence.json](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/pre-stage7/stage6-architecture-decision-evidence.json). Exploratory measurements loaded release 88cc17e with the recorded working variant; they are not mislabelled as frozen-HEAD tests. Frozen verification is recorded separately after the local checkpoint commit.
 
 ## Confirmed causes and measured boundaries
 

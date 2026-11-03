@@ -68,4 +68,4 @@ focused scheduler＋receiver lifecycle7/7、真實child supervisor失敗邊界4/
 
 沒有Production mutation、public push、部署、付費執行、permit reset或SHADOW→LIVE。尚無ready deployment manifest。釋出前還需上述本機資格完成與獨立acceptance、exact-SHA publication/deploy授權、明確resource-change授權、有效獨立LIVE producer/execution admission及release-safety controls；保持原12/12 ledger，不增加Owner pilot／Public Beta rollout gate。
 
-完整原始profiling／TAP／retained SQLite留在本機 `/private/tmp/stage6-cpu-qualification`；repo僅保存約58KiB [compact evidence](stage6-cpu-scheduling-qualification-evidence.json) 與focused review。
+完整原始profiling／TAP／retained SQLite留在本機 `/private/tmp/stage6-cpu-qualification`；repo僅保存約58KiB [compact evidence](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/pre-stage7/stage6-cpu-scheduling-qualification-evidence.json) 與focused review。

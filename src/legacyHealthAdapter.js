@@ -1,3 +1,4 @@
+import {TOMBSTONE_OBSERVATION_SQL} from './whoopTombstoneObservation.js';
 import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -90,6 +91,15 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
       // statement unchanged. Preserve the installed transaction's batch here
       // too, instead of expanding owned queue metadata into HTTP round trips.
       if(!call?.enabled)return client.batch(statements);
+      const tombstoneResource={upsertSleeps:'sleep',upsertRecoveries:'recovery',upsertWorkouts:'workout'}[call.name];
+      if(tombstoneResource && statements.length && statements.every(s=>s.sql===TOMBSTONE_OBSERVATION_SQL)){
+        if(statements.length>100)fail('PHASE4_CANONICAL_BATCH_LIMIT');
+        if(statements.some(s=>s.args?.length!==6 || s.args[2]!==call.userId || s.args[3]!==tombstoneResource || s.args[5]!=='ACTIVE'))
+          fail('PHASE4_BATCH_TENANT_MISMATCH');
+        // This table has no derived-artifact R columns. The original SQL and
+        // order are unchanged; processing still fences the enclosing commit.
+        return client.batch(statements);
+      }
       const canonical=call?.enabled?CANONICAL_BATCHES[call.name]:null;
       if(canonical&&statements.length&&statements.every(s=>new RegExp(`^\\s*INSERT\\s+INTO\\s+${canonical}\\s*\\(\\s*user_id\\s*,`,'i').test(sqlOf(s)))){
         if(statements.length>100)fail('PHASE4_CANONICAL_BATCH_LIMIT');

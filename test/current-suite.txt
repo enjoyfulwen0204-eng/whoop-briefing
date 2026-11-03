@@ -50,3 +50,5 @@ test/morning-recovery-improvements.test.js
 test/night-analytics.test.js
 test/evening-prediction.test.js
 test/extras-current.test.js
+
+test/sync-roundtrips.test.js

@@ -10,6 +10,7 @@
  *  - 這一層只做「存」與「取」，不做任何健康判斷。
  */
 
+import {TOMBSTONE_OBSERVATION_SQL} from './whoopTombstoneObservation.js';
 import { num, sleepTotalMilli } from './config.js';
 import { localDate } from './time.js';
 import { log } from './logger.js';
@@ -146,14 +147,12 @@ function partitionByTombstone(records, tombstones, { idOf }) {
 async function settleTombstoneEffects(client, { userId, resourceType, blocked, now }) {
   if (!blocked.length) return;
   const nowIso = now.toISOString();
-  for (const id of blocked) {
-    await client.execute({
-      sql: `UPDATE whoop_resource_tombstones
-               SET blocked_count = blocked_count + 1, last_blocked_at = ?, updated_at = ?
-             WHERE user_id = ? AND resource_type = ? AND resource_id = ? AND state = ?`,
-      args: [nowIso, nowIso, userId, resourceType, id, TOMBSTONE_STATE.ACTIVE],
-    });
-  }
+  // Ordered observations remain after canonical writes, inside the original
+  // tombstone-protected transaction. Repeated IDs still increment per input.
+  await writeBatched(client, blocked.map(id => ({
+    sql: TOMBSTONE_OBSERVATION_SQL,
+    args: [nowIso, nowIso, userId, resourceType, id, TOMBSTONE_STATE.ACTIVE],
+  })));
   log.warn('whoop_tombstone_blocked_write', {
     user_id: userId, resource_type: resourceType, count: blocked.length,
   });

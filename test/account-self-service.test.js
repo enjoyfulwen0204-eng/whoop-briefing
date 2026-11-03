@@ -6,7 +6,8 @@ import {createUpdateProcessor} from '../src/bot/updateProcessor.js';
 import {createFamilySharing} from '../src/familySharing.js';
 import {createWhoopClient} from '../src/whoop.js';
 import {handleOnboardingMessage} from '../src/onboarding.js';
-const now=()=>new Date('2026-11-01T06:00:00Z');
+// Family delivery assertions run inside the current 09:30–12:00 Taipei window.
+const now=()=>new Date('2026-11-01T01:30:00Z');
 async function setup(t,{remote=true}={}){
  const f=await syntheticStage7V33Fixture(t,{now});
  for(const [id,chat] of [['a','101'],['b','102']]){await f.db.saveTokens(id,{accessToken:'SYNTHETIC_ACCESS',refreshToken:'SYNTHETIC_REFRESH',expiresAt:new Date('2027-01-01'),whoopUserId:'synthetic-'+id});await f.db.linkTelegram({userId:id,chatId:chat,now:now()});await f.db.setLocale(id,'zh-TW');await f.db.ensureOnboarding(id,{state:'READY',now:now()});}

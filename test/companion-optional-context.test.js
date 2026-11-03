@@ -18,7 +18,11 @@ async function fixture(t,decorate=stores=>stores,input=null){
  else await f.db.saveTokens('a',{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date('2026-12-01'),scope:'offline',whoopUserId:'synthetic'},{now:at});
  await f.db.linkTelegram({userId:'a',chatId:'123',now:at});
  await f.db.ensureOnboarding('a',{state:'READY',now:at});
- const companion=await createStage7Development({...f,stores:decorate(f.stores,f)}),user=await f.db.getUser('a');
+ // Current production's optional input is the on-demand B2 reader. Inject at
+ // that boundary while retaining real Core reads to exercise poisoned transactions.
+ const decorated=decorate(f.stores,f);
+ const associations={inspect:()=>decorated.withContext('a',{executionMode:'SHADOW'},context=>decorated.betaSummary.readCurrent(context,{asOfUtc:f.core.timestamp()}))};
+ const companion=await createStage7Development({...f,stores:decorated,associations}),user=await f.db.getUser('a');
  const actor=await companion.interactions.authenticate({user,chatId:'123'});
  await f.core.transaction(async()=>{const p=await companion.preferences(actor);await companion.changePreferences(actor,p,{daily_enabled:1});});
  await f.db.raw.execute({sql:"INSERT INTO report_claims(user_id,report_type,local_date,owner,claimed_at,expires_at,lifecycle_generation,delivery_state,telegram_message_id) VALUES('a','daily',?,'synthetic',?,?,?,'DELIVERED',11)",args:[day,at.toISOString(),at.toISOString(),user.lifecycleGeneration]});

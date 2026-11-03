@@ -49,7 +49,9 @@ import {hranaTransport} from './hranaTransport.js';
 test('allowed business bootstrap uses strict v33 Admission with no DDL/backfill or listener',async t=>{
  const f=await recoveryFixture(t),wire=hranaTransport('file:'+f.dir+'/synthetic.db');
  const env={...environment(),TELEGRAM_BOT_TOKEN:'synthetic-only',TELEGRAM_WEBHOOK_SECRET:'synthetic-only-32-byte-webhook-secret',
-  OPENROUTER_API_KEY:'synthetic-only',STAGE7_COMPANION:'off',STAGE7_AUTOMATIC:'off',WHOOP_WEBHOOK_ENABLED:'off'};
+  OPENROUTER_API_KEY:'synthetic-only',BRIEFING_TRIGGER_SECRET:'synthetic-scheduler-secret-32-bytes',
+  WHOOP_CLIENT_ID:'synthetic-only',WHOOP_CLIENT_SECRET:'synthetic-only',TELEGRAM_CHAT_ID:'123',
+  STAGE7_COMPANION:'off',STAGE7_AUTOMATIC:'off',WHOOP_WEBHOOK_ENABLED:'off'};
  const previous={...process.env};let started,requests=0;const statements=[];
  t.mock.method(globalThis,'fetch',async input=>{
   requests++;assert.equal(new URL(input.url).hostname,RECOVERY_PRODUCTION_HOST);

@@ -23,6 +23,7 @@ test('admitted production composition uses real Telegram API edit/ACK and update
   return new Response(JSON.stringify({ok:true,result}),{status:200,headers:{'content-type':'application/json'}});
  });
  await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});await f.db.setLocale('a','en',{now:f.core.now()});
+ await f.db.ensureOnboarding('a',{state:'READY',now:f.core.now()});
  await f.db.saveTokens('a',{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date('2026-12-01'),scope:'offline',whoopUserId:'synthetic'},{now:f.core.now()});
  const app=await createStage7Runtime({db:f.db,keys:fixtureKeys,environment,env:{telegramBotToken:'SYNTHETIC_NOT_A_TOKEN'},now:f.core.now});
  const api=createTelegramApi({botToken:'SYNTHETIC_NOT_A_TOKEN'}),settings=createSettings({db:f.db,now:f.core.now}),send=createSendReply({db:f.db,api});

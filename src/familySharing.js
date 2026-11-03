@@ -7,12 +7,13 @@ import {runCompanionStep} from './companionStep.js';
 import {createTelegramApi} from './bot/api.js';
 import {createBodyEnergyRuntime} from './bodyEnergyRuntime.js';
 import {POLICY_VERSION,SIGNAL_POLICY} from './proactivePolicy.js';
+import {WEEKLY} from './config.js';
 
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const dayShift=(day,n)=>new Date(Date.parse(day+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
 const taipeiParts=at=>({day:localDate(at,'Asia/Taipei'),minute:Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hourCycle:'h23',hour:'2-digit'}).format(at))*60+Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',minute:'2-digit'}).format(at))});
 export function familyDue(at,category){const {day,minute}=taipeiParts(at),dow=new Date(day+'T00:00:00Z').getUTCDay();
- return category==='daily'?minute>=570:category==='weekly'?dow===1&&minute>=540:true;}
+ return category==='daily'?minute>=570&&minute<720:category==='weekly'?dow>=1&&dow<=WEEKLY.CATCHUP_DAYS&&(dow!==1||minute>=540):true;}
 export const familyLight=value=>!Number.isFinite(value)?'⚪':value>=67?'🟢':value>=34?'🟡':'🔴';
 const COPY={
  'zh-TW':{daily:'👨‍👩‍👧 家人今日狀況（09:30）',weekly:'🗓 家人每週摘要',missing:'今天還沒有資料',sleep:'睡',average:'平均',noWeek:'資料不足',reference:'參考值',advice:'建議關心一下，問問最近是不是比較累',signal:'有需要留意的健康訊號',low:'偏低',high:'偏高',repeat:'連續 2 天'},
@@ -75,7 +76,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   await store.transaction('delivery-start',[id],async()=>{
    const prior=await store.read('delivery',id);if(prior)return;
    const fresh=await snapshot(),r=fresh.rows.find(r=>r.id===recipient.id);
-   if(!r||!same(freshStamp(r),freshStamp(recipient))||quiet(r,now()))return;
+   if(!r||!same(freshStamp(r),freshStamp(recipient))||quiet(r,now())||!familyDue(now(),category))return;
    if(!sources.every(s=>same(freshStamp(fresh.rows.find(r=>r.id===s.id)),freshStamp(s))))return;
    if(category==='invite'){
     if(!same(fresh.state.invites[store.pair(sources[0].id,r.id)],invite))return;
@@ -88,7 +89,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   // Final currentness check immediately before the only provider call. No
   // mutation/retry is permitted to resurrect a suppressed or uncertain send.
   const final=await snapshot(),r=final.rows.find(r=>r.id===recipient.id);
-  if(!r||quiet(r,now())||final.state.revision!==expected||!same(freshStamp(r),freshStamp(recipient))
+  if(!r||quiet(r,now())||!familyDue(now(),category)||final.state.revision!==expected||!same(freshStamp(r),freshStamp(recipient))
    ||!sources.every(s=>{const current=final.rows.find(r=>r.id===s.id);return current&&same(freshStamp(current),freshStamp(s))&&(category==='invite'||store.allowed(final.state,final.rows,s.id,r.id,category));})
    ||!room(0)||category==='invite'&&!await ui.verify({reply,userId:r.id,chatId:r.telegram_chat_id}))return {status:'SUPPRESSED'};
   try{
@@ -131,8 +132,18 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
        return deliver({recipient:r,sources:[a],category:'invite',period:request.at,reply,expected:state.revision,invite:request});
       }
      }
-     if(!familyDue(at,category))return {status:'NOT_DUE'};
      const sources=rows.filter(s=>store.allowed(state,rows,s.id,r.id,category));if(!sources.length)return {status:'NO_CONSENT'};
+     // Monday is also the historical weekly delivery identity. Reusing it
+     // keeps Monday's accepted/uncertain sends fenced throughout catch-up.
+     const period=category==='weekly'?dayShift(day,-((new Date(day+'T00:00:00Z').getUTCDay()+6)%7)):day;
+     if(!familyDue(at,category)){
+      if(category==='daily'&&taipeiParts(at).minute>=720){
+       const prior=await store.read('delivery',keys.lookup(['family-delivery-v1',category,r.id,period]));
+       if(!prior){try{console.log(JSON.stringify({event:'family_daily_window_missed',user:rHash(r.id),day,status:'WINDOW_CLOSED'}));}catch{/* diagnostics cannot authorize delivery */}}
+       return {status:prior?'SUPPRESSED':'WINDOW_CLOSED'};
+      }
+      return {status:'NOT_DUE'};
+     }
      if(category==='alert'){
       for(const source of sources){
        if(!room())return {status:'DEFERRED_BUDGET'};
@@ -151,14 +162,14 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
        if(value.status!=='SUPPRESSED')return value;
       }return {status:'NO_NEW_SIGNAL'};
      }
-     const id=keys.lookup(['family-delivery-v1',category,r.id,day]);if(await store.read('delivery',id))return {status:'SUPPRESSED'};
+     const id=keys.lookup(['family-delivery-v1',category,r.id,period]);if(await store.read('delivery',id))return {status:'SUPPRESSED'};
      const lines=[];
      for(const source of sources){if(!room())return {status:'DEFERRED_BUDGET'};const data=await summary(source,allDaily(source));
       if(!data)return {status:'DEFERRED_BUDGET'};
       // Discard cached snapshots after a source generation/identity change.
       if(!same(freshStamp(initial.rows.find(v=>v.id===source.id)),freshStamp(source)))return {status:'FENCED'};
       lines.push(category==='daily'?dailyLine(source,data,c):weeklyLine(source,data,c));}
-     return deliver({recipient:r,sources,category,period:day,reply:{text:c[category]+'\n'+lines.join('\n')},expected:state.revision});
+     return deliver({recipient:r,sources,category,period,reply:{text:c[category]+'\n'+lines.join('\n')},expected:state.revision});
     });
     results.push({user:rHash(recipient.id),step,status:result.status,duration_ms:Date.now()-stepStarted});
    }

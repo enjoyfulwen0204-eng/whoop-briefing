@@ -112,7 +112,24 @@ test('weekly 08:59/09:00 Taipei independent of Vietnam recipient; previous two c
  const f=await fixture(t);f.health();await f.change('a','b','weekly');await f.db.updateUser('b',{timezone:'Asia/Ho_Chi_Minh'});
  f.setTime('2026-11-02T00:59:59Z');await f.app.tick();assert.equal(f.sent.length,0);
  f.setTime('2026-11-02T01:00:00Z');await f.app.tick();assert.equal(f.sent.length,1);assert.match(f.sent[0].reply.text,/72.0% ↗.*8.0h ↗/);assert.equal(f.calculations.length,0);
- assert.equal(familyDue(new Date('2026-11-03T01:00:00Z'),'weekly'),false);
+ assert.equal(familyDue(new Date('2026-11-03T01:00:00Z'),'weekly'),true);
+ for(const at of ['2026-11-03T01:00:00Z','2026-11-04T01:00:00Z']){f.setTime(at);await f.app.tick();assert.equal(f.sent.length,1,'same Monday identity survives catch-up');}
+});
+test('daily expires at noon; weekly catch-up ends Thursday; invitations are not daily summaries',async t=>{
+ for(const [at,due] of [['2026-11-02T01:29:59Z',false],[monday,true],['2026-11-02T03:59:59Z',true],['2026-11-02T04:00:00Z',false],['2026-11-02T13:00:00Z',false]])assert.equal(familyDue(new Date(at),'daily'),due);
+ for(const [at,due] of [['2026-11-02T00:59:59Z',false],['2026-11-02T01:00:00Z',true],['2026-11-03T01:00:00Z',true],['2026-11-04T13:00:00Z',true],['2026-11-05T01:00:00Z',false]])assert.equal(familyDue(new Date(at),'weekly'),due);
+ const f=await fixture(t,{at:'2026-11-02T04:00:00Z'}),reads=f.health(),logs=[];await f.change('a','b');
+ t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
+ assert.ok((await f.app.tick()).results.some(r=>r.status==='WINDOW_CLOSED'));assert.equal(f.sent.length,0);assert.equal(reads(),0);
+ const missed=logs.filter(r=>r.event==='family_daily_window_missed');assert.equal(missed.length,1);assert.equal(missed[0].user,f.keys.lookup(['companion-diagnostic-user-v1','b']));
+ let reply=await f.open('a');reply=await f.click('a',reply,'tracking');reply=await f.click('a',reply,'invites');await f.click('a',reply,'i1');
+ await f.app.tick();assert.equal(f.sent.length,1);assert.match(f.sent[0].reply.text,/預設不分享/);
+});
+test('first weekly send on Tuesday is not resent Wednesday; noon reached during preparation suppresses daily',async t=>{
+ const f=await fixture(t,{at:'2026-11-03T01:00:00Z'});f.health();await f.change('a','b','weekly');
+ await f.app.tick();assert.equal(f.sent.length,1);f.setTime('2026-11-04T01:00:00Z');await f.app.tick();assert.equal(f.sent.length,1);
+ await f.change('a','b','daily');f.setTime('2026-11-02T03:59:59Z');
+ t.mock.method(f.db,'getSleeps',async()=>{f.setTime('2026-11-02T04:00:00Z');return [];});await f.app.tick();assert.equal(f.sent.length,1);
 });
 test('quiet floor, extended quiet and pause defer daily without consuming its delivery barrier',async t=>{
  const f=await fixture(t);f.health();await f.change('a','b');await f.db.updateUser('b',{timezone:'Europe/London'});

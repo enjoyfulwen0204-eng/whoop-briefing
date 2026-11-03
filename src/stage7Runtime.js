@@ -1,4 +1,5 @@
 import {createMorningFollowups} from './morningFollowups.js';
+import {createCompanionMorningContext} from './companionMorningContext.js';
 import {createOnDemandAssociations,withAssociationTick} from './onDemandAssociations.js';
 import {notifyMemory} from './insightNotifications.js';
 import {checkAndAct} from './proactiveAgent.js';
@@ -45,7 +46,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
   authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
  if(![33,34,35].includes(core.schemaVersion))fail('STAGE7_V33_CONFIG_REQUIRED');
- const stores=composePhase4Stores(core),associations=createOnDemandAssociations({db,core,stores,now}),companion=await createStage7Composition({core,stores,db,associations}),coach=createCompanionCoach({core,stores,db,companion,coachContext,associations}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
+ const stores=composePhase4Stores(core),associations=createOnDemandAssociations({db,core,stores,now}),morningContext=createCompanionMorningContext({db,core,stores,now}),companion=await createStage7Composition({core,stores,db,associations}),coach=createCompanionCoach({core,stores,db,companion,coachContext,associations,morningContext}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
  const proactiveJournal=createStage7ProactiveJournal({core,db,companion});
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
  const replies=createStage7ReplyAuthority({core,db,companion});
@@ -129,6 +130,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   const protectedReply=input.reply?.stage7ReplyGuard||input.reply?.stage7InteractionId||input.reply?.stage7View||input.reply?.stage7CoachContextGuard;
   const beforeSend=async()=>(!input.beforeSend||await input.beforeSend())
    &&(!input.reply?.associationGuard||await associations.verifyReply(input))
+   &&(!input.reply?.stage7MorningGuard||await morningContext.verifyReply(input))
    &&(!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply}))
    &&(!input.reply?.stage7CoachContextGuard||Boolean(coachContext)&&await coachContext.verifyReply(input));
   if(!await beforeSend())return {sent:false,messageId:null,reason:'stage7_reply_changed'};

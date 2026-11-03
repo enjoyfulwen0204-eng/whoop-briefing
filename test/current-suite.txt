@@ -1,0 +1,51 @@
+# Current v33 recovery release, not the historical all-stage qualification suite.
+# Include production entry/admission/no-resend, Stage7 interactive + delivery,
+# and post-2026-10-31 family/account/B1/B2/AI/morning/scheduler features.
+# Stage7's existing test-only recovery loader provides native in-memory v33.
+# Keep failures visible; selection is based on runtime scope, not passing status.
+# Exclude Stage5/6 producer campaigns, v34/v35/Stage8, pre-stage7 recovery and
+# evidence/checkpoint campaigns. They remain available through npm test.
+# Exclude companion-coach-context/composition: their typed LIVE context requires
+# Stage8. Current Coach B2 callback coverage is in on-demand-associations.
+# New current feature tests must be added here when introduced.
+test/round4-entry.test.js
+test/round4-v33-admission.test.js
+test/round4-no-resend.test.js
+test/round4-stage7-no-resend.test.js
+test/emergency-keywords.test.js
+test/b4-b1-owner.test.js
+test/account-self-service.test.js
+test/family-sharing.test.js
+test/on-demand-associations.test.js
+test/association-memory.test.js
+test/companion-performance.test.js
+test/companion-step-isolation.test.js
+test/companion-optional-context.test.js
+test/companion-production.test.js
+test/companion-scheduling.test.js
+test/companion-invitation.test.js
+test/companion-timing-policy.test.js
+test/companion-reply-boundary.test.js
+test/companion-decorate-localization.test.js
+test/stage7-cards.test.js
+test/stage7-journal.test.js
+test/stage7-interaction.test.js
+test/stage7-preferences.test.js
+test/stage7-daily.test.js
+test/stage7-weekly.test.js
+test/stage7-weekly-automatic.test.js
+test/stage7-delivery.test.js
+test/stage7-enrollment.test.js
+test/stage7-proactive-journal.test.js
+test/stage7-telegram.test.js
+test/stage7-adversarial.test.js
+test/journal-week-presentation.test.js
+test/body-energy.test.js
+test/body-energy-recovery-date.test.js
+test/body-energy-live-date.test.mjs
+test/hourly-sync-freshness.test.js
+test/morning-coach-footer.test.js
+test/morning-recovery-improvements.test.js
+test/night-analytics.test.js
+test/evening-prediction.test.js
+test/extras-current.test.js

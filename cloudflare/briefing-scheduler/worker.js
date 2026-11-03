@@ -233,7 +233,26 @@ export async function invokeCompanion(env,{fetchImpl=fetch,now=Date.now,signImpl
    headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
   const raw=await readResponseBody(response,{controller,deadlineAt,now});let payload;try{payload=JSON.parse(raw);}catch{throw error('invalid_companion',true);}
   if(response.status!==200||payload?.ok!==true||payload.kind!=='COMPANION_V1'||payload.source!=='cloudflare'||payload.releaseSha!==env.BRIEFING_RELEASE_SHA||payload.drainAuthorized!==false||payload.handoff!==undefined)throw error('companion_failed',true);
-  console.log(JSON.stringify({event:'companion_tick_ok',enabled:payload.enabled===true}));return {ok:true,kind:payload.kind};
+  console.log(JSON.stringify({event:'companion_tick_ok',status:200,enabled:payload.enabled===true,failed:payload.failed??0,deferred_steps:safeDeferredSteps(payload.deferredSteps)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
+ }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
+}
+export async function invokeExtras(env,{fetchImpl=fetch,now=Date.now,signImpl=signRequest,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=55000}={}){
+ if(![undefined,'off','on'].includes(env.BRIEFING_COMPANION_ENABLED))throw error('configuration',true);
+ if(env.BRIEFING_COMPANION_ENABLED!=='on')return {enabled:false};
+ const path='/internal/briefing/extras',endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
+ if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||/replace|placeholder/i.test(endpoint.hostname)||!env.BRIEFING_TRIGGER_SECRET
+  ||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)
+  ||!/^[a-f0-9]{40}$/.test(env.BRIEFING_RELEASE_SHA??'')||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF??'')
+  ||!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>55000)throw error('configuration',true);
+ const requestId=crypto.randomUUID(),timestamp=String(now()),body=canonical({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,kind:'EXTRAS_V1',executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
+ const controller=new AbortController(),deadlineAt=now()+timeoutMs,timer=setTimer(()=>controller.abort(),timeoutMs);let response;
+ try{const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+  if(controller.signal.aborted||now()>=deadlineAt)throw error('timeout',true);
+  response=await raceAbort(Promise.resolve(fetchImpl(new URL(path,endpoint).toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
+   headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
+  const raw=await readResponseBody(response,{controller,deadlineAt,now});let payload;try{payload=JSON.parse(raw);}catch{throw error('invalid_extras',true);}
+  if(response.status!==200||payload?.ok!==true||payload.kind!=='EXTRAS_V1'||payload.source!=='cloudflare'||payload.releaseSha!==env.BRIEFING_RELEASE_SHA||payload.drainAuthorized!==false||payload.handoff!==undefined)throw error('extras_failed',true);
+  console.log(JSON.stringify({event:'extras_tick_ok',status:200,enabled:payload.enabled===true,failed:payload.failed??0,deferred_steps:safeDeferredSteps(payload.deferredSteps)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
  }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
 }
 export const analyticsScheduledAt=ms=>{const at=new Date(ms);return Number.isFinite(at.getTime())&&[19,20,21].includes(at.getUTCHours())&&at.getUTCMinutes()===10;};
@@ -251,25 +270,31 @@ export async function invokeAnalytics(env,{fetchImpl=fetch,now=Date.now,signImpl
    headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
   const raw=await readResponseBody(response,{controller,deadlineAt,now});let payload;try{payload=JSON.parse(raw);}catch{throw error('invalid_analytics',true);}
   if(response.status!==200||payload?.ok!==true||payload.kind!=='NIGHT_ANALYTICS_V1'||payload.source!=='cloudflare'||payload.releaseSha!==env.BRIEFING_RELEASE_SHA||payload.drainAuthorized!==false||payload.handoff!==undefined)throw error('analytics_failed',true);
-  console.log(JSON.stringify({event:'night_analytics_ok',status:200,deferred:payload.deferred===true,failed:payload.failed??0}));return {ok:true,kind:payload.kind};
+  console.log(JSON.stringify({event:'night_analytics_ok',status:200,deferred:payload.deferred===true,failed:payload.failed??0,deferred_steps:safeDeferredSteps(payload.deferredSteps)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
  }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
 }
+export const MAX_SCHEDULED_WINDOW_MS=MAX_CONFIGURED_WINDOW_MS+55000+55000+100000;
+const deferredNames=new Set(['daily','coach','weekly','low','insight','brief_update','no_sleep','prediction','family_daily','family_alert','family_weekly','LIGHT','HEAVY','MEMORY']);
+export function safeDeferredSteps(value){return Object.fromEntries(Object.entries(value??{}).filter(([k,n])=>deferredNames.has(k)&&Number.isSafeInteger(n)&&n>0));}
 export default {
  scheduled(event,env,ctx){ctx.waitUntil((async()=>{
   if(![READINESS_CRON,MORNING_CRON].includes(event.cron))throw error('unsupported_cron',true);
-  const started=Date.now();let syncFinished=started,syncStatus=null,companionStatus=null,analyticsStatus=null,analyticsDuration=0;
+  const started=Date.now();let syncFinished=started,syncStatus=null,companionStatus=null,extrasStatus=null,analyticsStatus=null,analyticsDuration=0,companionDuration=0,extrasDuration=0;const deferredSteps={};
   try{
    // Both natural schedules perform canonical SYNC. Stage 6 still requires
    // its independent scope/mode and server-side morning-window admission.
    const result=await invoke(env);syncStatus=result.status;return result;
   }finally{
    syncFinished=Date.now();
-   if(env.BRIEFING_COMPANION_ENABLED==='on')try{await invokeCompanion(env);companionStatus=200;}catch(e){console.error(JSON.stringify({event:'companion_tick_failed',category:e.category??'unknown'}));}
+   if(env.BRIEFING_COMPANION_ENABLED==='on'){
+    let at=Date.now();try{const r=await invokeCompanion(env);companionStatus=200;deferredSteps.companion=r.deferredSteps;}catch(e){console.error(JSON.stringify({event:'companion_tick_failed',category:e.category??'unknown'}));}finally{companionDuration=Date.now()-at;}
+    at=Date.now();try{const r=await invokeExtras(env);extrasStatus=200;deferredSteps.extras=r.deferredSteps;}catch(e){console.error(JSON.stringify({event:'extras_tick_failed',category:e.category??'unknown'}));}finally{extrasDuration=Date.now()-at;}
+   }
    if(syncStatus===200&&companionStatus===200&&analyticsScheduledAt(event.scheduledTime)){
-    const at=Date.now();try{await invokeAnalytics(env);analyticsStatus=200;}catch(e){console.error(JSON.stringify({event:'night_analytics_failed',category:e.category??'unknown'}));}finally{analyticsDuration=Date.now()-at;}
+    const at=Date.now();try{const r=await invokeAnalytics(env);analyticsStatus=200;deferredSteps.analytics=r.deferredSteps;}catch(e){console.error(JSON.stringify({event:'night_analytics_failed',category:e.category??'unknown'}));}finally{analyticsDuration=Date.now()-at;}
    }
    console.log(JSON.stringify({event:'scheduled_tick_completed',schedule:event.cron===MORNING_CRON?'morning':'hourly',
-    sync_status:syncStatus,companion_status:companionStatus,analytics_status:analyticsStatus,analytics_duration_ms:analyticsDuration,sync_duration_ms:syncFinished-started,total_duration_ms:Date.now()-started}));
+    sync_status:syncStatus,companion_status:companionStatus,extras_status:extrasStatus,extras_duration_ms:extrasDuration,companion_duration_ms:companionDuration,deferred_steps:deferredSteps,analytics_status:analyticsStatus,analytics_duration_ms:analyticsDuration,sync_duration_ms:syncFinished-started,total_duration_ms:Date.now()-started}));
   }
  })().catch(e=>{console.error(JSON.stringify({event:'briefing_trigger_failed',category:e.category??'unknown',retryable:!e.nonRetryable}));throw e;}));},
  async fetch(request,env={}){

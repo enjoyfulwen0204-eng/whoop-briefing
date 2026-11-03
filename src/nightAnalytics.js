@@ -34,17 +34,19 @@ export function assertAnalyticsBinding(request,{releaseSha,configProof,at}){
 
 export async function processNightAnalytics({db,keys,userIds,reader,budget,now=()=>new Date(),
  processUser=processAnalyticsForUser,updateMemory=updateAssociationMemory,emit=console.log}){
- const night=localDate(now(),'Asia/Taipei'),owner='night:'+randomUUID(),results=[];let deferred=false;
- if(!userIds.length)return {results,deferred:false};
+ const night=localDate(now(),'Asia/Taipei'),owner='night:'+randomUUID(),results=[],deferredSteps={};let deferred=false;
+ const summary=()=>({results,deferred,deferredSteps});
+ const defer=(ids,steps)=>{deferred=true;for(const step of steps)deferredSteps[step]=(deferredSteps[step]??0)+ids.length;};
+ if(!userIds.length)return summary();
  const slot=now().getUTCHours()-19,start=((slot%userIds.length)+userIds.length)%userIds.length;
  const ordered=[...userIds.slice(start),...userIds.slice(0,start)];
- for(const id of ordered){
-  if(budget.remainingMs()<25000)return {results,deferred:true};
+ for(const [userIndex,id] of ordered.entries()){
+  if(budget.remainingMs()<25000){defer(ordered.slice(userIndex),['LIGHT','HEAVY','MEMORY']);return summary();}
   const user=await db.getUser(id);
   if(user?.status!=='ACTIVE'||(await db.getOnboarding(id))?.state!=='READY')continue;
   steps:for(const step of ['LIGHT','HEAVY','MEMORY']){
    for(;;){
-    if(budget.remainingMs()<25000)return {results,deferred:true};
+    if(budget.remainingMs()<25000){defer([id],['LIGHT','HEAVY','MEMORY'].slice(['LIGHT','HEAVY','MEMORY'].indexOf(step)));defer(ordered.slice(userIndex+1),['LIGHT','HEAVY','MEMORY']);return summary();}
     budget.assert();const started=Date.now();let status='FAILED';
     const key='night-analysis:'+keys.lookup(['night-analysis-v1',id,user.lifecycleGeneration,night,step]);
     const marker=JSON.stringify({date:night,version:'night-analysis-v1'});
@@ -70,13 +72,15 @@ export async function processNightAnalytics({db,keys,userIds,reader,budget,now=(
     // while another complete unit can fit. Never mark a partial night done.
     if(step==='LIGHT'&&status==='PARTIAL')continue;
     if(!['SUCCESS','ALREADY_COMPLETED'].includes(status)){
-     deferred ||= ['PARTIAL','SKIPPED','DEFERRED_BUDGET'].includes(status);break steps;
+     deferred ||= ['PARTIAL','SKIPPED','DEFERRED_BUDGET'].includes(status);
+     if(status==='DEFERRED_BUDGET')defer([id],['LIGHT','HEAVY','MEMORY'].slice(['LIGHT','HEAVY','MEMORY'].indexOf(step)));
+     break steps;
     }
     break;
    }
   }
  }
- return {results,deferred};
+ return summary();
 }
 
 export async function runNightAnalytics({request,environment=process.env,db,keys,env,now=()=>new Date(),deps={}}){

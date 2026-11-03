@@ -20,10 +20,10 @@ for(const cron of [READINESS_CRON,MORNING_CRON])test(`${cron}: discovery then ca
   assert.equal(options.method,'POST');assert.equal(options.redirect,'manual');
   if(path.endsWith('/continuation')){assert.equal(body.scope,'sync');return Response.json({ok:true,state:'NONE',requestBody:null});}
   if(path.endsWith('/run')){assert.equal(body.phase,'SYNC');assert.equal(body.executionMode,'OFF');return Response.json({ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{settlementState:'FINALIZED_SUCCESS',outcome:'COMPLETE_SUCCESS',resumable:false}});}
-  assert.ok(path.endsWith('/companion'));return Response.json({ok:true,kind:'COMPANION_V1',source:'cloudflare',releaseSha:env.BRIEFING_RELEASE_SHA,drainAuthorized:false,enabled:true});
+  assert.ok(['/internal/briefing/companion','/internal/briefing/extras'].includes(path));return Response.json({ok:true,kind:body.kind,source:'cloudflare',releaseSha:env.BRIEFING_RELEASE_SHA,drainAuthorized:false,enabled:true});
  });
  let promise;worker.scheduled({cron},env,{waitUntil:p=>{promise=p;}});await promise;
- assert.deepEqual(calls,['/internal/briefing/continuation','/internal/briefing/run','/internal/briefing/companion']);
+ assert.deepEqual(calls,['/internal/briefing/continuation','/internal/briefing/run','/internal/briefing/companion','/internal/briefing/extras']);
  const summary=logs.find(x=>x.event==='scheduled_tick_completed');assert.equal(summary.sync_status,200);assert.equal(summary.companion_status,200);
  assert.ok(summary.sync_duration_ms>=0&&summary.sync_duration_ms<TIMEOUT_MS);assert.ok(summary.total_duration_ms>=summary.sync_duration_ms);
  assert.ok(!JSON.stringify(logs).includes(env.BRIEFING_TRIGGER_SECRET));
@@ -33,7 +33,7 @@ test('unknown cron rejects before all I/O; failed SYNC still gives companion its
  t.mock.method(globalThis,'fetch',async url=>{calls++;return new URL(url).pathname.endsWith('/companion')
   ?Response.json({ok:true,kind:'COMPANION_V1',source:'cloudflare',releaseSha:env.BRIEFING_RELEASE_SHA,drainAuthorized:false}):Response.json({ok:false},{status:401});});
  worker.scheduled({cron:'unsupported'},env,{waitUntil:p=>{promise=p;}});await assert.rejects(promise,/unsupported_cron/);assert.equal(calls,0);
- worker.scheduled({cron:READINESS_CRON},env,{waitUntil:p=>{promise=p;}});await assert.rejects(promise,/continuation_discovery_failed/);assert.equal(calls,2);
+ worker.scheduled({cron:READINESS_CRON},env,{waitUntil:p=>{promise=p;}});await assert.rejects(promise,/continuation_discovery_failed/);assert.equal(calls,3);
 });
 test('hourly drift: 59.5 minutes is due, 49 is throttled; unfinished backfill unchanged',()=>{
  const now=new Date('2026-11-02T10:10:00Z'),state=minutes=>({lastSuccessAt:new Date(now- minutes*60000).toISOString(),backfillComplete:true});

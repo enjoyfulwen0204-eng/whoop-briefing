@@ -72,7 +72,7 @@ test('rotation follows actual morning and hourly cron, includes every user, wrap
  assert.equal(slots.length,45);let last;
  for(const at of slots){const order=companionUserOrder(ids,new Date(at));assert.deepEqual([...order].sort(),ids);assert.deepEqual(order,companionUserOrder(ids,new Date(at)));if(last)assert.equal(order[0],ids[(ids.indexOf(last)+1)%3]);last=order[0];}
  assert.deepEqual(ids,original);assert.deepEqual(companionUserOrder([],now),[]);assert.deepEqual(companionUserOrder(['a'],now),['a']);
- const source=readFileSync(new URL('../src/companionService.js',import.meta.url),'utf8');assert.match(source,/for\(const id of companionUserOrder\(runtime\?cohort.userIds:\[\],now\(\)\)\)/);
+ const source=readFileSync(new URL('../src/companionService.js',import.meta.url),'utf8');assert.match(source,/for\(const id of companionUserOrder\(automatic\?cohort.userIds:\[\],now\(\)\)\)/);
  const cron=readFileSync(new URL('../cloudflare/briefing-scheduler/wrangler.toml',import.meta.url),'utf8');assert.match(cron,/"\*\/10 0-3 \* \* \*", "10 4-23 \* \* \*"/);
 });
 test('all eight step timings are sanitized; result identity and recoverable/nonrecoverable behavior unchanged',async t=>{

@@ -13,6 +13,9 @@ import {createStage7Composition} from '../src/stage7Composition.js';
 import {createStage7Dispatcher,createSyntheticJournalTelegram} from '../src/stage7Dispatcher.js';
 import {confirmedLegacyBrief} from './confirmedLegacyBriefFixture.js';
 import {renderJournalWeek,summarizeJournalWeek} from '../src/stage7WeeklyReview.js';
+import {createCompanionCoach} from '../src/companionCoach.js';
+import {createStage7Runtime} from '../src/stage7Runtime.js';
+import {createStage7ReplyAuthority} from '../src/stage7ReplyAuthority.js';
 const instant=new Date('2026-11-01T06:00:00Z'),today='2026-11-01';
 function input(n=6){
  const facts=[],days=[];
@@ -55,6 +58,32 @@ test('shared result invalidates on authorization and source change without recal
  const f=await fixture(t),reply=await f.reader.reply('a','en','alcohol');assert.equal(await f.reader.verifyReply({userId:'a',reply}),true);
  await f.db.raw.execute("UPDATE user_whoop_tokens SET auth_generation=auth_generation+1 WHERE user_id='a'");assert.equal(await f.reader.verifyReply({userId:'a',reply}),false);
  await assert.rejects(f.reader.inspect('b'),/PHASE4_AUTH_FENCED/);
+});
+for(const locale of ['zh-TW','en','vi'])test(`Coach v33 ${locale}: B2 callback returns scoped analysis; unsupported buttons hidden`,async t=>{
+ const f=await fixture(t);await f.db.setLocale('a',locale);
+ const companion=await createStage7Composition({...f,associations:f.reader}),coach=createCompanionCoach({...f,companion,associations:f.reader});
+ const actor=await companion.interactions.authenticate({user:f.user,chatId:'123'}),request={user:f.user,chatId:'123'};
+ let reply=await coach.handle({...request,text:'/coach',requestKey:'synthetic-current-coach'});
+ async function tap(action){
+  await companion.interactions.bind(actor,reply.stage7InteractionId,44);
+  const tokens=(await f.db.raw.execute("SELECT token_hash,action FROM journal_callback_tokens WHERE user_id='a' AND revision="+reply.stage7Revision)).rows;
+  const button=reply.replyMarkup.inline_keyboard.flat().find(b=>tokens.some(t=>t.action===action&&t.token_hash===f.keys.lookup(['stage7-callback',b.callback_data.slice(3)])));
+  assert.ok(button,action);reply=await coach.handle({...request,callback:{data:button.callback_data,id:'synthetic-coach-tap',message:{message_id:44,chat:{id:123,type:'private'}},from:{id:123,is_bot:false}}});
+ }
+ await tap('coach:topic:recovery');await tap('coach:range:today');
+ const actions=(await f.db.raw.execute({sql:'SELECT action FROM journal_callback_tokens WHERE user_id=? AND interaction_id=? AND revision=?',args:['a',reply.stage7InteractionId,reply.stage7Revision]})).rows.map(r=>r.action);
+ assert.ok(actions.includes('coach:focus:patterns'));for(const name of ['baseline','history','evidence'])assert.ok(!actions.includes('coach:focus:'+name));
+ for(const b of reply.replyMarkup.inline_keyboard.flat())assert.match(b.text,/^[\p{Extended_Pictographic}\p{Regional_Indicator}]/u);
+ await tap('coach:focus:patterns');assert.ok(reply.associationGuard);assert.match(reply.text,/90/);assert.match(reply.text,/HRV/);assert.match(reply.text,/33\.3/);
+ assert.equal(await f.reader.verifyReply({userId:'a',reply}),true);assert.equal(await f.reader.verifyReply({userId:'b',reply}),false);
+ const app=await createStage7Runtime({...f,environment:{STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'a',PHASE4_BETA_PILOT_USER_ID:'a'},env:{telegramBotToken:'SYNTHETIC'},now:()=>instant});
+ const sealed=await createStage7ReplyAuthority({...f,companion}).seal(actor,reply);let sends=0;
+ const send=async input=>{assert.equal(await input.beforeSend(),true);sends++;return {sent:true,messageId:44};};
+ const outgoing={userId:'a',chatId:'123',reply:sealed};
+ assert.equal((await app.sendReply(send,outgoing)).sent,true);assert.equal(sends,1);
+ assert.equal((await app.sendReply(send,{...outgoing,reply:{...sealed,text:sealed.text+' altered'}})).sent,false);assert.equal(sends,1);
+ await f.db.raw.execute("UPDATE user_whoop_tokens SET auth_generation=auth_generation+1 WHERE user_id='a'");assert.equal(await f.reader.verifyReply({userId:'a',reply}),false);
+ assert.equal((await app.sendReply(send,outgoing)).sent,false);assert.equal(sends,1);
 });
 test('Coach natural association response is deterministic, owner-only and bypasses LLM; emergency wins',async()=>{
  let reads=0;const reader={question:associationQuestion,reply:async()=>{reads++;return {text:'synthetic association',associationGuard:{}};}};

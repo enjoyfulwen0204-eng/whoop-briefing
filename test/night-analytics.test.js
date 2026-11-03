@@ -112,6 +112,6 @@ test('scheduled Worker performs SYNC then companion then analytics only at three
    const path=new URL(url).pathname,request=JSON.parse(options.body);calls.push(path);
    return new Response(JSON.stringify(path.endsWith('/run')?{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{settlementState:'FINALIZED_SUCCESS'}}:{ok:true,kind:request.kind,releaseSha:req.releaseSha,source:'cloudflare',drainAuthorized:false,failed:0}),{status:200});
   };let work;worker.scheduled({cron:hour<4?MORNING_CRON:READINESS_CRON,scheduledTime:Date.UTC(2026,10,2,hour,10)},env,{waitUntil:p=>{work=p;}});await work;
-  assert.deepEqual(calls,['/internal/briefing/run','/internal/briefing/companion',...([19,20,21].includes(hour)?['/internal/briefing/analytics']:[])]);
+  assert.deepEqual(calls,['/internal/briefing/run','/internal/briefing/companion','/internal/briefing/extras',...([19,20,21].includes(hour)?['/internal/briefing/analytics']:[])]);
  }}finally{globalThis.fetch=previous;}
 });

@@ -9,7 +9,8 @@ export const COACH_COPY=Object.freeze({
  vi:{title:'💬 Bạn muốn tìm hiểu điều gì?',topics:['😴 Giấc ngủ','🌿 Phục hồi','🏃 Vận động'],today:'📅 Hôm nay',week:'🗓 7 ngày qua',free:'⌨️ Nhập câu hỏi',ask:'Hãy nhập câu hỏi sức khỏe của bạn.',skip:'⏭️ Bỏ qua hôm nay',pause:'⏸️ Tạm dừng lời mời',paused:'Đã tạm dừng lời mời Coach tự động. Bạn vẫn có thể dùng /coach.',empty:'Không có bản ghi đã chấm điểm phù hợp; dữ liệu thiếu không được coi là số 0.',asof:'Dữ liệu tính đến',count:'bản ghi đã chấm điểm',mean:'Trung bình',source:'Dữ liệu WHOOP · Kelvin Health OS',minutes:'phút',strain:'Mức tải vận động',preferences:'📔 Cài đặt Nhật ký và Coach',coach:'💬 Lời mời Coach tự động',quiet:'🌙 Giờ yên tĩnh',enabled:'Bật',disabled:'Tắt',quietChoices:'Giờ yên tĩnh theo múi giờ địa phương.'},
 });
 const specs={sleep:{table:'whoop_sleeps',key:'id',time:'end_at',field:'total_sleep_milli',unit:'minutes',scale:60000,type:'sleep'},recovery:{table:'whoop_recoveries',key:'sleep_id',time:'health_date',field:'recovery_score',unit:'%',scale:1,type:'recovery'},exercise:{table:'whoop_workouts',key:'id',time:'start_at',field:'strain',unit:'strain',scale:1,type:'workout'}};
-export function createCompanionCoach({core,stores,db,companion,coachContext=null}){
+export const coachFollowupsFor=(topic,{coachContext,associations}={})=>coachContext?COACH_FOLLOWUPS:associations&&['sleep','recovery'].includes(topic)?['patterns']:[];
+export function createCompanionCoach({core,stores,db,companion,coachContext=null,associations=null}){
  const {interactions}=companion;
  async function query(actor,row,topic,range,c){
   if(!COACH_TOPICS.includes(topic)||!['today','week'].includes(range))fail('COACH_REGISTERED_QUERY_REQUIRED');
@@ -32,7 +33,7 @@ export function createCompanionCoach({core,stores,db,companion,coachContext=null
  async function card(actor,row,{includeQuery=true}={}){
   // Render performs the same current actor/revision/profile/privacy check first.
   const reply=await interactions.render(actor,row),d=JSON.parse(row.diagnostics_json??'{}'),locale=presentationLocale(await db.getLocale(row.user_id)),c=COACH_COPY[locale],contextCopy=COACH_CONTEXT_COPY[locale];
-  let text=c.title,buttons=[];
+  let text=c.title,buttons=[];const supported=coachFollowupsFor(d.coachTopic,{coachContext,associations});
   if(includeQuery&&d.coachRange&&d.coachTopic)text=await query(actor,row,d.coachTopic,d.coachRange,c);
   if(d.coachFree)text=c.ask;
   if(row.state==='SKIPPED'||row.state==='CANCELLED')return {...reply,text:row.state==='CANCELLED'?c.paused:c.skip,replyMarkup:{inline_keyboard:[]}};
@@ -41,9 +42,9 @@ export function createCompanionCoach({core,stores,db,companion,coachContext=null
    if(!d.coachRange&&!d.coachFree)text=`${c.topics[COACH_TOPICS.indexOf(d.coachTopic)]}\n${contextCopy.choose}`;
    buttons.push([{text:c.today,action:'coach:range:today'},{text:c.week,action:'coach:range:week'}]);
   }
-  if(d.coachTopic&&d.coachRange&&!d.coachFree){
+  if(d.coachTopic&&d.coachRange&&!d.coachFree&&supported.length){
    text+=`\n\n${contextCopy.next}`;
-   for(let i=0;i<COACH_FOLLOWUPS.length;i+=2)buttons.push(COACH_FOLLOWUPS.slice(i,i+2).map((focus,j)=>({text:contextCopy.followups[d.coachTopic][i+j],action:`coach:focus:${focus}`})));
+   for(let i=0;i<supported.length;i+=2)buttons.push(supported.slice(i,i+2).map(focus=>({text:contextCopy.followups[d.coachTopic][COACH_FOLLOWUPS.indexOf(focus)]+(!coachContext?(locale==='vi'?' · 90 ngày':locale==='en'?' · 90 days':' · 90 天'):''),action:`coach:focus:${focus}`})));
   }
   buttons.push([{text:c.free,action:'coach:free'}]);
   if(d.automatic)buttons.push([{text:c.skip,action:'coach:skip'},{text:c.pause,action:'coach:pause'}]);
@@ -51,7 +52,7 @@ export function createCompanionCoach({core,stores,db,companion,coachContext=null
   const projection={...reply,text,replyMarkup:{inline_keyboard:keyboard},stage7View:'COACH'};
   if(includeQuery&&d.coachTopic&&d.coachRange&&!d.coachFree){
    if(coachContext)return coachContext.project({user:await db.getUser(row.user_id),chatId:actor.chat,topic:d.coachTopic,range:d.coachRange,focus:d.coachFocus??'baseline',locale,reply:projection});
-   return {...projection,text:`${text}\n\n${contextCopy.unavailable}`};
+   if(d.coachFocus==='patterns'&&supported.includes('patterns'))return await associations.coachReply(row.user_id,locale,d.coachTopic,projection)??{...projection,text:`${text}\n\n${contextCopy.unavailable}`};
   }
   return projection;
  }
@@ -70,7 +71,7 @@ export function createCompanionCoach({core,stores,db,companion,coachContext=null
    if(!['ISSUED','COMPLETED'].includes(row.state))return interactions.expired(actor);
    if(action.startsWith('coach:topic:')&&COACH_TOPICS.includes(action.slice(12))){d.coachTopic=action.slice(12);delete d.coachRange;delete d.coachFocus;delete d.coachFree;}
    else if(action.startsWith('coach:range:')&&['today','week'].includes(action.slice(12))&&COACH_TOPICS.includes(d.coachTopic)){d.coachRange=action.slice(12);d.coachFocus='baseline';delete d.coachFree;}
-   else if(action.startsWith('coach:focus:')&&COACH_FOLLOWUPS.includes(action.slice(12))&&COACH_TOPICS.includes(d.coachTopic)&&['today','week'].includes(d.coachRange)){d.coachFocus=action.slice(12);delete d.coachFree;}
+   else if(action.startsWith('coach:focus:')&&coachFollowupsFor(d.coachTopic,{coachContext,associations}).includes(action.slice(12))&&COACH_TOPICS.includes(d.coachTopic)&&['today','week'].includes(d.coachRange)){d.coachFocus=action.slice(12);delete d.coachFree;}
    else if(action==='coach:free'){d.coachFree=true;delete d.coachRange;delete d.coachFocus;}
    else if(action==='coach:skip'&&d.automatic){row=await interactions.update(actor,row,{state:'SKIPPED'});return card(actor,row);}
    else if(action==='coach:pause'&&d.automatic){const p=await companion.preferences(actor);await companion.changePreferences(actor,p,{coach_enabled:0});row=await interactions.update(actor,row,{state:'CANCELLED'});return card(actor,row);}

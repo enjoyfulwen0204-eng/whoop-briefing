@@ -1,9 +1,9 @@
 # Render Blueprint
 #
-# 兩個服務，**兩個都是免費方案**：
+# 兩個服務，**靜態站免費、Telegram Web Service 使用 Starter**：
 #
 #   1. web  whoop-privacy          公開靜態 /privacy，不需要憑證或資料庫
-#   2. web  whoop-telegram-webhook Telegram 入站 webhook（免費 Web Service）
+#   2. web  whoop-telegram-webhook Telegram 入站 webhook（Starter Web Service）
 #
 # ⚠️ 這裡**刻意沒有** cron，也**刻意沒有** Background Worker。
 #
@@ -14,12 +14,8 @@
 #
 # ## 入站為什麼是 webhook 不是長輪詢
 #
-# getUpdates 需要一個永遠活著的 process，在 Render 上那是**付費**的
-# Background Worker。webhook 只在有人傳訊息時才需要醒著，所以跑得起免費方案。
-#
-# 代價：免費 Web Service 閒置一段時間會睡著，睡著之後的第一則訊息要等幾十秒
-# 的冷啟動。Telegram 會重送，而耐久去重（telegram_processed_updates +
-# telegram_operations）保證重送不會產生第二次副作用。這是刻意接受的取捨。
+# Starter 維持入站服務運作；Telegram 重送仍由耐久去重
+# （telegram_processed_updates + telegram_operations）保護。
 #
 # 正式環境的入站是 webhook；`npm run bot`（長輪詢）只留給本機除錯，
 # **任何 Render 服務的 startCommand 都不會啟動它**。
@@ -56,12 +52,12 @@ services:
         value: no-referrer
 
   # ---------------------------------------------------------------------------
-  # Telegram 入站 webhook（免費 Web Service）
+  # Telegram 入站 webhook（Starter Web Service）
   # ---------------------------------------------------------------------------
   - type: web
     name: whoop-telegram-webhook
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: npm ci
     startCommand: npm run bot:webhook
     # Render 用這個判斷服務活著。這個端點不碰 DB，也不吐任何內部資訊。

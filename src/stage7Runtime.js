@@ -1,5 +1,4 @@
 import {createMorningFollowups} from './morningFollowups.js';
-import {notifyPrediction} from './predictionNotification.js';
 import {createOnDemandAssociations,withAssociationTick} from './onDemandAssociations.js';
 import {notifyMemory} from './insightNotifications.js';
 import {checkAndAct} from './proactiveAgent.js';
@@ -46,7 +45,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
   authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
  if(![33,34,35].includes(core.schemaVersion))fail('STAGE7_V33_CONFIG_REQUIRED');
- const stores=composePhase4Stores(core),associations=createOnDemandAssociations({db,core,stores,now}),companion=await createStage7Composition({core,stores,db,associations}),coach=createCompanionCoach({core,stores,db,companion,coachContext}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
+ const stores=composePhase4Stores(core),associations=createOnDemandAssociations({db,core,stores,now}),companion=await createStage7Composition({core,stores,db,associations}),coach=createCompanionCoach({core,stores,db,companion,coachContext,associations}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
  const proactiveJournal=createStage7ProactiveJournal({core,db,companion});
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
  const replies=createStage7ReplyAuthority({core,db,companion});
@@ -127,9 +126,9 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   const navigation=await coach.issue(actor);return replies.seal(actor,{...(typeof reply==='object'?reply:{}),...navigation,text:typeof reply==='string'?reply:reply.text});
  }
  async function sendReply(send,input){
-  if(input.reply?.associationGuard){const beforeSend=async()=> (!input.beforeSend||await input.beforeSend())&&await associations.verifyReply(input);return await beforeSend()?send({...input,beforeSend}):{sent:false,messageId:null,reason:'association_changed'};}
   const protectedReply=input.reply?.stage7ReplyGuard||input.reply?.stage7InteractionId||input.reply?.stage7View||input.reply?.stage7CoachContextGuard;
   const beforeSend=async()=>(!input.beforeSend||await input.beforeSend())
+   &&(!input.reply?.associationGuard||await associations.verifyReply(input))
    &&(!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply}))
    &&(!input.reply?.stage7CoachContextGuard||Boolean(coachContext)&&await coachContext.verifyReply(input));
   if(!await beforeSend())return {sent:false,messageId:null,reason:'stage7_reply_changed'};
@@ -176,8 +175,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   const followups=createMorningFollowups({db,keys,user:reportUser,telegram,locale,now});
   const briefUpdate=await step('brief_update',()=>followups.briefUpdate());
   const noSleep=await step('no_sleep',()=>followups.noSleep());
-  const prediction=await step('prediction',()=>notifyPrediction({db,user:reportUser,telegram,locale,now}));
-  return {brief_update:briefUpdate.status,no_sleep:noSleep.status,prediction:prediction.status,insight:insightResult.status,health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
+  return {brief_update:briefUpdate.status,no_sleep:noSleep.status,insight:insightResult.status,health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
  async function contextJournal({userId,chatId,healthDate,answer}){
   const user=await db.getUser(userId);if(!eligible(user))return null;

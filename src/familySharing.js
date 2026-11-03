@@ -104,7 +104,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   }
  }
  async function tick(){
-  if(!room())return {results:[],status:'DEFERRED_BUDGET'};
+  if(!room())return {results:[],status:'DEFERRED_BUDGET',deferredSteps:Object.fromEntries(FAMILY_CLASSES.map(c=>['family_'+c,familyConfiguration(environment).ids.length]))};
   const initial=await snapshot(),at=now(),summaries=new Map(),alerts=new Map(),results=[],{day}=taipeiParts(at);
   if(!Object.keys(initial.state.invites).length&&!initial.rows.some(s=>initial.rows.some(r=>FAMILY_CLASSES.some(c=>store.allowed(initial.state,initial.rows,s.id,r.id,c)))))return {results,status:'NO_CONSENT'};
   // No consent => no health reads, calculation, sender or writes.
@@ -112,11 +112,11 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   const allDaily=source=>initial.rows.some(r=>store.allowed(initial.state,initial.rows,source.id,r.id,'daily'));
   const run=(r,name,fn)=>runCompanionStep({db,keys,userId:r.id,step:name,run:fn});
   for(const recipient of initial.rows){
-   if(!room())break;
-   const locale=await db.getLocale(recipient.id),c=COPY[locale]??COPY['zh-TW'];
+   let locale,c;
    for(const category of FAMILY_CLASSES){
     const step='family_'+category;
-    if(!room())break;
+    if(!room()){results.push({user:rHash(recipient.id),step,status:'DEFERRED_BUDGET',duration_ms:0});continue;}
+    if(!locale){locale=await db.getLocale(recipient.id);c=COPY[locale]??COPY['zh-TW'];}
     const stepStarted=Date.now();
     const result=await run(recipient,step,async()=>{
      const {rows,state}=await snapshot(),r=rows.find(v=>v.id===recipient.id);if(!r||quiet(r,at))return {status:'QUIET_HOURS'};
@@ -163,7 +163,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
     results.push({user:rHash(recipient.id),step,status:result.status,duration_ms:Date.now()-stepStarted});
    }
   }
-  return {results,status:'COMPLETE'};
+  return {results,status:'COMPLETE',deferredSteps:Object.fromEntries(FAMILY_CLASSES.map(c=>['family_'+c,results.filter(r=>r.step==='family_'+c&&r.status==='DEFERRED_BUDGET').length]).filter(([,n])=>n))};
  }
  const rHash=id=>keys.lookup(['companion-diagnostic-user-v1',id]);
  return Object.freeze({store,ui,tick});

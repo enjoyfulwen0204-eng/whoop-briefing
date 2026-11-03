@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
 import {fixtureKeys} from './localDb.js';
 import {createStage7Runtime,stage7Configuration} from '../src/stage7Runtime.js';
-import {COMPANION_PATH,COMPANION_KIND,runCompanionService,validateCompanionRequest} from '../src/companionService.js';
+import {COMPANION_PATH,COMPANION_KIND,EXTRAS_PATH,EXTRAS_KIND,runCompanionService,validateCompanionRequest} from '../src/companionService.js';
 import {createBriefingEndpoint} from '../src/briefingEndpoint.js';
 import {signTriggerRequest} from '../src/briefingTriggerAuth.js';
 import {configurationProof} from '../src/phase4ExecutionStore.js';
@@ -72,13 +72,13 @@ test('Worker companion transport is disabled by default; when enabled it signs o
  }});assert.equal(calls,1);
  await assert.rejects(invokeCompanion(env,{fetchImpl:async()=>{calls++;return new Response('{}',{status:503});}}),/companion_failed/);assert.equal(calls,2);
 });
-test('hourly cron completes SYNC then invokes companion once',async t=>{
+test('hourly cron completes SYNC then invokes companion and extras once',async t=>{
  const request=requestFor(automatic),env={BRIEFING_COMPANION_ENABLED:'on',BRIEFING_ENDPOINT_URL:'https://synthetic.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:'s'.repeat(32),BRIEFING_RELEASE_SHA:request.releaseSha,BRIEFING_CONFIG_PROOF:request.configProof,BRIEFING_EXECUTION_MODE:'OFF'};
  const calls=[];let pending;
  t.mock.method(globalThis,'fetch',async url=>{const path=new URL(url).pathname;calls.push(path);
-  return new Response(JSON.stringify(path===COMPANION_PATH?{ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha:request.releaseSha,drainAuthorized:false,enabled:true}:{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{settlementState:'FINALIZED_SUCCESS'}}),{status:200});});
+  return new Response(JSON.stringify([COMPANION_PATH,EXTRAS_PATH].includes(path)?{ok:true,kind:path===COMPANION_PATH?COMPANION_KIND:EXTRAS_KIND,source:'cloudflare',releaseSha:request.releaseSha,drainAuthorized:false,enabled:true}:{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{settlementState:'FINALIZED_SUCCESS'}}),{status:200});});
  worker.scheduled({cron:COMPANION_CRON},env,{waitUntil:p=>{pending=p;}});await pending;
- assert.deepEqual(calls,['/internal/briefing/run',COMPANION_PATH]);
+ assert.deepEqual(calls,['/internal/briefing/run',COMPANION_PATH,EXTRAS_PATH]);
  calls.length=0;worker.scheduled({cron:COMPANION_CRON},{...env,BRIEFING_COMPANION_ENABLED:'off'},{waitUntil:p=>{pending=p;}});await pending;
  assert.deepEqual(calls,['/internal/briefing/run']);
 });

@@ -11,7 +11,7 @@ import {createStage5PresentationRuntime,createStage5PresentationSender} from '..
 import {createStage8ContinuationLoop} from '../stage8ContinuationLoop.js';
 import {createStage8Runtime} from '../stage8Runtime.js';
 import {createStage7Runtime} from '../stage7Runtime.js';
-import {COMPANION_PATH,runCompanionService} from '../companionService.js';
+import {COMPANION_PATH,runCompanionService,EXTRAS_PATH,runExtrasService} from '../companionService.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 /**
@@ -263,10 +263,10 @@ export function createWebhookHandler({
       });
     }
 
-    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,MORNING_READINESS_PATH,COMPANION_PATH,ANALYTICS_PATH].includes(path) && !briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,MORNING_READINESS_PATH,COMPANION_PATH,ANALYTICS_PATH,EXTRAS_PATH].includes(path) && !briefingEndpoint) {
       return send(res, 503, { ok: false, error: 'scheduler_unavailable' });
     }
-    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,MORNING_READINESS_PATH,COMPANION_PATH,ANALYTICS_PATH].includes(path) && briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH,MORNING_READINESS_PATH,COMPANION_PATH,ANALYTICS_PATH,EXTRAS_PATH].includes(path) && briefingEndpoint) {
       if (url !== path) return send(res, 400, { ok: false, error: 'query_not_allowed' });
       if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
       const schedulerBody = await readBody(req, { limit: BRIEFING_TRIGGER.MAX_BODY_BYTES });
@@ -567,7 +567,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret,
-      environment:selectedEnvironment,runPhase:withOwnedDb(runExecutionPhase),discoverContinuation:withOwnedDb(discoverExecutionContinuation),runReadiness:withOwnedDb(runMorningReadiness),runCompanion:withOwnedDb(runCompanionService),runAnalytics:withOwnedDb(runNightAnalytics) }) : null;
+      environment:selectedEnvironment,runPhase:withOwnedDb(runExecutionPhase),discoverContinuation:withOwnedDb(discoverExecutionContinuation),runReadiness:withOwnedDb(runMorningReadiness),runCompanion:withOwnedDb(runCompanionService),runAnalytics:withOwnedDb(runNightAnalytics),runExtras:withOwnedDb(runExtrasService) }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //

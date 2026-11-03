@@ -90,6 +90,17 @@ export function createOnDemandAssociations({db,core,stores,now=()=>new Date()}){
  async function inspect(id){const cache=scope.getStore();if(!cache)return calculate(id);
   if(!cache.has(id))cache.set(id,calculate(id));const result=await cache.get(id);if(result)await assertFresh(id,result);return result;
  }
+ async function coachReply(userId,locale,topic,projection){
+  const allowed={sleep:['sleep_performance'],recovery:['hrv','recovery','rhr']}[topic];if(!allowed)fail('COACH_REGISTERED_QUERY_REQUIRED');
+  const result=await inspect(userId);if(!result)return null;
+  const view={...result,topics:result.topics.map(r=>{const metrics=r.metrics.filter(m=>allowed.includes(m.metric));return {...r,metrics,status:r.status==='ASSOCIATION'&&!metrics.length?'NO_DIFFERENCE':r.status};})};
+  const range=locale==='vi'?'90 ngày qua':locale==='en'?'Past 90 days':'最近 90 天';
+  return sealReply(userId,result,{...projection,text:projection.text+'\n\n'+range+'\n'+renderAssociations(view,locale)});
+ }
+ function sealReply(userId,result,projection){
+  const at=now().toISOString(),identity=result.identity;
+  return {...projection,associationGuard:{at,identity,proof:core.keys.lookup(['association-reply-v1',userId,projection.text,at,identity])}};
+ }
  async function reply(userId,locale,topic){const result=await inspect(userId);if(!result)return null;
   const text=renderAssociations(result,locale,topic),at=now().toISOString(),identity=result.identity;
   return {text,associationGuard:{at,identity,proof:core.keys.lookup(['association-reply-v1',userId,text,at,identity])}};
@@ -98,5 +109,5 @@ export function createOnDemandAssociations({db,core,stores,now=()=>new Date()}){
   if(typeof g.at!=='string'||now().getTime()-Date.parse(g.at)>90000||Date.parse(g.at)>now().getTime()||g.proof!==core.keys.lookup(['association-reply-v1',input.userId,input.reply.text,g.at,g.identity]))return false;
   try{return await assertFresh(input.userId,{identity:g.identity});}catch{return false;}
  }
- return Object.freeze({inspect,assertFresh,reply,verifyReply,question:associationQuestion,render:renderAssociations});
+ return Object.freeze({inspect,assertFresh,reply,coachReply,verifyReply,question:associationQuestion,render:renderAssociations});
 }

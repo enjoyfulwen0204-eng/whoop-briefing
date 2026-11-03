@@ -1,3 +1,6 @@
+import {runCompanionStep} from './companionStep.js';
+import {notifyPrediction} from './predictionNotification.js';
+import {createTelegram} from './telegram.js';
 import {createFamilySharing} from './familySharing.js';
 import {createStage8Runtime,stage8Configuration} from './stage8Runtime.js';
 import {SCHEMA_TRANSITION_PROFILE,assertSchemaTransitionProfile,schemaTransitionRuntimeProfileFor} from './schemaTransitionProfile.js';
@@ -12,6 +15,8 @@ import {createStage7Runtime,stage7Configuration} from './stage7Runtime.js';
 
 export const COMPANION_PATH='/internal/briefing/companion';
 export const COMPANION_KIND='COMPANION_V1';
+export const EXTRAS_PATH='/internal/briefing/extras';
+export const EXTRAS_KIND='EXTRAS_V1';
 export const COMPANION_BUDGET_MS=45000;
 // Sequential slots for the existing UTC cron: */10 0-3, then hourly 04-23.
 // A plain ten-minute counter would advance by six at each hourly tick and
@@ -33,62 +38,70 @@ const diagnosticCode=error=>{
 const diagnosticLog=value=>{try{console.log(JSON.stringify(value));}catch{}};
 const diagnosticUser=(keys,id)=>{try{return keys.lookup(['companion-diagnostic-user-v1',id]);}catch{return 'UNKNOWN';}};
 const diagnosticFailure=(keys,id,step,status,error)=>diagnosticLog({event:'companion_user_failed',user:diagnosticUser(keys,id),step,status,code:diagnosticCode(error)});
-export function validateCompanionRequest(request){
+export const validateCompanionRequest=request=>validateRequest(request,COMPANION_KIND);
+export const validateExtrasRequest=request=>validateRequest(request,EXTRAS_KIND);
+function validateRequest(request,kind){
  if(!request||Object.keys(request).sort().join(',')!=='configProof,executionMode,kind,releaseSha,requestId,triggerSource'
-  ||request.kind!==COMPANION_KIND||request.triggerSource!=='cloudflare'
+  ||request.kind!==kind||request.triggerSource!=='cloudflare'
   ||!['OFF','SHADOW'].includes(request.executionMode)||!/^[a-f0-9]{40}$/.test(request.releaseSha??'')
   ||!/^[a-f0-9]{64}$/.test(request.configProof??'')||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.requestId??''))fail('COMPANION_REQUEST_INVALID');
  return request;
 }
 /** Post-morning work reuses confirmed report receipts and durable delivery
  * identities. This service cannot enter SYNC, DRAIN, WHOOP refresh or an AI call. */
-export async function runCompanionService({request,environment=process.env,db:providedDb,env:providedEnv,
- keys:providedKeys,now=()=>new Date(),deps={},budgetMs=COMPANION_BUDGET_MS}={}){
+export const runCompanionService=args=>runService(args,false);
+export const runExtrasService=args=>runService(args,true);
+async function runService({request,environment=process.env,db:providedDb,env:providedEnv,
+ keys:providedKeys,now=()=>new Date(),deps={},budgetMs=COMPANION_BUDGET_MS}={},extras=false){
  if(environment.PHASE4_EXECUTION_PROFILE===SCHEMA_TRANSITION_PROFILE)assertSchemaTransitionProfile(environment);
- validateCompanionRequest(request);
+ validateRequest(request,extras?EXTRAS_KIND:COMPANION_KIND);
  if(!Number.isSafeInteger(budgetMs)||budgetMs<1||budgetMs>COMPANION_BUDGET_MS)fail('COMPANION_BUDGET_INVALID');
  const startedAtMs=Date.now(),keys=providedKeys??publicBetaKeys(environment),config=publicBetaConfiguration(environment),releaseSha=runningReleaseSha(environment);
  const proof=()=>configurationProof(keys,publicBetaConfiguration(environment),environment,releaseSha);
  if(request.releaseSha!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');
  if(request.configProof!==proof()||request.executionMode!==(config.runtime==='on'?'SHADOW':'OFF'))fail('EXECUTION_CONFIG_CHANGED');
- const cohort=stage7Configuration(environment),stage8Config=stage8Configuration(environment),ownerEnabled=stage8Config.enabled&&environment.PHASE4_STAGE8_OWNER_MONITORING==='on',automatic=cohort.mode==='on'&&cohort.automatic,base={kind:COMPANION_KIND,source:'cloudflare',releaseSha,drainAuthorized:false};
+ const cohort=stage7Configuration(environment),stage8Config=stage8Configuration(environment),ownerEnabled=!extras&&stage8Config.enabled&&environment.PHASE4_STAGE8_OWNER_MONITORING==='on',automatic=cohort.mode==='on'&&cohort.automatic,base={kind:extras?EXTRAS_KIND:COMPANION_KIND,source:'cloudflare',releaseSha,drainAuthorized:false};
  if(!automatic&&!ownerEnabled)return {status:200,body:{ok:true,...base,enabled:false,checked:0}};
  const env=providedEnv??loadEnv(),db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys,
   runtimeProfile:schemaTransitionRuntimeProfileFor({environment,keys})});
  const budget=createExecutionBudget({budgetMs,startedAtMs});let unfollow;
- let checked=0,failed=0;const outcomes={},userDurations=[];
+ let checked=0,failed=0;const outcomes={},userDurations=[],deferredSteps={};
+ const countDeferred=(step,status)=>{if(status==='DEFERRED_BUDGET')deferredSteps[step]=(deferredSteps[step]??0)+1;};
  try{return await withExecutionBudget(budget,()=>budget.run(async()=>{
   let admission=await db.admitRuntime({source:'cloudflare',fresh:true});
   const fence=()=>{budget.assert();requireRuntimeAdmission(db.raw,admission,keys,db.transaction);if(proof()!==request.configProof)fail('EXECUTION_CONFIG_CHANGED');};
   unfollow=followRuntimeRenewal(db.raw,admission,keys,db.transaction,value=>{admission=value;});
   return db.withRuntimeFence(fence,async()=>{
-   const runtime=automatic?await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now}):null;
-   for(const id of companionUserOrder(runtime?cohort.userIds:[],now())){
+   const family=extras&&(deps.createFamily??createFamilySharing)({db,keys,environment,env,now});
+   if(family){
+    const familyStarted=Date.now();
+    try{
+     const result=await family.tick();
+     for(const [step,n] of Object.entries(result.deferredSteps??{}))deferredSteps[step]=(deferredSteps[step]??0)+n;
+     for(const row of result.results){outcomes[row.status]=(outcomes[row.status]??0)+1;
+      const timing=userDurations.find(u=>u.user===row.user);if(timing)timing.duration_ms+=row.duration_ms;else userDurations.push({user:row.user,duration_ms:row.duration_ms});
+      if(['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(row.status)){failed++;diagnosticLog({event:'companion_user_failed',user:row.user,step:row.step,status:row.status,code:'UNKNOWN'});}}
+    }catch(error){diagnosticLog({event:'companion_user_failed',user:'FAMILY',step:'family',status:'EXCEPTION',code:diagnosticCode(error)});fence();failed++;}
+    finally{diagnosticLog({event:'companion_family_summary',duration_ms:Date.now()-familyStarted});}
+   }
+   const runtime=automatic&&!extras?await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now}):null;
+   for(const id of companionUserOrder(automatic?cohort.userIds:[],now())){
     const userStartedAtMs=Date.now();
     try{
     fence();const user=await db.getUser(id);
     if(!user||user.status!=='ACTIVE'||(await db.getOnboarding(id))?.state!=='READY')continue;
     const chatId=await db.getActiveChatIdForUser(id,{expectedLifecycleGeneration:user.lifecycleGeneration});if(!chatId)continue;
     try{
-     const result=await runtime.tick({user,chatId});checked++;
+     const awaitLocale=extras?await db.getLocale(id):null;
+     const result=extras?{prediction:(await runCompanionStep({db,keys,userId:id,step:'prediction',run:()=> (deps.notifyPrediction??notifyPrediction)({db,user:{...user,reportChatId:chatId},telegram:createTelegram({botToken:env.telegramBotToken,chatId,db,locale:awaitLocale,dryRun:env.dryRun}),locale:awaitLocale,now})})).status}:await runtime.tick({user,chatId});checked++;
      const statuses=[result.status,result.daily,result.coach,result.weekly,result.low,result.insight,result.brief_update,result.no_sleep,result.prediction].filter(Boolean);
+     for(const [step,status] of Object.entries(result))countDeferred(step,status);
      for(const status of statuses)outcomes[status]=(outcomes[status]??0)+1;
      for(const [step,status] of [['exception',result.status],['daily',result.daily],['coach',result.coach],['weekly',result.weekly],['low',result.low],['insight',result.insight],['brief_update',result.brief_update],['no_sleep',result.no_sleep],['prediction',result.prediction]])
       if(diagnosticFailureStates.has(status))diagnosticFailure(keys,id,step,status,result.error);
      if(statuses.some(status=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(status)))failed++;
     }catch(error){diagnosticFailure(keys,id,'exception','EXCEPTION',error);fence();failed++;}
-    }finally{userDurations.push({user:diagnosticUser(keys,id),duration_ms:Date.now()-userStartedAtMs});}
-   }
-   const family=(deps.createFamily??createFamilySharing)({db,keys,environment,env,now});
-   if(family){
-    const familyStarted=Date.now();
-    try{
-     const result=await family.tick();
-     for(const row of result.results){outcomes[row.status]=(outcomes[row.status]??0)+1;
-      const timing=userDurations.find(u=>u.user===row.user);if(timing)timing.duration_ms+=row.duration_ms;else userDurations.push({user:row.user,duration_ms:row.duration_ms});
-      if(['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(row.status)){failed++;diagnosticLog({event:'companion_user_failed',user:row.user,step:row.step,status:row.status,code:'UNKNOWN'});}}
-    }catch(error){diagnosticLog({event:'companion_user_failed',user:'FAMILY',step:'family',status:'EXCEPTION',code:diagnosticCode(error)});fence();failed++;}
-    finally{diagnosticLog({event:'companion_family_summary',duration_ms:Date.now()-familyStarted});}
+    }finally{const user=diagnosticUser(keys,id),duration_ms=Date.now()-userStartedAtMs,existing=userDurations.find(row=>row.user===user);if(existing)existing.duration_ms+=duration_ms;else userDurations.push({user,duration_ms});}
    }
    let ownerChecked=0;
    if(ownerEnabled){
@@ -107,11 +120,11 @@ export async function runCompanionService({request,environment=process.env,db:pr
     }catch(error){diagnosticFailure(keys,stage8Config.ownerId,'owner','EXCEPTION',error);fence();failed++;}
     finally{userDurations.push({user:diagnosticUser(keys,stage8Config.ownerId),step:'owner',duration_ms:Date.now()-ownerStartedAtMs});}
    }
-   fence();if(!failed)await db.recordHeartbeat('global','companion_v1',{now:now(),detail:`checked=${checked}`});
-   return {status:failed?503:200,body:{ok:failed===0,...base,enabled:true,checked,ownerChecked,failed,outcomes}};
+   fence();if(!failed)await db.recordHeartbeat('global',extras?'extras_v1':'companion_v1',{now:now(),detail:`checked=${checked}`});
+   return {status:failed?503:200,body:{ok:failed===0,...base,enabled:true,checked,ownerChecked,failed,outcomes,deferredSteps,deferred:Object.keys(deferredSteps).length>0}};
   });
  }));}finally{
   try{unfollow?.();budget.close();if(!providedDb)db.close();}
-  finally{diagnosticLog({event:'companion_tick_summary',checked,failed,outcomes,duration_ms:Date.now()-startedAtMs,users:userDurations});}
+  finally{diagnosticLog({event:extras?'extras_tick_summary':'companion_tick_summary',checked,failed,outcomes,deferredSteps,duration_ms:Date.now()-startedAtMs,users:userDurations});}
  }
 }

@@ -16,7 +16,7 @@ import { localDate } from './time.js';
 import { BRIEFING_OUTCOME, isRetryableOutcome } from './briefingState.js';
 import {
   buildObservations, completedCycles, detectWake, baselineRecords, stageFor,
-  computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
+  computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor, shortSleepPending,
 } from './analyze.js';
 import { renderDaily } from './format.js';
 import { displayNameFor } from './displayName.js';
@@ -32,7 +32,7 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  * @param {object} telegram 已經綁定到該使用者 chat 的 telegram client。
  */
 export async function runDaily({
-  db, userId, source, coach, telegram,bodyEnergy, timezone, locale = 'zh-TW', now = new Date(),presentationClock,
+  db, userId, source, coach, telegram,bodyEnergy, timezone, locale = 'zh-TW', now = new Date(),presentationClock,morningSnapshot,
   // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
   // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
@@ -178,7 +178,7 @@ export async function runDaily({
     return { status: 'not_ready', reason: wake.reason, retryable };
   }
 
-  const healthDate = wake.healthDate;
+  let healthDate = wake.healthDate;
 
   // 2) 去重：用 health_date，不是執行當天。所以下午才起床、或跨午夜才跑到，
   //    都還是同一個 key，不會漏發也不會重複發。
@@ -200,6 +200,24 @@ export async function runDaily({
     return {
       status: 'already_sent', healthDate, localDate: healthDate, staleObservation,
     };
+  }
+
+  // Fetch the same history used by the report exactly once. Re-select the
+  // newest main sleep before claiming, including WHOOP corrections/new segments.
+  const history=await source.history();
+  const historyObservations=buildObservations({...history,timezone});
+  wake=detectWake({observations:historyObservations,now:liveNow(),timezone});
+  if(!wake.ready){
+    if(wake.reason==='sleep_too_old')return markMissed();
+    await recordEvaluation(OUTCOME_FOR_REASON[wake.reason]??BRIEFING_OUTCOME.WAITING_FOR_SLEEP,{reason:wake.reason});
+    return {status:'not_ready',reason:wake.reason,retryable:true};
+  }
+  healthDate=wake.healthDate;
+  if(await db.isSent(uid,'daily',healthDate))return {status:'already_sent',healthDate,localDate:healthDate};
+  const preparedBriefing=buildBriefing({...history,timezone,healthDate,wakeSleepId:wake.record.sleepId});
+  if(shortSleepPending({wake,baselines:preparedBriefing.baselines,now:liveNow(),timezone})){
+    await recordEvaluation(BRIEFING_OUTCOME.TOO_SOON,{reason:'SHORT_SLEEP_WAIT'});
+    return {status:'not_ready',reason:'SHORT_SLEEP_WAIT',retryable:true};
   }
 
   // Optional qualified Body ordering, before any report claim or model work.
@@ -278,10 +296,7 @@ export async function runDaily({
   let narrativeFailure = null;
   let text,bodyEnergySection,ordinaryText;
   try {
-    const { sleeps, recoveries, cycles } = await source.history();
-    briefing = buildBriefing({
-      sleeps, recoveries, cycles, timezone, healthDate, wakeSleepId: wake.record.sleepId,
-    });
+    briefing = preparedBriefing;
     // 統計層（z-score / What Changed）。**任何失敗都只是沒有這一段**，
     // 絕不影響簡報本身 —— buildInsightsSafe 自己吞掉所有錯誤回 null。
     const insights = await buildInsightsSafe({ db, userId: uid, timezone, healthDate });
@@ -333,7 +348,7 @@ export async function runDaily({
   // Provider windows stay fixed; eligibility and late policy use the live
   // presentation clock after generation and lease renewal.
   now=liveNow();
-  wake=detectWake({observations:buildObservations({sleeps:pollSleeps,recoveries:pollRecoveries,timezone}),now,timezone});
+  wake=detectWake({observations:historyObservations,now,timezone});
   evaluatedAt=now.toISOString();todayLocal=localDate(now,timezone);
   observationAgeMinutes=wake.record?.endUtc?Math.round((now.getTime()-Date.parse(wake.record.endUtc))/60000):null;
   Object.assign(base,{evaluated_at:evaluatedAt,local_date:todayLocal,observation_age_minutes:observationAgeMinutes});
@@ -360,6 +375,8 @@ export async function runDaily({
     return sent;
   }}:telegram;
 
+  // Persist only this claim's original values; no prior or uncertain report is replayed.
+  if(morningSnapshot&&claim.owner)await morningSnapshot.capture({userId:uid,healthDate,claim,briefing});
   const delivery = await deliverReport({
     db, claimKey, claim, telegram:dailySender, text, now: liveNow,
     authorizeContent:typeof coach?.assertSnapshot==='function'?()=>coach.assertSnapshot():undefined,

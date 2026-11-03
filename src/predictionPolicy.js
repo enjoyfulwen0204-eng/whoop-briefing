@@ -15,18 +15,10 @@
  * 「可訓練」離「可信」還很遠。以前 `/predictions` 在 READY 時說「可訓練」，
  * 那是誠實的，但系統內部沒有任何東西表達得出第二種狀態。現在有了。
  *
- * ## Fail-closed（不可放寬）
- *
- * 品質門檻**現在全部是 null**，而 null 的語義是
- * **「還沒有被設定」→ 一律不合格**，不是「沒有限制」。
- *
- * 這是刻意的：這個系統目前有零筆真實生理資料。任何 MAE 上限、R² 下限、
- * 區間涵蓋率下限，現在填進去都只是憑空想像的數字，而一個憑空想像的門檻
- * 比沒有門檻更危險——它會讓人以為那個數字有意義。
- *
- * 所以現在的結果是：**任何模型都不可能被標成 QUALIFIED**，
- * 因此任何預測數字都不會被發布。等真實資料累積出來、能做真正的評估之後，
- * 只要把這幾個 null 換成有依據的數字就好，閘門的程式碼一行都不用動。
+ * ## Qualification
+ * Owner decision 2026-11-02: BEATS_BASELINE_ONLY explicitly permits unset
+ * absolute thresholds. All other modes retain null = unqualified. Training,
+ * test size, finite evaluation and beating the held-out mean baseline remain.
  *
  * ## 唯一現在就能設定的門檻
  *
@@ -37,7 +29,7 @@
 
 import { ANALYTICS } from './config.js';
 
-export const PREDICTION_POLICY_VERSION = 'prediction-policy-v1';
+export const PREDICTION_POLICY_VERSION = 'prediction-policy-v2-baseline-only';
 
 /**
  * 預測模型的成熟度。
@@ -68,12 +60,9 @@ export const PREDICTION_MATURITY = Object.freeze({
 export const PUBLISHABLE_MATURITY = new Set([PREDICTION_MATURITY.QUALIFIED]);
 
 export const PREDICTION_QUALITY_POLICY = Object.freeze({
-  /**
-   * ⚠️ 以下三個門檻**刻意是 null = 尚未設定 = 一律不合格**。
-   *
-   * 絕不可以把 null 解讀成「沒有限制」。零筆真實資料的現在，填任何數字
-   * 進去都是憑空想像，而憑空想像的門檻比沒有門檻更危險。
-   */
+  // Owner decision 2026-11-02. Only this explicit mode skips null absolute
+  // gates; an omitted or different mode remains fail-closed.
+  QUALIFICATION_MODE: 'BEATS_BASELINE_ONLY',
   MAX_MAE: null,
   MIN_R2: null,
   MIN_INTERVAL_COVERAGE: null,
@@ -136,8 +125,10 @@ export function qualifyModel(evaluation, { policy = PREDICTION_QUALITY_POLICY } 
     };
   }
 
+  if(!Number.isFinite(evaluation.mae)||!Number.isFinite(evaluation.baseline_mae)
+    ||evaluation.mae<0||evaluation.baseline_mae<0)reasons.push('metric_not_measurable:mae');
   // ---- 相對比較：贏不過歷史平均就直接出局 ----
-  if (policy.REQUIRE_BEATS_BASELINE && evaluation.beats_baseline !== true) {
+  if (policy.REQUIRE_BEATS_BASELINE && (evaluation.beats_baseline !== true || !(evaluation.mae<evaluation.baseline_mae))) {
     reasons.push('does_not_beat_naive_baseline');
   }
 
@@ -160,7 +151,7 @@ export function qualifyModel(evaluation, { policy = PREDICTION_QUALITY_POLICY } 
   for (const gate of REQUIRED_ABSOLUTE_GATES) {
     const threshold = policy[gate];
     if (threshold === null || threshold === undefined) {
-      reasons.push(`quality_threshold_not_configured:${gate}`);
+      if(policy.QUALIFICATION_MODE!=='BEATS_BASELINE_ONLY')reasons.push(`quality_threshold_not_configured:${gate}`);
       continue;
     }
 

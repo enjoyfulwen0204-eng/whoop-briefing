@@ -1746,6 +1746,7 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
       expiresAt: row.expires_at,
       telegramSentAt: row.telegram_sent_at ?? null,
       telegramMessageId: row.telegram_message_id ?? null,
+      lifecycleGeneration: row.lifecycle_generation ?? null,
       deliveryState: String(row.delivery_state ?? REPORT_DELIVERY_STATE.CLAIMED),
       deliveryStartedAt: row.delivery_started_at ?? null,
       deliveryAttempts: Number(row.delivery_attempts ?? 0),

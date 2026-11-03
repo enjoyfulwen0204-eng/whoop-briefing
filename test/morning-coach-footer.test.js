@@ -1,20 +1,26 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {morningCoachFooter} from '../src/morningCoachFooter.js';
-import {buildFragmentCatalogue} from '../src/narrativePlan.js';
-const briefing={stage:'cold',metrics:[],localDate:'2026-11-02'};
-const db={getRecentInsights:async()=>[]};
-for(const locale of ['zh-TW','en','vi'])test(`footer uses closed input sentences and leaves original report byte-for-byte (${locale})`,async()=>{
- const c=buildFragmentCatalogue(briefing,{locale}),original=c.fragments.map(f=>f.text).join('\n')+'\n🔋 Body Energy: 47/100';
- const tail=await morningCoachFooter({text:original,briefing,locale,db,coach:{footerPlan:async f=>({order:f.slice(0,2).map(x=>x.id)})},userId:'synthetic'});
- assert.match(tail,/💬/);assert.equal((original+tail).slice(0,original.length),original);
- for(const f of c.fragments.slice(0,2))assert.ok(tail.includes(f.text));
+import {morningCoachFooter,validMorningFooter,repeatsMorning} from '../src/morningCoachFooter.js';
+const db={getRecentInsights:async()=>[]},text='💪 恢復 65%\n🌙 睡眠 7.4h\n🔋 Body Energy：47/100\n今天可以維持平常的節奏。';
+const replies={'zh-TW':'把今天最費心的工作安排在精神最好的時段。晚餐後放下手機，留點安靜的收尾時間。',en:'Plan your most demanding work for when you feel most alert. Put your phone away after dinner and leave some quiet time to wind down.',vi:'Hãy làm việc cần tập trung khi cảm thấy tỉnh táo nhất. Sau bữa tối, cất điện thoại và dành thời gian yên tĩnh để thư giãn.'};
+for(const locale of ['zh-TW','en','vi'])test(`new coach prose is guarded and original report remains byte-for-byte (${locale})`,async()=>{
+ const tail=await morningCoachFooter({text,locale,db,userId:'synthetic',coach:{footerText:async()=>replies[locale]}});
+ assert.match(tail,/💬/);assert.ok(tail.endsWith(replies[locale]));assert.equal((text+tail).slice(0,text.length),text);
 });
-test('invented metric, number, text or unsupported ID is rejected; request failure omits only footer',async()=>{
- const text=buildFragmentCatalogue(briefing).fragments.map(f=>f.text).join('\n');
- for(const plan of [{order:['invented_99','invented_hrv']},{order:['f_cold_facts','f_cold_baseline'],text:'Recovery 99%'},{order:['f_cold_facts','f_cold_facts']},null])assert.equal(await morningCoachFooter({text,briefing,locale:'zh-TW',db,userId:'a',coach:{footerPlan:async()=>plan}}),'');
- assert.equal(await morningCoachFooter({text,briefing,locale:'zh-TW',db,userId:'a',coach:{footerPlan:async()=>{throw Error('SYNTHETIC');}}}),'');
+test('unsupported numbers/metrics, diagnosis, treatment and causal claims are rejected',()=>{
+ for(const value of ['今天走 9999 步。晚餐後放鬆。','你的 HRV 是 65ms。今天多休息。','你感染了疾病。今天多休息。','請服用安眠藥。今晚早睡。','壓力導致睡不好。晚餐後放鬆。','Take medication tonight. Rest afterward.','Bạn mắc bệnh. Hãy nghỉ ngơi.','Việc này dẫn đến mệt mỏi. Hãy nghỉ ngơi.'])assert.equal(validMorningFooter(value,text,text,'zh-TW'),false,value);
 });
-test('deadline cancels optional work and leaves report; no late footer after timeout',async()=>{
- const text=buildFragmentCatalogue(briefing).fragments.map(f=>f.text).join('\n');
- assert.equal(await morningCoachFooter({text,briefing,locale:'zh-TW',db,userId:'a',timeoutMs:5,coach:{footerPlan:async()=>new Promise(resolve=>setTimeout(()=>resolve({order:['f_cold_facts','f_cold_baseline']}),30))}}),'');
+test('exact and near-duplicate sentences are omitted; threshold is punctuation-insensitive Dice >= .72',()=>{
+ assert.equal(repeatsMorning('今天可以維持平常的節奏！晚餐後放鬆。',text),true);
+ assert.equal(repeatsMorning('今天仍可以維持平常的節奏。晚餐後放鬆。',text),true);
+ assert.equal(repeatsMorning(replies['zh-TW'],text),false);
+});
+test('English and Vietnamese linking words cannot move a valid number onto another metric',()=>{
+ const context='Recovery 65%. Sleep performance 99%.';
+ assert.equal(validMorningFooter('Your Recovery is 99%. Take a relaxed walk this evening.',context,context,'en'),false);
+ assert.equal(validMorningFooter('Phục hồi đạt 99%. Hãy dành thời gian thư giãn.',context,context,'vi'),false);
+ assert.equal(validMorningFooter('Blood oxygen is 99%. Take a relaxed walk this evening.',context,context,'en'),false);
+});
+test('failure, timeout or invalid output omits only the optional tail',async()=>{
+ for(const footerText of [async()=>null,async()=>{throw Error('SYNTHETIC');},async()=>text])assert.equal(await morningCoachFooter({text,locale:'zh-TW',db,userId:'a',coach:{footerText}}),'');
+ assert.equal(await morningCoachFooter({text,locale:'zh-TW',db,userId:'a',timeoutMs:5,coach:{footerText:async()=>new Promise(r=>setTimeout(()=>r(replies['zh-TW']),30))}}),'');
 });

@@ -172,7 +172,8 @@ export async function runPredictionCycle({
         featureValues[f] = v;
       }
 
-      if (usable) {
+      const sentClaim=typeof db.getClaim==='function'?await db.getClaim(uid,'prediction',anchorDate):null;
+      if (usable && !['CLAIMED','DELIVERY_STARTED','DELIVERED','AMBIGUOUS'].includes(sentClaim?.deliveryState)) {
         const p = predict(run.model, featureValues);
         const targetDate = addDays(anchorDate, 1);
         try {

@@ -1,3 +1,5 @@
+import {createMorningFollowups} from './morningFollowups.js';
+import {notifyPrediction} from './predictionNotification.js';
 import {createOnDemandAssociations,withAssociationTick} from './onDemandAssociations.js';
 import {notifyMemory} from './insightNotifications.js';
 import {checkAndAct} from './proactiveAgent.js';
@@ -170,7 +172,12 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    const invitation=weeklyResult.deliveredNow||insightResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId});
    return invitation.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
   });
-  return {insight:insightResult.status,health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
+  const reportUser={...user,reportChatId:chatId};
+  const followups=createMorningFollowups({db,keys,user:reportUser,telegram,locale,now});
+  const briefUpdate=await step('brief_update',()=>followups.briefUpdate());
+  const noSleep=await step('no_sleep',()=>followups.noSleep());
+  const prediction=await step('prediction',()=>notifyPrediction({db,user:reportUser,telegram,locale,now}));
+  return {brief_update:briefUpdate.status,no_sleep:noSleep.status,prediction:prediction.status,insight:insightResult.status,health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
  async function contextJournal({userId,chatId,healthDate,answer}){
   const user=await db.getUser(userId);if(!eligible(user))return null;

@@ -71,9 +71,9 @@ export async function runCompanionService({request,environment=process.env,db:pr
     const chatId=await db.getActiveChatIdForUser(id,{expectedLifecycleGeneration:user.lifecycleGeneration});if(!chatId)continue;
     try{
      const result=await runtime.tick({user,chatId});checked++;
-     const statuses=[result.status,result.daily,result.coach,result.weekly,result.low,result.insight].filter(Boolean);
+     const statuses=[result.status,result.daily,result.coach,result.weekly,result.low,result.insight,result.brief_update,result.no_sleep,result.prediction].filter(Boolean);
      for(const status of statuses)outcomes[status]=(outcomes[status]??0)+1;
-     for(const [step,status] of [['exception',result.status],['daily',result.daily],['coach',result.coach],['weekly',result.weekly],['low',result.low],['insight',result.insight]])
+     for(const [step,status] of [['exception',result.status],['daily',result.daily],['coach',result.coach],['weekly',result.weekly],['low',result.low],['insight',result.insight],['brief_update',result.brief_update],['no_sleep',result.no_sleep],['prediction',result.prediction]])
       if(diagnosticFailureStates.has(status))diagnosticFailure(keys,id,step,status,result.error);
      if(statuses.some(status=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(status)))failed++;
     }catch(error){diagnosticFailure(keys,id,'exception','EXCEPTION',error);fence();failed++;}

@@ -34,7 +34,7 @@ export function assertAnalyticsBinding(request,{releaseSha,configProof,at}){
 
 export async function processNightAnalytics({db,keys,userIds,reader,budget,now=()=>new Date(),
  processUser=processAnalyticsForUser,updateMemory=updateAssociationMemory,emit=console.log}){
- const night=localDate(now(),'Asia/Taipei'),owner='night:'+randomUUID(),results=[];
+ const night=localDate(now(),'Asia/Taipei'),owner='night:'+randomUUID(),results=[];let deferred=false;
  if(!userIds.length)return {results,deferred:false};
  const slot=now().getUTCHours()-19,start=((slot%userIds.length)+userIds.length)%userIds.length;
  const ordered=[...userIds.slice(start),...userIds.slice(0,start)];
@@ -42,32 +42,41 @@ export async function processNightAnalytics({db,keys,userIds,reader,budget,now=(
   if(budget.remainingMs()<25000)return {results,deferred:true};
   const user=await db.getUser(id);
   if(user?.status!=='ACTIVE'||(await db.getOnboarding(id))?.state!=='READY')continue;
-  for(const step of ['LIGHT','HEAVY','MEMORY']){
-   if(budget.remainingMs()<25000)return {results,deferred:true};
-   budget.assert();const started=Date.now();let status='FAILED';
-   const key='night-analysis:'+keys.lookup(['night-analysis-v1',id,user.lifecycleGeneration,night,step]);
-   const marker=JSON.stringify({date:night,version:'night-analysis-v1'});
-   try{
-    if(await db.getState(key)===marker){status='ALREADY_COMPLETED';continue;}
-    if(step==='MEMORY'){
-     const view=await reader.inspect(id);
-     if(!view){status='DEFERRED_BUDGET';break;}
-     const result=await updateMemory({db,user,reader,view,now:now()});status=result.status;
-    }else{
-     // force bypasses only dirty/cadence selection. Original atomic claim,
-     // lease, lifecycle, generation, purge and output fences still apply.
-     const result=await processUser({db,userId:id,cls:step.toLowerCase(),owner,now,force:true});status=result.result;
+  steps:for(const step of ['LIGHT','HEAVY','MEMORY']){
+   for(;;){
+    if(budget.remainingMs()<25000)return {results,deferred:true};
+    budget.assert();const started=Date.now();let status='FAILED';
+    const key='night-analysis:'+keys.lookup(['night-analysis-v1',id,user.lifecycleGeneration,night,step]);
+    const marker=JSON.stringify({date:night,version:'night-analysis-v1'});
+    try{
+     if(await db.getState(key)===marker)status='ALREADY_COMPLETED';
+     else if(step==='MEMORY'){
+      const view=await reader.inspect(id);
+      if(!view)status='DEFERRED_BUDGET';
+      else{const result=await updateMemory({db,user,reader,view,now:now()});status=result.status;}
+     }else{
+      // force bypasses only dirty/cadence selection. Original atomic claim,
+      // lease, lifecycle, generation, purge and output fences still apply.
+      const result=await processUser({db,userId:id,cls:step.toLowerCase(),owner,now,force:true});status=result.result;
+     }
+     budget.assert();
+     if(status==='SUCCESS')await db.setState(key,marker,{now:now()});
+    }finally{
+     results.push({step,status});
+     emit(JSON.stringify({event:'night_analytics_step',user:keys.lookup(['companion-diagnostic-user-v1',id]),step,status,duration_ms:Date.now()-started}));
     }
-    budget.assert();
-    if(status==='SUCCESS')await db.setState(key,marker,{now:now()});
-    else break;
-   }finally{
-    results.push({step,status});
-    emit(JSON.stringify({event:'night_analytics_step',user:keys.lookup(['companion-diagnostic-user-v1',id]),step,status,duration_ms:Date.now()-started}));
+    // Each PARTIAL has durably advanced the original range and released its
+    // claim. Re-enter that same worker (and its lease/generation fences), only
+    // while another complete unit can fit. Never mark a partial night done.
+    if(step==='LIGHT'&&status==='PARTIAL')continue;
+    if(!['SUCCESS','ALREADY_COMPLETED'].includes(status)){
+     deferred ||= ['PARTIAL','SKIPPED','DEFERRED_BUDGET'].includes(status);break steps;
+    }
+    break;
    }
   }
  }
- return {results,deferred:results.some(r=>['PARTIAL','SKIPPED','DEFERRED_BUDGET'].includes(r.status))};
+ return {results,deferred};
 }
 
 export async function runNightAnalytics({request,environment=process.env,db,keys,env,now=()=>new Date(),deps={}}){

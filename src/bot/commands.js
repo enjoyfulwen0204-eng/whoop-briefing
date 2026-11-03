@@ -1,3 +1,4 @@
+import {evaluateEvening} from '../predictionNotification.js';
 import {latestMemory,renderMemory} from '../associationMemory.js';
 /**
  * 指令處理。
@@ -283,21 +284,16 @@ async function renderLocalizedPredictions({ db, userId, rows, locale }) {
     lines.push(line('dataReady'), line('usable', {
       count: formatNumber(locale, readiness.usable_samples),
     }), '');
-    const model = await db.getLatestPredictionModel(userId, { targetMetric:'recovery' })
-      .catch(() => null);
-    if (!model) lines.push(line('modelUntrained'));
-    else {
-      const maturity = Object.values(PREDICTION_MATURITY).includes(model.maturity)
-        ? model.maturity : 'MODEL_UNAVAILABLE';
-      lines.push(line('modelState', { state: line(`maturity.${maturity}`) }));
-      if (model.nTest) lines.push(line('testSamples', { count: formatNumber(locale, model.nTest) }));
-      if (model.mae != null) lines.push(`  MAE ${formatNumber(locale, model.mae, 2)}`);
-      if (model.baselineMae != null) lines.push(line('baseline', {
-        verdict: line(model.beatsBaseline === true ? 'baselineBetter' : 'baselineWorse'),
-        value: formatNumber(locale, model.baselineMae, 2),
-      }));
-      lines.push('', line(model.qualified ? 'qualified' : 'unqualified'));
+    const anchor=rows.map(r=>r.health_date).sort().at(-1),evaluated=evaluateEvening(rows,anchor);
+    const {run,verdict}=evaluated;
+    lines.push(line('modelState',{state:line(`maturity.${verdict.maturity}`)}));
+    if(run.n_test)lines.push(line('testSamples',{count:formatNumber(locale,run.n_test)}));
+    if(Number.isFinite(run.mae)&&Number.isFinite(run.baseline_mae)){
+      lines.push(`MAE ${formatNumber(locale,run.mae,2)}`);
+      lines.push(line('baseline',{verdict:line(run.beats_baseline?'baselineBetter':'baselineWorse'),value:formatNumber(locale,run.baseline_mae,2)}));
     }
+    lines.push('',line(verdict.qualified?'qualified':'unqualified'));
+
   }
   const sc = await scorecard(db, userId, {}).catch(() => null);
   if (sc?.available) {

@@ -1,3 +1,4 @@
+import {PREDICTION_QUALITY_POLICY} from '../src/predictionPolicy.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {stage7Fixture} from './stage7Fixture.js';
 import {processAnalyticsForUser} from '../src/analyticsWorker.js';
@@ -11,12 +12,46 @@ import worker,{READINESS_CRON,MORNING_CRON} from '../cloudflare/briefing-schedul
 import {runPredictionCycle} from '../src/predictionPipeline.js';
 import {trainableRows} from './predictionFixtures.js';
 const req={requestId:'synthetic_request_123456',releaseSha:'a'.repeat(40),configProof:'b'.repeat(64),kind:'NIGHT_ANALYTICS_V1',triggerSource:'cloudflare',executionMode:'OFF'};
+function partialNightFixture(){
+ const states=new Map(),calls=[],logs=[];let remaining=90000,parts=0;
+ const input={db:{getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async key=>states.get(key),setState:async(k,v)=>states.set(k,v)},
+  keys:{lookup:JSON.stringify},userIds:['a'],reader:{inspect:async()=>({})},now:()=>new Date('2026-11-02T19:14:00Z'),
+  budget:{remainingMs:()=>remaining,assert(){assert.ok(remaining>0);}},emit:line=>logs.push(JSON.parse(line)),
+  processUser:async({userId,cls,force,owner})=>{assert.equal(userId,'a');assert.equal(force,true);assert.match(owner,/^night:/);calls.push(cls);remaining-=10000;
+   return {result:cls==='light'&&++parts<3?'PARTIAL':'SUCCESS'};},
+  updateMemory:async()=>{calls.push('memory');remaining-=10000;return {status:'SUCCESS'};}};
+ return {input,states,calls,logs,setRemaining:n=>{remaining=n;}};
+}
+test('LIGHT resumes two partial slices in the same call before HEAVY and MEMORY',async()=>{
+ const f=partialNightFixture(),out=await processNightAnalytics(f.input);
+ assert.deepEqual(f.calls,['light','light','light','heavy','memory']);
+ assert.deepEqual(f.logs.map(r=>r.status),['PARTIAL','PARTIAL','SUCCESS','SUCCESS','SUCCESS']);
+ assert.equal(out.deferred,false);assert.equal(f.states.size,3);
+});
+test('LIGHT yields below 25 seconds without a completion marker and resumes next call',async()=>{
+ const f=partialNightFixture();f.setRemaining(25000);
+ const first=await processNightAnalytics(f.input);
+ assert.equal(first.deferred,true);assert.deepEqual(f.calls,['light']);assert.equal(f.states.size,0);
+ f.setRemaining(90000);const second=await processNightAnalytics(f.input);
+ assert.equal(second.deferred,false);assert.deepEqual(f.calls,['light','light','light','heavy','memory']);assert.equal(f.states.size,3);
+ const before=f.calls.length;await processNightAnalytics(f.input);assert.equal(f.calls.length,before);
+});
+test('non-success worker outcomes keep their original stop and deferred semantics',async()=>{
+ for(const status of ['SKIPPED','FENCED','FAILED']){
+  const f=partialNightFixture();f.input.processUser=async()=>{f.calls.push('light');return {result:status};};
+  const out=await processNightAnalytics(f.input);
+  assert.deepEqual(f.calls,['light']);assert.equal(f.states.size,0);assert.equal(out.deferred,status==='SKIPPED');
+ }
+ const f=partialNightFixture();f.input.processUser=async({cls})=>{f.calls.push(cls);return {result:cls==='light'?'SUCCESS':'PARTIAL'};};
+ const out=await processNightAnalytics(f.input);
+ assert.deepEqual(f.calls,['light','heavy']);assert.equal(f.states.size,1);assert.equal(out.deferred,true);
+});
 test('v33 training persists model and candidate, backfills actuals, but never publishes unqualified values',async t=>{
  const f=await stage7Fixture(t),rows=trainableRows(80),anchor=rows.map(r=>r.health_date).sort().at(-1);
- const first=await runPredictionCycle({db:f.db,userId:'a',rows,anchorDate:anchor});
+ const first=await runPredictionCycle({db:f.db,userId:'a',rows,anchorDate:anchor,policy:{...PREDICTION_QUALITY_POLICY,QUALIFICATION_MODE:'STRICT'}});
  assert.equal(first.modelSaved,true);assert.equal(first.predictionSaved,true);assert.equal(first.qualified,false);assert.equal(first.publishedValue,null);
  const newer=trainableRows(81),nextAnchor=newer.map(r=>r.health_date).sort().at(-1);
- const second=await runPredictionCycle({db:f.db,userId:'a',rows:newer,anchorDate:nextAnchor});
+ const second=await runPredictionCycle({db:f.db,userId:'a',rows:newer,anchorDate:nextAnchor,policy:{...PREDICTION_QUALITY_POLICY,QUALIFICATION_MODE:'STRICT'}});
  assert.ok(second.actualsBackfilled>=1);assert.equal(second.publishedValue,null);
  assert.ok((await f.db.getPredictions('a',{targetMetric:'recovery'})).length>=2);
 });

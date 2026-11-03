@@ -48,6 +48,11 @@ export function createOnDemandBodyEnergy({db,stores,keys,environment,now=()=>new
  }
  async function currentSection({userId,healthDate,requestedAt=new Date(now()),morning=false,details=false}){
   const result=await inspect({userId,healthDate,requestedAt});
+  if(morning&&!['AVAILABLE','LIMITED'].includes(result.calculation?.quality_state)){
+   try{console.log(JSON.stringify({event:'morning_body_energy_unavailable',user:keys.lookup(['companion-diagnostic-user-v1',userId]),
+    quality_state:/^[A-Z_]{1,48}$/.test(result.calculation?.quality_state??'')?result.calculation.quality_state:'UNKNOWN',
+    reasons:(result.calculation?.reasons??[]).filter(v=>typeof v==='string'&&/^[A-Z_]{1,80}$/.test(v)).slice(0,30)}));}catch{/* Diagnostic only. */}
+  }
   const message=renderOnDemandBody(result.calculation,{locale:result.locale,morning,details,dataAsOfUtc:result.dataAsOfUtc,timezone:result.timezone});
   const recipe={version:'on-demand-body-v1',at:requestedAt.toISOString(),healthDate:result.healthDate,morning,details,
    proof:keys.lookup(['on-demand-body-v1',userId,result,message])};

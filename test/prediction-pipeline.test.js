@@ -76,9 +76,9 @@ test('★★★ 出貨的預設政策：三個絕對門檻全部是 null（尚�
 
 test('★★★ null 門檻一律不合格（絕不可以解讀成「沒有限制」）', () => {
   const perfect = {
-    ok: true, n_test: 100, mae: 0, rmse: 0, r2: 1, interval_coverage: 1, beats_baseline: true,
+    ok: true, n_test: 100, mae: 0, baseline_mae: 8, rmse: 0, r2: 1, interval_coverage: 1, beats_baseline: true,
   };
-  const v = qualifyModel(perfect);
+  const v = qualifyModel(perfect,{policy:{...PREDICTION_QUALITY_POLICY,QUALIFICATION_MODE:'STRICT'}});
   assert.equal(v.qualified, false, '★ 就算完美也不合格——因為門檻還沒被設定');
   assert.equal(v.maturity, PREDICTION_MATURITY.EVALUATED_UNQUALIFIED);
   assert.ok(v.reasons.some((r) => r.startsWith('quality_threshold_not_configured')));
@@ -86,7 +86,7 @@ test('★★★ null 門檻一律不合格（絕不可以解讀成「沒有限�
 
 test('★★ 門檻設定好之後，閘門真的會開（證明不是永久寫死）', () => {
   const good = {
-    ok: true, n_test: 100, mae: 5, rmse: 6, r2: 0.5, interval_coverage: 0.8, beats_baseline: true,
+    ok: true, n_test: 100, mae: 5, baseline_mae: 8, rmse: 6, r2: 0.5, interval_coverage: 0.8, beats_baseline: true,
   };
   const v = qualifyModel(good, { policy: CONFIGURED_POLICY });
   assert.equal(v.qualified, true);
@@ -96,7 +96,7 @@ test('★★ 門檻設定好之後，閘門真的會開（證明不是永久寫�
 
 test('★★★ 贏不過樸素基準線 → 不合格（即使門檻都設定好了）', () => {
   const worse = {
-    ok: true, n_test: 100, mae: 5, rmse: 6, r2: 0.5, interval_coverage: 0.8, beats_baseline: false,
+    ok: true, n_test: 100, mae: 5, baseline_mae: 8, rmse: 6, r2: 0.5, interval_coverage: 0.8, beats_baseline: false,
   };
   const v = qualifyModel(worse, { policy: CONFIGURED_POLICY });
   assert.equal(v.qualified, false);
@@ -106,7 +106,7 @@ test('★★★ 贏不過樸素基準線 → 不合格（即使門檻都設定�
 test('★★ 個別門檻沒過就不合格', () => {
   const strict = { ...CONFIGURED_POLICY, MAX_MAE: 1 };
   const v = qualifyModel({
-    ok: true, n_test: 100, mae: 9, rmse: 9, r2: 0.5, interval_coverage: 0.9, beats_baseline: true,
+    ok: true, n_test: 100, mae: 9, baseline_mae: 12, rmse: 9, r2: 0.5, interval_coverage: 0.9, beats_baseline: true,
   }, { policy: strict });
   assert.equal(v.qualified, false);
   assert.ok(v.reasons.some((r) => r.startsWith('mae_above_threshold')));
@@ -287,12 +287,13 @@ test('★ 剛好到門檻 → 跨過（邊界）', () => {
   assert.notEqual(maturityOf(run).maturity, PREDICTION_MATURITY.INSUFFICIENT_DATA);
 });
 
-test('★★ 有足夠資料時預設成熟度是 EVALUATED_UNQUALIFIED（不是 QUALIFIED）', () => {
+test('★★ 明確 baseline-only 政策：足夠且贏過 baseline 的資料可合格', () => {
   const rows = trainableRows(80);
   const run = trainEvaluateAndCompare(rows);
   const v = maturityOf(run, { anchorDate: anchorOf(rows) });
-  assert.equal(v.maturity, PREDICTION_MATURITY.EVALUATED_UNQUALIFIED);
-  assert.equal(v.qualified, false);
+  assert.ok(run.mae<run.baseline_mae);
+  assert.equal(v.maturity, PREDICTION_MATURITY.QUALIFIED);
+  assert.equal(v.qualified, true);
 });
 
 test('★★ capability 證實拿不到 → UNSUPPORTED，優先於一切', () => {
@@ -330,6 +331,7 @@ test('★★★ 完整迴圈：訓練 → 存模型 → 存候選預測 → 但�
     const rows = trainableRows(80);
     const res = await runPredictionCycle({
       db, userId: ALICE.id, rows, anchorDate: anchorOf(rows), now: NOW,
+      policy:{...PREDICTION_QUALITY_POLICY,QUALIFICATION_MODE:'STRICT'},
     });
 
     assert.equal(res.modelSaved, true, '模型層要有紀錄');

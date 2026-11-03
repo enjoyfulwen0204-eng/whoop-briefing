@@ -4,7 +4,7 @@
 # Stage7's existing test-only recovery loader provides native in-memory v33.
 # Keep failures visible; selection is based on runtime scope, not passing status.
 # Exclude Stage5/6 producer campaigns, v34/v35/Stage8, pre-stage7 recovery and
-# evidence/checkpoint campaigns. They remain available through npm test.
+# evidence/checkpoint campaigns. They remain available through npm run test:legacy.
 # Exclude companion-coach-context/composition: their typed LIVE context requires
 # Stage8. Current Coach B2 callback coverage is in on-demand-associations.
 # New current feature tests must be added here when introduced.

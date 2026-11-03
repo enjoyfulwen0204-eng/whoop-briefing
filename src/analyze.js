@@ -190,14 +190,14 @@ export function detectWake({ observations, now, timezone }) {
   };
 }
 
-/** Same sleep-total baseline as the rendered briefing. Earlier onset is not
- * evidence of a complete night; only unusually short, still-recent sleep waits. */
+/** Same sleep-total baseline as the rendered briefing. Unusually short sleep
+ * waits until corrected to normal length or the user's local 10:00. */
 export function shortSleepPending({wake,baselines,now,timezone}) {
   const baseline=baselines?.sleep_total?.mean;
   const duration=METRIC_BY_KEY.sleep_total.get(wake?.record?.sleep);
   return Boolean(wake?.ready && Number.isFinite(baseline) && baseline>0
     && Number.isFinite(duration) && duration<baseline*.6
-    && minutesBetween(now,wake.record.endUtc)<120 && localHour(now,timezone)<10);
+    && localHour(now,timezone)<10);
 }
 
 // ---------------------------------------------------------------------------

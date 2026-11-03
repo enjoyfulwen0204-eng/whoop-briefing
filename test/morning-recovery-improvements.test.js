@@ -20,10 +20,24 @@ test('ordinary 30 minute wake and cold-start remain eligible; short sleep waits 
  for(const options of [{},{short:true,days:1}]){const f=morning(options);assert.equal((await runDaily(f.args)).status,'sent');assert.equal(f.telegram.sent.length,1);}
  const f=morning({short:true});assert.equal((await runDaily(f.args)).reason,'SHORT_SLEEP_WAIT');assert.equal(f.telegram.sent.length,0);assert.equal(f.db.claims.size,0);
 });
-test('short sleep resumes at 120 minutes, local 10:00, or a new complete sleep correction',async()=>{
- for(const options of [{minutes:120,short:true},{at:'2026-11-03T02:00:00Z',minutes:30,short:true}])assert.equal((await runDaily(morning(options).args)).status,'sent');
- const f=morning({short:true}),fixed=morning().data;f.args.source.history=async()=>fixed;
- const result=await runDaily(f.args);assert.equal(result.status,'sent');assert.equal(f.telegram.sent.length,1);
+test('short sleep keeps waiting before local 10:00 even beyond 120 minutes',async()=>{
+ for(const options of [{minutes:120},{at:'2026-11-02T23:10:00Z',minutes:160},{at:'2026-11-03T01:59:00Z',minutes:329}]){
+  const f=morning({...options,short:true});
+  assert.equal((await runDaily(f.args)).reason,'SHORT_SLEEP_WAIT');
+  assert.equal(f.telegram.sent.length,0);assert.equal(f.db.claims.size,0);
+ }
+});
+test('short sleep follows ordinary readiness at and after local 10:00',async()=>{
+ for(const at of ['2026-11-03T02:00:00Z','2026-11-03T02:01:00Z']){
+  const f=morning({at,minutes:30,short:true});assert.equal((await runDaily(f.args)).status,'sent');assert.equal(f.telegram.sent.length,1);
+ }
+});
+test('corrected normal-length sleep sends on the next tick before local 10:00',async()=>{
+ const f=morning({short:true,minutes:210});assert.equal((await runDaily(f.args)).reason,'SHORT_SLEEP_WAIT');
+ assert.equal(f.db.claims.size,0);assert.equal(f.telegram.sent.length,0);
+ const fixed=morning({at:'2026-11-03T00:10:00Z'}).data;
+ f.args.now=fixed.now;f.args.source.poll=async()=>fixed;f.args.source.history=async()=>fixed;
+ assert.equal((await runDaily(f.args)).status,'sent');assert.equal(f.telegram.sent.length,1);
 });
 function followFixture({at='2026-11-03T04:10:00Z',gap=0,nap=false}={}){
  const db=fakeDb(),state=new Map(),now=()=>new Date(at),user={id:'synthetic',lifecycleGeneration:1,timezone:TZ,status:'ACTIVE',createdAt:'2026-10-01T00:00:00Z'};

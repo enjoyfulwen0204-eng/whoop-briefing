@@ -1,7 +1,7 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {pearson} from './analytics/correlation.js';
-import {mean,stddev} from './analytics/statistics.js';
-import {addDays,localDate} from './time.js';
+import {mean,stddev,median} from './analytics/statistics.js';
+import {addDays,localDate,localMidnightUtc} from './time.js';
 import {TOPICS,TOPIC_ICONS,JOURNAL_COPY} from './stage7Registry.js';
 import {currentExecutionBudget} from './executionBudget.js';
 import {deviationSignal} from './signals.js';
@@ -53,25 +53,21 @@ export function associationQuestion(text){
  return Object.entries({caffeine:/咖啡|caffeine|coffee|ca phe/,alcohol:/酒|alcohol|drink|beer|ruou|bia/,late_meal:/宵夜|晚餐|late meal|an muon/,exercise_note:/運動|运动|exercise|tap luyen/,travel:/旅行|travel|du lich/,stress:/壓力|压力|stress|cang thang/,late_sleep:/晚睡|熬夜|late sleep|ngu muon/}).find(([,r])=>r.test(s))?.[0]??null;
 }
 export function createOnDemandAssociations({db,core,stores,now=()=>new Date()}){
- async function stamp(id){
-  const row=(await db.raw.execute({sql:`SELECT u.status,u.lifecycle_generation,u.timezone,t.auth_generation,(t.access_token<>'') connected,
+ async function stamp(id,kind='journal'){
+  if(!['journal','strain'].includes(kind))fail('COACH_REGISTERED_QUERY_REQUIRED');
+  const resources=kind==='strain'?"'sleep','recovery','cycle'":"'sleep','recovery'";
+  const capabilities=kind==='strain'?"'sleep','recovery','cycle','hrv','rhr','previous_day_strain'":"'sleep','recovery'";
+  const row=(await db.raw.execute({sql:`SELECT u.status,u.lifecycle_generation,u.timezone,t.auth_generation,${kind==='strain'?'t.whoop_user_id,':''}(t.access_token<>'') connected,
    p.purge_generation,p.source_generation,p.pending_purge_count,o.state onboarding,o.updated_at onboarding_updated,
-   (SELECT group_concat(x,'|') FROM (SELECT resource||':'||status||':'||auth_generation||':'||lifecycle_generation x FROM whoop_resource_access WHERE user_id=u.id AND resource IN ('sleep','recovery') ORDER BY resource)) access_state,
-   (SELECT group_concat(x,'|') FROM (SELECT key||':'||status||':'||lifecycle_generation x FROM whoop_capabilities WHERE user_id=u.id AND key IN ('sleep','recovery') ORDER BY key)) capability_state
+   (SELECT group_concat(x,'|') FROM (SELECT resource||':'||status||':'||auth_generation||':'||lifecycle_generation x FROM whoop_resource_access WHERE user_id=u.id AND resource IN (${resources}) ORDER BY resource)) access_state,
+   (SELECT group_concat(x,'|') FROM (SELECT key||':'||status||':'||lifecycle_generation x FROM whoop_capabilities WHERE user_id=u.id AND key IN (${capabilities}) ORDER BY key)) capability_state
    FROM users u JOIN phase4_user_state p ON p.user_id=u.id JOIN user_whoop_tokens t ON t.user_id=u.id JOIN user_onboarding o ON o.user_id=u.id WHERE u.id=?`,args:[id]})).rows[0];
   if(!row||row.status!=='ACTIVE'||row.onboarding!=='READY'||row.connected!==1||row.pending_purge_count!==0)fail('PHASE4_AUTH_FENCED');
-  return {...row};
+  return {...row,...(kind==='strain'?{kind}: {})};
  }
- async function assertFresh(id,result){if(JSON.stringify(await stamp(id))!==JSON.stringify(result.identity))fail('PHASE4_SOURCE_NOT_CURRENT');return true;}
- async function calculate(id){
-  if(currentExecutionBudget()&&currentExecutionBudget().remainingMs()<12000)return null;
-  return stores.withContext(id,{executionMode:'SHADOW',providerRequired:true},async context=>{
-   const identity=await stamp(id),today=localDate(now(),identity.timezone),from=addDays(today,-89);
-   const facts=await stores.journal.list(context,{limit:500,fromDate:addDays(from,-1),toDate:addDays(today,-1)});
-   if(facts.length===500)fail('ASSOCIATION_FACT_BOUNDS');
-   // No source row can bypass resource authority, tombstones or identity. Only
-   // the four authorized metrics leave this query; nothing is persisted.
-   const days=(await db.raw.execute({sql:`SELECT s.health_date,s.end_at,s.id,r.hrv_rmssd_milli hrv,r.recovery_score recovery,r.resting_heart_rate rhr,s.sleep_performance_percentage sleep_performance
+ async function assertFresh(id,result){if(JSON.stringify(await stamp(id,result.identity.kind))!==JSON.stringify(result.identity))fail('PHASE4_SOURCE_NOT_CURRENT');return true;}
+ async function readDays(id,context,from,today){
+   const days=(await db.raw.execute({sql:`SELECT s.health_date,s.end_at,s.id,s.score_state sleep_score_state,r.score_state recovery_score_state,r.hrv_rmssd_milli hrv,r.recovery_score recovery,r.resting_heart_rate rhr,s.sleep_performance_percentage sleep_performance
     FROM whoop_sleeps s JOIN whoop_recoveries r ON r.user_id=s.user_id AND r.sleep_id=s.id
     JOIN user_whoop_tokens t ON t.user_id=s.user_id
     WHERE s.user_id=? AND s.health_date BETWEEN ? AND ? AND s.nap=0 AND s.score_state='SCORED' AND r.score_state='SCORED'
@@ -83,6 +79,17 @@ export function createOnDemandAssociations({db,core,stores,now=()=>new Date()}){
     ORDER BY s.end_at DESC LIMIT 1001`,args:[id,from,today,now().toISOString(),now().toISOString(),now().toISOString(),context.authGeneration,context.lifecycleGeneration,context.lifecycleGeneration]})).rows;
    if(days.length>1000)fail('ASSOCIATION_SOURCE_BOUNDS');
    const unique=[...new Map([...days].reverse().map(d=>[d.health_date,d])).values()];
+   return unique;
+ }
+ async function calculate(id){
+  if(currentExecutionBudget()&&currentExecutionBudget().remainingMs()<12000)return null;
+  return stores.withContext(id,{executionMode:'SHADOW',providerRequired:true},async context=>{
+   const identity=await stamp(id),today=localDate(now(),identity.timezone),from=addDays(today,-89);
+   const facts=await stores.journal.list(context,{limit:500,fromDate:addDays(from,-1),toDate:addDays(today,-1)});
+   if(facts.length===500)fail('ASSOCIATION_FACT_BOUNDS');
+   // No source row can bypass resource authority, tombstones or identity. Only
+   // the four authorized metrics leave this query; nothing is persisted.
+   const unique=await readDays(id,context,from,today);
    const result={...calculateAssociations({facts,days:unique,today}),identity,factIds:facts.map(f=>f.privacy_artifact_id)};
    await stores.assertCurrent(context);await assertFresh(id,result);return result;
   });
@@ -90,7 +97,30 @@ export function createOnDemandAssociations({db,core,stores,now=()=>new Date()}){
  async function inspect(id){const cache=scope.getStore();if(!cache)return calculate(id);
   if(!cache.has(id))cache.set(id,calculate(id));const result=await cache.get(id);if(result)await assertFresh(id,result);return result;
  }
+ async function inspectStrain(id){
+  if(currentExecutionBudget()&&currentExecutionBudget().remainingMs()<12000)return null;
+  return stores.withContext(id,{executionMode:'SHADOW',providerRequired:true},async context=>{
+   const identity=await stamp(id,'strain'),today=localDate(now(),identity.timezone),from=addDays(today,-89),at=now().toISOString();
+   const days=await readDays(id,context,from,today);
+   const cycles=(await db.raw.execute({sql:`SELECT c.id,c.start_at,c.end_at,c.strain,c.score_state
+    FROM whoop_cycles c JOIN user_whoop_tokens t ON t.user_id=c.user_id
+    WHERE c.user_id=? AND c.start_at>=? AND c.start_at<=? AND c.end_at<=? AND c.end_at>=c.start_at
+    AND c.score_state='SCORED' AND c.strain BETWEEN 0 AND 21 AND c.whoop_user_id=t.whoop_user_id
+    AND c.synced_at<=? AND (c.updated_at IS NULL OR c.updated_at<=c.synced_at)
+    AND NOT EXISTS(SELECT 1 FROM whoop_resource_tombstones z WHERE z.user_id=c.user_id AND z.resource_type='cycle' AND z.resource_id=c.id AND z.state='ACTIVE')
+    AND EXISTS(SELECT 1 FROM whoop_resource_access a WHERE a.user_id=c.user_id AND a.resource='cycle' AND a.status='ACCESSIBLE' AND a.auth_generation=? AND a.lifecycle_generation=?)
+    AND NOT EXISTS(SELECT 1 FROM whoop_capabilities k WHERE k.user_id=c.user_id AND k.key IN ('cycle','previous_day_strain') AND k.lifecycle_generation=? AND k.status IN ('UNSUPPORTED','UNAVAILABLE'))
+    ORDER BY c.end_at DESC,c.id DESC LIMIT 1001`,args:[id,localMidnightUtc(from,identity.timezone).toISOString(),at,at,at,context.authGeneration,context.lifecycleGeneration,context.lifecycleGeneration]})).rows;
+   if(cycles.length>1000)fail('ASSOCIATION_SOURCE_BOUNDS');
+   const result={...calculateStrainRecovery({cycles:cycles.map(c=>({...c,health_date:localDate(c.start_at,identity.timezone)})),days,today}),identity};
+   await stores.assertCurrent(context);await assertFresh(id,result);return result;
+  });
+ }
  async function coachReply(userId,locale,topic,projection){
+  if(topic==='exercise'){
+   const result=await inspectStrain(userId);if(!result)return null;
+   return sealReply(userId,result,{...projection,text:projection.text+'\n\n'+renderStrainRecovery(result,locale)});
+  }
   const allowed={sleep:['sleep_performance'],recovery:['hrv','recovery','rhr']}[topic];if(!allowed)fail('COACH_REGISTERED_QUERY_REQUIRED');
   const result=await inspect(userId);if(!result)return null;
   const view={...result,topics:result.topics.map(r=>{const metrics=r.metrics.filter(m=>allowed.includes(m.metric));return {...r,metrics,status:r.status==='ASSOCIATION'&&!metrics.length?'NO_DIFFERENCE':r.status};})};
@@ -109,5 +139,46 @@ export function createOnDemandAssociations({db,core,stores,now=()=>new Date()}){
   if(typeof g.at!=='string'||now().getTime()-Date.parse(g.at)>90000||Date.parse(g.at)>now().getTime()||g.proof!==core.keys.lookup(['association-reply-v1',input.userId,input.reply.text,g.at,g.identity]))return false;
   try{return await assertFresh(input.userId,{identity:g.identity});}catch{return false;}
  }
- return Object.freeze({inspect,assertFresh,reply,coachReply,verifyReply,question:associationQuestion,render:renderAssociations});
+ return Object.freeze({inspect,inspectStrain,assertFresh,reply,coachReply,verifyReply,question:associationQuestion,render:renderAssociations});
+}
+
+/** One completed SCORED cycle per local activity day, latest end then ID.
+ * High is strictly above the median; ties belong to low, never split to make
+ * artificial groups. The next calendar health day must have scored sleep and
+ * recovery. The median includes valid activity days without a following result;
+ * those missing outcomes never become controls. A cycle ending after that
+ * wake is excluded (no look-ahead). Read adapter validates authority.
+ */
+export function calculateStrainRecovery({cycles,days,today}){
+ const from=addDays(today,-89),baselineFrom=addDays(today,-29),byCycle=new Map(),byDay=new Map();
+ for(const d of [...days].sort((a,b)=>String(a.end_at??'').localeCompare(String(b.end_at??''))))
+  if(d.health_date>=from&&d.health_date<=today&&d.sleep_score_state==='SCORED'&&d.recovery_score_state==='SCORED')byDay.set(d.health_date,d);
+ for(const c of [...cycles].sort((a,b)=>String(a.end_at).localeCompare(String(b.end_at))||String(a.id).localeCompare(String(b.id))))
+  if(c.health_date>=from&&c.health_date<=today&&c.score_state==='SCORED'&&c.end_at&&Date.parse(c.end_at)>=Date.parse(c.start_at)&&Number.isFinite(c.strain)&&c.strain>=0&&c.strain<=21)byCycle.set(c.health_date,c);
+ const cut=median([...byCycle.values()].map(c=>c.strain)),high=[],low=[];
+ if(cut!==null)for(const [day,c]of byCycle){const next=byDay.get(addDays(day,1));if(next&&Date.parse(c.end_at)<=Date.parse(next.end_at))(c.strain>cut?high:low).push(next);}
+ const metrics=[];let eligible=0;
+ for(const metric of ['recovery','hrv']){
+  const a=high.map(d=>d[metric]).filter(Number.isFinite),b=low.map(d=>d[metric]).filter(Number.isFinite);
+  const sd=stddev([...byDay.values()].filter(d=>d.health_date>=baselineFrom).map(d=>d[metric]).filter(Number.isFinite));
+  if(a.length<5||b.length<5||sd===null||metric==='hrv'&&mean(b)<=0)continue;
+  eligible++;const delta=mean(a)-mean(b);
+  if(delta===0||Math.abs(delta)<sd*.5)continue;
+  metrics.push({metric,difference:metric==='hrv'?delta/mean(b)*100:delta,direction:delta>0?'high':'low',exposed:a.length,unexposed:b.length});
+ }
+ return {today,median:cut,high:high.length,low:low.length,status:high.length<5||low.length<5||!eligible?'INSUFFICIENT':metrics.length?'ASSOCIATION':'NO_DIFFERENCE',metrics};
+}
+export function renderStrainRecovery(result,locale='zh-TW'){
+ const c=TEXT[locale]??TEXT.en;
+ const x=({
+  'zh-TW':{title:'🏃 前一天活動負荷 → 隔天恢復（最近 90 天）',group:'高負荷／低負荷',median:'Strain 中位數',rule:'高負荷 > 中位數；低負荷 ≤ 中位數',waiting:'還在累積資料',comparison:'高負荷的隔天，相較於低負荷'},
+  en:{title:'🏃 Previous-day strain → next-day recovery (past 90 days)',group:'High / low strain days',median:'Strain median',rule:'High > median; low ≤ median',waiting:'Still collecting data',comparison:'After high strain, compared with low strain'},
+  vi:{title:'🏃 Mức tải ngày trước → Phục hồi ngày sau (90 ngày qua)',group:'Số ngày tải cao / thấp',median:'Trung vị Strain',rule:'Cao > trung vị; thấp ≤ trung vị',waiting:'Đang tích lũy dữ liệu',comparison:'Sau ngày tải cao, so với tải thấp'},
+ })[locale]??{title:'🏃 Strain → Recovery',group:'High / low strain days',median:'Strain median',rule:'High > median; low ≤ median',waiting:'Still collecting data',comparison:'High versus low strain'};
+ const lines=[c.title,x.title,`${x.group}: ${result.high} / ${result.low}`];
+ if(result.median!==null)lines.push(`${x.median}: ${Number(result.median.toPrecision(3))} (${x.rule})`);
+ if(result.status==='INSUFFICIENT')lines.push(`${x.waiting} — ${c.need}`);
+ else if(result.status==='NO_DIFFERENCE')lines.push(c.none);
+ else lines.push(x.comparison+':',...result.metrics.map(m=>`${m.metric==='hrv'?'HRV':'Recovery'} ${c[m.direction]} ${Number(Math.abs(m.difference).toPrecision(3))}${m.metric==='hrv'?'%':' '+c.point} (${m.exposed} / ${m.unexposed})`));
+ return lines.join('\n');
 }

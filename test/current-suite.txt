@@ -17,6 +17,7 @@ test/b4-b1-owner.test.js
 test/account-self-service.test.js
 test/family-sharing.test.js
 test/on-demand-associations.test.js
+test/strain-recovery.test.js
 test/coach-morning-followups.test.js
 test/association-memory.test.js
 test/companion-performance.test.js

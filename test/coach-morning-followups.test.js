@@ -50,10 +50,10 @@ for(const locale of ['zh-TW','en','vi'])test(`current Coach ${locale}: actual ba
  await f.db.raw.execute("UPDATE phase4_user_state SET source_generation=source_generation+1 WHERE user_id='a'");
  assert.equal((await app.sendReply(send,{userId:'a',chatId:'123',reply:sealed})).sent,false);assert.equal(sends,1);
 });
-test('empty comparison is localized; 30-day mean excludes today; exercise association stays hidden',async()=>{
+test('empty comparison is localized; 30-day mean excludes today; exercise association uses the current reader',async()=>{
  for(const locale of ['zh-TW','en','vi'])for(const topic of ['sleep','recovery','exercise'])for(const focus of ['baseline','history'])assert.match(renderMorningComparison({rows:[],topic,focus,range:'today',today:'2026-11-03',locale}),/還在累積資料|Still collecting data|Đang tích lũy dữ liệu/);
  const {coachFollowupsFor}=await import('../src/companionCoach.js');
- assert.deepEqual(coachFollowupsFor('exercise',{morningContext:{},associations:{}}),['baseline','history','evidence']);
+ assert.deepEqual(coachFollowupsFor('exercise',{morningContext:{},associations:{}}),['baseline','patterns','history','evidence']);
  assert.deepEqual(coachFollowupsFor('sleep',{morningContext:{},associations:{}}),['baseline','patterns','history','evidence']);
  const rows=[{health_date:'2026-10-03',recovery:1},{health_date:'2026-10-04',recovery:50},{health_date:'2026-11-03',recovery:100}];
  assert.match(renderMorningComparison({rows,topic:'recovery',focus:'baseline',range:'today',today:'2026-11-03',locale:'en'}),/Average 50.*1 samples.*Current 100/);

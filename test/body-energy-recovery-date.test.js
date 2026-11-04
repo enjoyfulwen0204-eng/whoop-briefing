@@ -67,3 +67,34 @@ test('Morning Body Energy renders the same wake-up line as aligned sources in al
     assert.match(renderOnDemandBody(result,options),/70\/100/);
   }
 });
+
+import {logBodyEnergyRealignments} from '../src/bodyEnergyDiagnostics.js';
+import {fixtureKeys} from './localDb.js';
+test('each realigned main/baseline source logs only hashed identity, dates, times and severity',t=>{
+ const input=bodyInput(),before=selectBodyEnergyInputs(input);
+ input.sources.sleep[0].health_date='2026-01-01';
+ input.sources.recovery[0].health_date='2026-01-02';
+ input.sources.sleep[1].health_date='2026-01-03';
+ input.sources.recovery[2].health_date='2026-01-04';
+ const selected=selectBodyEnergyInputs(input),logs=[];t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
+ assert.equal(selected.dateRealignments.length,4,'baseline HRV/RHR observations are deduplicated');
+ logBodyEnergyRealignments({keys:fixtureKeys,userId:'PRIVATE_USER',records:selected.dateRealignments});
+ assert.deepEqual(logs.map(r=>r.record_kind),['main_sleep','main_recovery','baseline_sleep','baseline_recovery']);
+ assert.deepEqual(logs.map(r=>r.classification),['warning','warning','warning','reason']);
+ for(let i=0;i<logs.length;i++){
+  const log=logs[i],row=selected.dateRealignments[i];
+  assert.equal(log.stored_health_date,row.stored_health_date);assert.equal(log.computed_health_date,row.computed_health_date);
+  assert.match(log.record,/^[a-f0-9]{64}$/);assert.match(log.updated_at,/T.*Z$/);assert.match(log.synced_at,/T.*Z$/);
+  assert.deepEqual(Object.keys(log).sort(),['event','user','record','record_kind','stored_health_date','computed_health_date','classification','updated_at','synced_at'].sort());
+ }
+ assert.doesNotMatch(JSON.stringify(logs),/PRIVATE_USER|sleep-0|hrv|recovery_score|strain|rmssd/);
+ assert.equal('dateRealignments' in selected.manifest,false,'diagnostics never change manifest identity');
+ assert.equal(before.dateRealignments.length,0);
+});
+test('malformed diagnostic metadata and logger failures cannot leak payloads or change results',t=>{
+ const logs=[];t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
+ logBodyEnergyRealignments({keys:fixtureKeys,userId:'a',records:[{record_kind:'main_sleep',id:'PRIVATE_ID',classification:'warning',stored_health_date:'PRIVATE_HEALTH 9876',computed_health_date:'2026-09-19',updated_at:'PRIVATE_HEALTH',synced_at:'PRIVATE_HEALTH'}]});
+ assert.equal(logs[0].stored_health_date,null);assert.equal(logs[0].updated_at,null);assert.equal(logs[0].synced_at,null);assert.doesNotMatch(JSON.stringify(logs),/PRIVATE_|9876/);
+ t.mock.method(console,'log',()=>{throw Error('logging unavailable');});
+ assert.doesNotThrow(()=>logBodyEnergyRealignments({keys:fixtureKeys,userId:'a',records:selectBodyEnergyInputs(bodyInput()).dateRealignments}));
+});

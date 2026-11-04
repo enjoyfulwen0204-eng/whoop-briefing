@@ -1,3 +1,4 @@
+import {logBodyEnergyRealignments} from './bodyEnergyDiagnostics.js';
 import {currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import { BODY_ENERGY as C, bodyEnergyVersion } from './bodyEnergyRegistry.js';
 import { selectBodyEnergyInputs, exactBodyInstant, validHealthDate, bodyEnergyDataTime } from './bodyEnergyInputs.js';
@@ -208,7 +209,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       else for(const source of roots)refs.push((await core.root(context,source.type,source.id)).ref);
       const ticket=Object.freeze({kind:'BODY_ENERGY_CAPTURE'});
       const cacheKey=['body-energy-capture-v1',core.newId()];
-      core.contextRegistry.set(context,cacheKey,{req,manifest,calculation});
+      core.contextRegistry.set(context,cacheKey,{req,manifest,calculation,dateRealignments:selection.dateRealignments});
       tickets.set(ticket,{context,cacheKey,refs});return ticket;
     });
   }
@@ -218,6 +219,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       await core.revalidateSources(context,captured.refs);
       const value=core.contextRegistry.get(context,captured.cacheKey);
       if(!value)fail('BODY_ENERGY_CAPTURE_EVICTED');
+      logBodyEnergyRealignments({keys,userId:context.userId,records:value.dateRealignments});
       return structuredClone({calculation:value.calculation,healthDate:value.manifest.health_date,wakeAt:value.manifest.wake_at_utc,
         dataAsOfUtc:bodyEnergyDataTime(value.manifest),timezone:value.manifest.timezone});
     });

@@ -31,12 +31,12 @@ test('actual extras auth/release/proof/identity checks reject before admitted wo
  assert.equal((await call(f.request)).status,200);assert.equal((await call(f.request)).status,200);assert.equal(calls,1);
 });
 test('companion never creates family or runs prediction; extras never creates companion, deferrals visible at HTTP 200',async t=>{
- const f=await fixture(t);let family=0,prediction=0,companion=0;
- const deps={createRuntime:async()=>({tick:async()=>{companion++;return {daily:'DEFERRED_BUDGET',coach:'DISABLED'};}}),createFamily:()=>({tick:async()=>{family++;return {results:[],deferredSteps:{family_daily:1,family_alert:1,family_weekly:1}};}}),notifyPrediction:async()=>{prediction++;return {status:'DEFERRED_BUDGET'};}};
+ const f=await fixture(t);let family=0,prediction=0,companion=0,briefUpdate=0,noSleep=0;
+ const deps={createMorningFollowups:()=>({briefUpdate:async()=>{briefUpdate++;return {status:'DEFERRED_BUDGET'};},noSleep:async()=>{noSleep++;return {status:'HAS_SLEEP_OR_REPORT'};}}),createRuntime:async()=>({tick:async()=>{companion++;return {daily:'DEFERRED_BUDGET',coach:'DISABLED'};}}),createFamily:()=>({tick:async()=>{family++;return {results:[],deferredSteps:{family_daily:1,family_alert:1,family_weekly:1}};}}),notifyPrediction:async()=>{prediction++;return {status:'DEFERRED_BUDGET'};}};
  const regular=await runCompanionService({...f.args,request:{...f.request,kind:COMPANION_KIND},deps});
- assert.deepEqual([companion,family,prediction],[1,0,0]);assert.equal(regular.status,200);assert.deepEqual(regular.body.deferredSteps,{daily:1});assert.equal(regular.body.deferred,true);
- const extra=await runExtrasService({...f.args,deps});assert.deepEqual([companion,family,prediction],[1,1,1]);assert.equal(extra.status,200);assert.equal(extra.body.failed,0);
- assert.deepEqual(extra.body.deferredSteps,{family_daily:1,family_alert:1,family_weekly:1,prediction:1});assert.equal(extra.body.deferred,true);
+ assert.deepEqual([companion,family,prediction,briefUpdate,noSleep],[1,0,0,0,0]);assert.equal(regular.status,200);assert.deepEqual(regular.body.deferredSteps,{daily:1});assert.equal(regular.body.deferred,true);
+ const extra=await runExtrasService({...f.args,deps});assert.deepEqual([companion,family,prediction,briefUpdate,noSleep],[1,1,1,1,1]);assert.equal(extra.status,200);assert.equal(extra.body.failed,0);
+ assert.deepEqual(extra.body.deferredSteps,{family_daily:1,family_alert:1,family_weekly:1,prediction:1,brief_update:1});assert.equal(extra.body.deferred,true);
 });
 test('extras transport binds distinct path/kind and preserves sanitized skip summary',async t=>{
  const f=await fixture(t),logs=[];t.mock.method(console,'log',s=>logs.push(JSON.parse(s)));
@@ -49,4 +49,22 @@ test('night budget reports exact unstarted LIGHT/HEAVY/MEMORY units',async()=>{
  let remaining=90000;
  const out=await processNightAnalytics({db:{getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async()=>null,setState:async()=>{}},keys:{lookup:JSON.stringify},userIds:['a','b'],reader:{},budget:{remainingMs:()=>remaining,assert(){}},now:()=>new Date('2026-11-03T19:14Z'),emit(){},processUser:async()=>{remaining=24000;return {result:'SUCCESS'};}});
  assert.equal(out.deferred,true);assert.deepEqual(out.deferredSteps,{HEAVY:2,MEMORY:2,LIGHT:1});
+});
+
+
+import {followFixture} from './morningFollowupsFixture.js';
+import {createMorningFollowups} from '../src/morningFollowups.js';
+for(const kind of ['briefUpdate','noSleep'])test(`extras keeps the legacy ${kind} claim: a fresh request cannot send it again`,async t=>{
+ const f=await fixture(t),report=followFixture(kind==='noSleep'?{gap:1,nap:true}:{});
+ if(kind==='briefUpdate')await report.capture();
+ // The same production method previously called by stage7Runtime sends once.
+ assert.equal((await createMorningFollowups(report.input)[kind]()).status,'DELIVERED');
+ const before=structuredClone([...report.db.claims]);
+ const deps={createFamily:()=>null,notifyPrediction:async()=>({status:'NOT_DUE'}),createMorningFollowups:()=>createMorningFollowups(report.input)};
+ for(const suffix of ['002','003']){
+  const result=await runExtrasService({...f.args,request:{...f.request,requestId:'synthetic-extras-repeat-'+suffix},deps});
+  assert.equal(result.status,200);assert.equal(result.body.failed,0);
+  assert.equal(result.body.outcomes.ALREADY_DELIVERED,1);
+ }
+ assert.equal(report.sent.length,1);assert.deepEqual([...report.db.claims],before);
 });

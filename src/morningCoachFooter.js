@@ -23,30 +23,56 @@ const canonical=s=>s.replace(/\brecovery\b|phục hồi/giu,'恢復').replace(/\
  // Normalize only metric-adjacent linking words so the existing metric/value
  // guard cannot be bypassed by English or Vietnamese prose.
  .replace(/(恢復|靜息心率|睡眠表現|睡眠債|睡眠|心率|呼吸率|步數|血氧|皮膚溫度|HRV|RHR|Strain)\s*(?:(?:is|was|at|of|score|là|đạt|ở mức)\s*)+(?=\d)/giu,'$1 ');
-export function validMorningFooter(answer,context,report,locale){
- if(typeof answer!=='string'||!answer.trim()||sentences(answer).length<2||sentences(answer).length>3
-  ||(locale==='zh-TW'&&[...answer].length>120)||answer.length>650||repeatsMorning(answer,report))return false;
- if(!validateNarrative(canonical(answer),canonical(context)).ok)return false;
+export function morningFooterRejection(answer,context,report,locale){
+ if(typeof answer!=='string'||!answer.trim()||sentences(answer).length<2||sentences(answer).length>3)return 'FORMAT';
+ if((locale==='zh-TW'&&[...answer].length>120)||answer.length>650)return 'LENGTH';
+ if(repeatsMorning(answer,report))return 'REPEAT';
+ const validation=validateNarrative(canonical(answer),canonical(context));
+ if(!validation.ok){
+  // Never log problem details: suffixes can contain generated health values.
+  const rule=validation.problems[0]?.split(':')[0];
+  const allowed=new Set(['empty_answer','causal_language','diagnosis_language','live_claim','proprietary_claim','treatment_advice','unsupported_number','unsupported_date','unsupported_metric_value','metric_value_mismatch','unsupported_metric']);
+  return 'VALIDATION:'+(allowed.has(rule)?rule:'UNKNOWN');
+ }
  const numbers=new Set(context.match(/\d+(?:\.\d+)?/g)??[]);
- if((answer.match(/\d+(?:\.\d+)?/g)??[]).some(n=>!numbers.has(n)))return false;
+ if((answer.match(/\d+(?:\.\d+)?/g)??[]).some(n=>!numbers.has(n)))return 'FACT_CHECK';
  // Complement the existing guard's Chinese/English medical vocabulary for
  // this three-language surface. No advice about drugs, diagnosis or causality.
- if(/\byou (?:have|suffer from) (?:a |an )?(?:disease|infection|disorder)\b|\btreat(?:ment)?\b|\bcaus(?:es?|ed|ing)\b|chẩn đoán|điều trị|uống thuốc|bạn (?:bị|mắc) bệnh|gây ra|dẫn đến|chắc chắn/iu.test(answer))return false;
- return true;
+ if(/\byou (?:have|suffer from) (?:a |an )?(?:disease|infection|disorder)\b|\btreat(?:ment)?\b|\bcaus(?:es?|ed|ing)\b|chẩn đoán|điều trị|uống thuốc|bạn (?:bị|mắc) bệnh|gây ra|dẫn đến|chắc chắn/iu.test(answer))return 'VALIDATION:medical_language';
+ return null;
 }
-export async function morningCoachFooter({text,briefing,locale,coach,db,userId,timeoutMs=20000}){
- if(typeof coach?.footerText!=='function'||(currentExecutionBudget()?.remainingMs()??Infinity)<timeoutMs+5000)return '';
- const budget=createExecutionBudget({budgetMs:Math.min(20000,timeoutMs),signal:currentExecutionBudget()?.signal});
- try{return await withExecutionBudget(budget,()=>budget.run(async()=>{
-  const supported=(await latestMemory(db,userId)).filter(row=>row.status==='SUPPORTED');
-  const memories=supported.map(row=>renderAssociations(memoryEvidence(row).view,locale)).join('\n');
-  const context=text+(memories?'\n'+memories:'');
-  const answer=(await coach.footerText({report:text,supported:memories},{locale}))?.trim();
-  if(!validMorningFooter(answer,context,text,locale))return '';
-  for(const row of supported){const current=await db.getInsight(userId,row.id);
-   if(current?.status!=='SUPPORTED'||current.version!==row.version||current.evidence_json!==row.evidence_json)return '';}
-  await coach.assertSnapshot?.();budget.assert();
-  const heading=({'zh-TW':'💬 教練的話',en:'💬 Coach’s note',vi:'💬 Lời nhắn của huấn luyện viên'})[locale]??'💬 Coach’s note';
-  return `\n\n${heading}\n${answer}`;
- }));}catch{return '';}finally{budget.close();}
+export const validMorningFooter=(...args)=>morningFooterRejection(...args)===null;
+export async function morningCoachFooter({text,briefing,locale,coach,db,userId,keys,timeoutMs=20000}){
+ let reason=null,llmStart=null,llmEnd=null,budget=null,phase='CONTEXT';
+ try{
+  if(typeof coach?.footerText!=='function'){reason='LLM_UNAVAILABLE';return '';}
+  if((currentExecutionBudget()?.remainingMs()??Infinity)<timeoutMs+5000){reason='BUDGET_TOO_LOW';return '';}
+  budget=createExecutionBudget({budgetMs:Math.min(20000,timeoutMs),signal:currentExecutionBudget()?.signal});
+  return await withExecutionBudget(budget,()=>budget.run(async()=>{
+   const supported=(await latestMemory(db,userId)).filter(row=>row.status==='SUPPORTED');
+   const memories=supported.map(row=>renderAssociations(memoryEvidence(row).view,locale)).join('\n');
+   const context=text+(memories?'\n'+memories:'');
+   phase='LLM';llmStart=Date.now();let raw;
+   try{raw=await coach.footerText({report:text,supported:memories},{locale});}finally{llmEnd=Date.now();}
+   phase='VALIDATION';const answer=typeof raw==='string'?raw.trim():raw;
+   reason=morningFooterRejection(answer,context,text,locale);if(reason)return '';
+   phase='INSIGHT';
+   for(const row of supported){const current=await db.getInsight(userId,row.id);
+    if(current?.status!=='SUPPORTED'||current.version!==row.version||current.evidence_json!==row.evidence_json){reason='INSIGHT_CHANGED';return '';}}
+   phase='SNAPSHOT';await coach.assertSnapshot?.();budget.assert();
+   const heading=({'zh-TW':'💬 教練的話',en:'💬 Coach’s note',vi:'💬 Lời nhắn của huấn luyện viên'})[locale]??'💬 Coach’s note';
+   return `\n\n${heading}\n${answer}`;
+  }));
+ }catch(error){
+  reason=error?.code==='SYNC_TIMEOUT'||error?.name==='TimeoutError'?'TIMEOUT':
+   error?.code==='SYNC_CANCELLED'?'CANCELLED':({LLM:'LLM_ERROR',CONTEXT:'CONTEXT_ERROR',VALIDATION:'VALIDATION_ERROR',INSIGHT:'INSIGHT_CHECK_ERROR',SNAPSHOT:'SNAPSHOT_CHANGED'})[phase];
+  return '';
+ }finally{
+  budget?.close();
+  if(reason)try{
+   const hashed=keys?.lookup(['companion-diagnostic-user-v1',userId]);
+   console.log(JSON.stringify({event:'morning_coach_footer_omitted',user:/^[a-f0-9]{64}$/.test(hashed??'')?hashed:'UNKNOWN',reason,
+    llm_duration_ms:llmStart===null?0:Math.max(0,(llmEnd??Date.now())-llmStart)}));
+  }catch{/* Diagnostics cannot prevent the morning brief. */}
+ }
 }

@@ -146,3 +146,15 @@ test('two consecutive health dates, not two observations on the same date, corro
 test('on-demand flag leaves recovery advanced publication/alerts OFF',()=>{
  assert.doesNotThrow(()=>assertSchemaTransitionProfile({PHASE4_EXECUTION_PROFILE:SCHEMA_TRANSITION_PROFILE,PHASE4_RELEASE_SHA:'a'.repeat(40),RENDER_GIT_COMMIT:'a'.repeat(40),BODY_ENERGY_ON_DEMAND:'on',BODY_ENERGY_PUBLICATION:'off',BODY_ENERGY_ALERTS:'off',BRIEFING_CONTINUATION_SCOPE:'sync'}));
 });
+
+
+test('validated read-only Body Energy capture emits date diagnostics without changing the returned proof inputs',async t=>{
+ const f=await fixture(t);
+ await f.db.raw.execute("UPDATE whoop_recoveries SET health_date='2026-01-01' WHERE user_id='a' AND sleep_id='sleep-00'");
+ const logs=[];t.mock.method(console,'log',line=>{if(line.includes('body_energy_health_date_realignment'))logs.push(JSON.parse(line));});
+ const result=await f.body.inspect({userId:'a',requestedAt:instant});
+ assert.equal(result.calculation.quality_state,'AVAILABLE');assert.ok(result.calculation.reasons.includes('HEALTH_DATE_REALIGNMENT'));
+ assert.equal(logs.length,1);assert.equal(logs[0].record_kind,'main_recovery');assert.equal(logs[0].classification,'reason');
+ assert.equal(logs[0].stored_health_date,'2026-01-01');assert.equal(logs[0].computed_health_date,'2026-10-31');
+ assert.equal('dateRealignments' in result,false);assert.equal('record' in result,false);
+});

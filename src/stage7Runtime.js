@@ -1,4 +1,3 @@
-import {createMorningFollowups} from './morningFollowups.js';
 import {createCompanionMorningContext} from './companionMorningContext.js';
 import {createOnDemandAssociations,withAssociationTick} from './onDemandAssociations.js';
 import {notifyMemory} from './insightNotifications.js';
@@ -173,11 +172,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    const invitation=weeklyResult.deliveredNow||insightResult.deliveredNow?{status:'DEFERRED_AFTER_WEEKLY'}:await invitations.prepare({user,chatId});
    return invitation.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;
   });
-  const reportUser={...user,reportChatId:chatId};
-  const followups=createMorningFollowups({db,keys,user:reportUser,telegram,locale,now});
-  const briefUpdate=await step('brief_update',()=>followups.briefUpdate());
-  const noSleep=await step('no_sleep',()=>followups.noSleep());
-  return {brief_update:briefUpdate.status,no_sleep:noSleep.status,insight:insightResult.status,health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
+  return {insight:insightResult.status,health:health.reason,low:low?.status,daily:dailyResult.status,coach:coachResult.status,weekly:weeklyResult.status};
  }
  async function contextJournal({userId,chatId,healthDate,answer}){
   const user=await db.getUser(userId);if(!eligible(user))return null;

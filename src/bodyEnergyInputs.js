@@ -68,7 +68,7 @@ export function selectBodyEnergyInputs(input) {
   const {userId,timezone,asOfEpochMs:asOf,authGeneration,lifecycleGeneration,targetHealthDate=null}=input;
   exactBodyInstant(asOf);
   if(targetHealthDate!==null&&!validHealthDate(targetHealthDate))fail('BODY_ENERGY_INVALID_HEALTH_DATE');
-  const reasons=new Set(),exclusions=[],references=new Map(),warnings=new Set();
+  const reasons=new Set(),exclusions=[],references=new Map(),warnings=new Set(),dateRealignments=new Map();
   let failedRequired=false,notReproducible=false,matchedScoredRecovery=false;
   const owned=rows=>(rows||[]).filter(r=>r.user_id===userId);
   const sources=Object.fromEntries(Object.keys(fields).map(type=>[type,owned(input.sources?.[type])]));
@@ -101,7 +101,7 @@ export function selectBodyEnergyInputs(input) {
     if(synced>asOf||updated!==null&&updated>asOf){exclude(type,row,'SOURCE_AFTER_AS_OF');notReproducible=true;return false;}
     return true;
   }
-  function observe(type,row,day=null,matchedSleep=null) {
+  function observe(type,row,day=null,matchedSleep=null,position='main') {
     reference(type,row);
     if(row.updated_at==null)warnings.add('SOURCE_VERSION_UNKNOWN');
     if(day!==null&&row.health_date!==day) {
@@ -111,6 +111,10 @@ export function selectBodyEnergyInputs(input) {
       const linkedRecovery=type==='recovery'&&matchedSleep!==null
         &&String(row.sleep_id)===String(matchedSleep.id)&&matchedSleep.health_date===day;
       (linkedRecovery?reasons:warnings).add('HEALTH_DATE_REALIGNMENT');
+      dateRealignments.set(canonicalJson([position,type,idOf(type,row)]),{record_kind:position+'_'+type,id:idOf(type,row),
+        stored_health_date:validHealthDate(row.health_date)?row.health_date:null,computed_health_date:day,
+        classification:linkedRecovery?'reason':'warning',updated_at:instant(row.updated_at)===null?null:new Date(row.updated_at).toISOString(),
+        synced_at:instant(row.synced_at)===null?null:new Date(row.synced_at).toISOString()});
     }
     return project(row,fields[type]);
   }
@@ -178,7 +182,7 @@ export function selectBodyEnergyInputs(input) {
     for(const [component,field] of [['hrv','hrv_rmssd_milli'],['rhr','resting_heart_rate']]) {
       if(baseline[component].length>=C.baselineTarget)continue;
       if(!finite(recovery[field])||recovery[field]<=0){exclude('recovery',recovery,`BASELINE_${component.toUpperCase()}_INVALID`);continue;}
-      baseline[component].push({health_date:day,value:recovery[field],sleep:observe('sleep',sleep,day),recovery:observe('recovery',recovery,day,sleep)});
+      baseline[component].push({health_date:day,value:recovery[field],sleep:observe('sleep',sleep,day,null,'baseline'),recovery:observe('recovery',recovery,day,sleep,'baseline')});
     }
   }
   let load={kind:'NONE',rows:[],sync:null},naps=[];
@@ -239,7 +243,7 @@ export function selectBodyEnergyInputs(input) {
       required_sync_valid:Object.values(sync).every(r=>r.age_ms!==null&&r.age_ms<=C.requiredSyncMaxHours*3600000)},
     warnings:[...warnings].sort(),reasons:[...reasons].sort(),
     exclusions:exclusions.sort((a,b)=>binaryCompare(canonicalJson(a),canonicalJson(b)))};
-  return {manifest,notReproducible,references:[...references.values()].sort((a,b)=>binaryCompare(canonicalJson(a),canonicalJson(b)))};
+  return {manifest,notReproducible,dateRealignments:[...dateRealignments.values()],references:[...references.values()].sort((a,b)=>binaryCompare(canonicalJson(a),canonicalJson(b)))};
 }
 
 /** Presentation metadata only, from the same validated capture as the score.

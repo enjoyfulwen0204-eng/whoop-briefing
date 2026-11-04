@@ -431,7 +431,7 @@ async function runForUserOwned({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
   });
   const ctx = {
-    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,bodyEnergy:deps.bodyEnergy,presentationClock:deps.presentationClock,morningSnapshot:deps.morningSnapshot,
+    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,keys:deps.phase4AuthorityKeys,bodyEnergy:deps.bodyEnergy,presentationClock:deps.presentationClock,morningSnapshot:deps.morningSnapshot,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
   };
@@ -696,6 +696,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     if (deps.runtimeAdmission) requireRuntimeConnection(db.raw,deps.runtimeAdmission,db.transaction);
     else if (typeof db.admitRuntime === 'function') requireRuntimeConnection(db.raw,await db.admitRuntime({source:triggerSource}),db.transaction);
     else if (db.raw) throw new Error('PHASE4_RUNTIME_ADMISSION_REQUIRED');
+    if(authorityKeys)deps={...deps,phase4AuthorityKeys:authorityKeys};
     if(db.raw&&authorityKeys&&!deps.morningSnapshot)deps={...deps,morningSnapshot:createMorningSnapshotStore({db,keys:authorityKeys})};
     // Body display prepares independently from Beta presentation. A pending
     // empirical registration never enables numeric output or new live workers.

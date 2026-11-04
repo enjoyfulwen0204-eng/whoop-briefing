@@ -24,3 +24,42 @@ test('failure, timeout or invalid output omits only the optional tail',async()=>
  for(const footerText of [async()=>null,async()=>{throw Error('SYNTHETIC');},async()=>text])assert.equal(await morningCoachFooter({text,locale:'zh-TW',db,userId:'a',coach:{footerText}}),'');
  assert.equal(await morningCoachFooter({text,locale:'zh-TW',db,userId:'a',timeoutMs:5,coach:{footerText:async()=>new Promise(r=>setTimeout(()=>r(replies['zh-TW']),30))}}),'');
 });
+
+import {fixtureKeys} from './localDb.js';
+import {withExecutionBudget} from '../src/executionBudget.js';
+const diagnosticCases=[
+ ['LLM_UNAVAILABLE',{coach:{}}],
+ ['FORMAT',{answer:null}],['FORMAT',{answer:{private:'PRIVATE_SENTINEL'}}],
+ ['LENGTH',{answer:'a'.repeat(651)+'. Take a break.'}],
+ ['REPEAT',{answer:'今天可以維持平常的節奏。晚餐後放鬆。'}],
+ ['VALIDATION:unsupported_number',{answer:'Walk for 9876h. Leave time to unwind.'}],
+ ['VALIDATION:diagnosis_language',{answer:'你感染了疾病。今天多休息。'}],
+ ['VALIDATION:treatment_advice',{answer:'Take medication tonight. Rest afterward.'}],
+ ['VALIDATION:causal_language',{answer:'壓力導致睡不好。晚餐後放鬆。'}],
+ ['VALIDATION:medical_language',{answer:'Bạn mắc bệnh. Hãy nghỉ ngơi.'}],
+ ['FACT_CHECK',{answer:'Try counting 9876 slowly. Leave time to unwind.'}],
+ ['LLM_ERROR',{error:Object.assign(Error('PRIVATE_SENTINEL 9876'),{code:'PRIVATE_SENTINEL'})}],
+ ['CONTEXT_ERROR',{db:{getRecentInsights:async()=>{throw Error('PRIVATE_SENTINEL');}}}],
+ ['SNAPSHOT_CHANGED',{coach:{footerText:async()=>replies.en,assertSnapshot:async()=>{throw Error('PRIVATE_SENTINEL');}}}],
+];
+for(const [expected,options] of diagnosticCases)test(`footer omission logs only classification ${expected}`,async t=>{
+ const logs=[];t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
+ const coach=options.coach??{footerText:async()=>{if(options.error)throw options.error;return options.answer;}};
+ assert.equal(await morningCoachFooter({text,locale:'en',db:options.db??db,userId:'PRIVATE_USER',keys:fixtureKeys,coach}),'');
+ assert.equal(logs.length,1);assert.equal(logs[0].reason,expected);
+ assert.equal(logs[0].user,fixtureKeys.lookup(['companion-diagnostic-user-v1','PRIVATE_USER']));
+ assert.ok(logs[0].llm_duration_ms>=0);assert.deepEqual(Object.keys(logs[0]).sort(),['event','llm_duration_ms','reason','user']);
+ assert.doesNotMatch(JSON.stringify(logs),/PRIVATE_|9876|恢復|Body Energy|Walk|medication/);
+});
+test('low budget, timeout and insight change each emit exactly once; late LLM completion cannot emit again',async t=>{
+ const logs=[];t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
+ const args={text,locale:'en',db,userId:'PRIVATE_USER',keys:fixtureKeys,coach:{footerText:async()=>replies.en}};
+ await withExecutionBudget({remainingMs:()=>100},()=>morningCoachFooter(args));
+ assert.equal(logs.pop().reason,'BUDGET_TOO_LOW');
+ await morningCoachFooter({...args,timeoutMs:10,coach:{footerText:async()=>new Promise(resolve=>setTimeout(()=>resolve(replies.en),50))}});
+ assert.equal(logs[0].reason,'TIMEOUT');assert.ok(logs[0].llm_duration_ms>=1);assert.ok(logs[0].llm_duration_ms<50);
+ await new Promise(resolve=>setTimeout(resolve,70));assert.equal(logs.length,1);logs.length=0;
+ const row={id:'private-insight',subject:'synthetic',status:'SUPPORTED',version:1,evidence_json:JSON.stringify({version:'b2-memory-v1',view:{topics:[]}})};
+ await morningCoachFooter({...args,db:{getRecentInsights:async()=>[row],getInsight:async()=>({...row,version:2})}});
+ assert.equal(logs.length,1);assert.equal(logs[0].reason,'INSIGHT_CHANGED');
+});

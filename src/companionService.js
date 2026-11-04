@@ -1,3 +1,4 @@
+import {createMorningFollowups} from './morningFollowups.js';
 import {createCompanionProgress} from './companionProgress.js';
 import {familyConfiguration,FAMILY_CLASSES} from './familySharingStore.js';
 import {onDemandBodyEnabled} from './onDemandBodyEnergy.js';
@@ -72,10 +73,10 @@ async function runService({request,environment=process.env,db:providedDb,env:pro
  const familyConfig=extras?familyConfiguration(environment):null;
  const familyIds=familyConfig?.enabled?familyConfig.ids:[];
  const plannedIds=[...new Set([...(automatic?cohort.userIds:[]),...familyIds])];
- const normalSteps=['daily','weekly','insight','coach','brief_update','no_sleep',...(onDemandBodyEnabled(environment)?['low']:[])];
+ const normalSteps=['daily','weekly','insight','coach',...(onDemandBodyEnabled(environment)?['low']:[])];
  const familySteps=FAMILY_CLASSES.map(c=>'family_'+c);
  const progress=createCompanionProgress(plannedIds.map(id=>[diagnosticUser(keys,id),[
-  ...(automatic&&cohort.userIds.includes(id)?extras?['prediction']:normalSteps:[]),...(familyIds.includes(id)?familySteps:[])]]));
+  ...(automatic&&cohort.userIds.includes(id)?extras?['prediction','brief_update','no_sleep']:normalSteps:[]),...(familyIds.includes(id)?familySteps:[])]]));
  const observe=progress.observe;let finalSummary;
  const summary=()=>progress.snapshot();
  try{return await withCompanionProgress(observe,()=>withExecutionBudget(budget,()=>budget.run(async()=>{
@@ -105,7 +106,16 @@ async function runService({request,environment=process.env,db:providedDb,env:pro
     const chatId=await db.getActiveChatIdForUser(id,{expectedLifecycleGeneration:user.lifecycleGeneration});if(!chatId)continue;
     try{
      const awaitLocale=extras?await db.getLocale(id):null;
-     const result=extras?{prediction:(await runCompanionStep({db,keys,userId:id,step:'prediction',run:()=> (deps.notifyPrediction??notifyPrediction)({db,user:{...user,reportChatId:chatId},telegram:createTelegram({botToken:env.telegramBotToken,chatId,db,locale:awaitLocale,dryRun:env.dryRun}),locale:awaitLocale,now})})).status}:await runtime.tick({user,chatId});
+     let result;
+     if(extras){
+      const input={db,keys,user:{...user,reportChatId:chatId},telegram:createTelegram({botToken:env.telegramBotToken,chatId,db,locale:awaitLocale,dryRun:env.dryRun}),locale:awaitLocale,now};
+      const step=(name,run)=>runCompanionStep({db,keys,userId:id,step:name,run});
+      const prediction=await step('prediction',()=> (deps.notifyPrediction??notifyPrediction)(input));
+      const followups=(deps.createMorningFollowups??createMorningFollowups)(input);
+      const briefUpdate=await step('brief_update',()=>followups.briefUpdate());
+      const noSleep=await step('no_sleep',()=>followups.noSleep());
+      result={prediction:prediction.status,brief_update:briefUpdate.status,no_sleep:noSleep.status};
+     }else result=await runtime.tick({user,chatId});
      const statuses=[result.status,result.daily,result.coach,result.weekly,result.low,result.insight,result.brief_update,result.no_sleep,result.prediction].filter(Boolean);
      for(const [step,status] of Object.entries(result))if(typeof status==='string'&&step!=='health')observe({user:diagnosticUser(keys,id),step,status});
      for(const [step,status] of [['exception',result.status],['daily',result.daily],['coach',result.coach],['weekly',result.weekly],['low',result.low],['insight',result.insight],['brief_update',result.brief_update],['no_sleep',result.no_sleep],['prediction',result.prediction]])

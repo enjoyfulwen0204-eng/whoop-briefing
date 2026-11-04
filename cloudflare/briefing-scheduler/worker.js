@@ -232,8 +232,12 @@ export async function invokeCompanion(env,{fetchImpl=fetch,now=Date.now,signImpl
   response=await raceAbort(Promise.resolve(fetchImpl(new URL(path,endpoint).toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
    headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
   const raw=await readResponseBody(response,{controller,deadlineAt,now});let payload;try{payload=JSON.parse(raw);}catch{throw error('invalid_companion',true);}
-  if(response.status!==200||payload?.ok!==true||payload.kind!=='COMPANION_V1'||payload.source!=='cloudflare'||payload.releaseSha!==env.BRIEFING_RELEASE_SHA||payload.drainAuthorized!==false||payload.handoff!==undefined)throw error('companion_failed',true);
-  console.log(JSON.stringify({event:'companion_tick_ok',status:200,enabled:payload.enabled===true,failed:payload.failed??0,deferred_steps:safeDeferredSteps(payload.deferredSteps)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
+  const bound=payload?.kind==='COMPANION_V1'&&payload.source==='cloudflare'&&payload.releaseSha===env.BRIEFING_RELEASE_SHA&&payload.drainAuthorized===false&&payload.handoff===undefined;
+  if(response.status!==200||payload?.ok!==true||!bound){
+   if(bound)console.log(JSON.stringify({event:'companion_tick_incomplete',status:response.status,...safeProgress(payload)}));
+   throw error('companion_failed',true);
+  }
+  console.log(JSON.stringify({event:'companion_tick_ok',status:200,enabled:payload.enabled===true,...safeProgress(payload)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
  }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
 }
 export async function invokeExtras(env,{fetchImpl=fetch,now=Date.now,signImpl=signRequest,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=55000}={}){
@@ -251,8 +255,12 @@ export async function invokeExtras(env,{fetchImpl=fetch,now=Date.now,signImpl=si
   response=await raceAbort(Promise.resolve(fetchImpl(new URL(path,endpoint).toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
    headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})),controller.signal);
   const raw=await readResponseBody(response,{controller,deadlineAt,now});let payload;try{payload=JSON.parse(raw);}catch{throw error('invalid_extras',true);}
-  if(response.status!==200||payload?.ok!==true||payload.kind!=='EXTRAS_V1'||payload.source!=='cloudflare'||payload.releaseSha!==env.BRIEFING_RELEASE_SHA||payload.drainAuthorized!==false||payload.handoff!==undefined)throw error('extras_failed',true);
-  console.log(JSON.stringify({event:'extras_tick_ok',status:200,enabled:payload.enabled===true,failed:payload.failed??0,deferred_steps:safeDeferredSteps(payload.deferredSteps)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
+  const bound=payload?.kind==='EXTRAS_V1'&&payload.source==='cloudflare'&&payload.releaseSha===env.BRIEFING_RELEASE_SHA&&payload.drainAuthorized===false&&payload.handoff===undefined;
+  if(response.status!==200||payload?.ok!==true||!bound){
+   if(bound)console.log(JSON.stringify({event:'extras_tick_incomplete',status:response.status,...safeProgress(payload)}));
+   throw error('extras_failed',true);
+  }
+  console.log(JSON.stringify({event:'extras_tick_ok',status:200,enabled:payload.enabled===true,...safeProgress(payload)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
  }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
 }
 export const analyticsScheduledAt=ms=>{const at=new Date(ms);return Number.isFinite(at.getTime())&&[19,20,21].includes(at.getUTCHours())&&at.getUTCMinutes()===10;};
@@ -275,6 +283,12 @@ export async function invokeAnalytics(env,{fetchImpl=fetch,now=Date.now,signImpl
 }
 export const MAX_SCHEDULED_WINDOW_MS=MAX_CONFIGURED_WINDOW_MS+55000+55000+100000;
 const deferredNames=new Set(['daily','coach','weekly','low','insight','brief_update','no_sleep','prediction','family_daily','family_alert','family_weekly','LIGHT','HEAVY','MEMORY']);
+function safeProgress(payload){
+ const result={deferred_steps:safeDeferredSteps(payload.deferredSteps),interrupted_steps:safeDeferredSteps(payload.interruptedSteps),budget_exhausted:payload.budgetExhausted===true};
+ for(const [key,field] of [['checked','checked'],['completed_users','completedUsers'],['unprocessed_users','unprocessedUsers'],['incomplete_users','incompleteUsers'],['failed','failed']])
+  if(Number.isSafeInteger(payload[field])&&payload[field]>=0)result[key]=payload[field];
+ return result;
+}
 export function safeDeferredSteps(value){return Object.fromEntries(Object.entries(value??{}).filter(([k,n])=>deferredNames.has(k)&&Number.isSafeInteger(n)&&n>0));}
 export default {
  scheduled(event,env,ctx){ctx.waitUntil((async()=>{

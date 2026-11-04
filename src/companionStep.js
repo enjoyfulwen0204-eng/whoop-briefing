@@ -1,3 +1,9 @@
+import {AsyncLocalStorage} from 'node:async_hooks';
+const progressScope=new AsyncLocalStorage();
+export const withCompanionProgress=(observe,run)=>progressScope.run(observe,run);
+export function observeCompanionStep({keys,userId,step,status}){
+ try{progressScope.getStore()?.({user:keys.lookup(['companion-diagnostic-user-v1',userId]),step,status});}catch{/* Diagnostics cannot change authority. */}
+}
 // Same source-validation failures as stage8MorningIntelligence. A failed
 // optional step is skipped, never retried with replacement data or authority.
 const recoverable=new Set(['PHASE4_PARENT_STALE','PHASE4_PARENT_NOT_FOUND','CONTENT_REDACTED','PHASE4_SOURCE_DELETED','PHASE4_SOURCE_NOT_FOUND','PHASE4_SOURCE_NOT_CURRENT','PHASE4_RESOURCE_FENCED','PHASE4_CAPABILITY_FENCED','PHASE4_INCOMPLETE_PROVENANCE','PHASE4_PARENT_LINK_MISSING','PHASE4_SOURCE_LINK_REQUIRED']);
@@ -5,6 +11,7 @@ const steps=new Set(['brief_update','no_sleep','prediction','insight','daily','c
 export async function runCompanionStep({db,keys,userId,step,run}){
  if(!steps.has(step))throw Object.assign(Error('COMPANION_STEP_INVALID'),{code:'COMPANION_STEP_INVALID'});
  const started=Date.now();let status='EXCEPTION';
+ observeCompanionStep({keys,userId,step,status:'STARTED'});
  try{const result=await run();status=typeof result?.status==='string'&&/^[A-Z][A-Z0-9_]{0,63}$/.test(result.status)?result.status:'UNKNOWN';return result;}
  catch(error){
   const code=error?.code??error?.message;
@@ -14,6 +21,7 @@ export async function runCompanionStep({db,keys,userId,step,run}){
   try{console.log(JSON.stringify({event:'companion_step_skipped',step,code,user:keys.lookup(['companion-diagnostic-user-v1',userId])}));}catch{/* Diagnostics cannot change authority. */}
   status='SKIPPED';return {status:'SKIPPED'};
  }finally{
+  observeCompanionStep({keys,userId,step,status});
   try{console.log(JSON.stringify({event:'companion_step_timing',user:keys.lookup(['companion-diagnostic-user-v1',userId]),step,status,duration_ms:Math.max(0,Date.now()-started)}));}catch{/* Diagnostics cannot change authority. */}
  }
 }

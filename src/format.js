@@ -3,7 +3,7 @@
  * 上半數據、下半教練的話。單則不超過 4096 字元。
  */
 
-import { BASELINE, TELEGRAM_MAX_CHARS, TREND } from './config.js';
+import { BASELINE, TELEGRAM_MAX_CHARS, TREND, METRIC_DIRECTION } from './config.js';
 import { INSIGHT_LABELS } from './insights.js';
 import { prettyDate } from './time.js';
 import { safeDisplayName } from './displayName.js';
@@ -190,21 +190,25 @@ const MAX_CHANGE_LINES = 2;
  * 「今天最值得注意」。排序與挑選都已經由 Node 做完，這裡只負責排版。
  * 刻意用「偏離平常」而不是「異常」—— 這是拿自己的歷史當基準的統計描述。
  */
-function renderWhatChanged(whatChanged, locale) {
+export function renderWhatChanged(whatChanged, locale) {
   if (!Array.isArray(whatChanged) || !whatChanged.length) return [];
-  const lines = [t(locale, 'daily.changeHead')];
-  for (const c of whatChanged.slice(0, MAX_CHANGE_LINES)) {
+  const concerning=[],bright=[];
+  for (const c of whatChanged) {
     const meta = INSIGHT_LABELS[c.metric];
-    if (!meta || c.current === null || c.current === undefined) continue;
-    const values = { emoji: meta.emoji, metric: metricName(locale, c.metric), value: localizedDisplay(locale, meta.fmt(c.current)),
-      zscore: c.z_score !== null ? `, z=${formatNumber(locale, c.z_score, 1)}` : '' };
-    if (c.vs_30d_pct !== null) {
+    if (!meta || !Number.isFinite(c.current)) continue;
+    const direction=METRIC_DIRECTION[{deep_sleep:'slow_wave',rem_sleep:'rem'}[c.metric]??c.metric]??'both';
+    const deviation=Number.isFinite(c.vs_30d_pct)?c.vs_30d_pct:c.z_score;
+    if(!Number.isFinite(deviation)||deviation===0)continue;
+    const favorable=direction==='higher_better'&&deviation>0||direction==='lower_better'&&deviation<0;
+    const group=favorable?bright:concerning;if(group.length>=MAX_CHANGE_LINES)continue;
+    const values = { emoji: meta.emoji, metric: metricName(locale, c.metric), value: localizedDisplay(locale, meta.fmt(c.current)) };
+    if (Number.isFinite(c.vs_30d_pct)) {
       values.comparison = t(locale, c.vs_30d_pct >= 0 ? 'daily.changeAbove' : 'daily.changeBelow',
         { percent: formatNumber(locale, Math.abs(c.vs_30d_pct)) });
     }
-    lines.push(t(locale, c.vs_30d_pct !== null ? 'daily.changeLine' : 'daily.changeLineSimple', values));
+    group.push(t(locale, Number.isFinite(c.vs_30d_pct) ? 'daily.changeLine' : 'daily.changeLineSimple', values));
   }
-  return lines.length > 1 ? lines : [];
+  return [...(concerning.length?[t(locale,'daily.changeHead'),...concerning]:[]),...(bright.length?[t(locale,'daily.brightHead'),...bright]:[])];
 }
 
 function footer(stage, sampleCount, reportDate, locale) {

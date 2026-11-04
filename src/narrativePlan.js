@@ -91,6 +91,8 @@ export function buildFragmentCatalogue(briefing, { period = 'daily', locale = 'z
 
   const recovery = byKey.recovery_score ?? byKey.recovery;
   const sleep = byKey.sleep_total;
+  const recoveryAdvice=period==='daily'&&recovery&&!recovery.calibrating&&Number.isFinite(recovery.value)
+    ? t(locale,recovery.value>=67?'narrative.recoveryGreen':recovery.value>=34?'narrative.recoveryYellow':'narrative.recoveryRed') : null;
   const facts = [recovery && t(locale, 'narrative.recoveryFact', { value: localizedDisplay(locale, recovery.display) }),
     sleep && t(locale, 'narrative.sleepFact', { value: localizedDisplay(locale, sleep.display) })]
     .filter(Boolean).join(t(locale, 'punctuation.list'));
@@ -110,7 +112,7 @@ export function buildFragmentCatalogue(briefing, { period = 'daily', locale = 'z
     if (calibrating) {
       add('f_cold_calibrating', t(locale, 'narrative.calibrating'));
     }
-    add('f_cold_advice', t(locale, 'narrative.coldAdvice'));
+    add('f_cold_advice', recoveryAdvice??t(locale, 'narrative.coldAdvice'),{required:!!recoveryAdvice});
     return { fragments, defaultOrder: order };
   }
 
@@ -142,11 +144,15 @@ export function buildFragmentCatalogue(briefing, { period = 'daily', locale = 'z
   }
 
   add('f_advice',
-    flagged.length
+    period==='daily' ? recoveryAdvice??t(locale,'narrative.maintain') : flagged.length
       ? t(locale, 'narrative.ease', { when: laterWhen })
       : t(locale, 'narrative.maintain'),
     { required: true });
 
+  if(period==='daily'){
+    const lowSleep=flagged.filter(m=>['sleep_total','slow_wave','rem','deep_sleep','rem_sleep','sleep_performance','sleep_efficiency','sleep_consistency'].includes(m.key)&&Number.isFinite(m.value)&&Number.isFinite(m.baseline)&&m.value<m.baseline);
+    if(lowSleep.length)add('f_sleep_advice',t(locale,'narrative.sleepAdvice',{metrics:names(lowSleep)}),{required:true});
+  }
   return { fragments, defaultOrder: order };
 }
 

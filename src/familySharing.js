@@ -3,7 +3,7 @@ import {createFamilyUi,familyName} from './familySharingUi.js';
 import {localDate} from './time.js';
 import {inStage7QuietHours} from './companionTimingPolicy.js';
 import {currentExecutionBudget} from './executionBudget.js';
-import {runCompanionStep} from './companionStep.js';
+import {runCompanionStep,observeCompanionStep} from './companionStep.js';
 import {createTelegramApi} from './bot/api.js';
 import {createBodyEnergyRuntime} from './bodyEnergyRuntime.js';
 import {POLICY_VERSION,SIGNAL_POLICY} from './proactivePolicy.js';
@@ -105,7 +105,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   }
  }
  async function tick(){
-  if(!room())return {results:[],status:'DEFERRED_BUDGET',deferredSteps:Object.fromEntries(FAMILY_CLASSES.map(c=>['family_'+c,familyConfiguration(environment).ids.length]))};
+  if(!room()){for(const userId of familyConfiguration(environment).ids)for(const c of FAMILY_CLASSES)observeCompanionStep({keys,userId,step:'family_'+c,status:'DEFERRED_BUDGET'});return {results:[],status:'DEFERRED_BUDGET',deferredSteps:Object.fromEntries(FAMILY_CLASSES.map(c=>['family_'+c,familyConfiguration(environment).ids.length]))};}
   const initial=await snapshot(),at=now(),summaries=new Map(),alerts=new Map(),results=[],{day}=taipeiParts(at);
   if(!Object.keys(initial.state.invites).length&&!initial.rows.some(s=>initial.rows.some(r=>FAMILY_CLASSES.some(c=>store.allowed(initial.state,initial.rows,s.id,r.id,c)))))return {results,status:'NO_CONSENT'};
   // No consent => no health reads, calculation, sender or writes.
@@ -116,7 +116,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
    let locale,c;
    for(const category of FAMILY_CLASSES){
     const step='family_'+category;
-    if(!room()){results.push({user:rHash(recipient.id),step,status:'DEFERRED_BUDGET',duration_ms:0});continue;}
+    if(!room()){observeCompanionStep({keys,userId:recipient.id,step,status:'DEFERRED_BUDGET'});results.push({user:rHash(recipient.id),step,status:'DEFERRED_BUDGET',duration_ms:0});continue;}
     if(!locale){locale=await db.getLocale(recipient.id);c=COPY[locale]??COPY['zh-TW'];}
     const stepStarted=Date.now();
     const result=await run(recipient,step,async()=>{

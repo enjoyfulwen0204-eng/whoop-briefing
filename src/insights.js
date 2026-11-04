@@ -65,7 +65,7 @@ export async function buildInsights({ db, userId, timezone, healthDate }) {
   if (!rows.length) return null;
 
   const series = seriesByMetric(rows);
-  const whatChanged = whatChangedToday(series, healthDate);
+  const whatChanged = whatChangedToday(series, healthDate, {maxItems:Object.keys(series).length});
 
   log.info('insights_built', {
     user_id: uid,

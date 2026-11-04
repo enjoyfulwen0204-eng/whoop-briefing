@@ -51,8 +51,8 @@ The code derives from clean `7aed62e7dfa5f975038cda5934ab534a01861ea9`. The sepa
 Run with the installed Node 22 runtime:
 
 ```sh
-env -i PATH=/usr/bin:/bin TZ=UTC /Users/kelvin/.local/node/bin/node --expose-gc --test --test-concurrency=1 test/body-source-unit-publication.test.js
-env -i PATH=/usr/bin:/bin TZ=UTC /Users/kelvin/.local/node/bin/node --expose-gc --test --test-concurrency=1 --test-name-pattern='explicit alert control|ambiguous and invalid acknowledgments|alert admission respects|rendering refuses|late consent revocation|atomic legacy/Body rolling cap' test/body-energy-publication-integration.test.js
+env -i PATH=/usr/bin:/bin TZ=UTC /Users/kelvin/.local/node/bin/node --expose-gc --test --test-concurrency=1 test/legacy/body-source-unit-publication.test.js
+env -i PATH=/usr/bin:/bin TZ=UTC /Users/kelvin/.local/node/bin/node --expose-gc --test --test-concurrency=1 --test-name-pattern='explicit alert control|ambiguous and invalid acknowledgments|alert admission respects|rendering refuses|late consent revocation|atomic legacy/Body rolling cap' test/legacy/body-energy-publication-integration.test.js
 ```
 
 The new cases use declared synthetic rows, the unchanged actual calculator, real isolated schema32 transactions, actual SYNC/DRAIN claim/finalization and genuine local COMMIT acknowledgments. A complete Body unit under an actually finalized PARTIAL DRAIN becomes AVAILABLE to a fresh consumer, `/energy` and the Morning renderer; no-new-result remains ineligible for alerts. Pending job/whole-generation/Beta metadata stay unchanged. Negative controls cover HMAC/schema/closure/parent/producer tampering, unauthorized owner, corrections, stale generation, revoked auth, purge, lifecycle, profile ABA and missing/unauthorized/corrupt/future-ingested non-score workouts. The positive UI uses the existing strict granted memory fixture; no production grant is fabricated.

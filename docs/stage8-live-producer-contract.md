@@ -15,7 +15,7 @@ A future producer allocation must prove all of the following before the reader m
 
 The current implementation recognizes the existing execution-producer proof shape defensively but that table cannot contain LIVE rows. The future producer review must explicitly adapt the producer selector, runtime schema admission, and relevant typed receipt readers to the new allocation. A compatibility projection alone cannot weaken their mode or parent checks. Until that combined contract is reviewed and implemented, every derived kind remains ANALYSIS_UPDATING. The separate existing LIMITED Body Energy trial presentation is preserved and is never relabeled LIVE analysis.
 
-Tests: `test/stage8-derived-reader.test.js`, existing provider/scoped/adversarial tests. Positive source-fact and owner source-plan tests are synthetic. There is no positive LIVE-analysis or Production acceptance claim.
+Tests: `test/legacy/stage8-derived-reader.test.js`, existing provider/scoped/adversarial tests. Positive source-fact and owner source-plan tests are synthetic. There is no positive LIVE-analysis or Production acceptance claim.
 
 
 ## Local v35 successor implementation

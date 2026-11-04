@@ -15,8 +15,8 @@
     "probe": "node scripts/probe-fields.js",
     "check": "node scripts/preflight.js",
     "dry-run": "node scripts/dry-run.js",
-    "beta:smoke": "node --test test/public-beta-payload-smoke.test.js test/public-beta-typed-read.test.js test/public-beta-presentation.test.js test/phase4-stage6-scheduler.test.js",
-    "test": "node --test test/*.test.js",
+    "beta:smoke": "node --test test/legacy/public-beta-payload-smoke.test.js test/legacy/public-beta-typed-read.test.js test/legacy/public-beta-presentation.test.js test/legacy/phase4-stage6-scheduler.test.js",
+    "test": "npm run test:current",
     "sync": "node scripts/sync.js",
     "health-status": "node scripts/health-status.js",
     "phase0": "node scripts/phase0-status.js",
@@ -34,7 +34,8 @@
     "analytics:light": "node scripts/analytics.js light",
     "analytics:heavy": "node scripts/analytics.js heavy",
     "test:stage7": "node --test test/stage7-*.test.js",
-    "test:current": "node scripts/test-current.mjs"
+    "test:current": "node scripts/test-current.mjs",
+    "test:legacy": "node scripts/test-legacy.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

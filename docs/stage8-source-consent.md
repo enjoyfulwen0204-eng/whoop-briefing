@@ -18,4 +18,4 @@ Owner enumeration, configuration, scoped synthesis, pending reads, authorization
 
 The runtime owns the consent factory and pins its recipient. A supplied store must be issued by that factory for the same connection, keys and recipient. There is no request-controlled verifier or rollout override. Disabling owner monitoring denies grants and access while authenticated sources retain the ability to revoke. No settings default creates consent or follow subscriptions.
 
-Focused software evidence is in `test/stage8-source-consent.test.js`. Existing owner-positive synthetic fixtures invoke the source-side grant explicitly through `test/stage8SourceConsentFixture.js`; owner follow alone never grants it. These tests do not establish Production consent, health results, delivery or real-user interaction.
+Focused software evidence is in `test/legacy/stage8-source-consent.test.js`. Existing owner-positive synthetic fixtures invoke the source-side grant explicitly through `test/stage8SourceConsentFixture.js`; owner follow alone never grants it. These tests do not establish Production consent, health results, delivery or real-user interaction.

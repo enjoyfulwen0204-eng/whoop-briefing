@@ -132,7 +132,7 @@ recovery 本來就是 WHOOP 用 hrv 與 rhr 算出來的，把它們當三個獨
   下次重跑會拿到同一把 idempotency key、claim 失敗、視為已處理，不重送。
 - 這是刻意選擇的 **AT_MOST_ONCE + best-effort dedup** 語意：寧可極端情況下
   漏發一次，也不要對同一件事重複打擾使用者。**沒有**做到 exactly-once。
-- 具體的當機視窗行為（都有對應測試，見 `test/proactive-audit.test.js`）：
+- 具體的當機視窗行為（都有對應測試，見 `test/legacy/proactive-audit.test.js`）：
   - Telegram 送出成功、DB 標記前當機 → 重跑辨識為重複，**不重發**。
   - Telegram 逾時（送達結果未知）→ **不重試**，事件的 `sent_at` 保持空值，
     稽核軌跡誠實反映「決定送出，但沒能確認送達」。
@@ -162,7 +162,7 @@ Journal）→ `outcome`（重新分析的誠實結論）。
 ## Multi-user 隔離
 
 所有函式一律要求明確的 `userId`（`requireUserId`），沒有任何全域狀態。
-`test/proactive-agent.test.js` 的 PA19 測試用完全獨立的 Alice/Bob 帳號證明：
+`test/legacy/proactive-agent.test.js` 的 PA19 測試用完全獨立的 Alice/Bob 帳號證明：
 一個人的訊號、pending question、每日上限、proactive_events 完全不會出現在
 另一個人名下。
 
@@ -243,15 +243,15 @@ Engine**，不能繞過——「有即時資料」不代表「有資格產生確
 
 ## 測試覆蓋
 
-- `test/readiness.test.js`：PA1 readiness engine + PA1 review 的 UNKNOWN/
+- `test/legacy/readiness.test.js`：PA1 readiness engine + PA1 review 的 UNKNOWN/
   UNAVAILABLE 區分 + 完全無副作用的黑盒證明。
-- `test/proactive-agent.test.js`：端到端管線（PA3-PA9）、回答迴圈
+- `test/legacy/proactive-agent.test.js`：端到端管線（PA3-PA9）、回答迴圈
   （PA10-PA14）、multi-user 隔離（PA19）、重啟/冪等安全（PA20）。
-- `test/proactive-insight-lifecycle.test.js`：Insight Memory 累積門檻
+- `test/legacy/proactive-insight-lifecycle.test.js`：Insight Memory 累積門檻
   （一次回答不能直接變 SUPPORTED）。
-- `test/proactive-notify-and-guard.test.js`：NOTIFY 安全語言、敘述守門的
+- `test/legacy/proactive-notify-and-guard.test.js`：NOTIFY 安全語言、敘述守門的
   blocked/allowed 例句、冷啟動階段對應表。
-- `test/proactive-readiness-ux.test.js`：`/status`、`/predictions` 的
+- `test/legacy/proactive-readiness-ux.test.js`：`/status`、`/predictions` 的
   readiness UX，含一個既有 bug 的修正驗證。
 
 執行 `npm test` 涵蓋以上全部，全程不呼叫真的 WHOOP／Telegram／OpenRouter
@@ -261,7 +261,7 @@ Engine**，不能繞過——「有即時資料」不代表「有資格產生確
 ## 稽核修正紀錄（2026-09-07）
 
 獨立稽核重跑並修正的問題（每一項都有對應的回歸測試，
-集中在 `test/proactive-audit.test.js`）：
+集中在 `test/legacy/proactive-audit.test.js`）：
 
 | 嚴重度 | 問題 |
 |---|---|

@@ -60,7 +60,7 @@ Network-free Linux 控制 3/3：before-start disconnect 64.19ms、SIGTERM 77.22m
 
 Frozen P0 1/1（涵蓋上述四邊界）PASS；process 3/3 PASS；receiver／RAM lifetime 7/7 PASS；原 permit 17/17 PASS；unlinked fixture 負向控制 1/1 PASS。唯一 reviewer 自行控制 8/8 PASS，P0 safety **GO scoped**、無 retained P0/P1。shared／P2／six-job／sustained／Production 仍 NO-GO。既有未變動演算法／security review 沿用。
 
-證據：[compact JSON](stage6-child-monitored-evidence.json)、[凍結 review](stage6-child-monitored-review.json)、[fixture review clarification](stage6-child-monitored-fixture-review.json)。原始 TAP／SQL 無值時間線保留在 `/private/tmp/stage6-child-monitored`，此 repo 不加入大型 archive。
+證據：[compact JSON](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/pre-stage7/stage6-child-monitored-evidence.json)、[凍結 review](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/pre-stage7/stage6-child-monitored-review.json)、[fixture review clarification](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/pre-stage7/stage6-child-monitored-fixture-review.json)。原始 TAP／SQL 無值時間線保留在 `/private/tmp/stage6-child-monitored`，此 repo 不加入大型 archive。
 
 ## 最小後續修正與 release prerequisites
 

@@ -156,7 +156,7 @@ export function main(repository,expectedSha,mode='qualification'){
   run('git',['worktree','add','--detach',checkout,expectedSha],{cwd:source,git:true});
   const commonGit=realpathSync(resolve(checkout,run('git',['rev-parse','--git-common-dir'],{cwd:checkout,git:true,capture:true}).stdout.trim()));
   regularFile(join(checkout,'.git'));
-  for(const path of ['package.json','package-lock.json','test/stage8-live-linux-http.sh','test/stage8-live-linux-http.mjs','test/stage8-live-linux-preflight.test.js'])regularFile(join(checkout,path));
+  for(const path of ['package.json','package-lock.json','test/stage8-live-linux-http.sh','test/stage8-live-linux-http.mjs','test/legacy/stage8-live-linux-preflight.test.js'])regularFile(join(checkout,path));
   for(const file of ['package.json','package-lock.json'])copyFileSync(join(checkout,file),join(context,file));
   copyFileSync(join(sourceDirectory,'Dockerfile'),join(context,'Dockerfile'));
   phase='IMAGE_BUILD';

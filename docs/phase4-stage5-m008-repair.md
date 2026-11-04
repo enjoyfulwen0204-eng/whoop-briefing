@@ -111,7 +111,7 @@ C/J receive affected-path regressions; the remaining groups receive the listed r
 
 Both historical failures are the new rejection assertion against the unmodified starting implementation; they demonstrate the blocker and are excluded from accepted totals. The first run's extra replay diagnostic compared JSON serialization order, which was too strict. The second uses structural equality and confirms exact wrong-family replay. All raw output is retained, including that first diagnostic. The T001 nested timeout remains an intentional negative probe, whose outer test passes only after both descendants are gone. Earlier repair failures remain in their untouched evidence directories.
 
-The default file budget is 300 seconds; the full lifecycle file has a declared 600-second budget. Each actual budget, elapsed time and classification is retained in [the evidence index](evidence/stage5-m008/README.md).
+The default file budget is 300 seconds; the full lifecycle file has a declared 600-second budget. Each actual budget, elapsed time and classification is retained in [the evidence index](https://github.com/enjoyfulwen0204-eng/whoop-briefing/blob/archive/evidence-20261104/docs/evidence/stage5-m008/README.md).
 
 ## PRODUCTION ISOLATION
 

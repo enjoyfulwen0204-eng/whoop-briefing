@@ -77,7 +77,7 @@ Settings/getProfileRevision and ordinary `/energy` remain unchanged.
 Run on Node 22:
 
 ```sh
-node --expose-gc --test --test-concurrency=1 test/body-morning-order.test.js
+node --expose-gc --test --test-concurrency=1 test/legacy/body-morning-order.test.js
 ```
 
 Scenarios isolate the original strict empty-filename memory fixture in child

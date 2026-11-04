@@ -1,11 +1,14 @@
-# Cloudflare briefing scheduler runbook (V1.2)
+# Cloudflare / Render v33 recovery runbook
 
-> Current pre-Stage7 v32 procedure: [release handoff](pre-stage7/release-handoff.md). The v20/v31 migration and older deployment facts below are historical. Do not execute them against current production v32. This session made no provider changes.
+目前正式入口：`node src/recoveryEntry.js`；Render `whoop-telegram-webhook` 為 Starter、Oregon、1 instance、Auto Deploy OFF。DB schema v33；不允許自動 migration。Stage 8 LIVE、BODY_ENERGY_PUBLICATION／ALERTS 保持 OFF。
 
-This runbook is intentionally inert. Commands below are for a reviewed production change window.
-For the Phase 4 v31 transition, [deployment control](phase4-deployment-control.md) is authoritative.
-Its checked-in Worker target is `*/10 0-3 * * *` UTC. The live provider trigger is
-unverified here and remains unchanged until a separately authorized deployment.
+- UTC Cron：`*/10 0-3 * * *`、`10 4-23 * * *`，44 次／日；兩種都做完整 SYNC。
+- 順序：SYNC → companion → extras；UTC 19:10／20:10／21:10 加 analytics。companion/extras 各 45 秒、analytics 90 秒，不能把 HTTP 200 當成沒有 DEFERRED_BUDGET。
+- 配對：Render `PHASE4_RELEASE_SHA` = 實際 deploy commit；Worker `BRIEFING_RELEASE_SHA` 同值，proof 在 Render instance 計算。Discovery on、scope sync、execution mode OFF。OFF 不會關閉 SYNC。
+- GitHub workflow 已停用，secrets 已移除；不要把歷史備援當成現行 writer。
+- 避開台北 08:00–12:00；等自然 :10 cron 結束才開始授權部署。新 Live 後等兩分鐘，SSH 核對三個 SHA；不符時斷線等一分鐘，最多五次。失敗依當次 Owner 指定 SHA 回退，不自行回到 legacy A。
+- 環境更新工具可能同時觸發部署，操作後先讀回 deploy 清單，避免重複 deploy；不要更動 secrets。驗收 `/health`、精確 SHA、啟動拒絕錯誤，以及下一次自然 SYNC/companion/extras 的狀態、耗時與 deferred_steps。
+- 不手動觸發排程、同步、分析或測試訊息。服務設定的歷史觀測不能代替下一次操作前的讀回。
 
 ## 用 Render SSH 計算 Config Proof
 
@@ -38,6 +41,12 @@ unverified here and remains unchanged until a separately authorized deployment.
    保留 main 與原資料，不自行修改程式或金鑰。
 
 本小節的文件 commit 與執行版本分開；僅文件變更不需要重新部署。
+
+## 歷史 V1.2 / v20–v32 參考（不適用目前 production）
+
+以下保留作為歷史參考。Free 方案、GitHub 備援、舊 migration、舊 scope 和建立金鑰的指令均不可直接執行；相關引用文件保留，完整快照另存 archive/evidence-20261104。
+
+<details><summary>歷史內容</summary>
 
 ## V1.2 scheduler facts
 
@@ -174,3 +183,5 @@ At 144 primary invocations plus best-effort backup runs, the expected one-user b
 100 users under this design: the repository's documented 10,000-request/day allowance would be at
 risk. Reassess batching/cadence before onboarding more than ten active users. OpenRouter is not
 called until wake eligibility is satisfied and the durable report claim is acquired.
+
+</details>

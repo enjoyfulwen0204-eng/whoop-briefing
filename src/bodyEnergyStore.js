@@ -2,7 +2,7 @@ import {logBodyEnergyRealignments} from './bodyEnergyDiagnostics.js';
 import {currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import { BODY_ENERGY as C, bodyEnergyVersion } from './bodyEnergyRegistry.js';
 import { selectBodyEnergyInputs, exactBodyInstant, validHealthDate, bodyEnergyDataTime } from './bodyEnergyInputs.js';
-import { calculateBodyEnergy } from './bodyEnergy.js';
+import { calculateWakeBodyEnergy, calculateBodyEnergy } from './bodyEnergy.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { fail, readableRow } from './phase4Core.js';
 import { canonicalSourceTime } from './phase4SourceVersion.js';
@@ -213,14 +213,15 @@ export function createBodyEnergyStore(core,entities,queue) {
       tickets.set(ticket,{context,cacheKey,refs});return ticket;
     });
   }
-  async function calculateReadOnly(context,options){
+  async function calculateReadOnly(context,options,{morning=false,expectedSleepId=null}={}){
     const ticket=await prepare(context,options),captured=tickets.get(ticket);
     return core.run(context,async()=>{
       await core.revalidateSources(context,captured.refs);
       const value=core.contextRegistry.get(context,captured.cacheKey);
       if(!value)fail('BODY_ENERGY_CAPTURE_EVICTED');
+      if(expectedSleepId!==null&&(!morning||String(value.manifest.main_sleep?.id)!==String(expectedSleepId)))fail('BODY_ENERGY_MORNING_SOURCE_CHANGED');
       logBodyEnergyRealignments({keys,userId:context.userId,records:value.dateRealignments});
-      return structuredClone({calculation:value.calculation,healthDate:value.manifest.health_date,wakeAt:value.manifest.wake_at_utc,
+      return structuredClone({calculation:morning?calculateWakeBodyEnergy(value.manifest):value.calculation,healthDate:value.manifest.health_date,wakeAt:value.manifest.wake_at_utc,
         dataAsOfUtc:bodyEnergyDataTime(value.manifest),timezone:value.manifest.timezone});
     });
   }

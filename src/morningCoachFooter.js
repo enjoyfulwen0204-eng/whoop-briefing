@@ -42,36 +42,42 @@ export function morningFooterRejection(answer,context,report,locale){
  return null;
 }
 export const validMorningFooter=(...args)=>morningFooterRejection(...args)===null;
-export async function morningCoachFooter({text,briefing,locale,coach,db,userId,keys,timeoutMs=20000}){
- let reason=null,llmStart=null,llmEnd=null,budget=null,phase='CONTEXT';
+export async function morningCoachFooter({text,briefing,locale,coach,db,userId,keys,timeoutMs=25000}){
+ let reason=null,llmStart=null,llmEnd=null,contextStart=null,contextEnd=null,budget=null,phase='CONTEXT';
+ const parent=currentExecutionBudget(),reserveMs=15000;
  try{
   if(typeof coach?.footerText!=='function'){reason='LLM_UNAVAILABLE';return '';}
-  if((currentExecutionBudget()?.remainingMs()??Infinity)<timeoutMs+5000){reason='BUDGET_TOO_LOW';return '';}
-  budget=createExecutionBudget({budgetMs:Math.min(20000,timeoutMs),signal:currentExecutionBudget()?.signal});
-  return await withExecutionBudget(budget,()=>budget.run(async()=>{
-   const supported=(await latestMemory(db,userId)).filter(row=>row.status==='SUPPORTED');
-   const memories=supported.map(row=>renderAssociations(memoryEvidence(row).view,locale)).join('\n');
-   const context=text+(memories?'\n'+memories:'');
-   phase='LLM';llmStart=Date.now();let raw;
-   try{raw=await coach.footerText({report:text,supported:memories},{locale});}finally{llmEnd=Date.now();}
-   phase='VALIDATION';const answer=typeof raw==='string'?raw.trim():raw;
-   reason=morningFooterRejection(answer,context,text,locale);if(reason)return '';
-   phase='INSIGHT';
-   for(const row of supported){const current=await db.getInsight(userId,row.id);
-    if(current?.status!=='SUPPORTED'||current.version!==row.version||current.evidence_json!==row.evidence_json){reason='INSIGHT_CHANGED';return '';}}
-   phase='SNAPSHOT';await coach.assertSnapshot?.();budget.assert();
-   const heading=({'zh-TW':'💬 教練的話',en:'💬 Coach’s note',vi:'💬 Lời nhắn của huấn luyện viên'})[locale]??'💬 Coach’s note';
-   return `\n\n${heading}\n${answer}`;
-  }));
+  if((parent?.remainingMs()??Infinity)<timeoutMs+reserveMs){reason='BUDGET_TOO_LOW';return '';}
+  contextStart=Date.now();
+  const supported=(await latestMemory(db,userId)).filter(row=>row.status==='SUPPORTED');
+  const memories=supported.map(row=>renderAssociations(memoryEvidence(row).view,locale)).join('\n');
+  const context=text+(memories?'\n'+memories:'');contextEnd=Date.now();
+  // Context preparation never consumes the LLM's own timeout. Recheck the
+  // parent deadline immediately before the optional request; preserve room
+  // for existing authority/insight validation and report delivery.
+  if((parent?.remainingMs()??Infinity)<timeoutMs+reserveMs){reason='BUDGET_TOO_LOW';return '';}
+  budget=createExecutionBudget({budgetMs:timeoutMs,signal:parent?.signal});
+  phase='LLM';llmStart=Date.now();let raw;
+  try{raw=await withExecutionBudget(budget,()=>budget.run(()=>coach.footerText({report:text,supported:memories},{locale})));}
+  finally{llmEnd=Date.now();budget.close();}
+  phase='VALIDATION';const answer=typeof raw==='string'?raw.trim():raw;
+  reason=morningFooterRejection(answer,context,text,locale);if(reason)return '';
+  phase='INSIGHT';
+  for(const row of supported){const current=await db.getInsight(userId,row.id);
+   if(current?.status!=='SUPPORTED'||current.version!==row.version||current.evidence_json!==row.evidence_json){reason='INSIGHT_CHANGED';return '';}}
+  phase='SNAPSHOT';await coach.assertSnapshot?.();parent?.assert();
+  const heading=({'zh-TW':'💬 教練的話',en:'💬 Coach’s note',vi:'💬 Lời nhắn của huấn luyện viên'})[locale]??'💬 Coach’s note';
+  return `\n\n${heading}\n${answer}`;
  }catch(error){
   reason=error?.code==='SYNC_TIMEOUT'||error?.name==='TimeoutError'?'TIMEOUT':
    error?.code==='SYNC_CANCELLED'?'CANCELLED':({LLM:'LLM_ERROR',CONTEXT:'CONTEXT_ERROR',VALIDATION:'VALIDATION_ERROR',INSIGHT:'INSIGHT_CHECK_ERROR',SNAPSHOT:'SNAPSHOT_CHANGED'})[phase];
   return '';
  }finally{
   budget?.close();
-  if(reason)try{
+  try{
    const hashed=keys?.lookup(['companion-diagnostic-user-v1',userId]);
-   console.log(JSON.stringify({event:'morning_coach_footer_omitted',user:/^[a-f0-9]{64}$/.test(hashed??'')?hashed:'UNKNOWN',reason,
+   console.log(JSON.stringify({event:reason?'morning_coach_footer_omitted':'morning_coach_footer_completed',user:/^[a-f0-9]{64}$/.test(hashed??'')?hashed:'UNKNOWN',reason:reason??'OK',
+    context_duration_ms:contextStart===null?0:Math.max(0,(contextEnd??Date.now())-contextStart),
     llm_duration_ms:llmStart===null?0:Math.max(0,(llmEnd??Date.now())-llmStart)}));
   }catch{/* Diagnostics cannot prevent the morning brief. */}
  }

@@ -1,3 +1,4 @@
+import {requireBetaConsent} from './betaEnrollment.js';
 /**
  * Multi-user WHOOP OAuth 流程（與 CLI / HTTP 無關的純邏輯，好 mock 測試）。
  *
@@ -56,6 +57,7 @@ export async function prepareAuthorization({
   maxOutstanding = null,
 }) {
   const user = await assertAuthorizable(db, userId);
+  await requireBetaConsent(db,user.id);
   const created = await db.createOAuthState(user.id, { ttlMs, now, maxOutstanding });
   if (created?.ok === false) throw new OAuthFlowError('TOO_MANY_OUTSTANDING_STATES', '這個使用者同時有太多條還沒用掉的授權連結');
   const { state, expiresAt } = created;
@@ -139,6 +141,7 @@ export async function completeAuthorization({
   // 讓人卡在一個沒有下一步的畫面。state 本身無效時**不會**走到這裡，所以
   // 不存在「無權宣稱這是誰卻宣稱了」的情況。
   try {
+    await requireBetaConsent(db,userId);
     return await bindAuthorizedTokens({
       db, userId, code, tokens: null, exchange, verifyIdentity, now,
       // ★ R2 / LIFE-FG-02：state 的啟用世代要一路帶到**持久化那一刻**。

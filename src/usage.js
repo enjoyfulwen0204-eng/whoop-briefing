@@ -27,8 +27,10 @@ export function computeCost({ model, inputTokens, outputTokens, pricing = loadPr
   if (inputTokens === null || inputTokens === undefined) return null;
   if (outputTokens === null || outputTokens === undefined) return null;
 
-  const inRate = Number(p.input_per_million);
-  const outRate = Number(p.output_per_million);
+  const rates=p.long_context && Number(inputTokens)>=p.long_context.min_prompt_tokens?p.long_context:p;
+  if(rates.input_per_million==null||rates.output_per_million==null)return null;
+  const inRate = Number(rates.input_per_million);
+  const outRate = Number(rates.output_per_million);
   if (!Number.isFinite(inRate) || !Number.isFinite(outRate)) return null;
 
   return (Number(inputTokens) / 1_000_000) * inRate

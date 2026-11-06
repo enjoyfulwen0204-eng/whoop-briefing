@@ -68,6 +68,7 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
   profile.push(['scheduler-topology-v1',environment.BRIEFING_SCHEDULER_TOPOLOGY]);
  }
  if(environment.FAMILY_SHARING!==undefined||environment.FAMILY_GROUP_USER_IDS!==undefined)profile.push(['family-sharing-v1',environment.FAMILY_SHARING??'off',(environment.FAMILY_GROUP_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean).sort()]);
+ if(environment.BETA_MAX_USERS!==undefined)profile.push(['beta-enrollment-v1',environment.REGISTRATION_MODE??'closed',environment.BETA_MAX_USERS,environment.AI_MONTHLY_CAP_USD??'',(environment.OWNER_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean).sort()]);
  const scope=continuationScope(environment,config.runtime==='on'?'SHADOW':'OFF');
  if(scope)profile.push(['phase4-continuation-scope-v1',scope]);
  return keys.lookup(profile);

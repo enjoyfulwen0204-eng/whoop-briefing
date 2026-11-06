@@ -402,26 +402,31 @@ export function resolveModel(purpose, env = process.env, fallback = null) {
  *  - 表裡沒有的模型 → estimated_cost_usd = null（**絕不猜**）
  *  - 可以用環境變數 MODEL_PRICING_JSON 覆蓋，不必改程式碼重新部署
  */
-export const PRICING_VERSION = '2026-09-06';
+export const PRICING_VERSION = '2026-11-06';
 
 export const MODEL_PRICING = {
+  'anthropic/claude-haiku-5.5': {
+    input_per_million: 0.10, output_per_million: 0.50,
+    long_context: { min_prompt_tokens: 100000, input_per_million: 0.50, output_per_million: 2.50 },
+    effective_date: '2026-11-06', source: 'https://openrouter.ai/api/v1/models',
+  },
   'anthropic/claude-sonnet-5': {
-    input_per_million: 3,
-    output_per_million: 15,
-    effective_date: '2026-09-06',
-    source: 'openrouter.ai/models（人工抄錄，可能過期）',
+    input_per_million: 2,
+    output_per_million: 10,
+    effective_date: '2026-11-06',
+    source: 'https://openrouter.ai/api/v1/models',
   },
   'anthropic/claude-haiku-4.5': {
     input_per_million: 1,
     output_per_million: 5,
-    effective_date: '2026-09-06',
-    source: 'openrouter.ai/models（人工抄錄，可能過期）',
+    effective_date: '2026-11-06',
+    source: 'https://openrouter.ai/api/v1/models',
   },
   'anthropic/claude-opus-4.1': {
     input_per_million: 15,
     output_per_million: 75,
-    effective_date: '2026-09-06',
-    source: 'openrouter.ai/models（人工抄錄，可能過期）',
+    effective_date: '2026-11-06',
+    source: 'https://openrouter.ai/api/v1/models',
   },
 };
 

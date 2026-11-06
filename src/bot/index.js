@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import {createBetaEnrollment,betaEnabled} from '../betaEnrollment.js';
+import {renderAdminUsers} from '../aiMonthlyBudget.js';
 import {createAccountSelfService} from '../accountSelfService.js';
 import {createFamilySharing} from '../familySharing.js';
 import {requireRecoveryScope} from '../recoveryPolicy.js';
@@ -135,6 +137,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     model: env.openrouterModel,
   });
 
+  const enrollment=betaEnabled(process.env)?createBetaEnrollment({db,keys:authorityKeys,environment:process.env}):null;
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
   let stage8;
   const coachContext=createCompanionCoachContext({getScopes:()=>stage8?.scopes});
@@ -163,7 +166,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     botToken: env.telegramBotToken,
     api,
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
-    accountControl,
+    accountControl,enrollment,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
@@ -186,7 +189,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),
+    sendReply: enrollment?enrollment.wrapSender(accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),{botUsername:async()=>(await api.getMe()).username,adminUsers:title=>renderAdminUsers(db,title)}):accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

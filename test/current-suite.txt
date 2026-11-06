@@ -58,3 +58,5 @@ test/companion-progress-current.test.js
 test/morning-snapshot-current.test.js
 
 test/registration-current.test.js
+
+test/beta-current.test.js

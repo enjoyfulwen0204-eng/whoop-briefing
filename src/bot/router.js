@@ -1,3 +1,4 @@
+import {checkAiBudget,AI_CAP_COPY} from '../aiMonthlyBudget.js';
 import {isStage5PresentationCommand,stage5PresentationUnavailable,stage5PresentationHelp} from '../stage5PresentationReader.js';
 import {selfQueryPerspective} from '../scopedHealthContext.js';
 import {stage8LiveCommand,stage8LivePresentationUnavailable} from '../stage8SelfQa.js';
@@ -440,7 +441,8 @@ export function createRouter({
       const topic=associations.question(text);
       if(topic){const reply=await associations.reply(userId,locale,topic);if(reply)return reply;}
     }
-    const provider = coachFor(userId);
+    const aiBudget=await checkAiBudget({db,userId,now:t});
+    const provider = aiBudget.limited?null:coachFor(userId);
     const wrapProvider=target=>target&&db.outsideProcessingTransaction?new Proxy(target,{
       get(target,key){
         const value=target[key];if(typeof value!=='function')return value;
@@ -454,9 +456,10 @@ export function createRouter({
     }):target;
     const coach=wrapProvider(provider);
     try {
-      return await route({
+      const answer=await route({
         text: String(text ?? '').trim(), chatId, t, userId, timezone, coach, locale,
       });
+      return aiBudget.limited&&typeof answer==='string'?answer+'\n\n'+(AI_CAP_COPY[locale]??AI_CAP_COPY.en):answer;
     } catch (err) {
       if (db.processingTransactionActive?.()) throw err;
       log.error('router_failed', { error: describeError(err) });

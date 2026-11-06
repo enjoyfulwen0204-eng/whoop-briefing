@@ -1,3 +1,4 @@
+import {betaEnabled,betaRuntime,createBetaEnrollment} from './betaEnrollment.js';
 import {randomUUID} from 'node:crypto';
 import {processAnalyticsForUser} from './analyticsWorker.js';
 import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
@@ -95,7 +96,7 @@ export async function runNightAnalytics({request,environment=process.env,db,keys
   return db.withRuntimeFence(fence,async()=>{
    const runtime=await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now});
    if(!runtime)fail('ANALYTICS_READER_UNAVAILABLE');
-   const result=await processNightAnalytics({db,keys,userIds:stage7Configuration(environment).userIds,reader:runtime.associations,budget,now,...deps});
+   const result=await processNightAnalytics({db,keys,userIds:betaEnabled(environment)?await (betaRuntime(db)??createBetaEnrollment({db,keys,environment,now})).eligibleIds():stage7Configuration(environment).userIds,reader:runtime.associations,budget,now,...deps});
    const failed=result.results.filter(r=>['FAILED','FENCED'].includes(r.status)).length;
    return {status:failed?503:200,body:{ok:failed===0,kind:ANALYTICS_KIND,source:'cloudflare',releaseSha,drainAuthorized:false,failed,...result}};
   });

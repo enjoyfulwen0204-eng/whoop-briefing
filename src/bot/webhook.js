@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import {createBetaEnrollment,betaEnabled} from '../betaEnrollment.js';
+import {renderAdminUsers} from '../aiMonthlyBudget.js';
 import {ANALYTICS_PATH,runNightAnalytics} from '../nightAnalytics.js';
 import {createAccountSelfService} from '../accountSelfService.js';
 import {createFamilySharing} from '../familySharing.js';
@@ -477,6 +479,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId,
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
+  const enrollment=betaEnabled(selectedEnvironment)?createBetaEnrollment({db,keys:authorityKeys,environment:selectedEnvironment}):null;
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:selectedEnvironment,env});
   let stage8;
   const coachContext=profile===SCHEMA_TRANSITION_PROFILE?null:createCompanionCoachContext({getScopes:()=>stage8?.scopes});
@@ -507,7 +510,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
     db,
     ...(stage7?{stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply}:{}),
     authenticatedIdentity:stage8?.captureIdentity,
-    accountControl,
+    accountControl,enrollment,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
@@ -536,7 +539,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),
+    sendReply: enrollment?enrollment.wrapSender(accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),{botUsername:async()=>(await api.getMe()).username,adminUsers:title=>renderAdminUsers(db,title)}):accountControl.wrapSender(family?family.ui.wrapSender(sendPresentation):sendPresentation),
     // updateProcessor bounds its own callback wait; retain ownership of the
     // underlying local API promise even if that wait finishes first.
     answerCallback: id=>lifecycle.fork(()=>api.answerCallbackQuery(id)),

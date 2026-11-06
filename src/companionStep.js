@@ -19,7 +19,7 @@ export function observeCompanionStep({keys,userId,step,status}){
 // Same source-validation failures as stage8MorningIntelligence. A failed
 // optional step is skipped, never retried with replacement data or authority.
 const recoverable=new Set(['PHASE4_PARENT_STALE','PHASE4_PARENT_NOT_FOUND','CONTENT_REDACTED','PHASE4_SOURCE_DELETED','PHASE4_SOURCE_NOT_FOUND','PHASE4_SOURCE_NOT_CURRENT','PHASE4_RESOURCE_FENCED','PHASE4_CAPABILITY_FENCED','PHASE4_INCOMPLETE_PROVENANCE','PHASE4_PARENT_LINK_MISSING','PHASE4_SOURCE_LINK_REQUIRED']);
-const steps=new Set(['brief_update','no_sleep','prediction','insight','daily','coach','weekly','low','family_daily','family_alert','family_weekly']);
+const steps=new Set(['quota','brief_update','no_sleep','prediction','insight','daily','coach','weekly','low','family_daily','family_alert','family_weekly']);
 export async function runCompanionStep({db,keys,userId,step,run}){
  if(!steps.has(step))throw Object.assign(Error('COMPANION_STEP_INVALID'),{code:'COMPANION_STEP_INVALID'});
  const started=Date.now();let status='EXCEPTION';

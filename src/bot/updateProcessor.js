@@ -136,6 +136,7 @@ export function createUpdateProcessor({
   handleMessage,
   /** 未綁定 chat 的處理（目前只用來吃 /link）。回 null 代表完全不回。 */
   handleUnlinked = null,
+  enrollment = null,
   /** Default-off dedicated control path, before the ordinary action/receipt
    * transaction. No production entry point supplies this foundation adapter. */
   phase4JournalControl = null,
@@ -497,7 +498,8 @@ export function createUpdateProcessor({
       if(!linked&&!previous){
         const text=typeof incoming.text==='string'?incoming.text:typeof incoming.caption==='string'?incoming.caption:'';
         const urgent=assessUrgency(text).urgent||emergencyKeywordHit(text);
-        const reply=urgent?{text:urgentReply('en')}:registrationClosedReply(incoming);
+        let reply;try{reply=urgent?{text:urgentReply('en')}:registrationMode()==='invite'&&enrollment?await enrollment.register({message:incoming,chatId:String(incoming.chat.id)}):registrationClosedReply(incoming);}
+        catch{return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'registration_unavailable',replied:false};}
         try{const result=await sendReply?.({chatId:String(incoming.chat.id),userId:null,reply});
           return {outcome:UPDATE_OUTCOME.PROCESSED,updateId,reason:urgent?'urgent':'registration_closed',replied:Boolean(result?.sent)};
         }catch{return {outcome:UPDATE_OUTCOME.AMBIGUOUS_DELIVERY,updateId,reason:'registration_reply_unconfirmed',replied:false};}
@@ -613,8 +615,10 @@ export function createUpdateProcessor({
       // safety before any identity capture, Journal note or Settings consumer.
       if(c.kind==='ok'&&authenticatedIdentity&&!urgent)await authenticatedIdentity(c);
       const accountAction=c.kind==='ok'&&!urgent&&accountControl?.matches(c.callback?.data);
-      const journalResult=!accountAction&&c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
+      const betaAction=c.kind==='ok'&&!urgent&&enrollment&&await enrollment.intercept(c);
+      const journalResult=!betaAction&&!accountAction&&c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {
+        if(betaAction)return {chatId:c.chatId,userId:c.user.id,expectedLifecycleGeneration:c.user.lifecycleGeneration,reply:await enrollment.handle({...c,requestId:updateId})};
         if(accountAction)return {chatId:c.chatId,userId:null,reply:await accountControl.handle(c)};
         if (c.kind === 'unlinked') {
           const reply = urgent ? {text:urgentReply('en')} : handleUnlinked ? await handleUnlinked({
@@ -676,7 +680,7 @@ export function createUpdateProcessor({
         ?readOnlyTelegramOperation(dispatch):dispatch;
       const execute = () => claimed && db.processTelegramOperation
         ? db.processTelegramOperation(updateId, { owner: attemptId, ownerUserId:c.kind==='ok'&&!accountAction?c.user.id:null,
-          nonHealthOperation:c.kind!=='ok'||Boolean(accountAction),now }, operation)
+          nonHealthOperation:c.kind!=='ok'||Boolean(accountAction)||Boolean(betaAction),now }, operation)
         : dispatch();
       const typingEligible = c.kind === 'ok' && isNaturalLanguage(c.text);
       const startup = typingEligible ? claimStartupFeedback() : false;

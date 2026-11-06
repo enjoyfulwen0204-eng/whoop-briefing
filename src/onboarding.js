@@ -1,3 +1,4 @@
+import {requireBetaConsent} from './betaEnrollment.js';
 /**
  * 自助上線流程（V1.2 Phase 3.5）。
  *
@@ -250,6 +251,7 @@ export async function issueAuthLink({
   // 兩道閘門都**會自己恢復**（F03）：
   //   冷卻 —— 純時間條件
   //   未完成數量 —— 過期／用掉的 state 不再計入，而且是一句原子 INSERT
+  await requireBetaConsent(db,userId);
   const budget = await db.recordAuthLinkIssued(userId, { cooldownMs, now });
   if (!budget.ok) return { ok: false, reason: budget.reason };
   try {

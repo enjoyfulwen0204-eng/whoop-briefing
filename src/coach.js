@@ -1,3 +1,4 @@
+import {assertAiBudget} from './aiMonthlyBudget.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 /**
  * AI 教練文字生成（走 OpenRouter）。
@@ -267,6 +268,7 @@ export function createCoach({
     return AbortSignal.any([AbortSignal.timeout(Math.max(1, timeout)), ...[await cancellationSignal()].filter(Boolean)]);
   }
   async function post(body) {
+    await assertAiBudget({db,userId,environment:env,now:now()});
     const requestSignal = await providerSignal();
     await authority();
     const monitor=new AbortController();
@@ -320,9 +322,9 @@ export function createCoach({
         await authority();
         lastErr = err;
         const status = err instanceof CoachApiError ? err.status : null;
-        const retryable = status !== null
+        const retryable = !String(err?.code??'').startsWith('AI_BUDGET_')&&err?.code!=='AI_MONTHLY_CAP_REACHED'&&(status !== null
           ? (status === 429 || status >= 500)
-          : (err?.name !== 'AbortError' && err?.name !== 'TimeoutError');
+          : (err?.name !== 'AbortError' && err?.name !== 'TimeoutError'));
         if (!retryable || attempt === maxRetries) throw err;
         countExecutionTelemetry('retry_count');
         const wait = backoffFor(attempt);
@@ -388,6 +390,7 @@ export function createCoach({
     promptVersion = PROMPT_VERSIONS.OTHER,
     footerModel = false,
   }) {
+    await assertAiBudget({db,userId,environment:env,now:now()});
     const requestedModel = footerModel && env.MODEL_COACH_FOOTER || resolveModel(purpose, env, model);
     const startedAt = Date.now();
     let usedModel = requestedModel;
@@ -439,7 +442,7 @@ export function createCoach({
           throw err2;
         }
       }
-      await finish(null, 'FAILED', describeError(err));
+      if(!String(err?.code??'').startsWith('AI_BUDGET_')&&err?.code!=='AI_MONTHLY_CAP_REACHED')await finish(null, 'FAILED', describeError(err));
       throw err;
     }
   }

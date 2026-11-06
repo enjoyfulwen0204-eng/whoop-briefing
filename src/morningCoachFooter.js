@@ -1,4 +1,5 @@
 import {validateNarrative} from './llmValidation.js';
+import {checkAiBudget} from './aiMonthlyBudget.js';
 import {createExecutionBudget,currentExecutionBudget,withExecutionBudget} from './executionBudget.js';
 import {latestMemory,memoryEvidence} from './associationMemory.js';
 import {renderAssociations} from './onDemandAssociations.js';
@@ -47,6 +48,7 @@ export async function morningCoachFooter({text,briefing,locale,coach,db,userId,k
  const parent=currentExecutionBudget(),reserveMs=15000;
  try{
   if(typeof coach?.footerText!=='function'){reason='LLM_UNAVAILABLE';return '';}
+  if((await checkAiBudget({db,userId})).limited){reason='AI_MONTHLY_CAP_REACHED';return '';}
   if((parent?.remainingMs()??Infinity)<timeoutMs+reserveMs){reason='BUDGET_TOO_LOW';return '';}
   contextStart=Date.now();
   const supported=(await latestMemory(db,userId)).filter(row=>row.status==='SUPPORTED');

@@ -1,3 +1,4 @@
+import {registrationMode,registrationClosedReply} from '../registrationPolicy.js';
 import {assessUrgency,urgentReply} from './triage.js';
 import {emergencyKeywordHit} from './emergencyKeywords.js';
 import {isJournalCallback} from '../stage7Cards.js';
@@ -481,6 +482,26 @@ export function createUpdateProcessor({
     const updateId = Number(update?.update_id);
     if (!Number.isFinite(updateId)) {
       return { outcome: UPDATE_OUTCOME.INVALID, updateId: null, reason: 'bad_update_id', replied: false };
+    }
+
+    // Reject genuinely new chats before transport receipts, locks, onboarding,
+    // OAuth or LLM work. Existing/retired bindings retain their lifecycle path.
+    const incoming=update?.message;
+    if(registrationMode()!=='open'&&incoming?.chat?.type==='private'
+      &&incoming.from?.is_bot!==true&&String(incoming.from?.id??'')===String(incoming.chat.id)
+      &&incoming.from?.id!==undefined){
+      let linked,previous;
+      try{linked=await resolveUser(String(incoming.chat.id));
+        if(!linked)previous=await db.getTelegramLink?.(String(incoming.chat.id));
+      }catch{return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'registration_identity_unavailable',replied:false};}
+      if(!linked&&!previous){
+        const text=typeof incoming.text==='string'?incoming.text:typeof incoming.caption==='string'?incoming.caption:'';
+        const urgent=assessUrgency(text).urgent||emergencyKeywordHit(text);
+        const reply=urgent?{text:urgentReply('en')}:registrationClosedReply(incoming);
+        try{const result=await sendReply?.({chatId:String(incoming.chat.id),userId:null,reply});
+          return {outcome:UPDATE_OUTCOME.PROCESSED,updateId,reason:urgent?'urgent':'registration_closed',replied:Boolean(result?.sent)};
+        }catch{return {outcome:UPDATE_OUTCOME.AMBIGUOUS_DELIVERY,updateId,reason:'registration_reply_unconfirmed',replied:false};}
+      }
     }
 
     const attemptId = mkAttemptId();

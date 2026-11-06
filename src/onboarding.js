@@ -32,6 +32,7 @@
  *    重來的動作，而不是讓人卡在中間無解。
  */
 
+import { registrationMode, registrationClosedReply } from './registrationPolicy.js';
 import { ONBOARDING } from './config.js';
 import { ONBOARDING_STATE, ONBOARDING_FAILURE, USER_STATUS } from './schema.js';
 import { prepareAuthorization, OAuthFlowError } from './oauthFlow.js';
@@ -174,6 +175,8 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
     }
   }
 
+  if (registrationMode() !== 'open') return { user:null, onboarding:null, created:false, blocked:'registration_closed' };
+
   const user = await db.createUser({
     displayName: displayNameFrom(message),
     allowEmptyDisplayName: true,
@@ -285,6 +288,7 @@ export async function handleUnlinkedMessage({
     log.warn('onboarding_rejected_non_private', { chat_id: String(chatId) });
     return null;
   }
+  if (registrationMode() !== 'open') return registrationClosedReply(message);
   const raw = String(text ?? '').trim();
   if (!START_COMMAND.test(raw)) {
     // 不是 /start：給指引而不是沉默，但**不做任何事**。

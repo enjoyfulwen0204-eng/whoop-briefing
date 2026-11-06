@@ -54,3 +54,5 @@ test/extras-current.test.js
 
 test/morning-content-current.test.js
 test/companion-progress-current.test.js
+
+test/morning-snapshot-current.test.js

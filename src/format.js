@@ -105,7 +105,7 @@ export function renderDaily(briefing, coachText, { displayName = '', locale = 'z
 
   if (recovery?.available) {
     lines.push(t(locale, 'daily.recoveryValue', { value: localizedDisplay(locale, recovery.display),
-      light: lightOf(recovery.severity), stage: stageSuffix(stage, sampleCount, locale) }));
+      light: (recovery.value>=67?'🟢':recovery.value>=34?'🟡':'🔴')+(recovery.severity==='red'&&recovery.value<recovery.baseline?'⚠️':''), stage: stageSuffix(stage, sampleCount, locale) }));
   } else {
     lines.push(t(locale, 'daily.recoveryMissing', { stage: stageSuffix(stage, sampleCount, locale) }));
   }
@@ -194,6 +194,7 @@ export function renderWhatChanged(whatChanged, locale) {
   if (!Array.isArray(whatChanged) || !whatChanged.length) return [];
   const concerning=[],bright=[];
   for (const c of whatChanged) {
+    if(['strain','previous_day_strain'].includes(c.metric))continue;
     const meta = INSIGHT_LABELS[c.metric];
     if (!meta || !Number.isFinite(c.current)) continue;
     const direction=METRIC_DIRECTION[{deep_sleep:'slow_wave',rem_sleep:'rem'}[c.metric]??c.metric]??'both';

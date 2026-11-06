@@ -35,26 +35,26 @@ export function renderOnDemandBody(calculation,{locale='zh-TW',morning=false,det
  * Stage 6, publication grants or numerical result storage. */
 export function createOnDemandBodyEnergy({db,stores,keys,environment,now=()=>new Date()}){
  const notificationControl=createBodyEnergyNotificationControl({db,keys,now});
- async function inspect({userId,healthDate,requestedAt=new Date(now())}){
+ async function inspect({userId,healthDate,requestedAt=new Date(now()),morning=false,expectedSleepId=null}){
   if(!onDemandBodyEnabled(environment))throw Error('BODY_ENERGY_ON_DEMAND_DISABLED');
   const user=await db.getUser(userId),locale=await db.getLocale(userId);
   if(user?.status!=='ACTIVE'||!locale||(await db.getOnboarding(userId))?.state!=='READY')throw Error('BODY_ENERGY_RECIPIENT_FENCED');
   return stores.withContext(userId,{executionMode:'SHADOW',providerRequired:true},async context=>{
    const date=healthDate??localDate(requestedAt,context.timezone);
-   const result=await stores.bodyEnergy.calculateReadOnly(context,{asOfEpochMs:requestedAt.getTime(),targetHealthDate:date});
+   const result=await stores.bodyEnergy.calculateReadOnly(context,{asOfEpochMs:requestedAt.getTime(),targetHealthDate:date},{morning,expectedSleepId});
    await stores.assertCurrent(context);
    return {...result,locale,identity:[context.lifecycleGeneration,context.authGeneration,context.purgeGeneration,context.sourceGeneration,context.inputGeneration,context.timezone]};
   });
  }
- async function currentSection({userId,healthDate,requestedAt=new Date(now()),morning=false,details=false}){
-  const result=await inspect({userId,healthDate,requestedAt});
+ async function currentSection({userId,healthDate,requestedAt=new Date(now()),morning=false,details=false,expectedSleepId=null}){
+  const result=await inspect({userId,healthDate,requestedAt,morning,expectedSleepId});
   if(morning&&!['AVAILABLE','LIMITED'].includes(result.calculation?.quality_state)){
    try{console.log(JSON.stringify({event:'morning_body_energy_unavailable',user:keys.lookup(['companion-diagnostic-user-v1',userId]),
     quality_state:/^[A-Z_]{1,48}$/.test(result.calculation?.quality_state??'')?result.calculation.quality_state:'UNKNOWN',
     reasons:(result.calculation?.reasons??[]).filter(v=>typeof v==='string'&&/^[A-Z_]{1,80}$/.test(v)).slice(0,30)}));}catch{/* Diagnostic only. */}
   }
   const message=renderOnDemandBody(result.calculation,{locale:result.locale,morning,details,dataAsOfUtc:result.dataAsOfUtc,timezone:result.timezone});
-  const recipe={version:'on-demand-body-v1',at:requestedAt.toISOString(),healthDate:result.healthDate,morning,details,
+  const recipe={version:'on-demand-body-v1',at:requestedAt.toISOString(),healthDate:result.healthDate,morning,details,expectedSleepId,
    proof:keys.lookup(['on-demand-body-v1',userId,result,message])};
   return {message,status:result.calculation.quality_state,replyGuard:recipe,verifyCurrent:()=>verifyReplyGuard(recipe,userId)};
  }
@@ -63,7 +63,7 @@ export function createOnDemandBodyEnergy({db,stores,keys,environment,now=()=>new
   if(recipe?.version!=='on-demand-body-v1'||typeof recipe.proof!=='string'||!Number.isFinite(Date.parse(recipe.at)))throw Error('BODY_ENERGY_REPLY_GUARD_INVALID');
   const age=new Date(now()).getTime()-Date.parse(recipe.at);
   if(age<0||age>90000)throw Error('BODY_ENERGY_REPLY_EXPIRED');
-  const result=await inspect({userId,healthDate:recipe.healthDate,requestedAt:new Date(recipe.at)});
+  const result=await inspect({userId,healthDate:recipe.healthDate,requestedAt:new Date(recipe.at),morning:recipe.morning,expectedSleepId:recipe.expectedSleepId??null});
   const message=renderOnDemandBody(result.calculation,{locale:result.locale,morning:recipe.morning,details:recipe.details,dataAsOfUtc:result.dataAsOfUtc,timezone:result.timezone});
   if(keys.lookup(['on-demand-body-v1',userId,result,message])!==recipe.proof)throw Error('BODY_ENERGY_CURRENTNESS_FENCED');
   return true;

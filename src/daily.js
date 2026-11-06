@@ -21,7 +21,7 @@ import {
 import { renderDaily } from './format.js';
 import { displayNameFor } from './displayName.js';
 import { buildNarrative } from './narrative.js';
-import { buildInsightsSafe } from './insights.js';
+import {morningInsights} from './morningSources.js';
 import { requireLifecycle,ACCOUNT_INACTIVE } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelivery.js';
@@ -32,7 +32,7 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  * @param {object} telegram 已經綁定到該使用者 chat 的 telegram client。
  */
 export async function runDaily({
-  db, userId, source, coach, telegram,bodyEnergy,keys, timezone, locale = 'zh-TW', now = new Date(),presentationClock,morningSnapshot,
+  db, userId, source, coach, telegram,bodyEnergy,keys, timezone, locale = 'zh-TW', now = new Date(),presentationClock,morningSnapshot,prepareMorningSources,
   // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
   // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
@@ -204,7 +204,13 @@ export async function runDaily({
 
   // Fetch the same history used by the report exactly once. Re-select the
   // newest main sleep before claiming, including WHOOP corrections/new segments.
-  const history=await source.history();
+  const prepared=prepareMorningSources?await prepareMorningSources():undefined;
+  if(prepared===null){
+    await recordEvaluation(BRIEFING_OUTCOME.READY,{reason:'MORNING_SYNC_PENDING'});
+    return {status:'not_ready',reason:'MORNING_SYNC_PENDING',retryable:true};
+  }
+  if(prepared?.coach)coach=prepared.coach;
+  const history=prepared?.history??await source.history();
   const historyObservations=buildObservations({...history,timezone});
   wake=detectWake({observations:historyObservations,now:liveNow(),timezone});
   if(!wake.ready){
@@ -297,9 +303,9 @@ export async function runDaily({
   let text,bodyEnergySection,ordinaryText;
   try {
     briefing = preparedBriefing;
-    // 統計層（z-score / What Changed）。**任何失敗都只是沒有這一段**，
-    // 絕不影響簡報本身 —— buildInsightsSafe 自己吞掉所有錯誤回 null。
-    const insights = await buildInsightsSafe({ db, userId: uid, timezone, healthDate });
+    // Statistics use the exact canonical history used by the data section.
+    let insights=null;
+    try{insights=morningInsights(history,timezone,healthDate);}catch{/* Optional statistics cannot block the report. */}
     briefing.whatChanged = insights?.whatChanged ?? null;
     briefing.historyDays = insights?.historyDays ?? null;
 
@@ -322,7 +328,7 @@ export async function runDaily({
     text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid), locale });
     ordinaryText=text;
     if(bodyEnergy){
-      try{bodyEnergySection=await bodyEnergy.currentSection({userId:uid,healthDate,requestedAt:liveNow(),morning:true});
+      try{bodyEnergySection=await bodyEnergy.currentSection({userId:uid,healthDate,requestedAt:liveNow(),morning:true,expectedSleepId:briefing.sleepId});
         if(bodyEnergySection&&bodyEnergySection.status!=='QUALIFICATION_PENDING')text+='\n\n'+bodyEnergySection.message;
         else bodyEnergySection=null;
       }catch{bodyEnergySection=null;}

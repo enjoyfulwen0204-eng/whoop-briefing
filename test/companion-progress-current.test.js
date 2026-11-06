@@ -1,8 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
 import {createCompanionProgress} from '../src/companionProgress.js';
-import {runCompanionStep} from '../src/companionStep.js';
-import {currentExecutionBudget} from '../src/executionBudget.js';
+import {runCompanionStep,CompanionBudgetDeferred} from '../src/companionStep.js';
+import {currentExecutionBudget,createExecutionBudget,withExecutionBudget} from '../src/executionBudget.js';
 import {syntheticStage7V33Fixture} from './stage7-v33-fixture.js';
 import {configurationProof} from '../src/phase4ExecutionStore.js';
 import {publicBetaConfiguration} from '../src/publicBetaConfig.js';
@@ -49,4 +49,50 @@ test('unstarted family deferrals do not count checked users, and uncertain outco
  p.observe({user:'a',step:'prediction',status:'DELIVERY_STARTED'});p.observe({user:'a',step:'private',status:'SECRET'});p.observe({user:'a',step:'prediction',status:'private data'});
  const r=p.freeze(true);assert.equal(r.failedUsers,1);assert.equal(r.outcomes.DELIVERY_STARTED,1);assert.doesNotMatch(JSON.stringify(r),/SECRET|private/);
  assert.deepEqual(r.deferredSteps,{family_daily:2,prediction:1});
+});
+
+for(const extras of [false,true])for(const uncertain of [false,true])test(`${extras?'extras':'companion'}: settled budget boundary defers untouched work${uncertain?' without hiding an uncertain delivery':''}`,async t=>{
+ const f=await syntheticStage7V33Fixture(t);
+ await f.db.createUser({id:'c',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'},{now:f.core.now()});await f.core.initializeTenant('c','SHADOW');
+ for(const [i,id] of ['a','b','c'].entries()){await f.db.linkTelegram({userId:id,chatId:String(123+i),now:f.core.now()});await f.db.ensureOnboarding(id,{state:'READY',now:f.core.now()});}
+ const environment={STAGE7_COMPANION:'on',STAGE7_AUTOMATIC:'on',STAGE7_COMPANION_USER_IDS:'a,b,c',...(extras?{FAMILY_SHARING:'on',FAMILY_GROUP_USER_IDS:'a,b,c'}:{})};
+ const releaseSha=runningReleaseSha(environment),request={kind:extras?EXTRAS_KIND:COMPANION_KIND,requestId:'synthetic-safe-defer-request-001',releaseSha,configProof:configurationProof(f.keys,publicBetaConfiguration(environment),environment,releaseSha),executionMode:'OFF',triggerSource:'cloudflare'};
+ let count=0,clock=Date.now(),lateCalls=0;const logs=[];
+ t.mock.method(Date,'now',()=>clock);t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
+ const step=(id,name,status,run=async()=>({status}))=>runCompanionStep({db:f.db,keys:f.keys,userId:id,step:name,run});
+ const work=async id=>{
+  count++;await step(id,extras?'family_daily':'daily',uncertain&&count===2?'DELIVERY_STARTED':'DISABLED');
+  if(count===2)clock=currentExecutionBudget().deadlineAt-500;
+  await step(id,extras?'family_alert':'insight','NO_NEW_INSIGHT',async()=>{if(count===2)lateCalls++;return {status:'NO_NEW_INSIGHT'};});
+  if(extras)await step(id,'family_weekly','NOT_DUE');
+  return {daily:'DISABLED',insight:'NO_NEW_INSIGHT'};
+ };
+ const deps=extras?{createFamily:()=>({tick:async()=>{for(const id of ['a','b','c'])await work(id);assert.fail('must yield before user 3');}})}:
+  {createRuntime:async()=>({tick:async({user})=>work(user.id)})};
+ const result=await (extras?runExtrasService:runCompanionService)({db:f.db,keys:f.keys,env:{},environment,request,now:f.core.now,deps});
+ assert.equal(result.status,uncertain?503:200);assert.equal(result.body.failed,uncertain?1:0);assert.equal(result.body.budgetExhausted,true);
+ assert.equal(result.body.checked,2);assert.equal(result.body.unprocessedUsers,1);assert.equal(count,2);assert.equal(lateCalls,0);
+ assert.deepEqual(result.body.interruptedSteps,{});
+ assert.equal(result.body.deferredSteps[extras?'family_alert':'insight'],2);
+ if(extras)assert.equal(result.body.deferredSteps.prediction,3);
+ else{assert.equal(result.body.completedUsers,1);assert.equal(result.body.incompleteUsers,1);assert.equal(result.body.deferredSteps.coach,2);}
+ if(!uncertain){assert.equal(result.body.reason,'DEFERRED_BUDGET');assert.equal(logs.filter(x=>x.event==='companion_user_failed').length,0);}
+ assert.equal(logs.filter(x=>x.event==='companion_step_timing'&&x.status==='DEFERRED_BUDGET').length,1);
+});
+
+test('budget yield never reclassifies cancelled, in-flight, or transaction-owned work',async t=>{
+ let clock=Date.now();t.mock.method(console,'log',()=>{});
+ const b=createExecutionBudget({budgetMs:45000,nowMs:()=>clock});
+ const args={db:{processingTransactionActive:()=>false},keys:{lookup:()=>'synthetic'},userId:'a',step:'coach'};
+ try{
+  clock=b.deadlineAt-500;let calls=0;
+  await assert.rejects(withExecutionBudget(b,()=>runCompanionStep({...args,run:async()=>{calls++;return {status:'SENT'};}})),CompanionBudgetDeferred);
+  assert.equal(calls,0);
+  const failed=Object.assign(Error('SYNTHETIC'),{code:'SYNC_TIMEOUT'});
+  await assert.rejects(withExecutionBudget(b,()=>runCompanionStep({...args,db:{processingTransactionActive:()=>true},run:async()=>{throw failed;}})),e=>e===failed);
+  clock=b.startedAt;
+  await assert.rejects(withExecutionBudget(b,()=>runCompanionStep({...args,run:async()=>{clock=b.deadlineAt+1;b.assert();}})),e=>e.code==='SYNC_TIMEOUT'&&!(e instanceof CompanionBudgetDeferred));
+  clock=b.startedAt;b.cancel();
+  await assert.rejects(withExecutionBudget(b,()=>runCompanionStep({...args,run:async()=>assert.fail('cancelled work must not start')})),{code:'SYNC_CANCELLED'});
+ }finally{b.close();}
 });

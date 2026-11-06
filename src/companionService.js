@@ -2,7 +2,7 @@ import {createMorningFollowups} from './morningFollowups.js';
 import {createCompanionProgress} from './companionProgress.js';
 import {familyConfiguration,FAMILY_CLASSES} from './familySharingStore.js';
 import {onDemandBodyEnabled} from './onDemandBodyEnergy.js';
-import {runCompanionStep,withCompanionProgress} from './companionStep.js';
+import {runCompanionStep,withCompanionProgress,deferCompanionAtBoundary,CompanionBudgetDeferred} from './companionStep.js';
 import {notifyPrediction} from './predictionNotification.js';
 import {createTelegram} from './telegram.js';
 import {createFamilySharing} from './familySharing.js';
@@ -88,18 +88,21 @@ async function runService({request,environment=process.env,db:providedDb,env:pro
    if(family){
     const familyStarted=Date.now();
     try{
+     deferCompanionAtBoundary(db);
      const result=await family.tick();
      for(const row of result.results){observe(row);
       const timing=userDurations.find(u=>u.user===row.user);if(timing)timing.duration_ms+=row.duration_ms;else userDurations.push({user:row.user,duration_ms:row.duration_ms});
       if(['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(row.status)){failed++;diagnosticLog({event:'companion_user_failed',user:row.user,step:row.step,status:row.status,code:'UNKNOWN'});}}
      progress.addDeferred(result.deferredSteps);
      for(const id of familyIds)progress.finishSteps(diagnosticUser(keys,id),familySteps);
-    }catch(error){diagnosticLog({event:'companion_user_failed',user:'FAMILY',step:'family',status:'EXCEPTION',code:diagnosticCode(error)});fence();failed++;}
+    }catch(error){if(error instanceof CompanionBudgetDeferred)throw error;diagnosticLog({event:'companion_user_failed',user:'FAMILY',step:'family',status:'EXCEPTION',code:diagnosticCode(error)});fence();failed++;}
     finally{diagnosticLog({event:'companion_family_summary',duration_ms:Date.now()-familyStarted});}
    }
+   deferCompanionAtBoundary(db);
    const runtime=automatic&&!extras?await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now}):null;
    for(const id of companionUserOrder(automatic?cohort.userIds:[],now())){
-    const userStartedAtMs=Date.now();
+    deferCompanionAtBoundary(db);
+    const userStartedAtMs=Date.now();let userDeferred=false;
     try{
     fence();progress.start(diagnosticUser(keys,id));const user=await db.getUser(id);
     if(!user||user.status!=='ACTIVE'||(await db.getOnboarding(id))?.state!=='READY')continue;
@@ -121,8 +124,8 @@ async function runService({request,environment=process.env,db:providedDb,env:pro
      for(const [step,status] of [['exception',result.status],['daily',result.daily],['coach',result.coach],['weekly',result.weekly],['low',result.low],['insight',result.insight],['brief_update',result.brief_update],['no_sleep',result.no_sleep],['prediction',result.prediction]])
       if(diagnosticFailureStates.has(status))diagnosticFailure(keys,id,step,status,result.error);
      if(statuses.some(status=>['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN'].includes(status)))failed++;
-    }catch(error){diagnosticFailure(keys,id,'exception','EXCEPTION',error);fence();failed++;}
-    }finally{if(budget.remainingMs()>0&&!budget.signal.aborted)progress.finish(diagnosticUser(keys,id));const user=diagnosticUser(keys,id),duration_ms=Date.now()-userStartedAtMs,existing=userDurations.find(row=>row.user===user);if(existing)existing.duration_ms+=duration_ms;else userDurations.push({user,duration_ms});}
+    }catch(error){if(error instanceof CompanionBudgetDeferred){userDeferred=true;throw error;}diagnosticFailure(keys,id,'exception','EXCEPTION',error);fence();failed++;}
+    }finally{if(!userDeferred&&budget.remainingMs()>0&&!budget.signal.aborted)progress.finish(diagnosticUser(keys,id));const user=diagnosticUser(keys,id),duration_ms=Date.now()-userStartedAtMs,existing=userDurations.find(row=>row.user===user);if(existing)existing.duration_ms+=duration_ms;else userDurations.push({user,duration_ms});}
    }
    let ownerChecked=0;
    if(ownerEnabled){
@@ -141,15 +144,18 @@ async function runService({request,environment=process.env,db:providedDb,env:pro
     }catch(error){diagnosticFailure(keys,stage8Config.ownerId,'owner','EXCEPTION',error);fence();failed++;}
     finally{userDurations.push({user:diagnosticUser(keys,stage8Config.ownerId),step:'owner',duration_ms:Date.now()-ownerStartedAtMs});}
    }
-   fence();checked=summary().checked;if(!failed)await db.recordHeartbeat('global',extras?'extras_v1':'companion_v1',{now:now(),detail:`checked=${checked}`});
+   fence();deferCompanionAtBoundary(db);checked=summary().checked;if(!failed)await db.recordHeartbeat('global',extras?'extras_v1':'companion_v1',{now:now(),detail:`checked=${checked}`});
    return {status:failed?503:200,body:{ok:failed===0,...base,enabled:true,ownerChecked,failed,...summary()}};
   });
  })));
  }catch(error){
-  if(error?.code!=='SYNC_TIMEOUT'||budget.remainingMs()>0&&!budget.signal.aborted)throw error;
+  const deferred=error instanceof CompanionBudgetDeferred;
+  if(!deferred&&(error?.code!=='SYNC_TIMEOUT'||budget.remainingMs()>0&&!budget.signal.aborted))throw error;
   // A hard deadline remains a failed HTTP call. Do not describe an in-flight
   // send/commit as safely deferred, and never retry it from this summary.
   finalSummary=progress.freeze(true);failed=Math.max(failed,finalSummary.failedUsers);
+  if(deferred&&failed===0&&Object.keys(finalSummary.interruptedSteps).length===0)
+   return {status:200,body:{ok:true,...base,enabled:true,reason:'DEFERRED_BUDGET',failed:0,...finalSummary}};
   return {status:503,body:{ok:false,...base,enabled:true,error:'SYNC_TIMEOUT',failed,...finalSummary}};
  }finally{
   finalSummary??=progress.freeze();

@@ -16,7 +16,7 @@ import {requirePhase4Keys} from './phase4Keys.js';
 
 export const WHOOP_BRIDGE_ORIGIN='https://whoop-telegram-webhook.onrender.com';
 export const WHOOP_BRIDGE_SOURCE_SHA='ca4bff7b711737527ca6c4e306d4a3ef555c9f3b';
-export const WHOOP_BRIDGE_DATABASE_URL='libsql://whoop-briefing-enjoyfulwen0204-eng.aws-ap-northeast-1.turso.io';
+export const WHOOP_BRIDGE_DATABASE_URL='libsql://whoop-briefing-oregon-enjoyfulwen0204-eng.aws-us-west-2.turso.io';
 export const WHOOP_BRIDGE_PATH='/whoop/webhook';
 export const WHOOP_BRIDGE_MAX_BYTES=16*1024;
 export const WHOOP_BRIDGE_MAX_ACTIVE_MS=60*60_000;

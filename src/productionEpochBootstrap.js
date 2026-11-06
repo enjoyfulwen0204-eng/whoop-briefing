@@ -27,7 +27,7 @@ import {assertCleanStage8Release} from '../scripts/stage8-migration-safety.mjs';
 import {fileURLToPath} from 'node:url';
 import {compileProductionEpochManifest,productionEpochManifestStatements,PRODUCTION_EPOCH_PREFIX,PRODUCTION_EPOCH_QUALIFICATION_KEY,PRODUCTION_SUPERVISOR_BOOT_KEY} from './productionEpochManifest.js';
 
-const HOST='whoop-briefing-enjoyfulwen0204-eng.aws-ap-northeast-1.turso.io';
+const HOST='whoop-briefing-oregon-enjoyfulwen0204-eng.aws-us-west-2.turso.io';
 export const PRODUCTION_EPOCH_TARGET=Object.freeze({databaseUrl:'libsql://'+HOST,origin:'https://whoop-telegram-webhook.onrender.com',service:'srv-dahs71qd0e5s738n94c0',owner:'tea-d8ptktu8bjmc73c5f9sg',repo:'https://github.com/enjoyfulwen0204-eng/whoop-briefing'});
 const P=PRODUCTION_EPOCH_TARGET,CA4='ca4bff7b711737527ca6c4e306d4a3ef555c9f3b',WINDOW='production-transition-r3-original-window-v1',QUALIFIED='production-transition-r3-operator-qualification-v1';
 const fail=code=>{throw Object.assign(Error(code),{code});},sha=x=>createHash('sha256').update(x).digest('hex'),same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);

@@ -5,7 +5,7 @@ import {assertSchemaTransitionProfile} from './schemaTransitionProfile.js';
 import {phase4AuthorityKeys} from './phase4EnvironmentKeys.js';
 const scope=new AsyncLocalStorage();
 const fail=code=>{throw Object.assign(Error(code),{code});};
-export const RECOVERY_PRODUCTION_HOST='whoop-briefing-enjoyfulwen0204-eng.aws-ap-northeast-1.turso.io';
+export const RECOVERY_PRODUCTION_HOST='whoop-briefing-oregon-enjoyfulwen0204-eng.aws-us-west-2.turso.io';
 const bound=['PHASE4_RELEASE_SHA','RENDER_GIT_COMMIT','PHASE4_LOOKUP_KEY','PHASE4_AUDIT_KEY',
  'PHASE4_EXECUTION_PROFILE','PHASE4_EXECUTION_PHASE','TURSO_DATABASE_URL','TURSO_AUTH_TOKEN',
  'KHOS_RUNTIME_SUPERVISOR','KHOS_MAINTENANCE_INGRESS_MODE','BRIEFING_CONTINUATION_SCOPE',

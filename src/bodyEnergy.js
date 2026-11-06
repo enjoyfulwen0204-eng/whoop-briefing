@@ -112,10 +112,3 @@ export function calculateBodyEnergy(manifest) {
       nap_bumps:napBumps,nap_recharge:nap,raw,baselines:baseline,
       confidence_components:{completeness,freshness,baseline:baselineConfidence,source_validity:validity}}};
 }
-
-/** Wake-only presentation, never a stored/publication result. Activity is not
- * an input to initial_charge; missing activity must still degrade daytime use.
- * Every other warning, eligibility check and confidence input is unchanged. */
-export function calculateWakeBodyEnergy(manifest){
-  return calculateBodyEnergy({...manifest,warnings:manifest.warnings.filter(code=>code!=='LOAD_UNAVAILABLE')});
-}

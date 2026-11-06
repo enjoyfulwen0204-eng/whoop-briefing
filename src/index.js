@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import {createMorningSnapshotStore} from './morningReportSnapshot.js';
-import {MORNING_RESOURCES,readMorningHistory} from './morningSources.js';
-import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
 import {onDemandBodyEnabled} from './onDemandBodyEnergy.js';
 import {requireRecoveryScope} from './recoveryPolicy.js';
 import {recordStage8SyncSubject} from './stage8PostSync.js';
@@ -37,7 +35,7 @@ import {currentDurableExecution} from './phase4ExecutionContext.js';
 import { randomUUID } from 'node:crypto';
 
 import {
-  CRON, WEEKLY, WHOOP_RECONCILE, WHOOP_SYNC, loadDotEnvIfPresent, loadEnv,
+  CRON, WEEKLY, WHOOP_RECONCILE, loadDotEnvIfPresent, loadEnv,
 } from './config.js';
 import {
   GLOBAL_SCOPE, userScope, USER_STATUS, RECONCILE_RESULT,
@@ -432,29 +430,10 @@ async function runForUserOwned({
   const coach = makeCoach({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
   });
-  let morningSync=null;
-  const prepareMorningSources=readinessOnly?undefined:async()=>{
-    const inputOptions={db,userId:uid,timezone:tz,expectedLifecycleGeneration};
-    const inputProof=await captureWhoopInput(inputOptions);
-    // Reuse the original writer/receipts/lease/generation/authorization fences.
-    // A due report needs the newest required sources even inside the normal
-    // background throttle window. The later sync excludes these resources.
-    morningSync=await traceExecutionOperation('WHOOP_SYNC',()=>makeSync({whoop,db,userId:uid,timezone:tz,
-      expectedLifecycleGeneration,now}).syncAll({force:true,resources:MORNING_RESOURCES}));
-    out.sync=summarizeSync(morningSync.resources);
-    if(!morningSync.complete)return null;
-    await assertWhoopInput(inputOptions,inputProof);
-    const bound=typeof coach.bindSnapshot==='function'?await coach.bindSnapshot():coach;
-    const history=await readMorningHistory({db,userId:uid,timezone:tz,now});
-    await bound.assertSnapshot?.();
-    await assertWhoopInput(inputOptions,inputProof);
-    return {history,coach:bound};
-  };
   const ctx = {
     db, userId: uid, source, coach, telegram, timezone: tz, locale, now,keys:deps.phase4AuthorityKeys,bodyEnergy:deps.bodyEnergy,presentationClock:deps.presentationClock,morningSnapshot:deps.morningSnapshot,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
-    prepareMorningSources,
   };
 
   if (await stopHealth()) return out;
@@ -476,7 +455,6 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.daily)) return out;
-  if(morningSync&&!morningSync.complete)return out;
   if (readinessOnly) return out;
   if(yieldUser())return out;
 
@@ -498,15 +476,14 @@ async function runForUserOwned({
   if(yieldUser())return out;
 
   // ---- 長期資料同步 ----
-  // 已準備晨報時只同步剩餘資源；其他情況保留原本的完整同步。
+  // 刻意放在報告之後：簡報永遠優先，同步只是附加工作。
   // 這裡**不**再看報告有沒有要發——syncAll 內部本來就有 per-resource 節流
   // （resourceSyncDue），它才是節流的權威。上面的 syncDue 只用來決定
   // 「這一輪要不要為了同步而去拿 token」，不重複做逐一 resource 的判斷。
   try {
-    const remainingSync = await traceExecutionOperation('WHOOP_SYNC',()=>makeSync({
+    out.sync = await traceExecutionOperation('WHOOP_SYNC',()=>makeSync({
       whoop, db, userId: uid, timezone: tz, expectedLifecycleGeneration, now,
-    }).syncAll(morningSync?{resources:WHOOP_SYNC.RESOURCES.filter(resource=>!MORNING_RESOURCES.includes(resource))}:undefined));
-    out.sync=morningSync?summarizeSync([...morningSync.resources,...remainingSync.resources]):remainingSync;
+    }).syncAll());
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'sync', error: describeError(err) });

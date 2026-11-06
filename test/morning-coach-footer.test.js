@@ -48,7 +48,7 @@ for(const [expected,options] of diagnosticCases)test(`footer omission logs only 
  assert.equal(await morningCoachFooter({text,locale:'en',db:options.db??db,userId:'PRIVATE_USER',keys:fixtureKeys,coach}),'');
  assert.equal(logs.length,1);assert.equal(logs[0].reason,expected);
  assert.equal(logs[0].user,fixtureKeys.lookup(['companion-diagnostic-user-v1','PRIVATE_USER']));
- assert.ok(logs[0].llm_duration_ms>=0);assert.deepEqual(Object.keys(logs[0]).sort(),['context_duration_ms','event','llm_duration_ms','reason','user']);
+ assert.ok(logs[0].llm_duration_ms>=0);assert.deepEqual(Object.keys(logs[0]).sort(),['event','llm_duration_ms','reason','user']);
  assert.doesNotMatch(JSON.stringify(logs),/PRIVATE_|9876|恢復|Body Energy|Walk|medication/);
 });
 test('low budget, timeout and insight change each emit exactly once; late LLM completion cannot emit again',async t=>{

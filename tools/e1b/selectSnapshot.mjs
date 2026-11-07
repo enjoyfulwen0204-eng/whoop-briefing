@@ -1,78 +1,151 @@
 import {DatabaseSync} from 'node:sqlite';
-import {openJsonCursorClient} from './jsonCursor.mjs';
-import {ERASURE_TABLES,assertErasureTables} from '../../src/erasureCatalog.js';
-import {fail} from './rehearsalDiagnostics.mjs';
-export const identifier=s=>{if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(s))fail('SNAPSHOT_IDENTIFIER_INVALID');return '"'+s+'"';};
-// This allowlist is for our generated statements, not a general SQL firewall.
-// No comments, semicolons, functions with side effects, or caller SQL enters it.
-export function assertSelect(sql){
- if(typeof sql!=='string'||!/^SELECT\s/.test(sql)||/;|--|\/\*|\b(?:INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|ATTACH|DETACH|PRAGMA|VACUUM|REPLACE|load_extension)\b/i.test(sql))fail('SNAPSHOT_SELECT_ONLY');
- return sql;
-}
-export function snapshotSql(tables,columns){
- assertErasureTables(tables.map(t=>t.name));
- const sql=["SELECT 'schema' kind,'' table_name,json_array(type,name,tbl_name,sql) payload FROM sqlite_schema WHERE type IN ('table','index','trigger')"];
- for(const {name} of tables){
-  const cols=columns.get(name);if(!cols?.length)fail('SNAPSHOT_COLUMNS_MISSING');
-  sql.push(`SELECT 'count','${name}',json_array(COUNT(*)) FROM ${identifier(name)}`);
-  const values=cols.map(c=>{const id=identifier(c.name);return `json_array(typeof(${id}),CASE typeof(${id}) WHEN 'integer' THEN CAST(${id} AS TEXT) WHEN 'blob' THEN hex(${id}) ELSE ${id} END)`;});
-  sql.push(`SELECT 'row','${name}',json_array(${values.join(',')}) FROM ${identifier(name)}`);
- }
- return assertSelect(sql.join(' UNION ALL '));
-}
-const decode=([type,value])=>type==='integer'?BigInt(value):type==='blob'?Buffer.from(value,'hex'):value;
+import {mkdtemp, link, rm} from 'node:fs/promises';
+import {dirname, join} from 'node:path';
+import {assertErasureTables, ERASURE_TABLES} from '../../src/erasureCatalog.js';
+import {fail, failureFields, atTable, isRemoteExpiry} from './rehearsalDiagnostics.mjs';
+import {snapshotConnection, checkMemory, fallbackTimeLeft, identifier} from './snapshotStream.mjs';
 
-/** One compound SELECT gives counts, schema and every row one read snapshot.
- * Hrana v3 cursor streams one row at a time; execute/query is used only for
- * bounded schema metadata. Nothing here imports application startup. */
-export async function exportSelectSnapshot({url,token,path,fetchImpl=globalThis.fetch,onProgress=()=>{},onReadStart=()=>{},openClient=openJsonCursorClient}){
- const endpoint=new URL(url.replace(/^libsql:/,'https:'));if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)fail('SNAPSHOT_URL_INVALID');
- let closed=false;
- const guardedFetch=async request=>{
-  const destination=new URL(request.url);
-  if(closed||destination.origin!==endpoint.origin||destination.username||destination.password)fail('SNAPSHOT_NETWORK_DENIED');
-  return fetchImpl(request,{redirect:'error',signal:AbortSignal.timeout(300000)});
- };
- const remote=await openClient(endpoint,token,guardedFetch),stream=remote.openStream();let cursor,local;
- try{
-  if(await remote.getVersion()!==3)fail('SNAPSHOT_CURSOR_UNAVAILABLE');
-  onReadStart();
-  const metadata=async sql=>(await stream.query(assertSelect(sql))).rows;
-  const tables=await metadata("SELECT name,sql FROM sqlite_schema WHERE type='table' ORDER BY name LIMIT 101");
-  assertErasureTables(tables.map(t=>t.name));const columns=new Map();
-  for(const t of tables)columns.set(t.name,await metadata(`SELECT name,type,pk FROM pragma_table_info('${t.name}') ORDER BY cid LIMIT 128`));
-  const sql=snapshotSql(tables,columns);
-  // The tool-local pinned Hrana client exposes the incremental cursor here.
-  // Public query()/batch().query() collect all rows, so must not be used.
-  cursor=await stream._openCursor({steps:[{stmt:{sql,args:[],namedArgs:[],wantRows:true}}]});
-  local=new DatabaseSync(path);local.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=OFF; BEGIN');
-  for(const t of tables)if(t.name!=='sqlite_sequence')local.exec(t.sql);
-  const inserts=new Map(tables.map(t=>[t.name,local.prepare(`INSERT INTO ${identifier(t.name)} (${columns.get(t.name).map(c=>identifier(c.name)).join(',')}) VALUES (${columns.get(t.name).map(()=>'?').join(',')})`)]));
-  const schema=[],counts=new Map(),actual=new Map(),sequences=[];let rows=0,finished=false;
-  for(;;){const entry=await cursor.next();if(!entry)break;
-   if(entry.type==='error'||entry.type==='step_error')fail('SNAPSHOT_REMOTE_SELECT_FAILED');
-   if(entry.type==='step_end'){if(entry.affectedRowCount!==0)fail('SNAPSHOT_UNEXPECTED_WRITE');finished=true;}
-   if(entry.type!=='row')continue;
-   const [kind,table,payload]=entry.row,value=JSON.parse(payload);
-   if(kind==='schema')schema.push({type:value[0],name:value[1],tbl_name:value[2],sql:value[3]});
-   else if(kind==='count')counts.set(table,value[0]);
-   else if(kind==='row'){
-    if(!ERASURE_TABLES[table])fail('SNAPSHOT_UNKNOWN_TABLE');
-    if(table==='sqlite_sequence')sequences.push(value.map(decode));else inserts.get(table).run(...value.map(decode));
-    actual.set(table,(actual.get(table)??0)+1);rows++;
-    if(rows%1000===0){if(process.memoryUsage().rss>768*1024*1024)fail('SNAPSHOT_MEMORY_BOUND');onProgress(rows);}
-   }else fail('SNAPSHOT_ROW_INVALID');
+export {identifier, assertSelect} from './snapshotStream.mjs';
+const schemaSql = "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger') ORDER BY type,name LIMIT 2049";
+const maxRetries = 2;
+
+async function readSchema(conn) {
+  try {
+    const rows=await conn.rows(schemaSql);
+    if (rows.length >= 2049) fail('SNAPSHOT_SCHEMA_BOUND');
+    const schema=rows.map(({type,name,tbl_name,sql})=>({type,name,tbl_name,sql}));
+    if (schema.some(s=>!Object.hasOwn(ERASURE_TABLES,s.tbl_name))) fail('SNAPSHOT_UNKNOWN_TABLE');
+    assertErasureTables(schema.filter(s=>s.type==='table').map(s=>s.name));
+    return schema;
+  } catch (error) { throw atTable(error,'sqlite_schema'); }
+}
+
+async function rowCount(conn, table) {
+  const rows=await conn.rows('SELECT COUNT(*) AS n FROM '+identifier(table));
+  const n=Number(rows[0]?.n);
+  if (rows.length!==1 || !Number.isSafeInteger(n) || n<0 || rows[0].n==null) fail('SNAPSHOT_COUNT_INVALID');
+  return n;
+}
+
+async function copyTable({conn, local, table, fallback, guard, report, onProgress, total}) {
+  const id=identifier(table);
+  const columns=local.prepare('SELECT * FROM '+id+' LIMIT 0').columns().map(c=>c.name);
+  const placeholders=columns.map(()=>'?').join(',');
+  const insert=local.prepare('INSERT INTO '+id+' ('+columns.map(identifier).join(',')+') VALUES ('+placeholders+')');
+  for (let attempt=0;;attempt++) {
+    guard();
+    local.exec('SAVEPOINT copy_table');
+    try {
+      // Rebuild sqlite_sequence last; explicit indexes/triggers are installed
+      // only after all data. Re-reads roll back their local changes together.
+      if (table==='sqlite_sequence') local.exec('DELETE FROM sqlite_sequence');
+      const before=await rowCount(conn,table);
+      const copied=await conn.copyRows(table,columns,insert,count=>{
+        if ((total+count)%1000===0) {checkMemory();onProgress(total+count);}
+      });
+      const after=await rowCount(conn,table);
+      const saved=local.prepare('SELECT COUNT(*) AS n FROM '+id).get().n;
+      if (before!==copied || after!==copied || saved!==copied) fail('SNAPSHOT_COUNT_MISMATCH');
+      local.exec('RELEASE copy_table');
+      return copied;
+    } catch (error) {
+      local.exec('ROLLBACK TO copy_table; RELEASE copy_table');
+      const fields=failureFields(atTable(error,table));
+      if (!fallback || fields.code!=='SNAPSHOT_COUNT_MISMATCH' || attempt>=maxRetries) throw error;
+      report({phase:'EXPORT_TABLE_RETRY',...fields});
+    }
   }
-  if(!finished)fail('SNAPSHOT_INCOMPLETE');
-  for(const t of tables)if(counts.get(t.name)!==(actual.get(t.name)??0))fail('SNAPSHOT_COUNT_MISMATCH');
-  local.exec('DELETE FROM sqlite_sequence');for(const row of sequences)inserts.get('sqlite_sequence').run(...row);
-  for(const s of schema)if(s.type!=='table'&&s.sql)local.exec(s.sql);
-  local.exec('COMMIT; PRAGMA foreign_keys=ON');
-  const saved=local.prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger') ORDER BY type,name").all();
-  const canonical=xs=>JSON.stringify([...xs].sort((a,b)=>(a.type+'\0'+a.name).localeCompare(b.type+'\0'+b.name)));
-  if(canonical(schema)!==canonical(saved))fail('SNAPSHOT_SCHEMA_CHANGED');
-  if(local.prepare('SELECT MAX(version) v FROM schema_version').get().v!==33)fail('SNAPSHOT_V33_REQUIRED');
-  if(local.prepare('PRAGMA integrity_check').all().some(r=>Object.values(r)[0]!=='ok')||local.prepare('PRAGMA foreign_key_check').all().length)fail('SNAPSHOT_INTEGRITY_FAILED');
-  return {tables:tables.length,rows};
- }finally{cursor?.close();stream.close();remote.close();closed=true;local?.close();token=null;}
+}
+
+async function exportAttempt(options, fallback) {
+  const {path,onReadStart,onProgress,report,now}=options;
+  let local, scratch, inTransaction=false;
+  const guard=()=>fallback ? Math.min(300000,fallbackTimeLeft(now)) : 300000;
+  guard();checkMemory();
+  const conn=await snapshotConnection({...options,guard});
+  try {
+    await conn.negotiate();
+    onReadStart();
+    if (!fallback) {
+      // Only these literal transaction controls can bypass assertSelect.
+      // BEGIN is deferred, and all statements inside it are generated SELECTs.
+      await conn.remote(()=>conn.stream.run('BEGIN'));
+      inTransaction=true;
+      if (await conn.remote(()=>conn.stream.getAutocommit())) fail('SNAPSHOT_TRANSACTION_LOST');
+    }
+    const schema=await readSchema(conn);
+    const tables=schema.filter(s=>s.type==='table').sort((a,b)=>Number(a.name==='sqlite_sequence')-Number(b.name==='sqlite_sequence'));
+    scratch=await mkdtemp(join(dirname(path),'.e1b-copy-'));
+    const staged=join(scratch,'copy.sqlite');
+    local=new DatabaseSync(staged);
+    local.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=OFF; BEGIN');
+    for (const table of tables) {
+      try { if (table.name!=='sqlite_sequence') local.exec(table.sql); }
+      catch (error) { throw atTable(error,table.name); }
+    }
+    let rows=0;
+    for (const {name} of tables) {
+      checkMemory();
+      try {
+        rows+=await copyTable({conn,local,table:name,fallback,guard,report,onProgress,total:rows});
+      } catch (error) { throw atTable(error,name); }
+    }
+    if (fallback) {
+      if (JSON.stringify(await readSchema(conn))!==JSON.stringify(schema)) fail('SNAPSHOT_SCHEMA_CHANGED');
+    } else {
+      if (await conn.remote(()=>conn.stream.getAutocommit())) fail('SNAPSHOT_TRANSACTION_LOST');
+      await conn.remote(()=>conn.stream.run('COMMIT'));
+      inTransaction=false;
+    }
+    for (const s of schema) {
+      try { if (s.type!=='table' && s.sql) local.exec(s.sql); }
+      catch (error) { throw atTable(error,s.tbl_name); }
+    }
+    if (JSON.stringify(local.prepare(schemaSql).all())!==JSON.stringify(schema)) fail('SNAPSHOT_SCHEMA_CHANGED');
+    if (local.prepare('SELECT MAX(version) AS v FROM schema_version').get().v!==33) fail('SNAPSHOT_V33_REQUIRED');
+    const fk=local.prepare('PRAGMA foreign_key_check').get();
+    if (fk) {
+      try { fail('SNAPSHOT_FOREIGN_KEY_FAILED'); } catch (error) { throw atTable(error,fk.table); }
+    }
+    // SQLite returns exactly one 'ok' row on success. Inspect one row only;
+    // integrity error text can contain row values and must never be logged.
+    if (local.prepare('PRAGMA integrity_check').get()?.integrity_check!=='ok') fail('SNAPSHOT_INTEGRITY_FAILED');
+    guard();
+    local.exec('COMMIT; PRAGMA foreign_keys=ON');
+    local.close();local=null;
+    guard();
+    // Atomic no-overwrite publication. Failed attempts leave no partial
+    // destination and do not reuse a database or WAL from an earlier attempt.
+    await link(staged,path);
+    return {tables:tables.length,rows};
+  } catch (error) {
+    if (inTransaction && isRemoteExpiry(error)) return {expired:failureFields(error)};
+    throw error;
+  } finally {
+    try {
+      if (inTransaction && !conn.stream.closed) {
+        try { await conn.remote(()=>conn.stream.run('ROLLBACK')); } catch { /* closing also abandons the read transaction */ }
+      }
+    } finally {
+      conn.close();
+      try { local?.close(); }
+      finally { if (scratch) await rm(scratch,{recursive:true,force:true}); }
+    }
+  }
+}
+
+export async function exportSelectSnapshot({url,token,path,fetchImpl,openClient,now=Date.now,
+  onProgress=()=>{},onReadStart=()=>{},report=()=>{}}) {
+  const options={url,token,path,fetchImpl,openClient,now,onProgress,onReadStart,report};
+  const result=await exportAttempt(options,false);
+  if (!result.expired) return result;
+  report({phase:'EXPORT_TRANSACTION_EXPIRED',...result.expired});
+  for (let attempt=0;;attempt++) {
+    try { return await exportAttempt(options,true); }
+    catch (error) {
+      const fields=failureFields(error);
+      if (!['SNAPSHOT_FOREIGN_KEY_FAILED','SNAPSHOT_INTEGRITY_FAILED'].includes(fields.code) || attempt>=maxRetries) throw error;
+      report({phase:'EXPORT_COPY_RETRY',...fields});
+    }
+  }
 }

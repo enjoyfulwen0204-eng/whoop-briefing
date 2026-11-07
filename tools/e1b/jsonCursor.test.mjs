@@ -51,11 +51,10 @@ test('a cross-origin stream base from a valid peer cannot receive a follow-up re
     if(req.method==='GET')return new Response('Hrana 3');
     const info=await req.json();
     if(info.requests[0].type==='close')return Response.json({baton:null,results:[]});
-    // Force a second metadata request with a known table list from the v33 catalog.
-    const {ERASURE_TABLES}=await import('../../src/erasureCatalog.js');
+    assert.equal(info.requests[0].stmt.sql,'BEGIN');
+    // The attempted autocommit check must reject the peer's alternate origin.
     return Response.json({baton:'fixture',base_url:'https://foreign.invalid',results:[{type:'ok',response:{
-      type:'execute',result:{cols:[{name:'name'},{name:'sql'}],rows:Object.keys(ERASURE_TABLES).map(name=>[
-        {type:'text',value:name},{type:'text',value:''}]),affected_row_count:0}}}]});
+      type:'execute',result:{cols:[],rows:[],affected_row_count:0}}}]});
   };
   await assert.rejects(exportSelectSnapshot({url:origin.href,token:'fixture',path:'/unused',fetchImpl:fake}),{code:'SNAPSHOT_NETWORK_DENIED'});
   assert.deepEqual(origins,[origin.origin,origin.origin]);

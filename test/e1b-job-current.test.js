@@ -46,21 +46,41 @@ test('job SELECT boundary rejects writes, multiple statements and side effects',
  assert.equal(assertSelect('SELECT name FROM sqlite_schema'),'SELECT name FROM sqlite_schema');
 });
 
+function fixtureClient(f,calls={cursors:[],closed:0,controls:[]}) {
+ return ()=>({getVersion:async()=>3,close(){calls.closed++;},openStream(){
+  let tx;
+  return {close(){calls.closed++;},getAutocommit:()=>!tx,
+   async run(sql){
+    calls.controls.push(sql);
+    if(sql==='BEGIN')tx=await f.db.raw.transaction('read');
+    else if(sql==='COMMIT'){await tx.commit();tx=null;}
+    else if(sql==='ROLLBACK'){await tx.rollback();tx=null;}
+    else assert.fail('unexpected transaction control');
+   },
+   query:sql=>tx.execute(assertSelect(sql)),
+   async _openCursor({steps}){
+    assert.equal(steps.length,1);const sql=assertSelect(steps[0].stmt.sql);
+    const match=/^SELECT \* FROM "([A-Za-z0-9_]+)"$/.exec(sql);assert.ok(match);calls.cursors.push(match[1]);
+    const {rows,columns}=await tx.execute(sql);let i=-1;
+    return {close(){calls.closed++;},async next(){
+     if(i++===-1)return {type:'step_begin',step:0,cols:columns.map(name=>({name}))};
+     if(i<=rows.length)return {type:'row',row:columns.map(c=>rows[i-1][c] instanceof ArrayBuffer?new Uint8Array(rows[i-1][c]):rows[i-1][c])};
+     if(i===rows.length+1)return {type:'step_end',affectedRowCount:0};
+    }};
+   }
+  };
+ }});
+}
+
 test('job export uses one streaming snapshot, preserves exact v33 schema, counts and values',async t=>{
  const f=await syntheticStage7V33Fixture(t),directory=await mkdtemp(join(tmpdir(),'e1b-synthetic-'));
  t.after(()=>rm(directory,{recursive:true,force:true}));
- let cursorCalls=0,closed=0;
- const openClient=()=>({getVersion:async()=>3,close(){closed++;},openStream:()=>({
-  close(){closed++;},query:sql=>f.db.raw.execute(assertSelect(sql)),
-  async _openCursor({steps}){
-   cursorCalls++;assert.equal(steps.length,1);const sql=assertSelect(steps[0].stmt.sql);
-   const rows=(await f.db.raw.execute(sql)).rows;let index=0;
-   return {async next(){if(index<rows.length){const r=rows[index++];return {type:'row',row:[r.kind,r.table_name,r.payload]};}
-    if(index++===rows.length)return {type:'step_end',affectedRowCount:0};},close(){closed++;}};
-  }
- })});
+ const calls={cursors:[],closed:0,controls:[]};
+ const openClient=fixtureClient(f,calls);
  const path=join(directory,'synthetic.sqlite'),result=await exportSelectSnapshot({url:'libsql://synthetic.invalid',token:'synthetic-only',path,openClient});
- assert.equal(cursorCalls,1);assert.equal(closed,3);assert.ok(result.rows>0);
+ const expected=(await f.db.raw.execute("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name")).rows.map(r=>r.name);
+ assert.deepEqual([...calls.cursors].sort(),expected);
+ assert.deepEqual(calls.controls,['BEGIN','COMMIT']);assert.equal(calls.closed,expected.length+2);assert.ok(result.rows>0);
  const copy=new DatabaseSync(path);t.after(()=>copy.close());
  const schema="SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger') ORDER BY type,name";
  assert.deepEqual(copy.prepare(schema).all().map(r=>({...r})),(await f.db.raw.execute(schema)).rows.map(r=>({...r})));
@@ -100,9 +120,7 @@ test('complete job rehearsal preserves three synthetic users while erasing five 
   await f.db.transitionUserLifecycle({userId:id,targetStatus:'DISABLED',expectedCurrentStatus:'ACTIVE',now:at});
  }
  const directory=await mkdtemp(join(tmpdir(),'e1b-full-synthetic-'));t.after(()=>rm(directory,{recursive:true,force:true}));
- const path=join(directory,'copy.sqlite'),openClient=()=>({getVersion:async()=>3,close(){},openStream:()=>({close(){},query:sql=>f.db.raw.execute(assertSelect(sql)),async _openCursor({steps}){
-  const rows=(await f.db.raw.execute(assertSelect(steps[0].stmt.sql))).rows;let n=0;return {close(){},async next(){if(n<rows.length){const r=rows[n++];return {type:'row',row:[r.kind,r.table_name,r.payload]};}if(n++===rows.length)return {type:'step_end',affectedRowCount:0};}};
- }})});
+ const path=join(directory,'copy.sqlite'),openClient=fixtureClient(f);
  await exportSelectSnapshot({url:'libsql://synthetic.invalid',token:'synthetic',path,openClient});
  const db=localAdapter(path);t.after(()=>db.raw.close());
  const environment={PHASE4_EXECUTION_PROFILE:'STAGE8_SCHEMA_TRANSITION',FAMILY_SHARING:'on',FAMILY_GROUP_USER_IDS:'a,b,c',OWNER_USER_IDS:'a'};

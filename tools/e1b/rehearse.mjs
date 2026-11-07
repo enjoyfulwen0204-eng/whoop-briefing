@@ -120,7 +120,7 @@ export async function runRehearsal({env = process.env, now = Date.now, emit, ops
       const path = join(directory, 'snapshot.sqlite');
       step = 'EXPORT_CONNECT';
       const copied = await ops.exportSelectSnapshot({url: env.TURSO_DATABASE_URL, token: env.TURSO_AUTH_TOKEN,
-        path, onReadStart: () => { step = 'EXPORT_READ'; }});
+        path, now, report:emit, onReadStart: () => { step = 'EXPORT_READ'; }});
       emit({phase: 'EXPORT', pass: true, tables: copied.tables, rows: copied.rows, duration_ms: now() - started});
       step = 'LOCAL_ADMIT';
       for (const target of [env, environment]) {

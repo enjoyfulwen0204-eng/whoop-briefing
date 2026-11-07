@@ -11,10 +11,12 @@ export async function countSubjectReceipts(client, keys, subjects) {
   return count;
 }
 
+const taipeiClock = new Intl.DateTimeFormat('en-GB', {
+  timeZone:'Asia/Taipei', hour:'2-digit', minute:'2-digit', hourCycle:'h23',
+});
+
 export function assertJobStartWindow(at = new Date()) {
-  const time = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).format(at);
+  const time = taipeiClock.format(at);
   if (time < '12:10' || time >= '23:30') {
     fail('JOB_WINDOW_CLOSED');
   }

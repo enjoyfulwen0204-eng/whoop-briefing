@@ -2,6 +2,6 @@
   "name": "whoop-e1b-rehearsal-tools",
   "private": true,
   "type": "module",
-  "scripts": {"test": "node --test jsonCursor.test.mjs"},
+  "scripts": {"test": "node --test *.test.mjs"},
   "dependencies": {"@libsql/hrana-client": "0.10.0"}
 }

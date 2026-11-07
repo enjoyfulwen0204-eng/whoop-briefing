@@ -1,5 +1,5 @@
 import {DatabaseSync} from 'node:sqlite';
-import {openHttp} from '@libsql/hrana-client';
+import {openJsonCursorClient} from './jsonCursor.mjs';
 import {ERASURE_TABLES,assertErasureTables} from '../../src/erasureCatalog.js';
 import {fail} from './rehearsalDiagnostics.mjs';
 export const identifier=s=>{if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(s))fail('SNAPSHOT_IDENTIFIER_INVALID');return '"'+s+'"';};
@@ -25,14 +25,15 @@ const decode=([type,value])=>type==='integer'?BigInt(value):type==='blob'?Buffer
 /** One compound SELECT gives counts, schema and every row one read snapshot.
  * Hrana v3 cursor streams one row at a time; execute/query is used only for
  * bounded schema metadata. Nothing here imports application startup. */
-export async function exportSelectSnapshot({url,token,path,fetchImpl=globalThis.fetch,onProgress=()=>{},onReadStart=()=>{},openClient=openHttp}){
+export async function exportSelectSnapshot({url,token,path,fetchImpl=globalThis.fetch,onProgress=()=>{},onReadStart=()=>{},openClient=openJsonCursorClient}){
  const endpoint=new URL(url.replace(/^libsql:/,'https:'));if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)fail('SNAPSHOT_URL_INVALID');
  let closed=false;
  const guardedFetch=async request=>{
-  if(closed||new URL(request.url).origin!==endpoint.origin)fail('SNAPSHOT_NETWORK_DENIED');
+  const destination=new URL(request.url);
+  if(closed||destination.origin!==endpoint.origin||destination.username||destination.password)fail('SNAPSHOT_NETWORK_DENIED');
   return fetchImpl(request,{redirect:'error',signal:AbortSignal.timeout(300000)});
  };
- const remote=openClient(endpoint,token,guardedFetch,3),stream=remote.openStream();let cursor,local;
+ const remote=await openClient(endpoint,token,guardedFetch),stream=remote.openStream();let cursor,local;
  try{
   if(await remote.getVersion()!==3)fail('SNAPSHOT_CURSOR_UNAVAILABLE');
   onReadStart();
@@ -41,7 +42,7 @@ export async function exportSelectSnapshot({url,token,path,fetchImpl=globalThis.
   assertErasureTables(tables.map(t=>t.name));const columns=new Map();
   for(const t of tables)columns.set(t.name,await metadata(`SELECT name,type,pk FROM pragma_table_info('${t.name}') ORDER BY cid LIMIT 128`));
   const sql=snapshotSql(tables,columns);
-  // Existing pinned hrana-client 0.7.0 exposes the incremental cursor here.
+  // The tool-local pinned Hrana client exposes the incremental cursor here.
   // Public query()/batch().query() collect all rows, so must not be used.
   cursor=await stream._openCursor({steps:[{stmt:{sql,args:[],namedArgs:[],wantRows:true}}]});
   local=new DatabaseSync(path);local.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=OFF; BEGIN');

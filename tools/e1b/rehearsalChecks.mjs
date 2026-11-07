@@ -19,7 +19,7 @@ import {createFamilySharing} from '../../src/familySharing.js';
 import {assertErasureTables} from '../../src/erasureCatalog.js';
 import {countSubjectReceipts} from './jobChecks.mjs';
 
-const fail=code=>{throw Object.assign(Error(code),{code});};
+import {fail} from './rehearsalDiagnostics.mjs';
 const json=x=>JSON.stringify(x,(_,v)=>typeof v==='bigint'?v.toString():v);
 const hash=x=>createHash('sha256').update(json(x)).digest('hex');
 const q=(sql,args=[])=>({sql,args});

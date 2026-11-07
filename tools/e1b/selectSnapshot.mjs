@@ -1,7 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {openHttp} from '@libsql/hrana-client';
 import {ERASURE_TABLES,assertErasureTables} from '../../src/erasureCatalog.js';
-const fail=code=>{throw Object.assign(Error(code),{code});};
+import {fail} from './rehearsalDiagnostics.mjs';
 export const identifier=s=>{if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(s))fail('SNAPSHOT_IDENTIFIER_INVALID');return '"'+s+'"';};
 // This allowlist is for our generated statements, not a general SQL firewall.
 // No comments, semicolons, functions with side effects, or caller SQL enters it.
@@ -25,7 +25,7 @@ const decode=([type,value])=>type==='integer'?BigInt(value):type==='blob'?Buffer
 /** One compound SELECT gives counts, schema and every row one read snapshot.
  * Hrana v3 cursor streams one row at a time; execute/query is used only for
  * bounded schema metadata. Nothing here imports application startup. */
-export async function exportSelectSnapshot({url,token,path,fetchImpl=globalThis.fetch,onProgress=()=>{},openClient=openHttp}){
+export async function exportSelectSnapshot({url,token,path,fetchImpl=globalThis.fetch,onProgress=()=>{},onReadStart=()=>{},openClient=openHttp}){
  const endpoint=new URL(url.replace(/^libsql:/,'https:'));if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)fail('SNAPSHOT_URL_INVALID');
  let closed=false;
  const guardedFetch=async request=>{
@@ -35,6 +35,7 @@ export async function exportSelectSnapshot({url,token,path,fetchImpl=globalThis.
  const remote=openClient(endpoint,token,guardedFetch,3),stream=remote.openStream();let cursor,local;
  try{
   if(await remote.getVersion()!==3)fail('SNAPSHOT_CURSOR_UNAVAILABLE');
+  onReadStart();
   const metadata=async sql=>(await stream.query(assertSelect(sql))).rows;
   const tables=await metadata("SELECT name,sql FROM sqlite_schema WHERE type='table' ORDER BY name LIMIT 101");
   assertErasureTables(tables.map(t=>t.name));const columns=new Map();

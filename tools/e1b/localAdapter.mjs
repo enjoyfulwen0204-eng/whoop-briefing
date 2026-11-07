@@ -1,5 +1,5 @@
 import {DatabaseSync} from 'node:sqlite';
-const fail=code=>{throw Object.assign(Error(code),{code});};
+import {fail} from './rehearsalDiagnostics.mjs';
 /** Job-local only. There is no URL/token option. Limited execute results keep
  * an accidentally unbounded diagnostic from materializing a full data table. */
 export function localAdapter(path){

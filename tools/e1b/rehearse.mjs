@@ -10,6 +10,7 @@ import {createSchemaTransitionRuntimeProfile} from '../../src/schemaTransitionPr
 import {bindConnectionLifetime,admitRuntime} from '../../src/runtimeAdmission.js';
 import {rehearseLocal} from './rehearsalChecks.mjs';
 import {RECOVERY_PRODUCTION_HOST} from '../../src/recoveryPolicy.js';
+import {assertJobStartWindow} from './jobChecks.mjs';
 
 const fail=code=>{throw Object.assign(Error(code),{code});};
 // Do not forward application diagnostics: this process may inspect private
@@ -26,8 +27,8 @@ try{
  if(head!==expected||process.env.RENDER_GIT_COMMIT!==base||process.env.PHASE4_RELEASE_SHA!==base)fail('REHEARSAL_BUILD_MISMATCH');
  const sourceUrl=new URL(process.env.TURSO_DATABASE_URL);
  if(!['libsql:','https:'].includes(sourceUrl.protocol)||sourceUrl.hostname!==RECOVERY_PRODUCTION_HOST||sourceUrl.username||sourceUrl.password||sourceUrl.port||!['','/'].includes(sourceUrl.pathname)||sourceUrl.search||sourceUrl.hash)fail('REHEARSAL_DATABASE_IDENTITY_MISMATCH');
- const local=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()),[hour,minute]=local.split(':').map(Number);
- if(hour>=8&&hour<12||hour>=3&&hour<5||hour===5&&minute<20)fail('REHEARSAL_EXPORT_WINDOW_CLOSED');
+ const minute=new Date().getUTCMinutes(); // Taipei is a whole-hour offset.
+ assertJobStartWindow();
  if(minute<14||minute>=55)fail('REHEARSAL_AFTER_CRON_REQUIRED');
  const keys=phase4AuthorityKeys(process.env),environment={...process.env,RENDER_GIT_COMMIT:head,PHASE4_RELEASE_SHA:head};
  const profile=createSchemaTransitionRuntimeProfile({environment,keys});

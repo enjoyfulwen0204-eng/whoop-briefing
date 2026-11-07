@@ -4,6 +4,7 @@ import {createUserErasure} from '../../src/userErasure.js';
 import {resolveErasureKvReadOnly} from '../../src/erasureKvOwnership.js';
 import {assertErasureTables} from '../../src/erasureCatalog.js';
 import {identifier} from './selectSnapshot.mjs';
+import {assertJobStartWindow,countSubjectReceipts} from './jobChecks.mjs';
 
 const fail=code=>{throw Object.assign(Error(code),{code});};
 const list=s=>String(s??'').split(',').map(x=>x.trim()).filter(Boolean);
@@ -47,6 +48,7 @@ export async function eraseDisabledCohort({db,keys,environment,expected,now=()=>
   if(conditions.length)remaining+=Number((await db.raw.execute(q(`SELECT COUNT(*) n FROM ${identifier(table.name)} WHERE ${conditions.join(' OR ')}`,args))).rows[0].n);
  }
  for(const key of targetKeys)remaining+=Number((await db.raw.execute(q('SELECT COUNT(*) n FROM telegram_state WHERE key=?',[key]))).rows[0].n);
+ remaining+=await countSubjectReceipts(db.raw,keys,targets);
  if(remaining)fail('MAINTENANCE_SCAN_FAILED');
  return {pass:true,subjects:expected,deleted,remaining};
 }
@@ -56,6 +58,7 @@ async function main(){
  const started=Date.now();let db;
  try{
   if(process.env.E1B_ONE_OFF_JOB!=='1'||process.env.RENDER_SERVICE_ID!=='srv-dahs71qd0e5s738n94c0'||process.argv.slice(2).join(' ')!=='--expected 5')fail('MAINTENANCE_JOB_REQUIRED');
+  assertJobStartWindow();
   const expected=process.env.E1B_CANDIDATE_SHA;
   const head=execFileSync('git',['rev-parse','--verify','HEAD^{commit}'],{encoding:'utf8',env:{PATH:process.env.PATH},stdio:['ignore','pipe','ignore']}).trim();
   if(!/^[a-f0-9]{40}$/.test(expected??'')||head!==expected||process.env.RENDER_GIT_COMMIT!==expected||process.env.PHASE4_RELEASE_SHA!==expected)fail('MAINTENANCE_BUILD_MISMATCH');

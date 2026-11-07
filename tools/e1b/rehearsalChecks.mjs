@@ -17,6 +17,7 @@ import {TOPICS} from '../../src/stage7Registry.js';
 import {localDate,addDays,completedWeeks} from '../../src/time.js';
 import {createFamilySharing} from '../../src/familySharing.js';
 import {assertErasureTables} from '../../src/erasureCatalog.js';
+import {countSubjectReceipts} from './jobChecks.mjs';
 
 const fail=code=>{throw Object.assign(Error(code),{code});};
 const json=x=>JSON.stringify(x,(_,v)=>typeof v==='bigint'?v.toString():v);
@@ -80,6 +81,9 @@ export async function rehearseLocal({db,keys,environment,at,admit,emit}){
   const outputs=new Map(),all=[];
   for(const user of family){
    const directHashes={users:digestRows('users','id=?',[user.id])};for(const t of direct)directHashes[t.name]=digestRows(t.name,'user_id=?',[user.id]);
+   directHashes.telegram_operations=digestRows('telegram_operations','owner_user_id=? OR update_id IN (SELECT update_id FROM telegram_processed_updates WHERE user_id IN (SELECT \'tg:\'||telegram_chat_id FROM user_telegram WHERE user_id=?))',[user.id,user.id]);
+   directHashes.telegram_processed_updates=digestRows('telegram_processed_updates','user_id IN (SELECT \'tg:\'||telegram_chat_id FROM user_telegram WHERE user_id=?)',[user.id]);
+   for(const table of ['error_notifications','system_heartbeats'])directHashes[table]=digestRows(table,'scope=?',['user:'+user.id]);
    const data={};for(const t of ['whoop_sleeps','whoop_recoveries','whoop_cycles','whoop_workouts','whoop_resource_access','whoop_sync_state','whoop_resource_tombstones','whoop_capabilities','journal_events','quick_action_interactions','health_insights','whoop_body_measurements'])data[t]=await boundedRows(t,user.id);
    const token=(await client.execute(q('SELECT auth_generation,whoop_user_id FROM user_whoop_tokens WHERE user_id=?',[user.id]))).rows[0];
    const today=localDate(at,user.timezone),selection=selectBodyEnergyInputs({userId:user.id,timezone:user.timezone,asOfEpochMs:at.getTime(),targetHealthDate:today,lifecycleGeneration:user.lifecycle_generation,authGeneration:token?.auth_generation,
@@ -122,10 +126,12 @@ export async function rehearseLocal({db,keys,environment,at,admit,emit}){
   if(conditions.length)remaining+=(await client.execute(q(`SELECT COUNT(*) n FROM ${identifier(t.name)} WHERE ${conditions.join(' OR ')}`,args))).rows[0].n;
  }
  for(const key of subjectKeys)remaining+=(await client.execute(q('SELECT COUNT(*) n FROM telegram_state WHERE key=?',[key]))).rows[0].n;
+ const remainingReceipts=await countSubjectReceipts(client,keys,subjects);
+ remaining+=remainingReceipts;
  if(remaining)fail('REHEARSAL_SUBJECT_SCAN_FAILED');
  if(hash(await schema())!==hash(beforeSchema))fail('REHEARSAL_SCHEMA_CHANGED');
  if((await client.execute('PRAGMA foreign_key_check')).rows.length||(await client.execute('PRAGMA integrity_check')).rows.some(r=>Object.values(r)[0]!=='ok'))fail('REHEARSAL_INTEGRITY_FAILED');
  await admit();
- emit({phase:'AFTER',pass:true,users_preserved:3,output_digest_kinds:6,remaining:0,schema_exact:true,integrity:true,foreign_key_violations:0,read_phase_progress:true,...totals,unfinished:after.unfinished,protected_unfinished:after.protectedUnfinished});
+ emit({phase:'AFTER',pass:true,users_preserved:3,output_digest_kinds:6,remaining,remaining_receipts:remainingReceipts,schema_exact:true,integrity:true,foreign_key_violations:0,read_phase_progress:true,...totals,unfinished:after.unfinished,protected_unfinished:after.protectedUnfinished});
  return {pass:true};
 }

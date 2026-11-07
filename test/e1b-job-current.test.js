@@ -14,6 +14,32 @@ import {bindConnectionLifetime,admitRuntime} from '../src/runtimeAdmission.js';
 import {eraseDisabledCohort} from '../tools/e1b/maintenance.mjs';
 import {runErasureMaintenance} from '../src/erasureMaintenance.js';
 import {fixtureKeys} from './localDb.js';
+import {assertJobStartWindow,countSubjectReceipts} from '../tools/e1b/jobChecks.mjs';
+import {userErrorClearReceiptKey} from '../src/erasureCatalog.js';
+
+test('job start guards use Taipei time even when the job waits in the queue',()=>{
+ for(const clock of ['04:09','15:30','20:00'])assert.throws(()=>assertJobStartWindow(new Date('2026-11-07T'+clock+':00Z')),{code:'JOB_WINDOW_CLOSED'});
+ for(const clock of ['04:10','15:29'])assert.doesNotThrow(()=>assertJobStartWindow(new Date('2026-11-07T'+clock+':00Z')));
+});
+
+test('post-erasure scan derives prior-generation receipts from the original cohort',async()=>{
+ const target={id:'synthetic subject',lifecycle_generation:2};
+ const other={id:'synthetic family',lifecycle_generation:1};
+ const execution={execution_seq:1,execution_id:'synthetic',phase:'SYNC',trigger_source:'cloudflare',identity_digest:'a'.repeat(64),scope_key:'b'.repeat(64)};
+ const receipt=user=>({execution_id:execution.execution_id,receipt_key:userErrorClearReceiptKey(fixtureKeys,execution,user.id,1)});
+ let rows=[receipt(target),receipt(other)];
+ const client={execute:async input=>{
+  const sql=typeof input==='string'?input:input.sql;
+  if(sql.includes('MAX(execution_seq)')||sql.includes('execution_seq>?'))return {rows:[execution]};
+  if(sql.includes('FROM phase4_execution_work_receipts'))return {rows};
+  if(sql.includes('sync_execution_id=?'))return {rows:[]};
+  assert.fail('Unexpected query');
+ }};
+ assert.equal(await countSubjectReceipts(client,fixtureKeys,[target]),1);
+ rows=[receipt(other)];
+ assert.equal(await countSubjectReceipts(client,fixtureKeys,[target]),0);
+ assert.equal(await countSubjectReceipts(client,fixtureKeys,[other]),1);
+});
 
 test('job SELECT boundary rejects writes, multiple statements and side effects',()=>{
  for(const sql of ['DELETE FROM users','SELECT 1; SELECT 2','SELECT load_extension(1)','PRAGMA journal_mode','SELECT 1 -- comment'])assert.throws(()=>assertSelect(sql),{code:'SNAPSHOT_SELECT_ONLY'});

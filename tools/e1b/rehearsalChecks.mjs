@@ -33,6 +33,14 @@ export async function rehearseLocal({db,keys,environment,at,admit,emit}){
  if(users.length>100)fail('REHEARSAL_USER_BOUND');
  const family=users.filter(u=>familyIds.includes(u.id)),subjects=users.filter(u=>u.status==='DISABLED'&&!familyIds.includes(u.id)&&!ownerIds.includes(u.id));
  if(family.length!==3||subjects.length!==5)fail('REHEARSAL_EXACT_COHORT_REQUIRED');
+ let priorConsentCount=0;
+ for(const user of users.filter(u=>!familyIds.includes(u.id))){
+  const key='beta:v1:'+keys.lookup(['beta-state-key-v1','member',user.id]),raw=await db.getState(key);
+  if(!raw)continue;const wire=JSON.parse(raw);
+  if(!wire?.body||wire.signature!==keys.lookup(['beta-state-v1','member',user.id,wire.body]))fail('REHEARSAL_CONSENT_INVALID');
+  if(wire.body.consent?.version==='2026-11-06-v1')priorConsentCount++;
+ }
+ if(priorConsentCount)fail('REHEARSAL_NEW_USER_V1_CONSENT_PRESENT');
  const schema=async()=>(await client.execute("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger') ORDER BY type,name")).rows;
  const beforeSchema=await schema(),tables=beforeSchema.filter(r=>r.type==='table');assertErasureTables(tables.map(t=>t.name));
  const columns=new Map();for(const t of tables)columns.set(t.name,(await client.execute(`PRAGMA table_info(${identifier(t.name)})`)).rows);
@@ -95,7 +103,7 @@ export async function rehearseLocal({db,keys,environment,at,admit,emit}){
   const previews=await sharing.previewReadOnly();for(const [i,u] of family.entries())all[i].digests.family=hash(previews.find(p=>p.recipient===u.id)??null);
   return {all,progress:hash(progress),unfinished,protectedUnfinished};
  }
- const before=await snapshot();emit({phase:'BEFORE',pass:true,users:3,tables:tables.length,unfinished:before.unfinished,protected_unfinished:before.protectedUnfinished});
+ const before=await snapshot();emit({phase:'BEFORE',pass:true,users:3,tables:tables.length,prior_consent_count:priorConsentCount,unfinished:before.unfinished,protected_unfinished:before.protectedUnfinished});
  const engine=createUserErasure({db,keys,environment,now:()=>at});let deleted=0;
  for(const subject of subjects){await engine.fence(subject.id,{maintenance:true});const result=await engine.eraseDisabled(subject.id,{maintenance:true});if(result.status!=='ERASED'||result.pending)fail('REHEARSAL_SUBJECT_PENDING');deleted+=result.deleted;}
  emit({phase:'ERASURE',pass:true,users:5,deleted});

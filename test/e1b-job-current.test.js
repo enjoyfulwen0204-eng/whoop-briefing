@@ -13,6 +13,7 @@ import {createSchemaTransitionRuntimeProfile} from '../src/schemaTransitionProfi
 import {bindConnectionLifetime,admitRuntime} from '../src/runtimeAdmission.js';
 import {eraseDisabledCohort} from '../tools/e1b/maintenance.mjs';
 import {runErasureMaintenance} from '../src/erasureMaintenance.js';
+import {fixtureKeys} from './localDb.js';
 
 test('job SELECT boundary rejects writes, multiple statements and side effects',()=>{
  for(const sql of ['DELETE FROM users','SELECT 1; SELECT 2','SELECT load_extension(1)','PRAGMA journal_mode','SELECT 1 -- comment'])assert.throws(()=>assertSelect(sql),{code:'SNAPSHOT_SELECT_ONLY'});
@@ -112,4 +113,13 @@ test('night maintenance with insufficient remainder defers without querying or w
  const result=await runErasureMaintenance({db,budget:{remainingMs:()=>14000},emit:s=>logs.push(JSON.parse(s))});
  assert.equal(queries,0);assert.equal(result.retries.deferred,1);assert.equal(result.retention.status,'DEFERRED_BUDGET');
  assert.deepEqual(Object.keys(logs[0]).sort(),['completed','deferred','duration_ms','event','overdue','pending']);
+});
+
+test('copy rehearsal refuses a non-grandfathered v1 consent before erasure',async()=>{
+ const users=[...['a','b','c'].map(id=>({id,status:'ACTIVE'})),...Array.from({length:5},(_,n)=>({id:'subject-'+n,status:'DISABLED'}))];
+ const key='beta:v1:'+fixtureKeys.lookup(['beta-state-key-v1','member','subject-0']);
+ const body={consent:{version:'2026-11-06-v1',at:'2026-11-06T00:00:00Z'}},signature=fixtureKeys.lookup(['beta-state-v1','member','subject-0',body]);
+ let queries=0;const db={raw:{execute:async sql=>{assert.equal(sql,'SELECT * FROM users LIMIT 101');queries++;return {rows:users};}},getState:async k=>k===key?JSON.stringify({body,signature}):null};
+ await assert.rejects(rehearseLocal({db,keys:fixtureKeys,environment:{FAMILY_GROUP_USER_IDS:'a,b,c',OWNER_USER_IDS:'a'},at:new Date(),emit(){},admit(){}}),{code:'REHEARSAL_NEW_USER_V1_CONSENT_PRESENT'});
+ assert.equal(queries,1);
 });

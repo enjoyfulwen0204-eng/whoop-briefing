@@ -28,7 +28,7 @@ export function isUniqueViolation(err) {
 
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 
-export function createWhoopWebhookStore(client) {
+export function createWhoopWebhookStore(client,{requireActiveBinding=false}={}) {
   // -------------------------------------------------------------------------
   // 事件帳本
   // -------------------------------------------------------------------------
@@ -50,11 +50,14 @@ export function createWhoopWebhookStore(client) {
         sql: `INSERT INTO whoop_webhook_events
                 (provider, whoop_user_id, event_type, resource_type, resource_id, trace_id,
                  event_at, received_at, state, attempt_count, created_at, updated_at)
-              VALUES ('whoop', ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+              SELECT 'whoop', ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?
+              ${requireActiveBinding?`WHERE EXISTS(SELECT 1 FROM user_whoop_tokens t JOIN users u ON u.id=t.user_id
+                WHERE t.whoop_user_id=? AND u.status='ACTIVE' AND COALESCE(t.access_token,'')<>'')`:''}`,
         args: [String(whoopUserId), eventType, resourceType, String(resourceId), String(traceId),
           eventAt === null || eventAt === undefined ? null : String(eventAt),
-          nowIso, WHOOP_EVENT_STATE.RECEIVED, nowIso, nowIso],
+          nowIso, WHOOP_EVENT_STATE.RECEIVED, nowIso, nowIso,...(requireActiveBinding?[String(whoopUserId)]:[])],
       });
+      if(requireActiveBinding&&Number(rs.rowsAffected)===0)return {inserted:false,duplicate:false,ignored:true};
       return {
         inserted: true, duplicate: false,
         id: Number(rs.lastInsertRowid ?? 0),

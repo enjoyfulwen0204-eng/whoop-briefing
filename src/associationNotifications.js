@@ -18,7 +18,10 @@ export async function notifyAssociation({db,keys,reader,user,telegram,locale,now
  if(saved===checkValue)return {status:'ALREADY_CHECKED_TODAY'};
  if(saved!=null)throw Error('ASSOCIATION_CHECK_MARKER_INVALID');
  // Only completed checks are memoized; never cache health data or results.
- const complete=async result=>{await db.setState(checkKey,checkValue,{now});return result;};
+ const complete=async result=>{await db.transaction(async()=>{
+  await db.assertAccountActive(user.id,user.lifecycleGeneration);
+  await db.setState(checkKey,checkValue,{now});
+ });return result;};
  const previous=(await db.raw.execute({sql:'SELECT 1 FROM proactive_events WHERE user_id=? AND idempotency_key=? LIMIT 1',args:[user.id,semantic]})).rows;
  if(previous.length)return complete({status:'ALREADY_RESERVED'});
  const view=await reader.inspect(user.id);if(!view)return {status:'DEFERRED_BUDGET'};

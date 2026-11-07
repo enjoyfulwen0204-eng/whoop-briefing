@@ -14,7 +14,7 @@ import {trainableRows} from './predictionFixtures.js';
 const req={requestId:'synthetic_request_123456',releaseSha:'a'.repeat(40),configProof:'b'.repeat(64),kind:'NIGHT_ANALYTICS_V1',triggerSource:'cloudflare',executionMode:'OFF'};
 function partialNightFixture(){
  const states=new Map(),calls=[],logs=[];let remaining=90000,parts=0;
- const input={db:{getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async key=>states.get(key),setState:async(k,v)=>states.set(k,v)},
+ const input={db:{transaction:async fn=>fn(),assertAccountActive:async()=>{},getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async key=>states.get(key),setState:async(k,v)=>states.set(k,v)},
   keys:{lookup:JSON.stringify},userIds:['a'],reader:{inspect:async()=>({})},now:()=>new Date('2026-11-02T19:14:00Z'),
   budget:{remainingMs:()=>remaining,assert(){assert.ok(remaining>0);}},emit:line=>logs.push(JSON.parse(line)),
   processUser:async({userId,cls,force,owner})=>{assert.equal(userId,'a');assert.equal(force,true);assert.match(owner,/^night:/);calls.push(cls);remaining-=10000;
@@ -71,7 +71,7 @@ test('real v33 analytics claims and writes with original generation fencing',asy
  assert.equal((await f.db.getAnalyticsWorkState('a','heavy')).status,'SUCCESS');
 });
 test('safe-unit yielding and three windows cover three users; completed night is not rerun',async()=>{
- const states=new Map(),calls=[];const db={getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async key=>states.get(key),setState:async(k,v)=>states.set(k,v)};
+ const states=new Map(),calls=[];const db={transaction:async fn=>fn(),assertAccountActive:async()=>{},getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async key=>states.get(key),setState:async(k,v)=>states.set(k,v)};
  const keys={lookup:x=>JSON.stringify(x)},reader={inspect:async()=>({})};
  for(let hour=19;hour<=21;hour++){
   let remaining=90000;
@@ -114,4 +114,12 @@ test('scheduled Worker performs SYNC then companion then analytics only at three
   };let work;worker.scheduled({cron:hour<4?MORNING_CRON:READINESS_CRON,scheduledTime:Date.UTC(2026,10,2,hour,10)},env,{waitUntil:p=>{work=p;}});await work;
   assert.deepEqual(calls,['/internal/briefing/run','/internal/briefing/companion','/internal/briefing/extras',...([19,20,21].includes(hour)?['/internal/briefing/analytics']:[])]);
  }}finally{globalThis.fetch=previous;}
+});
+
+test('night completion cannot recreate KV after an overlapping lifecycle fence',async()=>{
+ const f=partialNightFixture();let checked=0;
+ f.input.db.assertAccountActive=async()=>{checked++;throw Object.assign(Error(),{code:'ACCOUNT_INACTIVE'});};
+ await assert.rejects(processNightAnalytics(f.input),{code:'ACCOUNT_INACTIVE'});
+ assert.equal(checked,1);assert.equal(f.states.size,0);
+ assert.deepEqual(f.calls,['light','light','light']);
 });

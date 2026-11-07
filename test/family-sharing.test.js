@@ -69,6 +69,18 @@ test('no consent: no health read, summary, sender or new consent; out-of-group e
  const view=await f.click('a',reply,'sharing');assert.equal(view.replyMarkup.inline_keyboard.flat().filter(x=>x.text.startsWith('👤')).length,1);
  assert.deepEqual((await f.app.store.state()).grants,{});
 });
+
+test('erasure rehearsal preview uses actual consent and renderers without deliveries or KV writes',async t=>{
+ const f=await fixture(t);f.health();
+ await f.change('a','b','daily');await f.change('a','b','weekly');
+ const state=async()=>(await f.db.raw.execute('SELECT * FROM telegram_state ORDER BY key')).rows;
+ const before=await state(),preview=await f.app.previewReadOnly(),recipient=preview.find(r=>r.recipient==='b');
+ assert.match(recipient.daily,/Recovery 78\.0%/);assert.match(recipient.weekly,/72\.0%/);
+ assert.deepEqual(preview.find(r=>r.recipient==='a'),{recipient:'a',daily:null,weekly:null});
+ assert.deepEqual(await state(),before);assert.equal(f.sent.length,0);
+ assert.doesNotMatch(JSON.stringify(preview),/PRIVATE_NEVER_SHARE/);
+ await f.change('a','b','daily',false);assert.equal((await f.app.previewReadOnly()).find(r=>r.recipient==='b').daily,null);
+});
 test('real UI consent/revoke, mutes, expired/foreign/replayed/message-substituted callbacks; all locales icons',async t=>{
  const f=await fixture(t);
  for(const locale of ['zh-TW','vi','en']){

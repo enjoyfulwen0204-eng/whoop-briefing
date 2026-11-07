@@ -177,7 +177,7 @@ export function composeDb(baseClient, { phase4Keys,runtimeProfile,runtimeEpoch }
     try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
   }
   const health = compatibility.wrap(createHealthStore(compatibility.client, { transaction: processing.transaction }));
-  const webhook = createWhoopWebhookStore(client);
+  const webhook = createWhoopWebhookStore(client,{requireActiveBinding:true});
   // 輸出寫入走 processing.transaction 的所有權圍欄（F01）。
   const analytics = compatibility.wrap(createAnalyticsWorkStore(compatibility.client, { transaction: processing.transaction, privacyKeys: phase4Keys }),
     ['markAnalyticsDirty','getAnalyticsInvalidation','getAnalyticsWorkState','claimAnalyticsWork','setAnalyticsRange','advanceAnalyticsRange',

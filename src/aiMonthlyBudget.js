@@ -70,7 +70,11 @@ async function notifyBudget({db,keys,user,env,environment=process.env,now=()=>ne
   const result=await telegram(text,{authorize:authorized});
   if(result?.suppressed||result?.dryRun)return {status:'SUPPRESSED'};
   if(!/^\d+$/.test(String(result?.messageId??'')))fail('AI_BUDGET_NOTICE_UNCONFIRMED');
-  await db.transaction(()=>store.write('cost-notice',stamp,{month:budget.month,threshold,status:'DELIVERED'}),workStepOptions('beta.cost.settle',identity,{discardResult:true}));
+  await db.transaction(async()=>{
+   await db.assertAccountActive(id,recipient.lifecycleGeneration);
+   await db.assertAccountActive(user.id,user.lifecycleGeneration);
+   await store.write('cost-notice',stamp,{month:budget.month,threshold,status:'DELIVERED'});
+  },workStepOptions('beta.cost.settle',identity,{discardResult:true}));
  }
  return {status:'COMPLETE'};
 }

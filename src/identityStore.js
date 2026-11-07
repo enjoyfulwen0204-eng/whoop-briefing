@@ -54,7 +54,7 @@ function rowToUser(row) {
   };
 }
 
-export function createIdentityStore(client, { transaction = null } = {}) {
+export function createIdentityStore(client, { transaction = null, lifecycleLog = true } = {}) {
   // 沒有注入交易時退回直接執行（單句仍是原子的，只是失去多句的原子性）。
   const inTransaction = typeof transaction === 'function' ? transaction : (fn) => fn();
   // ----- users -----------------------------------------------------------
@@ -255,7 +255,7 @@ export function createIdentityStore(client, { transaction = null } = {}) {
         args: [uid],
       }).catch(() => { /* 舊資料庫可能還沒有這張表 */ });
 
-      log.info('user_lifecycle_transition', {
+      if(lifecycleLog)log.info('user_lifecycle_transition', {
         user_id: uid, from: oldStatus, to: targetStatus,
         from_generation: oldGeneration, to_generation: oldGeneration + 1,
       });

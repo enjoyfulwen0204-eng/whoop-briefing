@@ -56,7 +56,7 @@ test('disclaimer binds user, lifecycle and version; consent has a timestamp, dec
  await f.runtime.handle({user,chatId:'123',callback});assert.equal(await f.runtime.consented(user.id),false);
  const fresh=await f.runtime.handle({user,chatId:'123',text:'/start',requestId:3});callback.data=fresh.replyMarkup.inline_keyboard[0][0].callback_data;
  await f.runtime.handle({user,chatId:'123',callback});await requireBetaConsent(f.db,user.id);
- assert.deepEqual((await f.runtime.read('member',user.id)).consent,{version:'2026-11-06-v1',at:'2026-11-06T12:00:00.000Z'});
+ assert.deepEqual((await f.runtime.read('member',user.id)).consent,{version:'2026-11-07-v2',at:'2026-11-06T12:00:00.000Z'});
  const changed=createBetaEnrollment({db:f.db,keys,environment:f.env,version:'v2'});assert.equal(await changed.consented(user.id),false);
 });
 test('Stage7 new member needs ACTIVE + connected + current consent; disabled member excluded',async()=>{

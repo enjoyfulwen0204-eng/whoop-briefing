@@ -18,7 +18,8 @@
  *
  * ## ack 的語義
  *
- * 回 2XX = 「收下了，不用再送」。所以只有在**真的耐久寫進去**之後才回 200。
+ * 回 2XX = 「不用再送」。有效綁定的事件必須耐久寫入；已解除／刪除
+ * 帳號的事件在原子綁定檢查後直接忽略，不再保存個人識別資訊。
  * 暫時性錯誤（資料庫掛了）回 503 讓 WHOOP 重送 —— 那正是重試機制的用途。
  * 結構性錯誤（簽章不對、body 壞掉、不支援的事件）不可以要求重送：
  * 重送一百次結果一樣，只會浪費雙方的資源。
@@ -126,6 +127,10 @@ export function createWhoopWebhookIngest({
         eventAt: String(auth.timestampMs),
         now: new Date(now()),
       });
+
+      // After unlink/erasure, a late provider retry must not recreate an
+      // identifiable event. Signature validation still precedes this gate.
+      if(recorded.ignored){log.info('whoop_webhook_inactive_ignored',{});return {outcome:INGEST_OUTCOME.UNSUPPORTED,reason:'inactive_binding'};}
 
       const base = {
         event_id: recorded.id,

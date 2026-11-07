@@ -2,7 +2,8 @@
 import {createBetaEnrollment,betaEnabled} from '../betaEnrollment.js';
 import {renderAdminUsers} from '../aiMonthlyBudget.js';
 import {ANALYTICS_PATH,runNightAnalytics} from '../nightAnalytics.js';
-import {createAccountSelfService} from '../accountSelfService.js';
+import {createAccountSelfService,revokeWhoopAccess} from '../accountSelfService.js';
+import {createUserErasure} from '../userErasure.js';
 import {createFamilySharing} from '../familySharing.js';
 import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createBusinessWebhookLifecycle} from '../businessWebhookLifecycle.js';
@@ -492,7 +493,9 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
   const family=createFamilySharing({db,keys:authorityKeys,environment:selectedEnvironment,env});
-  const accountControl=createAccountSelfService({db,keys:authorityKeys,family});
+  const ownerIds=String(selectedEnvironment.OWNER_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean);
+  const erasure=enrollment&&ownerIds.length?createUserErasure({db,keys:authorityKeys,environment:selectedEnvironment,family,revoke:revokeWhoopAccess}):null;
+  const accountControl=createAccountSelfService({db,keys:authorityKeys,family,erasure,ownerIds});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
   //

@@ -47,7 +47,7 @@ test('extras transport binds distinct path/kind and preserves sanitized skip sum
 });
 test('night budget reports exact unstarted LIGHT/HEAVY/MEMORY units',async()=>{
  let remaining=90000;
- const out=await processNightAnalytics({db:{getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async()=>null,setState:async()=>{}},keys:{lookup:JSON.stringify},userIds:['a','b'],reader:{},budget:{remainingMs:()=>remaining,assert(){}},now:()=>new Date('2026-11-03T19:14Z'),emit(){},processUser:async()=>{remaining=24000;return {result:'SUCCESS'};}});
+ const out=await processNightAnalytics({db:{transaction:async fn=>fn(),assertAccountActive:async()=>{},getUser:async id=>({id,status:'ACTIVE',lifecycleGeneration:1}),getOnboarding:async()=>({state:'READY'}),getState:async()=>null,setState:async()=>{}},keys:{lookup:JSON.stringify},userIds:['a','b'],reader:{},budget:{remainingMs:()=>remaining,assert(){}},now:()=>new Date('2026-11-03T19:14Z'),emit(){},processUser:async()=>{remaining=24000;return {result:'SUCCESS'};}});
  assert.equal(out.deferred,true);assert.deepEqual(out.deferredSteps,{HEAVY:2,MEMORY:2,LIGHT:1});
 });
 

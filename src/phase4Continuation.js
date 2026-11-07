@@ -1,7 +1,7 @@
 import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
 import {requireRuntimeAdmission} from './runtimeAdmission.js';
 import {databaseNowMs} from './phase4ExecutionContext.js';
-import {canonicalPhaseRequest,reconcileExecution,requestIdentity,EXECUTION_WORK_MAX_AGE_MS,validatePhaseRequest} from './phase4ExecutionStore.js';
+import {canonicalPhaseRequest,reconcileExecution,requestIdentity,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_RECONCILIATION_MAX_AGE_MS,validatePhaseRequest} from './phase4ExecutionStore.js';
 import {isContinuationRequest,isSyncContinuationRequest} from './phase4ExecutionStore.js';
 import {scopeIncludesSync,scopeIncludesDrain,continuationScope} from './phase4ContinuationScope.js';
 export const CONTINUATION_PATH='/internal/briefing/continuation';
@@ -37,6 +37,7 @@ export async function discoverPhaseContinuation({query,db,keys,releaseSha,mode,c
    }
    const rows=(await db.raw.execute({sql:`SELECT e.*,${databaseNowMs} observed_at FROM phase4_executions e WHERE
     e.release_sha=? AND e.execution_mode=? AND e.trigger_source='cloudflare' AND e.config_proof=?
+    AND (e.state NOT IN ('ESTABLISHED','WORK_COMMITTED') OR e.created_at>${databaseNowMs}-?)
     AND ((?=1 AND e.phase='STAGE6_DRAIN' AND substr(e.execution_id,1,5)='p4c1_' AND (e.state='WORK_COMMITTED' OR (e.state='ESTABLISHED' AND
       (EXISTS(SELECT 1 FROM phase4_execution_work_receipts r WHERE r.execution_id=e.execution_id) OR
        (?=1 AND EXISTS(SELECT 1 FROM phase4_executions p WHERE p.execution_id=e.sync_execution_id AND p.state='FINALIZED_SUCCESS' AND p.created_at>${databaseNowMs}-?))))))
@@ -44,7 +45,7 @@ export async function discoverPhaseContinuation({query,db,keys,releaseSha,mode,c
       (e.state='ESTABLISHED' AND e.created_at>${databaseNowMs}-?)))
      OR (?=1 AND e.phase='SYNC' AND e.state='FINALIZED_SUCCESS' AND e.created_at>${databaseNowMs}-? AND e.execution_id NOT IN
        (SELECT d.sync_execution_id FROM phase4_executions d WHERE d.phase='STAGE6_DRAIN' AND d.sync_execution_id IS NOT NULL AND d.state IN ('FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'))))
-    ORDER BY CASE WHEN e.phase='STAGE6_DRAIN' THEN 0 ELSE 1 END,e.execution_seq LIMIT 16`,args:[releaseSha,mode,query.configProof,Number(scopeIncludesDrain(scope)&&(allowDrain||allowDrainRecovery)),Number(allowDrain),EXECUTION_WORK_MAX_AGE_MS,Number(scopeIncludesSync(scope)),EXECUTION_WORK_MAX_AGE_MS,Number(scopeIncludesDrain(scope)&&allowDrain),EXECUTION_WORK_MAX_AGE_MS]})).rows;
+    ORDER BY CASE WHEN e.phase='STAGE6_DRAIN' THEN 0 ELSE 1 END,e.execution_seq LIMIT 16`,args:[releaseSha,mode,query.configProof,EXECUTION_RECONCILIATION_MAX_AGE_MS,Number(scopeIncludesDrain(scope)&&(allowDrain||allowDrainRecovery)),Number(allowDrain),EXECUTION_WORK_MAX_AGE_MS,Number(scopeIncludesSync(scope)),EXECUTION_WORK_MAX_AGE_MS,Number(scopeIncludesDrain(scope)&&allowDrain),EXECUTION_WORK_MAX_AGE_MS]})).rows;
    if(!rows.length){assert();return {status:200,body:{ok:true,state:'NONE',requestBody:null}};}
    let row,request,body;
    for(const candidate of rows){

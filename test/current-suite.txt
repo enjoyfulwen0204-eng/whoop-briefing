@@ -60,3 +60,6 @@ test/morning-snapshot-current.test.js
 test/registration-current.test.js
 
 test/beta-current.test.js
+test/execution-retirement-current.test.js
+test/user-erasure-current.test.js
+test/e1b-job-current.test.js

@@ -23,7 +23,9 @@ export async function checkLowEnergy({db,bodyEnergy,keys,user,telegram,now=new D
  // Quiet-hour work is discarded for this source generation. A later cron may
  // consider genuinely new WHOOP inputs, never replay this deferred alert.
  const source=keys.lookup(['body-low-source',...view.identity]);
- if(timing.quiet){await db.transaction(()=>db.setState(key,source,{now}),workStepOptions('body-low.discard',[id,life,day,source]));return {status:'QUIET_DISCARDED'};}
+ if(timing.quiet){await db.transaction(async()=>{
+  await db.assertAccountActive(id,life);await db.setState(key,source,{now});
+ },workStepOptions('body-low.discard',[id,life,day,source]));return {status:'QUIET_DISCARDED'};}
  if(await db.getState(key)===source)return {status:'QUIET_DISCARDED'};
  const message=lowEnergyMessage(calculation.value,view.locale);
  const verify=async()=>{

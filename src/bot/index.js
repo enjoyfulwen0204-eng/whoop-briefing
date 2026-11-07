@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import {createBetaEnrollment,betaEnabled} from '../betaEnrollment.js';
 import {renderAdminUsers} from '../aiMonthlyBudget.js';
-import {createAccountSelfService} from '../accountSelfService.js';
+import {createAccountSelfService,revokeWhoopAccess} from '../accountSelfService.js';
+import {createUserErasure} from '../userErasure.js';
 import {createFamilySharing} from '../familySharing.js';
 import {requireRecoveryScope} from '../recoveryPolicy.js';
 import {createCompanionCoachContext} from '../companionCoachContext.js';
@@ -150,7 +151,9 @@ export async function main({ maxIterations = Infinity } = {}) {
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
   const family=createFamilySharing({db,keys:authorityKeys,environment:process.env,env});
-  const accountControl=createAccountSelfService({db,keys:authorityKeys,family});
+  const ownerIds=String(process.env.OWNER_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean);
+  const erasure=enrollment&&ownerIds.length?createUserErasure({db,keys:authorityKeys,environment:process.env,family,revoke:revokeWhoopAccess}):null;
+  const accountControl=createAccountSelfService({db,keys:authorityKeys,family,erasure,ownerIds});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
   const onboardingConfigured = Boolean(

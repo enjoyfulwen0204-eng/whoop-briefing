@@ -4,20 +4,23 @@ import {syntheticStage7V33Fixture} from './stage7-v33-fixture.js';
 import {createAccountSelfService,revokeWhoopAccess} from '../src/accountSelfService.js';
 import {createUpdateProcessor} from '../src/bot/updateProcessor.js';
 import {createFamilySharing} from '../src/familySharing.js';
+import {createUserErasure} from '../src/userErasure.js';
 import {createWhoopClient} from '../src/whoop.js';
 import {handleOnboardingMessage} from '../src/onboarding.js';
 // Family delivery assertions run inside the current 09:30–12:00 Taipei window.
 const now=()=>new Date('2026-11-01T01:30:00Z');
-async function setup(t,{remote=true}={}){
+async function setup(t,{remote=true,erase=false,ownerIds=['b']}={}){
  const f=await syntheticStage7V33Fixture(t,{now});
  for(const [id,chat] of [['a','101'],['b','102']]){await f.db.saveTokens(id,{accessToken:'SYNTHETIC_ACCESS',refreshToken:'SYNTHETIC_REFRESH',expiresAt:new Date('2027-01-01'),whoopUserId:'synthetic-'+id});await f.db.linkTelegram({userId:id,chatId:chat,now:now()});await f.db.setLocale(id,'zh-TW');await f.db.ensureOnboarding(id,{state:'READY',now:now()});}
  const family=createFamilySharing({db:f.db,keys:f.keys,environment:{FAMILY_SHARING:'on',FAMILY_GROUP_USER_IDS:'a,b'},now,send:()=>{throw Error('NO_SEND');}});
- let calls=0;const control=createAccountSelfService({db:f.db,keys:f.keys,family,now,revoke:async token=>{assert.equal(token,'SYNTHETIC_ACCESS');calls++;return remote;}});
+ let calls=0;const revoke=async token=>{assert.equal(token,'SYNTHETIC_ACCESS');calls++;return remote;};
+ const erasure=erase?createUserErasure({db:f.db,keys:f.keys,family,now,revoke,environment:{OWNER_USER_IDS:ownerIds.join(','),FAMILY_GROUP_USER_IDS:'a,b'}}):null;
+ const control=createAccountSelfService({db:f.db,keys:f.keys,family,now,revoke,erasure,ownerIds});
  const user=await f.db.getUser('a'),input={user,chatId:'101'},sent=[];
  const processor=createUpdateProcessor({db:f.db,now,accountControl:control,resolveUser:id=>f.db.resolveUserByChatId(id),handleMessage:()=>{throw Error('NO_HEALTH');},sendReply:control.wrapSender(async x=>{sent.push(x);return {sent:true,messageId:80};}),answerCallback:async()=>{}});
  let n=1;
  async function click(reply,action){const button=reply.replyMarkup.inline_keyboard.flat().find(b=>b.callback_data.endsWith('.'+action));assert.ok(button,action);const update={update_id:n++,callback_query:{id:'callback'+n,data:button.callback_data,from:{id:101},message:{message_id:80,chat:{id:101,type:'private'}}}};const result=await processor.processUpdate(update);assert.equal(result.outcome,'processed');return sent.at(-1)?.reply;}
- return {...f,family,control,input,click,sent,calls:()=>calls,open:async()=>{const reply=await f.db.transaction(()=>control.decorate({...input,text:'/settings',reply:{text:'settings'}}));await control.wrapSender(async()=>({sent:true,messageId:80}))({reply});return reply;}};
+ return {...f,family,control,input,click,sent,processor,calls:()=>calls,open:async()=>{const reply=await f.db.transaction(()=>control.decorate({...input,text:'/settings',reply:{text:'settings'}}));await control.wrapSender(async()=>({sent:true,messageId:80}))({reply});return reply;}};
 }
 test('disconnect is durable through real receipt root; remote failure still erases tokens, fences auth, preserves rows and reconnects',async t=>{
  const f=await setup(t,{remote:false});const before=await f.db.getTokens('a');let view=await f.open();view=await f.click(view,'disconnect');view=await f.click(view,'confirm');
@@ -51,4 +54,29 @@ test('cleared tokens cannot refresh or call WHOOP, even through an existing clie
  const f=await setup(t);let calls=0;const client=createWhoopClient({db:f.db,userId:'a',clientId:'synthetic',clientSecret:'synthetic',expectedLifecycleGeneration:f.input.user.lifecycleGeneration,fetchImpl:()=>{calls++;throw Error('FORBIDDEN');}});
  let view=await f.open();view=await f.click(view,'disconnect');await f.click(view,'confirm');
  await assert.rejects(client.apiGet('/user/profile/basic'),/WHOOP/);assert.equal(calls,0);
+});
+
+for(const locale of ['zh-TW','en','vi'])test(`self-erasure has two confirmations, no recreated rows or duplicate reply (${locale})`,async t=>{
+ const f=await setup(t,{erase:true,remote:false});await f.db.setLocale('a',locale);
+ let view=await f.open();view=await f.click(view,'erase');assert.ok(await f.db.getUser('a'));
+ for(const b of view.replyMarkup.inline_keyboard.flat())assert.match(b.text,/^\p{Extended_Pictographic}/u);
+ view=await f.click(view,'confirm');assert.ok(await f.db.getUser('a'));
+ const button=view.replyMarkup.inline_keyboard[0][0];view=await f.click(view,'erase_final');
+ assert.match(view.text,/✅/);assert.equal(await f.db.getUser('a'),null);assert.equal(await f.db.resolveUserByChatId('101'),null);
+ assert.equal(f.calls(),1);assert.equal((await f.db.getUser('b')).status,'ACTIVE');
+ const statements=(await f.db.raw.execute("SELECT name FROM sqlite_schema WHERE type='table'")).rows;
+ const snapshot=async()=>{const all={};for(const {name} of statements)all[name]=(await f.db.raw.execute('SELECT * FROM "'+name+'"')).rows;return JSON.stringify(all);};
+ const before=await snapshot(),sent=f.sent.length;
+ const result=await f.processor.processUpdate({update_id:999,callback_query:{id:'late',data:button.callback_data,from:{id:101},message:{message_id:80,chat:{id:101,type:'private'}}}});
+ assert.equal(result.outcome,'replayed');assert.equal(f.sent.length,sent);assert.equal(await snapshot(),before);
+ assert.equal(Number((await f.db.raw.execute("SELECT COUNT(*) n FROM telegram_operations WHERE owner_user_id='a'")).rows[0].n),0);
+ assert.equal(Number((await f.db.raw.execute("SELECT COUNT(*) n FROM telegram_processed_updates WHERE user_id='tg:101'")).rows[0].n),0);
+});
+test('Owner sees erasure explanation without a confirmation button; cross-chat final cannot erase',async t=>{
+ const f=await setup(t,{erase:true,ownerIds:['a']});let view=await f.open();view=await f.click(view,'erase');
+ assert.match(view.text,/管理員帳號不能/);assert.equal(view.replyMarkup.inline_keyboard.flat().length,1);assert.match(view.replyMarkup.inline_keyboard[0][0].callback_data,/\.cancel$/);
+ assert.ok(await f.db.getUser('a'));assert.equal(f.calls(),0);
+ const g=await setup(t,{erase:true});let card=await g.open();card=await g.click(card,'erase');card=await g.click(card,'confirm');
+ const button=card.replyMarkup.inline_keyboard[0][0];const result=await g.control.eraseFinal({chatId:'102',callback:{data:button.callback_data,message:{message_id:80}}});
+ assert.equal(result.reply,null);assert.ok(await g.db.getUser('a'));assert.equal(g.calls(),0);
 });

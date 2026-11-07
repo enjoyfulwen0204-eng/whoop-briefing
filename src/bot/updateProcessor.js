@@ -485,6 +485,26 @@ export function createUpdateProcessor({
       return { outcome: UPDATE_OUTCOME.INVALID, updateId: null, reason: 'bad_update_id', replied: false };
     }
 
+    // Self-erasure must finish outside the ordinary reply/receipt transaction:
+    // that transaction would recreate personal transport rows after deletion.
+    // A removed binding also makes old callbacks inert before claim creation.
+    const erasureCallback=update?.callback_query;
+    if(accountControl?.erasureEnabled&&erasureCallback){
+      const chat=erasureCallback.message?.chat,from=erasureCallback.from;
+      if(chat?.type!=='private'||from?.is_bot===true||from?.id===undefined||String(from.id)!==String(chat.id))
+        return {outcome:UPDATE_OUTCOME.IGNORED,updateId,replied:false};
+      try{
+        if(!await resolveUser(String(chat.id)))return {outcome:UPDATE_OUTCOME.REPLAYED,updateId,replied:false};
+        if(accountControl.matches(erasureCallback.data)&&erasureCallback.data.endsWith('.erase_final')){
+          const result=await accountControl.eraseFinal({chatId:String(chat.id),callback:erasureCallback});
+          if(!result.reply)return {outcome:UPDATE_OUTCOME.REPLAYED,updateId,replied:false};
+          try{const sent=await sendReply?.({chatId:String(chat.id),userId:null,reply:result.reply});
+            return {outcome:UPDATE_OUTCOME.PROCESSED,updateId,replied:Boolean(sent?.sent)};
+          }catch{return {outcome:UPDATE_OUTCOME.AMBIGUOUS_DELIVERY,updateId,replied:false};}
+        }
+      }catch{return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'erasure_pending',replied:false};}
+    }
+
     // Reject genuinely new chats before transport receipts, locks, onboarding,
     // OAuth or LLM work. Existing/retired bindings retain their lifecycle path.
     const incoming=update?.message;

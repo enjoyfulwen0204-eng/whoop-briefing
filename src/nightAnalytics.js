@@ -11,6 +11,7 @@ import {runningReleaseSha} from './phase4Release.js';
 import {stage7Configuration,createStage7Runtime} from './stage7Runtime.js';
 import {localDate} from './time.js';
 import {updateAssociationMemory} from './associationMemory.js';
+import {runErasureMaintenance} from './erasureMaintenance.js';
 
 export const ANALYTICS_PATH='/internal/briefing/analytics';
 export const ANALYTICS_KIND='NIGHT_ANALYTICS_V1';
@@ -63,7 +64,10 @@ export async function processNightAnalytics({db,keys,userIds,reader,budget,now=(
       const result=await processUser({db,userId:id,cls:step.toLowerCase(),owner,now,force:true});status=result.result;
      }
      budget.assert();
-     if(status==='SUCCESS')await db.setState(key,marker,{now:now()});
+     if(status==='SUCCESS')await db.transaction(async()=>{
+      await db.assertAccountActive(id,user.lifecycleGeneration);
+      await db.setState(key,marker,{now:now()});
+     });
     }finally{
      results.push({step,status});
      emit(JSON.stringify({event:'night_analytics_step',user:keys.lookup(['companion-diagnostic-user-v1',id]),step,status,duration_ms:Date.now()-started}));
@@ -97,8 +101,13 @@ export async function runNightAnalytics({request,environment=process.env,db,keys
    const runtime=await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now});
    if(!runtime)fail('ANALYTICS_READER_UNAVAILABLE');
    const result=await processNightAnalytics({db,keys,userIds:betaEnabled(environment)?await (betaRuntime(db)??createBetaEnrollment({db,keys,environment,now})).eligibleIds():stage7Configuration(environment).userIds,reader:runtime.associations,budget,now,...deps});
+   // Existing users' analysis gets its original budget first. Retention and
+   // pending erasure use only the safe remainder of this natural night slot.
+   const erasure=await (deps.erasureMaintenance??runErasureMaintenance)({db,keys,environment,budget,now});
    const failed=result.results.filter(r=>['FAILED','FENCED'].includes(r.status)).length;
-   return {status:failed?503:200,body:{ok:failed===0,kind:ANALYTICS_KIND,source:'cloudflare',releaseSha,drainAuthorized:false,failed,...result}};
+   const erasureDeferred=erasure.retries.deferred+(erasure.retention.deferred??0);
+   if(erasureDeferred){result.deferred=true;result.deferredSteps.ERASURE=erasureDeferred;}
+   return {status:failed?503:200,body:{ok:failed===0,kind:ANALYTICS_KIND,source:'cloudflare',releaseSha,drainAuthorized:false,failed,...result,erasure}};
   });
  }));}finally{unfollow?.();budget.close();}
 }

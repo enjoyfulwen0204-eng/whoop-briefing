@@ -4,10 +4,10 @@ import {isApprovedStage7Three} from './stage7Cohort.js';
 import {registrationMode,telegramRegistrationLocale,registrationClosedReply} from './registrationPolicy.js';
 import {workStepOptions} from './phase4WorkStep.js';
 
-export const DISCLAIMER_VERSION='2026-11-06-v1';
-// This exemption is pinned to the initial disclosure. Never advance it when
-// publishing a new DISCLAIMER_VERSION: the original three must then consent.
-const GRANDFATHERED_DISCLAIMER_VERSION='2026-11-06-v1';
+export const DISCLAIMER_VERSION='2026-11-07-v2';
+// Owner explicitly grandfathered the original three for v1 AND v2. A future
+// version is not exempt automatically and must make a new consent decision.
+const GRANDFATHERED_DISCLAIMER_VERSIONS=new Set(['2026-11-06-v1','2026-11-07-v2']);
 const runtimes=new WeakMap();
 const fail=code=>{throw Object.assign(Error(code),{code});};
 export const betaEnabled=env=>env.BETA_MAX_USERS!==undefined;
@@ -19,15 +19,15 @@ export async function requireBetaConsent(db,userId){
 }
 export const BETA_COPY={
  'zh-TW':{invalid:'❌ 邀請碼無效或已過期。',full:'🔒 目前名額已滿。',welcome:'👋 歡迎加入 WHOOP Health OS（測試版）\n你的邀請碼有效，接下來請先閱讀使用說明。',
- disclosure:'📋 使用前請先閱讀\n• 這是個人開發的測試服務，不是醫療器材，不能取代醫生的診斷\n• 健康分析和建議由 AI 產生，可能會有錯\n• 身體不舒服或遇到緊急狀況，請立刻就醫或撥打急救電話（台灣 119、越南 115）\n• 我們會讀取你的 WHOOP 資料（睡眠、恢復、心率、活動）來產生報告，不會提供給其他人；AI 分析時，必要的數字會傳給 AI 服務商處理\n• 你隨時可以中斷 WHOOP 連結，或申請刪除所有資料',yes:'✅ 我已閱讀並同意',no:'✖️ 不同意',accepted:'✅ 已記錄同意。請輸入 /start 繼續連結 WHOOP。',declined:'✖️ 尚未同意，不會建立 WHOOP 連結。之後可輸入 /start 重來。',expired:'⌛ 操作已過期，請輸入 /start。',invite:'🔗 邀請連結（7 天內限用一次）',lost:'⌛ 邀請連結未能安全重播，請重新輸入 /admin invite。',users:'👥 使用者｜狀態｜加入日期｜本月 AI 費用｜最後同步'},
- en:{invalid:'❌ This invitation is invalid or expired.',full:'🔒 All beta places are currently filled.',welcome:'👋 Welcome to WHOOP Health OS (beta)\nYour invitation is valid. Please read the following information.',disclosure:'📋 Please read before continuing\n• This is a personally developed beta service, not a medical device or a substitute for medical diagnosis.\n• AI health analysis and suggestions may be wrong.\n• If you feel unwell or face an emergency, seek medical care immediately or call Taiwan 119 / Vietnam 115.\n• We read your WHOOP sleep, recovery, heart-rate and activity data to create reports. We do not share it with other people; necessary measurements are sent to AI providers for AI analysis.\n• You can disconnect WHOOP or request deletion of all your data at any time.',yes:'✅ I have read and agree',no:'✖️ I do not agree',accepted:'✅ Agreement recorded. Send /start to continue connecting WHOOP.',declined:'✖️ No agreement recorded; WHOOP will not be connected. Send /start to try again.',expired:'⌛ This action expired. Send /start.',invite:'🔗 Invitation (one use within 7 days)',lost:'⌛ This invitation cannot be safely replayed. Send /admin invite again.',users:'👥 User | Status | Joined | Monthly AI cost | Last sync'},
- vi:{invalid:'❌ Mã mời không hợp lệ hoặc đã hết hạn.',full:'🔒 Hiện đã hết chỗ thử nghiệm.',welcome:'👋 Chào mừng đến WHOOP Health OS (thử nghiệm)\nMã mời hợp lệ. Vui lòng đọc hướng dẫn sau.',disclosure:'📋 Vui lòng đọc trước khi tiếp tục\n• Đây là dịch vụ thử nghiệm do cá nhân phát triển, không phải thiết bị y tế và không thay thế chẩn đoán của bác sĩ.\n• Phân tích và gợi ý sức khỏe do AI tạo có thể sai.\n• Khi không khỏe hoặc gặp tình huống khẩn cấp, hãy đi khám ngay hoặc gọi Việt Nam 115 / Đài Loan 119.\n• Chúng tôi đọc dữ liệu WHOOP về giấc ngủ, phục hồi, nhịp tim và hoạt động để tạo báo cáo, không cung cấp cho người khác; các số liệu cần thiết được gửi đến nhà cung cấp AI để phân tích.\n• Bạn có thể ngắt WHOOP hoặc yêu cầu xóa toàn bộ dữ liệu bất cứ lúc nào.',yes:'✅ Tôi đã đọc và đồng ý',no:'✖️ Không đồng ý',accepted:'✅ Đã ghi nhận đồng ý. Gửi /start để tiếp tục kết nối WHOOP.',declined:'✖️ Chưa đồng ý; WHOOP sẽ không được kết nối. Gửi /start để thử lại.',expired:'⌛ Thao tác hết hạn. Gửi /start.',invite:'🔗 Lời mời (dùng một lần trong 7 ngày)',lost:'⌛ Không thể phát lại lời mời an toàn. Gửi lại /admin invite.',users:'👥 Người dùng | Trạng thái | Ngày tham gia | Phí AI tháng | Đồng bộ cuối'},
+ disclosure:'📋 使用前請先閱讀\n• 這是個人開發的測試服務，不是醫療器材，不能取代醫生的診斷\n• 健康分析和建議由 AI 產生，可能會有錯\n• 身體不舒服或遇到緊急狀況，請立刻就醫或撥打急救電話（台灣 119、越南 115）\n• 我們會讀取你的 WHOOP 資料（睡眠、恢復、心率、活動）來產生報告，不會提供給其他人；AI 分析時，必要的數字會傳給 AI 服務商處理\n• 你隨時可以中斷 WHOOP 連結，或刪除所有資料（健康資料會立刻刪除，系統運作紀錄會在 30 天內自動清除）',yes:'✅ 我已閱讀並同意',no:'✖️ 不同意',accepted:'✅ 已記錄同意。請輸入 /start 繼續連結 WHOOP。',declined:'✖️ 尚未同意，不會建立 WHOOP 連結。之後可輸入 /start 重來。',expired:'⌛ 操作已過期，請輸入 /start。',invite:'🔗 邀請連結（7 天內限用一次）',lost:'⌛ 邀請連結未能安全重播，請重新輸入 /admin invite。',users:'👥 使用者｜狀態｜加入日期｜本月 AI 費用｜最後同步'},
+ en:{invalid:'❌ This invitation is invalid or expired.',full:'🔒 All beta places are currently filled.',welcome:'👋 Welcome to WHOOP Health OS (beta)\nYour invitation is valid. Please read the following information.',disclosure:'📋 Please read before continuing\n• This is a personally developed beta service, not a medical device or a substitute for medical diagnosis.\n• AI health analysis and suggestions may be wrong.\n• If you feel unwell or face an emergency, seek medical care immediately or call Taiwan 119 / Vietnam 115.\n• We read your WHOOP sleep, recovery, heart-rate and activity data to create reports. We do not share it with other people; necessary measurements are sent to AI providers for AI analysis.\n• You can disconnect WHOOP or delete all your data at any time (health data is deleted immediately; system operational records are automatically removed within 30 days).',yes:'✅ I have read and agree',no:'✖️ I do not agree',accepted:'✅ Agreement recorded. Send /start to continue connecting WHOOP.',declined:'✖️ No agreement recorded; WHOOP will not be connected. Send /start to try again.',expired:'⌛ This action expired. Send /start.',invite:'🔗 Invitation (one use within 7 days)',lost:'⌛ This invitation cannot be safely replayed. Send /admin invite again.',users:'👥 User | Status | Joined | Monthly AI cost | Last sync'},
+ vi:{invalid:'❌ Mã mời không hợp lệ hoặc đã hết hạn.',full:'🔒 Hiện đã hết chỗ thử nghiệm.',welcome:'👋 Chào mừng đến WHOOP Health OS (thử nghiệm)\nMã mời hợp lệ. Vui lòng đọc hướng dẫn sau.',disclosure:'📋 Vui lòng đọc trước khi tiếp tục\n• Đây là dịch vụ thử nghiệm do cá nhân phát triển, không phải thiết bị y tế và không thay thế chẩn đoán của bác sĩ.\n• Phân tích và gợi ý sức khỏe do AI tạo có thể sai.\n• Khi không khỏe hoặc gặp tình huống khẩn cấp, hãy đi khám ngay hoặc gọi Việt Nam 115 / Đài Loan 119.\n• Chúng tôi đọc dữ liệu WHOOP về giấc ngủ, phục hồi, nhịp tim và hoạt động để tạo báo cáo, không cung cấp cho người khác; các số liệu cần thiết được gửi đến nhà cung cấp AI để phân tích.\n• Bạn có thể ngắt WHOOP hoặc xóa toàn bộ dữ liệu bất cứ lúc nào (dữ liệu sức khỏe được xóa ngay; nhật ký vận hành hệ thống được tự động xóa trong vòng 30 ngày).',yes:'✅ Tôi đã đọc và đồng ý',no:'✖️ Không đồng ý',accepted:'✅ Đã ghi nhận đồng ý. Gửi /start để tiếp tục kết nối WHOOP.',declined:'✖️ Chưa đồng ý; WHOOP sẽ không được kết nối. Gửi /start để thử lại.',expired:'⌛ Thao tác hết hạn. Gửi /start.',invite:'🔗 Lời mời (dùng một lần trong 7 ngày)',lost:'⌛ Không thể phát lại lời mời an toàn. Gửi lại /admin invite.',users:'👥 Người dùng | Trạng thái | Ngày tham gia | Phí AI tháng | Đồng bộ cuối'},
 };
 export function createBetaEnrollment({db,keys,environment=process.env,now=()=>new Date(),nonce=()=>randomBytes(16).toString('base64url'),version=DISCLAIMER_VERSION}){
  requirePhase4Keys(keys);
  const owners=()=>String(environment.OWNER_USER_IDS??'').split(',').map(x=>x.trim()).filter(Boolean);
  const original=String(environment.FAMILY_GROUP_USER_IDS??'').split(',').map(x=>x.trim()).filter(Boolean);
- const grandfathered=version===GRANDFATHERED_DISCLAIMER_VERSION&&isApprovedStage7Three(original)?original:[];
+ const grandfathered=GRANDFATHERED_DISCLAIMER_VERSIONS.has(version)&&isApprovedStage7Three(original)?original:[];
  const key=(kind,id)=>'beta:v1:'+keys.lookup(['beta-state-key-v1',kind,id]);
  async function read(kind,id){const raw=await db.getState(key(kind,id));if(raw==null)return null;
   try{const {body,signature,...other}=JSON.parse(raw),expected=keys.lookup(['beta-state-v1',kind,id,body]);
@@ -47,7 +47,7 @@ export function createBetaEnrollment({db,keys,environment=process.env,now=()=>ne
   for(const [id,value] of rawInvites)if(value.expires<=now().getTime())rawInvites.delete(id);
   const current=await db.getUser(user.id);if(!owners().includes(user.id)||current?.status!=='ACTIVE'||current.lifecycleGeneration!==user.lifecycleGeneration)fail('BETA_OWNER_REQUIRED');
   const raw=randomBytes(24).toString('base64url'),hash=keys.lookup(['beta-invite-v1',raw]),handle=nonce();
-  await write('invite',hash,{createdAt:now().toISOString(),expiresAt:new Date(now().getTime()+7*86400000).toISOString(),used:false});
+  await write('invite',hash,{inviteHash:hash,issuedBy:user.id,createdAt:now().toISOString(),expiresAt:new Date(now().getTime()+7*86400000).toISOString(),used:false});
   rawInvites.set(handle,{raw,owner:user.id,expires:now().getTime()+600000});return handle;
  });}
  async function card(user,locale,{welcome=false}={}){const c=BETA_COPY[locale]??BETA_COPY.en,token=nonce(),s=await read('member',user.id)??{};
@@ -70,8 +70,8 @@ export function createBetaEnrollment({db,keys,environment=process.env,now=()=>ne
    const user=await db.createUser({displayName:name,allowEmptyDisplayName:true,timezone:'UTC',status:'ACTIVE',now:now()});
    const claim=await db.claimTelegramChat({chatId:String(chatId),userId:user.id,now:now()});if(!claim.ok||claim.userId!==user.id)fail('BETA_REGISTRATION_CONFLICT');
    await db.ensureOnboarding(user.id,{state:'STARTED',now:now()});await db.setLocale(user.id,locale,{now:now()});
-   await write('member',user.id,{invited:true,joinedAt:now().toISOString(),consent:null});
-   await write('invite',hash,{...invitation,used:true,usedAt:now().toISOString()});
+   await write('member',user.id,{invited:true,inviteHash:hash,invitedBy:invitation.issuedBy,joinedAt:now().toISOString(),consent:null});
+   await write('invite',hash,{...invitation,usedBy:user.id,used:true,usedAt:now().toISOString()});
    return card(user,locale,{welcome:true});
   });
  }

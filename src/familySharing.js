@@ -72,6 +72,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   // A stable per-day/week barrier survives permission, lifecycle and release
   // changes. Unknown ACKs and crashes after commit can never regain send rights.
   const id=keys.lookup(['family-delivery-v1',category,recipient.id,period,...(category==='alert'||category==='invite'?sources.map(r=>r.id):[])]);
+  const deliveryState=status=>({status,at:now().toISOString(),deliveryIdentity:id,subjects:[...new Set([recipient.id,...sources.map(r=>r.id)])]});
   let claimed=false;
   await store.transaction('delivery-start',[id],async()=>{
    const prior=await store.read('delivery',id);if(prior)return;
@@ -83,7 +84,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
    }else if(!sources.every(s=>store.allowed(fresh.state,fresh.rows,s.id,r.id,category)))return;
    // Consent revision recheck covers a revoke/regrant ABA and recipient mutes.
    if(fresh.state.revision!==expected)return;
-   await store.write('delivery',id,{status:'DELIVERY_STARTED',at:now().toISOString()});claimed=true;
+   await store.write('delivery',id,deliveryState('DELIVERY_STARTED'));claimed=true;
   });
   if(!claimed)return {status:'SUPPRESSED'};
   // Final currentness check immediately before the only provider call. No
@@ -95,7 +96,10 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   try{
    const result=await transport({chatId:r.telegram_chat_id,reply,userId:r.id});
    if(!Number.isSafeInteger(result?.message_id)||result.message_id<=0)familyFail('FAMILY_ACK_UNKNOWN');
-   await store.transaction('delivery-settle',[id,result.message_id],()=>store.write('delivery',id,{status:'DELIVERED',at:now().toISOString()}));
+   await store.transaction('delivery-settle',[id,result.message_id],async()=>{
+    for(const member of [recipient,...sources])await db.assertAccountActive(member.id,member.lifecycle_generation);
+    await store.write('delivery',id,deliveryState('DELIVERED'));
+   });
    if(category==='invite')await ui.bind({reply,userId:r.id},result.message_id);
    return {status:'DELIVERED'};
   }catch(error){
@@ -177,5 +181,25 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   return {results,status:'COMPLETE',deferredSteps:Object.fromEntries(FAMILY_CLASSES.map(c=>['family_'+c,results.filter(r=>r.step==='family_'+c&&r.status==='DEFERRED_BUDGET').length]).filter(([,n])=>n))};
  }
  const rHash=id=>keys.lookup(['companion-diagnostic-user-v1',id]);
- return Object.freeze({store,ui,tick});
+ // Internal erasure rehearsal observation. Uses the same consent, source and
+ // rendering functions, but never reserves a delivery or invokes transport.
+ async function previewReadOnly(){
+  const initial=await snapshot(),at=now(),cache=new Map(),result=[];
+  for(const recipient of initial.rows){
+   const c=COPY[await db.getLocale(recipient.id)]??COPY['zh-TW'],out={};
+   for(const category of ['daily','weekly']){
+    const sources=initial.rows.filter(s=>store.allowed(initial.state,initial.rows,s.id,recipient.id,category)),lines=[];
+    for(const source of sources){
+     if(!cache.has(source.id))cache.set(source.id,loadSummary(source,at,{daily:true}));
+     const data=await cache.get(source.id);if(!data)familyFail('FAMILY_PREVIEW_DEFERRED');
+     lines.push(category==='daily'?dailyLine(source,data,c):weeklyLine(source,data,c));
+    }
+    out[category]=lines.length?c[category]+'\n'+lines.join('\n'):null;
+   }
+   result.push({recipient:recipient.id,...out});
+  }
+  const fresh=await snapshot();if(!same(fresh,initial))familyFail('FAMILY_PREVIEW_FENCED');
+  return result;
+ }
+ return Object.freeze({store,ui,tick,previewReadOnly});
 }

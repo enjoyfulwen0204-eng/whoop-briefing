@@ -15,6 +15,15 @@ import {continuationScope} from './phase4ContinuationScope.js';
 export const PHASES=Object.freeze(['SYNC','STAGE6_DRAIN']);
 export const HANDOFF_TTL_MS=15*60_000;
 export const EXECUTION_WORK_MAX_AGE_MS=HANDOFF_TTL_MS;
+// Owner-approved E1b retention boundary. This caps metadata reconciliation,
+// including WORK_COMMITTED and receipt-backed DRAIN; it does not extend the
+// existing 15-minute authority for new work or invalidate finalized sources.
+export const EXECUTION_RECONCILIATION_MAX_AGE_MS=24*60*60_000;
+export function assertExecutionReconciliationAge(row,at=Date.now()){
+ if(['ESTABLISHED','WORK_COMMITTED'].includes(row?.state)
+   &&at-row.created_at>=EXECUTION_RECONCILIATION_MAX_AGE_MS)
+  fail('EXECUTION_RECONCILIATION_EXPIRED');
+}
 const OUTCOMES=new Set(['PENDING','COMPLETE','PARTIAL','FAILED','TIMEOUT','CANCELLED','NO_WORK','NO_ELIGIBLE_WORK',
  'COMPLETE_SUCCESS','NO_NEW_DATA_SUCCESS','INTENTIONALLY_INAPPLICABLE','REQUIRED_RESOURCE_FAILED','AUTH_FAILED','DISABLED','POLICY_DEFERRED','BUDGET_EXHAUSTED','COMMIT_INDETERMINATE']);
 const COUNTS=['executionSeq','workReceipts','durationMs','jobsConsidered','itemsAttempted','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','users','failed','unitsCommitted','dailyDeferredBody'];
@@ -176,6 +185,7 @@ export async function reconcileExecution(db,request,identity=requestIdentity(JSO
  const row=await readExecution(db,request.requestId);
  if(!row)return {state:'NOT_COMMITTED',row:null,result:null};
  requestMatches(row,request,identity);
+ assertExecutionReconciliationAge(row);
  const result=decodeExecution(row);
  const receipts=(await db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=?',args:[row.execution_id]})).rows;
  if(receipts.some(r=>r.request_digest!==row.identity_digest||r.scope_key!==row.scope_key||r.generation>row.generation))fail('EXECUTION_RECEIPT_CORRUPT');

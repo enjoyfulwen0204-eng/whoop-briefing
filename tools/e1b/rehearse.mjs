@@ -4,6 +4,7 @@ import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {exportSelectSnapshot} from './selectSnapshot.mjs';
+import {probeExportProtocol} from './exportProbe.mjs';
 import {localAdapter} from './localAdapter.mjs';
 import {denyRehearsalNetwork} from './networkFence.mjs';
 import {phase4AuthorityKeys} from '../../src/phase4EnvironmentKeys.js';
@@ -19,11 +20,12 @@ const readHead = () => execFileSync('git', ['rev-parse', '--verify', 'HEAD^{comm
   encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
 }).trim();
 const operations = {readHead, phase4AuthorityKeys, createSchemaTransitionRuntimeProfile,
-  mkdtemp, rm, exportSelectSnapshot, denyRehearsalNetwork, localAdapter, bindConnectionLifetime, admitRuntime, rehearseLocal};
+  mkdtemp, rm, probeExportProtocol, exportSelectSnapshot, denyRehearsalNetwork, localAdapter, bindConnectionLifetime, admitRuntime, rehearseLocal};
 const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
 
 export async function runRehearsal({env = process.env, now = Date.now, emit, ops = operations}) {
   const started = now(), preflight = env.E1B_PREFLIGHT_ONLY === '1';
+  const probe = env.E1B_EXPORT_PROBE_ONLY === '1';
   const checks = {};
   let step = 'JOB_IDENTITY', firstFailure, head, keys, profile, environment;
   let directory, db;
@@ -44,6 +46,7 @@ export async function runRehearsal({env = process.env, now = Date.now, emit, ops
 
   try {
     check('JOB_IDENTITY', () => {
+      if (probe && preflight) fail('REHEARSAL_CONFLICTING_MODES');
       checks.ONE_OFF_JOB = env.E1B_ONE_OFF_JOB === '1';
       checks.SERVICE_ID_PRESENT = Boolean(env.RENDER_SERVICE_ID);
       checks.SERVICE_ID_MATCH = env.RENDER_SERVICE_ID === 'srv-dahs71qd0e5s738n94c0';
@@ -73,10 +76,15 @@ export async function runRehearsal({env = process.env, now = Date.now, emit, ops
           url.port || !['', '/'].includes(url.pathname) || url.search || url.hash) fail('REHEARSAL_DATABASE_IDENTITY_MISMATCH');
     });
     const at = new Date(now());
-    check('START_WINDOW', () => assertJobStartWindow(at), true);
+    if (!probe) check('START_WINDOW', () => assertJobStartWindow(at), true);
     check('AFTER_CRON', () => {
       const minute = at.getUTCMinutes();
-      if (minute < 14 || minute >= 55) fail('REHEARSAL_AFTER_CRON_REQUIRED');
+      if (probe) {
+        // Leave room on both sides of the scheduled tick, even if queued.
+        const hourly = at.getUTCHours() >= 4;
+        const idle = hourly ? minute < 8 || minute >= 19 : minute % 10 >= 5 && minute % 10 < 8;
+        if (!idle) fail('REHEARSAL_AFTER_CRON_REQUIRED');
+      } else if (minute < 14 || minute >= 55) fail('REHEARSAL_AFTER_CRON_REQUIRED');
     }, true);
     check('KEYS', () => {
       checks.LOOKUP_KEY_PRESENT = Boolean(env.PHASE4_LOOKUP_KEY);
@@ -97,6 +105,13 @@ export async function runRehearsal({env = process.env, now = Date.now, emit, ops
       if (firstFailure) emit({phase: 'COMPLETE', pass: false, ...firstFailure, duration_ms: now() - started});
       else emit({phase: 'COMPLETE', pass: true});
       return !firstFailure;
+    }
+
+    if (probe) {
+      step = 'EXPORT_PROBE';
+      await ops.probeExportProtocol({url:env.TURSO_DATABASE_URL, token:env.TURSO_AUTH_TOKEN, emit});
+      emit({phase:'COMPLETE', pass:true, duration_ms:now() - started});
+      return true;
     }
 
     try {

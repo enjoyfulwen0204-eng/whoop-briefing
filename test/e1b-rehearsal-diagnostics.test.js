@@ -61,3 +61,40 @@ for (const invalid of [true,false]) test('preflight collects independent boolean
   for(const name of ['BASE_SHA_VALID','CLONE_HEAD_MATCH','RENDER_COMMIT_MATCH','RELEASE_SHA_MATCH','DB_URL_PRESENT','LOOKUP_KEY_PRESENT','AUDIT_KEY_PRESENT'])assert.equal(checks[name],true);
   assert.equal(result.pass,!invalid);assert.doesNotMatch(JSON.stringify(f.records),/PRIVATE_FIXTURE_NEVER_LOG|srv-dah|libsql:\/\//);
 });
+
+test('protocol-only mode never constructs a DB client or touches a row, even outside export hours', async()=>{
+  const f=fixture();f.env.E1B_EXPORT_PROBE_ONLY='1';f.now=()=>Date.parse('2026-11-07T16:24:00Z');
+  let probes=0; f.ops.probeExportProtocol=async()=>{probes++;};
+  for(const name of ['mkdtemp','exportSelectSnapshot','localAdapter','rehearseLocal']) f.ops[name]=external;
+  assert.equal(await runRehearsal(f),true);assert.equal(probes,1);
+  f.now=()=>Date.parse('2026-11-07T16:10:00Z');
+  assert.equal(await runRehearsal(f),false);assert.equal(probes,1);
+  f.now=()=>Date.parse('2026-11-07T16:24:00Z');delete f.env.RENDER_SERVICE_ID;
+  assert.equal(await runRehearsal(f),false);assert.equal(probes,1);
+});
+
+import {probeExportProtocol} from '../tools/e1b/exportProbe.mjs';
+for(const mode of ['absent','same','cross','throw']) test('protocol probe sends no SQL, follows no redirects and redacts '+mode,async()=>{
+  const records=[],requests=[];
+  const fetchImpl=async(url,init)=>{
+    requests.push(url.pathname);
+    assert.equal(url.origin,'https://'+RECOVERY_PRODUCTION_HOST);assert.equal(init.redirect,'manual');
+    if(init.method==='POST'){
+      assert.equal(init.headers.authorization,'Bearer '+privateText);
+      if(url.pathname==='/v3/cursor')assert.deepEqual(JSON.parse(init.body),{baton:null,batch:{steps:[]}});
+      else assert.deepEqual([...init.body],[0x12,0]);
+    } else {assert.equal(init.method,'GET');assert.equal(init.headers,undefined);assert.equal(init.body,undefined);}
+    if(mode==='throw')external();
+    const redirect=mode==='same'||mode==='cross';
+    const location=mode==='same'?'/'+privateText:'https://example.invalid/'+privateText;
+    return new Response(privateText,{status:redirect?307:404,headers:{location}});
+  };
+  await probeExportProtocol({url:'libsql://'+RECOVERY_PRODUCTION_HOST,token:privateText,fetchImpl,emit:r=>records.push(r)});
+  assert.deepEqual(requests,mode==='absent'?['/v3-protobuf','/v3','/v3-protobuf/cursor','/v3/cursor']:['/v3-protobuf','/v3']);
+  for(const r of records){
+    assert.equal(r.redirected,mode==='same'||mode==='cross');assert.equal(r.redirect_same_origin,mode==='same');
+    assert.equal(r.fetch_threw,mode==='throw');assert.equal(r.error_class,mode==='throw'?'TypeError':null);
+    assert.equal(r.http_status,mode==='throw'?null:r.redirected?307:404);
+  }
+  assert.doesNotMatch(JSON.stringify(records),/PRIVATE_FIXTURE|https?:|libsql:|example.invalid/);
+});

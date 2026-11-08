@@ -62,7 +62,7 @@ export function createAccountSelfService({db,keys,family=null,now=()=>new Date()
    if(family){if(deactivate)await family.store.revokeMember(user.id);else await family.store.disconnectMember(user.id,generation);}
    if(deactivate){await db.revokeTelegramLink(String(chatId));await db.transitionUserLifecycle({userId:user.id,targetStatus:'DISABLED',expectedCurrentStatus:'ACTIVE',now:now()});}
    s.rev++;s.expires=0;await save(s);
-   return {text:(deactivate?c.stopped:c.done)+(revoked?'':'\n'+c.warning)};
+   return {replyMarkup:{remove_keyboard:true},text:(deactivate?c.stopped:c.done)+(revoked?'':'\n'+c.warning)};
   }else return {text:c.expired};
   s.rev++;await save(s);
   if(s.mode.startsWith('erase'))return {accountSession:{id:s.id,nonce:s.nonce,rev:s.rev},text:s.mode==='erase_final'?ec.last:ec.text+(s.mode==='erase_owner'?'\n'+ec.owner:''),replyMarkup:{inline_keyboard:[s.mode==='erase_owner'?[btn(s,c.cancel,'cancel')]:[btn(s,s.mode==='erase'?ec.confirm:ec.final,s.mode==='erase'?'confirm':'erase_final'),btn(s,c.cancel,'cancel')]]}};
@@ -93,7 +93,7 @@ export function createAccountSelfService({db,keys,family=null,now=()=>new Date()
   let outcome;try{outcome=await erasure.eraseDisabled(prepared.id);}catch{outcome={status:'PENDING'};}
   // The final reply has no accountSession or userId. No receipt/session/usage
   // write may follow it; retries see the removed binding and never send again.
-  return {handled:true,reply:{text:(['ERASED','ALREADY_ABSENT','PENDING_RECEIPTS'].includes(outcome.status)?ec.done:ec.pending)+(prepared.revoked?'':'\n'+c.warning)}};
+  return {handled:true,reply:{replyMarkup:{remove_keyboard:true},text:(['ERASED','ALREADY_ABSENT','PENDING_RECEIPTS'].includes(outcome.status)?ec.done:ec.pending)+(prepared.revoked?'':'\n'+c.warning)}};
  }
  return Object.freeze({decorate,handle,wrapSender,matches:isAccountCallback,eraseFinal,erasureEnabled:Boolean(erasure)});
 }

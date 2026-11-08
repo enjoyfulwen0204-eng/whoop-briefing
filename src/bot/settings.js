@@ -1,4 +1,5 @@
-import {isBetaCallback} from '../betaEnrollment.js';
+import {timedToggleLabel,timedEnergyEnabled} from './privateControls.js';
+import {betaRuntime,isBetaCallback} from '../betaEnrollment.js';
 import {isAccountCallback} from '../accountSelfService.js';
 import {isFamilyCallback} from '../familySharingUi.js';
 import {STAGE8_SETTINGS_MODES,STAGE8_SETTINGS_ACTIONS,stage8SettingsRender,stage8SettingsMenu,stage8SettingsAction} from '../stage8Settings.js';
@@ -25,7 +26,7 @@ export function normalizeSettingsName(value){
  if(size>SETTINGS_NAME_LIMIT||Buffer.byteLength(normalized,'utf8')>256)throw Error('SETTINGS_NAME_INVALID');
  return normalized;
 }
-const callbackPattern=new RegExp('^sv1:([A-Za-z0-9_-]{22})\\.(\\d{1,4})\\.(language|name|back|cancel|tw|en|vi|confirm|save|edit|'+STAGE8_SETTINGS_ACTIONS+')$');
+const callbackPattern=new RegExp('^sv1:([A-Za-z0-9_-]{22})\\.(\\d{1,4})\\.(timed|language|name|back|cancel|tw|en|vi|confirm|save|edit|'+STAGE8_SETTINGS_ACTIONS+')$');
 export const isSettingsCallback=value=>typeof value==='string'&&Buffer.byteLength(value,'utf8')<=64&&(callbackPattern.test(value)||isFamilyCallback(value)||isAccountCallback(value)||isBetaCallback(value));
 function session(raw,uid,chatId,life,at){
  let s;try{s=JSON.parse(raw);}catch{return null;}
@@ -43,7 +44,7 @@ function render(s,locale){
  const button=(label,action)=>({text:label,callback_data:`sv1:${s.nonce}.${s.revision}.${action}`});
  const nav=[button(c.back,'back'),button(c.cancel,'cancel')];
  let text,rows;
- if(s.mode==='menu'){text=c.title;rows=[[button(c.language,'language')],[button(c.name,'name')],...stage8SettingsMenu(s,locale,button),[button(c.cancel,'cancel')]];}
+ if(s.mode==='menu'){text=c.title;rows=[[button(c.language,'language')],[button(c.name,'name')],...(typeof s.timedEnergy==='boolean'?[[button(timedToggleLabel(locale,s.timedEnergy),'timed')]]:[]),...stage8SettingsMenu(s,locale,button),[button(c.cancel,'cancel')]];}
  if(s.mode==='language'){text=locale?c.choose:'🌐 Language / 語言 / Ngôn ngữ';rows=languages.map(([code,,label])=>[button(label,code)]);rows.push(nav);}
  if(s.mode==='language_confirm'){text=`${c.confirmLanguage}\n${languages.find(x=>x[1]===s.nextLocale)?.[2]??''}`;rows=[[button(c.confirm,'confirm')],nav];}
  if(s.mode==='name_edit'){text=c.enter;rows=[nav];}
@@ -70,6 +71,8 @@ export function createSettings({db,stage8=null,now=()=>new Date(),nonce=()=>rand
    if(command){
     s={version:1,profileRevision,uid,chatId:chat,lifecycle:current.lifecycleGeneration,nonce:nonce(),revision:0,expiresAt:at+SETTINGS_TTL_MS,
      stage8:Boolean(stage8?.eligible(uid)),ownerAvailable:Boolean(stage8?.owner&&stage8.config?.ownerId===uid),sourceConsentAvailable:Boolean(stage8?.sourceConsent&&stage8.config?.ownerId&&stage8.config.ownerId!==uid),mode:command[1].toLowerCase()==='name'?'name_edit':command[1].toLowerCase()==='language'||!locale?'language':'menu',expectedName:current.displayName??'',expectedLocale:locale};
+    const enrollment=betaRuntime(db);
+    if(enrollment&&await enrollment.eligible(current))s.timedEnergy=await timedEnergyEnabled(enrollment,uid);
     await persist();return render(s,locale);
    }
    if(!s){if(raw)await db.setState(key,null);if(callback)return {text:c.expired};return null;}
@@ -77,7 +80,11 @@ export function createSettings({db,stage8=null,now=()=>new Date(),nonce=()=>rand
     const [,id,rev,action]=data.match(callbackPattern);
     if(id!==s.nonce||Number(rev)!==s.revision)return {text:c.expired};
     if(action==='cancel'){await db.setState(key,null);return {text:c.cancelled};}
-    if(action==='back'){s.mode='menu';delete s.pendingName;delete s.nextLocale;}
+    if(action==='timed'&&s.mode==='menu'){
+     const e=betaRuntime(db);if(!e||typeof s.timedEnergy!=='boolean'||!await e.eligible(current))return {text:c.expired};
+     const member=await e.read('member',uid)??{};if((member.timedEnergy!==false)!==s.timedEnergy)return {text:c.conflict};
+     s.timedEnergy=!s.timedEnergy;await e.write('member',uid,{...member,timedEnergy:s.timedEnergy});
+    }else if(action==='back'){s.mode='menu';delete s.pendingName;delete s.nextLocale;}
     else if(action==='language'&&s.mode==='menu'){s.mode='language';s.expectedLocale=locale;}
     else if(action==='name'&&s.mode==='menu'){s.mode='name_edit';s.expectedName=current.displayName??'';}
     else if(languages.some(x=>x[0]===action)&&s.mode==='language'){s.nextLocale=languages.find(x=>x[0]===action)[1];s.mode='language_confirm';}

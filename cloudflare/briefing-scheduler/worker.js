@@ -240,7 +240,7 @@ export async function invokeCompanion(env,{fetchImpl=fetch,now=Date.now,signImpl
   console.log(JSON.stringify({event:'companion_tick_ok',status:200,enabled:payload.enabled===true,...safeProgress(payload)}));return {ok:true,kind:payload.kind,deferredSteps:safeDeferredSteps(payload.deferredSteps)};
  }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
 }
-export async function invokeExtras(env,{fetchImpl=fetch,now=Date.now,signImpl=signRequest,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=55000}={}){
+export async function invokeExtras(env,{scheduledTime=null,fetchImpl=fetch,now=Date.now,signImpl=signRequest,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=55000}={}){
  if(![undefined,'off','on'].includes(env.BRIEFING_COMPANION_ENABLED))throw error('configuration',true);
  if(env.BRIEFING_COMPANION_ENABLED!=='on')return {enabled:false};
  const path='/internal/briefing/extras',endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
@@ -248,7 +248,7 @@ export async function invokeExtras(env,{fetchImpl=fetch,now=Date.now,signImpl=si
   ||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)
   ||!/^[a-f0-9]{40}$/.test(env.BRIEFING_RELEASE_SHA??'')||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF??'')
   ||!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>55000)throw error('configuration',true);
- const requestId=crypto.randomUUID(),timestamp=String(now()),body=canonical({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,kind:'EXTRAS_V1',executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
+ const requestId=(Number.isSafeInteger(scheduledTime)?'energy_'+scheduledTime+'_':'')+crypto.randomUUID(),timestamp=String(now()),body=canonical({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,kind:'EXTRAS_V1',executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
  const controller=new AbortController(),deadlineAt=now()+timeoutMs,timer=setTimer(()=>controller.abort(),timeoutMs);let response;
  try{const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
   if(controller.signal.aborted||now()>=deadlineAt)throw error('timeout',true);
@@ -282,7 +282,7 @@ export async function invokeAnalytics(env,{fetchImpl=fetch,now=Date.now,signImpl
  }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);}
 }
 export const MAX_SCHEDULED_WINDOW_MS=MAX_CONFIGURED_WINDOW_MS+55000+55000+100000;
-const deferredNames=new Set(['daily','coach','weekly','low','insight','brief_update','no_sleep','prediction','family_daily','family_alert','family_weekly','LIGHT','HEAVY','MEMORY']);
+const deferredNames=new Set(['daily','coach','weekly','low','insight','brief_update','no_sleep','prediction','timed_energy','family_daily','family_alert','family_weekly','LIGHT','HEAVY','MEMORY']);
 function safeProgress(payload){
  const result={deferred_steps:safeDeferredSteps(payload.deferredSteps),interrupted_steps:safeDeferredSteps(payload.interruptedSteps),budget_exhausted:payload.budgetExhausted===true};
  for(const [key,field] of [['checked','checked'],['completed_users','completedUsers'],['unprocessed_users','unprocessedUsers'],['incomplete_users','incompleteUsers'],['failed','failed']])
@@ -302,7 +302,7 @@ export default {
    syncFinished=Date.now();
    if(env.BRIEFING_COMPANION_ENABLED==='on'){
     let at=Date.now();try{const r=await invokeCompanion(env);companionStatus=200;deferredSteps.companion=r.deferredSteps;}catch(e){console.error(JSON.stringify({event:'companion_tick_failed',category:e.category??'unknown'}));}finally{companionDuration=Date.now()-at;}
-    at=Date.now();try{const r=await invokeExtras(env);extrasStatus=200;deferredSteps.extras=r.deferredSteps;}catch(e){console.error(JSON.stringify({event:'extras_tick_failed',category:e.category??'unknown'}));}finally{extrasDuration=Date.now()-at;}
+    at=Date.now();try{const r=await invokeExtras(env,{scheduledTime:syncStatus===200?event.scheduledTime:null});extrasStatus=200;deferredSteps.extras=r.deferredSteps;}catch(e){console.error(JSON.stringify({event:'extras_tick_failed',category:e.category??'unknown'}));}finally{extrasDuration=Date.now()-at;}
    }
    if(syncStatus===200&&companionStatus===200&&analyticsScheduledAt(event.scheduledTime)){
     const at=Date.now();try{const r=await invokeAnalytics(env);analyticsStatus=200;deferredSteps.analytics=r.deferredSteps;}catch(e){console.error(JSON.stringify({event:'night_analytics_failed',category:e.category??'unknown'}));}finally{analyticsDuration=Date.now()-at;}

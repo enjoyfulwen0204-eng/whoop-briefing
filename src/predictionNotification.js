@@ -30,7 +30,7 @@ export function renderEveningPrediction(result,accuracy,locale){
  if(result.factors.length)lines.push(c.basis+'：'+result.factors.map(f=>`${c[f.key]} ${['sleep_total','sleep_debt'].includes(f.key)?(f.value/3600000).toFixed(1)+'h':Number(f.value.toFixed(1))}（${c.effect} ${f.contribution>=0?'+':''}${f.contribution.toFixed(1)}）`).join('、'));
  lines.push(accuracy?`${c.accuracy} ${accuracy.mae.toFixed(1)} ${c.points}`:c.learning);return lines.join('\n');
 }
-export async function notifyPrediction({db,user,telegram,locale,now=()=>new Date(),load=loadDailyMetricsDetailed}){
+export async function notifyPrediction({db,user,telegram,locale,now=()=>new Date(),load=loadDailyMetricsDetailed,deliver=sendScheduledReport}){
  if(!predictionDue(now()))return {status:'NOT_DUE'};
  if(!reportRoom(15000))return {status:'DEFERRED_BUDGET'};
  const day=localDate(now(),user.timezone),prior=await db.getClaim(user.id,'prediction',day);
@@ -53,7 +53,7 @@ export async function notifyPrediction({db,user,telegram,locale,now=()=>new Date
  if(!result.verdict.qualified||!Number.isFinite(result.prediction?.predicted_value))return {status:'MODEL_UNQUALIFIED'};
  if(!reportRoom())return {status:'DEFERRED_BUDGET'};
  const accuracy=recentAccuracy(await db.getPredictions(user.id,{targetMetric:'recovery',limit:100}),day);
- return sendScheduledReport({db,user,telegram,kind:'prediction',day,identity,now,text:renderEveningPrediction(result,accuracy,locale),
+ return deliver({db,user,telegram,kind:'prediction',day,identity,now,text:renderEveningPrediction(result,accuracy,locale),
   verify:async()=>predictionDue(now())&&localDate(now(),user.timezone)===day,
   beforeDelivery:()=>persistPrediction(db,user.id,{targetDate:addDays(day,1),targetMetric:'recovery',prediction:result.prediction,
    features:Object.fromEntries(DEFAULT_FEATURES.map(k=>[k,result.features[k]]))},{now:now()})});

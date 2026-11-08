@@ -370,6 +370,16 @@ export async function runOnboardingBootstrap({
         detail: `ready_rejected:${ready.reason}:${why.missing.join(',')}`,
       });
     }
+    // A scheduler can finish onboarding without the webhook callback. Even
+    // then the new chat gets its commands; this is not a Telegram message.
+    if(!env.dryRun&&env.telegramBotToken&&process.env.BETA_MAX_USERS!==undefined){
+      try{
+        const {createCommandMenus,enrollmentFor}=await import('./bot/privateControls.js');
+        const {createTelegramApi}=await import('./bot/api.js');
+        const chat=await db.getActiveChatIdForUser(uid,{expectedLifecycleGeneration});
+        if(chat)await createCommandMenus({db,enrollment:enrollmentFor(db),api:createTelegramApi({botToken:env.telegramBotToken})}).sync(chat);
+      }catch{log.warn('telegram_menu_onboarding_failed',{});}
+    }
     if (notify) await safeNotify(notify, uid, 'ready');
     log.info('onboarding_ready', { user_id: uid });
     return { userId: uid, result: BOOTSTRAP_RESULT.READY, syncResults: results };

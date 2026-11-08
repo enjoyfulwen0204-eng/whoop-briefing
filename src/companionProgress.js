@@ -1,5 +1,5 @@
 // Per-request diagnostics only. No durable state, delivery decisions or retries.
-const knownSteps=new Set(['status','daily','weekly','insight','coach','brief_update','no_sleep','low','prediction','family_daily','family_alert','family_weekly']);
+const knownSteps=new Set(['status','daily','weekly','insight','coach','brief_update','no_sleep','low','prediction','timed_energy','family_daily','family_alert','family_weekly']);
 const failureStates=new Set(['FAILED_DEFINITE','RETRY_EXHAUSTED','DELIVERY_STARTED','AMBIGUOUS','UNKNOWN']);
 export function createCompanionProgress(plans){
  const users=new Map(plans.map(([user,steps])=>[user,{started:false,complete:false,steps:new Map(steps.map(s=>[s,'PENDING']))}]));

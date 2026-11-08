@@ -1,6 +1,7 @@
 import {registrationMode,registrationClosedReply} from '../registrationPolicy.js';
 import {assessUrgency,urgentReply} from './triage.js';
 import {emergencyKeywordHit} from './emergencyKeywords.js';
+import {privateShortcut} from './privateControls.js';
 import {isJournalCallback} from '../stage7Cards.js';
 import {isSettingsCallback} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
@@ -618,10 +619,12 @@ export function createUpdateProcessor({
 
       // After authentication/ownership, before any text-consuming business
       // handler (including privacy commands and unlinked onboarding).
-      const triage=(c.kind==='ok'||c.kind==='unlinked')&&!update.callback_query?assessUrgency(c.text):null;
-      const urgent=triage!==null&&(triage.urgent||emergencyKeywordHit(c.text));
+      const shortcut=c.kind==='ok'&&!update.callback_query?privateShortcut(c.text):null;
+      if(shortcut)c.text=shortcut;
+      const triage=!shortcut&&(c.kind==='ok'||c.kind==='unlinked')&&!update.callback_query?assessUrgency(c.text):null;
+      const urgent=Boolean(triage)&&(triage.urgent||emergencyKeywordHit(c.text));
 
-      if (claimed && c.kind === 'ok' && !urgent && phase4JournalControl) {
+      if (claimed && c.kind === 'ok' && !urgent && !shortcut && phase4JournalControl) {
         const control = await phase4JournalControl({user:c.user,updateId,owner:attemptId,text:c.text});
         if (control?.handled) {
           if (!control.complete) return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'privacy_completion_pending',replied:false};
@@ -636,7 +639,7 @@ export function createUpdateProcessor({
       if(c.kind==='ok'&&authenticatedIdentity&&!urgent)await authenticatedIdentity(c);
       const accountAction=c.kind==='ok'&&!urgent&&accountControl?.matches(c.callback?.data);
       const betaAction=c.kind==='ok'&&!urgent&&enrollment&&await enrollment.intercept(c);
-      const journalResult=!betaAction&&!accountAction&&c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
+      const journalResult=!betaAction&&!accountAction&&c.kind==='ok'&&!urgent&&!shortcut&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {
         if(betaAction)return {chatId:c.chatId,userId:c.user.id,expectedLifecycleGeneration:c.user.lifecycleGeneration,reply:await enrollment.handle({...c,requestId:updateId})};
         if(accountAction)return {chatId:c.chatId,userId:null,reply:await accountControl.handle(c)};
@@ -683,7 +686,7 @@ export function createUpdateProcessor({
         const handled = urgent ? {text:urgentReply(await db.getLocale?.(c.user.id)??'en')} : journalResult?.handled
           ? await stage7Reply({...c,reply:journalResult.reply})
           : await handleMessage({
-          text: c.text, chatId: c.chatId, message: c.message, user: c.user, callback:c.callback,
+          text: c.text, chatId: c.chatId, message: c.message, user: c.user, callback:c.callback, fixedLog:shortcut==='/journal 7',
         });
         return {
           chatId: c.chatId,reply:handled?.bodyEnergyReplyGuard&&typeof handled.reply==='string'?handled.reply:handled,userId:c.user.id,

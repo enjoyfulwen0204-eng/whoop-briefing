@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {presentPrivate,createCommandMenus,fixedJournal} from './privateControls.js';
 import {createBetaEnrollment,betaEnabled} from '../betaEnrollment.js';
 import {renderAdminUsers} from '../aiMonthlyBudget.js';
 import {ANALYTICS_PATH,runNightAnalytics} from '../nightAnalytics.js';
@@ -481,6 +482,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const enrollment=betaEnabled(selectedEnvironment)?createBetaEnrollment({db,keys:authorityKeys,environment:selectedEnvironment}):null;
+  const menus=enrollment&&!env.dryRun?createCommandMenus({db,enrollment,api}):null;
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:selectedEnvironment,env});
   let stage8;
   const coachContext=profile===SCHEMA_TRANSITION_PROFILE?null:createCompanionCoachContext({getScopes:()=>stage8?.scopes});
@@ -488,7 +490,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   stage8=profile===SCHEMA_TRANSITION_PROFILE?null:await createStage8Runtime({db,keys:authorityKeys,environment:selectedEnvironment,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
   const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:selectedEnvironment});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,associations:stage7?.associations,stage8,phase4Reader,journalFollowUp:stage7?.contextJournal });
-  const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
+  const sendBase=createSendReply({db,api,menus}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
@@ -515,7 +517,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
     authenticatedIdentity:stage8?.captureIdentity,
     accountControl,enrollment,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
-    handleMessage: async ({ text, chatId, user, callback }) => {
+    handleMessage: async ({ text, chatId, user, callback, fixedLog }) => {
       const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
       if(familyReply!==null)return familyReply;
       let settingReply=await settings({text,chatId,user,callback});
@@ -533,6 +535,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
         const localeReply = await handleLocaleOnlyMessage({ db, user, text });
         if (localeReply !== null) return localeReply;
       }
+      if(fixedLog)return fixedJournal({db,user});
       const reply=await router.handle({ text, chatId, user });return stage7?stage7.decorate({user,chatId,text,reply}):reply;
     },
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {
@@ -585,7 +588,9 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   const notifyUser = async (userId, text, { expectedLifecycleGeneration = null } = {}) => {
     const chatId = await db.getActiveChatIdForUser(userId, { expectedLifecycleGeneration });
     if (!chatId) return;
-    await api.sendMessage(chatId, text);
+    if(menus)await menus.sync(chatId).catch(()=>log.warn('telegram_menu_update_failed',{}));
+    const presentation=await presentPrivate(db,chatId,text,userId);
+    if(String(await db.getActiveChatIdForUser(userId,{expectedLifecycleGeneration}))===String(chatId))await api.sendMessage(chatId,presentation);
   };
   const oauthCallback = onboardingConfigured ? createWhoopOAuthCallback({
     db,
@@ -636,7 +641,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   });
   return Object.freeze({handler,db,closeAdmission:lifecycle.closeAdmission,waitForDrained:lifecycle.waitForDrained,dispose:lifecycle.dispose,
     status:()=>Object.freeze({...lifecycle.status(),ownedDatabases:ownedDatabases.size}),
-    startBackground(){if(lifecycle.status().admission!=='OPEN')throw Object.assign(Error('TRANSITION_BUSINESS_ADMISSION_CLOSED'),{code:'TRANSITION_BUSINESS_ADMISSION_CLOSED'});continuation?.start();},
+    startBackground(){if(lifecycle.status().admission!=='OPEN')throw Object.assign(Error('TRANSITION_BUSINESS_ADMISSION_CLOSED'),{code:'TRANSITION_BUSINESS_ADMISSION_CLOSED'});continuation?.start();if(menus)lifecycle.fork(()=>menus.initialize()).catch(()=>log.warn('telegram_menu_sync_failed',{}));},
   });
   }catch(error){
     try{lifecycle.closeAdmission('construction_failure_0001');await lifecycle.dispose({signal:new AbortController().signal});}

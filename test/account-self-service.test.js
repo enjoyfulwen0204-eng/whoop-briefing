@@ -30,7 +30,7 @@ test('disconnect is durable through real receipt root; remote failure still eras
 });
 test('deactivation requires two confirmations, revokes both sharing directions and link, retains records, repeat is safe',async t=>{
  const f=await setup(t);const rows=await f.family.store.members();for(const [a,b] of [[0,1],[1,0]])await f.db.transaction(()=>f.family.store.change({actor:rows[a],peer:rows[b],kind:'grant',category:'daily',value:true}));
- let view=await f.open();view=await f.click(view,'stop');assert.equal((await f.db.getUser('a')).status,'ACTIVE');view=await f.click(view,'confirm');assert.equal((await f.db.getUser('a')).status,'ACTIVE');const finalButton=view.replyMarkup.inline_keyboard[0][0];view=await f.click(view,'final');assert.match(view.text,/已停用/);
+ let view=await f.open();view=await f.click(view,'stop');assert.equal((await f.db.getUser('a')).status,'ACTIVE');view=await f.click(view,'confirm');assert.equal((await f.db.getUser('a')).status,'ACTIVE');const finalButton=view.replyMarkup.inline_keyboard[0][0];view=await f.click(view,'final');assert.match(view.text,/已停用/);assert.deepEqual(view.replyMarkup,{remove_keyboard:true});
  assert.equal((await f.db.getUser('a')).status,'DISABLED');assert.equal(await f.db.resolveUserByChatId('101'),null);assert.ok(Object.values((await f.family.store.state()).grants).every(g=>!g.daily&&!g.alert&&!g.weekly));
  assert.equal(Number((await f.db.raw.execute("SELECT count(*) n FROM user_telegram WHERE user_id='a'")).rows[0].n),1);
  const repeated=await f.db.transaction(()=>f.control.handle({...f.input,callback:{data:finalButton.callback_data}}));assert.match(repeated.text,/失效/);assert.equal(f.calls(),1);
@@ -62,7 +62,7 @@ for(const locale of ['zh-TW','en','vi'])test(`self-erasure has two confirmations
  for(const b of view.replyMarkup.inline_keyboard.flat())assert.match(b.text,/^\p{Extended_Pictographic}/u);
  view=await f.click(view,'confirm');assert.ok(await f.db.getUser('a'));
  const button=view.replyMarkup.inline_keyboard[0][0];view=await f.click(view,'erase_final');
- assert.match(view.text,/✅/);assert.equal(await f.db.getUser('a'),null);assert.equal(await f.db.resolveUserByChatId('101'),null);
+ assert.match(view.text,/✅/);assert.deepEqual(view.replyMarkup,{remove_keyboard:true});assert.equal(await f.db.getUser('a'),null);assert.equal(await f.db.resolveUserByChatId('101'),null);
  assert.equal(f.calls(),1);assert.equal((await f.db.getUser('b')).status,'ACTIVE');
  const statements=(await f.db.raw.execute("SELECT name FROM sqlite_schema WHERE type='table'")).rows;
  const snapshot=async()=>{const all={};for(const {name} of statements)all[name]=(await f.db.raw.execute('SELECT * FROM "'+name+'"')).rows;return JSON.stringify(all);};

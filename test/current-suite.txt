@@ -64,3 +64,5 @@ test/execution-retirement-current.test.js
 test/user-erasure-current.test.js
 test/e1b-job-current.test.js
 test/e1b-rehearsal-diagnostics.test.js
+test/e2-controls-current.test.js
+test/e2-energy-current.test.js

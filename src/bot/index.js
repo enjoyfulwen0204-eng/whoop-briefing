@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {presentPrivate,createCommandMenus,fixedJournal} from './privateControls.js';
 import {createBetaEnrollment,betaEnabled} from '../betaEnrollment.js';
 import {renderAdminUsers} from '../aiMonthlyBudget.js';
 import {createAccountSelfService,revokeWhoopAccess} from '../accountSelfService.js';
@@ -58,7 +59,7 @@ import { log, describeError } from '../logger.js';
  * 解析不到（null）時 optional chaining 一樣得到 undefined → 比較不成立 →
  * 不送。fail-closed 的行為刻意保持不變。
  */
-export function createSendReply({ db, api }) {
+export function createSendReply({ db, api, menus=null }) {
   /**
    * @returns {{sent:boolean, messageId:?number, reason:?string}}
    *   sent=false 代表**刻意**沒送（綁定變了），不是失敗 —— 呼叫端據此把送達
@@ -66,6 +67,7 @@ export function createSendReply({ db, api }) {
    *   真正的送出失敗會**拋錯**，由呼叫端分類成確定失敗或模糊。
    */
   return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null,updateId,beforeSend }) {
+    const presentation=menus?await menus.prepare(chatId,reply,userId):await presentPrivate(db,chatId,reply,userId);
     if (userId) {
       const current = await db.resolveUserByChatId(chatId);
       if (current?.user?.id !== userId) {
@@ -96,7 +98,7 @@ export function createSendReply({ db, api }) {
     if(userId&&updateId!==undefined&&(!db.assertTelegramReplySnapshot||!await db.assertTelegramReplySnapshot({userId,chatId,reply,updateId})))
       return {sent:false,messageId:null,reason:'health_snapshot_changed'};
     if(beforeSend&&!await beforeSend())return {sent:false,messageId:null,reason:'reply_authority_changed'};
-    const res = await api.sendMessage(chatId, reply);
+    const res = await api.sendMessage(chatId, presentation);
     const messageId = res?.message_id;
     if(!validMessageId(messageId))throw Object.assign(Error('TELEGRAM_ACK_INVALID'),{sendOutcome:'ambiguous',sendStage:'success_shape'});
     return {
@@ -139,6 +141,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   });
 
   const enrollment=betaEnabled(process.env)?createBetaEnrollment({db,keys:authorityKeys,environment:process.env}):null;
+  const menus=enrollment&&!env.dryRun?createCommandMenus({db,enrollment,api}):null;
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
   let stage8;
   const coachContext=createCompanionCoachContext({getScopes:()=>stage8?.scopes});
@@ -146,7 +149,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
   const phase4Reader=await createStage5PresentationRuntime({db,keys:authorityKeys,environment:process.env});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,associations:stage7?.associations,stage8,phase4Reader,journalFollowUp:stage7?.contextJournal });
-  const sendBase=createSendReply({db,api}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
+  const sendBase=createSendReply({db,api,menus}),sendAnalysis=createStage5PresentationSender(phase4Reader,sendBase);
   const sendCompanion=createStage7PresentationSender(stage7,sendAnalysis);
   const sendPresentation=createStage8PresentationSender(stage8,sendCompanion);
   const settings = createSettings({db,stage8});
@@ -171,7 +174,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
     accountControl,enrollment,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
-    handleMessage: async ({ text, chatId, user, callback }) => {
+    handleMessage: async ({ text, chatId, user, callback, fixedLog }) => {
       const familyReply=family?await family.ui.handle({text,chatId,user,callback}):null;
       if(familyReply!==null)return familyReply;
       let settingReply=await settings({text,chatId,user,callback});
@@ -188,6 +191,7 @@ export async function main({ maxIterations = Infinity } = {}) {
         const localeReply = await handleLocaleOnlyMessage({ db, user, text });
         if (localeReply !== null) return localeReply;
       }
+      if(fixedLog)return fixedJournal({db,user});
       const reply=await router.handle({ text, chatId, user });return stage7?stage7.decorate({user,chatId,text,reply}):reply;
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
@@ -212,6 +216,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   process.on('SIGINT', () => shutdown('SIGINT'));
 
   try {
+    if(menus)await menus.initialize().catch(()=>log.warn('telegram_menu_sync_failed',{}));
     return await poller.start({ maxIterations });
   } finally {
     try { db.close(); } catch { /* 關連線失敗不影響收工 */ }

@@ -5,6 +5,7 @@ import {inStage7QuietHours} from './companionTimingPolicy.js';
 import {currentExecutionBudget} from './executionBudget.js';
 import {runCompanionStep,observeCompanionStep} from './companionStep.js';
 import {createTelegramApi} from './bot/api.js';
+import {presentPrivate} from './bot/privateControls.js';
 import {createBodyEnergyRuntime} from './bodyEnergyRuntime.js';
 import {POLICY_VERSION,SIGNAL_POLICY} from './proactivePolicy.js';
 import {WEEKLY} from './config.js';
@@ -89,12 +90,13 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
   if(!claimed)return {status:'SUPPRESSED'};
   // Final currentness check immediately before the only provider call. No
   // mutation/retry is permitted to resurrect a suppressed or uncertain send.
+  const presentation=await presentPrivate(db,recipient.telegram_chat_id,reply,recipient.id);
   const final=await snapshot(),r=final.rows.find(r=>r.id===recipient.id);
   if(!r||quiet(r,now())||!familyDue(now(),category)||final.state.revision!==expected||!same(freshStamp(r),freshStamp(recipient))
    ||!sources.every(s=>{const current=final.rows.find(r=>r.id===s.id);return current&&same(freshStamp(current),freshStamp(s))&&(category==='invite'||store.allowed(final.state,final.rows,s.id,r.id,category));})
    ||!room(0)||category==='invite'&&!await ui.verify({reply,userId:r.id,chatId:r.telegram_chat_id}))return {status:'SUPPRESSED'};
   try{
-   const result=await transport({chatId:r.telegram_chat_id,reply,userId:r.id});
+   const result=await transport({chatId:r.telegram_chat_id,reply:presentation,userId:r.id});
    if(!Number.isSafeInteger(result?.message_id)||result.message_id<=0)familyFail('FAMILY_ACK_UNKNOWN');
    await store.transaction('delivery-settle',[id,result.message_id],async()=>{
     for(const member of [recipient,...sources])await db.assertAccountActive(member.id,member.lifecycle_generation);

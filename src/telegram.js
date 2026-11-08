@@ -1,3 +1,4 @@
+import {presentPrivate} from './bot/privateControls.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import {validImmediateMessage,validApiSuccess} from './telegramAcknowledgment.js';
 import {transportAuthority} from './transportAuthority.js';
@@ -68,6 +69,7 @@ export function createTelegram({
       );
     }
 
+    const keyboard=dryRun?null:(await presentPrivate(db,chatId,body,userId))?.replyMarkup;
     // Last awaited operation before transport, including notifyError's cooldown I/O.
     if (authorize && !await authorize()) {
       return { messageId: null, suppressed: ACCOUNT_INACTIVE, userId };
@@ -91,6 +93,7 @@ export function createTelegram({
         body: JSON.stringify({
           chat_id: chatId,
           text: body,
+          ...(keyboard?{reply_markup:keyboard}:{}),
           disable_web_page_preview: true,
         }),
         // 沒有逾時的請求會讓發送權的租約在等待中過期。

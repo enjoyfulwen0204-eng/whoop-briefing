@@ -70,6 +70,9 @@ export function createOnDemandBodyEnergy({db,stores,keys,environment,now=()=>new
  }
  const isQuery=text=>isBodyEnergyQuery(text)||/電量|电量|năng lượng|nang luong/iu.test(text??'');
  registerBodyEnergyTelegramReplyBoundary(db,verifyReplyGuard);
- return Object.freeze({inspect,currentSection,verifyReplyGuard,notificationControl,isQuery,
+ const identityCurrent=(userId,expected)=>stores.withContext(userId,{executionMode:'SHADOW',providerRequired:true},async c=>{
+  await stores.assertCurrent(c);return JSON.stringify([c.lifecycleGeneration,c.authGeneration,c.purgeGeneration,c.sourceGeneration,c.inputGeneration,c.timezone])===JSON.stringify(expected);
+ });
+ return Object.freeze({inspect,identityCurrent,currentSection,verifyReplyGuard,notificationControl,isQuery,
   query:request=>isQuery(request.text)?currentSection({...request,details:true}):null,beforeMorning:async()=>({action:'ORDINARY'})});
 }

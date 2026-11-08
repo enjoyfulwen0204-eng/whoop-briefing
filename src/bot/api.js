@@ -196,6 +196,8 @@ export function createTelegramApi({
       action,
     }, { timeoutMs: 3_000 }),
 
+    setMyCommands: async body=>{if(await call('setMyCommands',body,{timeoutMs:5000})!==true)throw Error('COMMAND_MENU_ACK_INVALID');},
+    deleteMyCommands: async body=>{if(await call('deleteMyCommands',body,{timeoutMs:5000})!==true)throw Error('COMMAND_MENU_ACK_INVALID');},
     getMe: () => call('getMe', {}, { timeoutMs: 15_000 }),
   };
 }

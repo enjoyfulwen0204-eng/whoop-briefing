@@ -10,6 +10,19 @@ import {buildBriefing} from '../src/daily.js';
 import {renderDaily} from '../src/format.js';
 import {syntheticStage7V33Fixture} from './stage7-v33-fixture.js';
 import {makeDataset} from './fixtures.js';
+import {startWebhookBackground} from '../src/bot/webhook.js';
+import {createBusinessWebhookLifecycle} from '../src/businessWebhookLifecycle.js';
+test('menu bootstrap starts without an incoming request, runs once and drains before the DB closes',async()=>{
+ const order=[];let finish;const hold=new Promise(r=>{finish=r;});
+ const life=createBusinessWebhookLifecycle({closeDatabase:async()=>order.push('closed')});
+ assert.throws(()=>life.fork(()=>{}),{code:'TRANSITION_ACTIVE_PARENT_REQUIRED'});
+ const run=()=>startWebhookBackground(life,null,{initialize:async()=>{order.push('begin');await hold;order.push('menus');}});
+ run();run();await Promise.resolve();assert.deepEqual(order,['begin']);
+ life.closeAdmission('e2_menu_shutdown_window');const disposed=life.dispose({signal:new AbortController().signal});
+ assert.deepEqual(order,['begin']);finish();await disposed;assert.deepEqual(order,['begin','menus','closed']);
+ const closed=createBusinessWebhookLifecycle({closeDatabase:async()=>{}});closed.closeAdmission('e2_closed_startup_window');
+ assert.throws(()=>startWebhookBackground(closed,null,{initialize:async()=>{}}),{code:'TRANSITION_BUSINESS_ADMISSION_CLOSED'});
+});
 const locales=['zh-TW','en','vi'],now=()=>new Date('2026-11-03T07:10:00Z');
 for(const locale of locales)test('private shortcuts bypass free text and preserve canonical routes: '+locale,async()=>{
  const user={id:'synthetic',status:'ACTIVE',timezone:'Asia/Taipei',lifecycleGeneration:1};

@@ -9,7 +9,7 @@ export function createBusinessWebhookLifecycle({closeDatabase,stopBackground=asy
   }
   const tasks=createTransitionTaskScope();
   let stopped=null,disposing=null,disposed=false,databaseClosed=false;
-  let handlerBound=false,backgroundStopped=false;
+  let handlerBound=false,backgroundStopped=false,startup=null;
   const stop=()=>stopped??=Promise.resolve().then(stopBackground).then(()=>{backgroundStopped=true;});
 
   function closeAdmission(windowId) {
@@ -75,6 +75,9 @@ export function createBusinessWebhookLifecycle({closeDatabase,stopBackground=asy
     };
   }
 
-  return Object.freeze({trackedHandler,fork:operation=>tasks.fork(operation),
+  // Boot is a root, not a child of an HTTP request. Use the same OPEN gate
+  // and drain tracking as a request. A repeated start cannot apply menus twice.
+  function trackStartup(operation){return startup??=tasks.run(operation);}
+  return Object.freeze({trackedHandler,trackStartup,fork:operation=>tasks.fork(operation),
     closeAdmission,waitForDrained,dispose,status});
 }

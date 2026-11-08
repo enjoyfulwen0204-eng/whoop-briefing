@@ -434,6 +434,13 @@ export function createWebhookServer(opts) {
  * 它們的額外設定採 fail-closed feature gate，缺少時 /health 會明確回報 scheduler
  * 狀態，詳見 docs/telegram-webhook.md。
  */
+function startMenuPublication(lifecycle,menus){
+ return lifecycle.trackStartup(()=>menus.initialize()).catch(()=>log.warn('telegram_menu_sync_failed',{}));
+}
+export function startWebhookBackground(lifecycle,continuation,menus){
+ if(lifecycle.status().admission!=='OPEN')throw Object.assign(Error('TRANSITION_BUSINESS_ADMISSION_CLOSED'),{code:'TRANSITION_BUSINESS_ADMISSION_CLOSED'});
+ continuation?.start();if(menus)void startMenuPublication(lifecycle,menus);
+}
 export async function createBusinessWebhookRuntime({environment=process.env,runtimeEpoch}={}) {
  requireRecoveryScope('business');
   // A trusted supervisor captures this opaque scope ONCE. Every primary and
@@ -641,7 +648,7 @@ export async function createBusinessWebhookRuntime({environment=process.env,runt
   });
   return Object.freeze({handler,db,closeAdmission:lifecycle.closeAdmission,waitForDrained:lifecycle.waitForDrained,dispose:lifecycle.dispose,
     status:()=>Object.freeze({...lifecycle.status(),ownedDatabases:ownedDatabases.size}),
-    startBackground(){if(lifecycle.status().admission!=='OPEN')throw Object.assign(Error('TRANSITION_BUSINESS_ADMISSION_CLOSED'),{code:'TRANSITION_BUSINESS_ADMISSION_CLOSED'});continuation?.start();if(menus)lifecycle.fork(()=>menus.initialize()).catch(()=>log.warn('telegram_menu_sync_failed',{}));},
+    startBackground:()=>startWebhookBackground(lifecycle,continuation,menus),
   });
   }catch(error){
     try{lifecycle.closeAdmission('construction_failure_0001');await lifecycle.dispose({signal:new AbortController().signal});}

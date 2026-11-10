@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {energySlot,renderTimedEnergy,extrasReports} from '../src/timedEnergy.js';
+import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
+import {syntheticStage7V33Fixture} from './stage7-v33-fixture.js';
+import {createOnDemandBodyEnergy} from '../src/onDemandBodyEnergy.js';
 import {followFixture} from './morningFollowupsFixture.js';
 const step=(_name,fn)=>fn(),predict=async()=>({status:'MODEL_UNQUALIFIED'});
 function fixture(hour=15,opts={}){
@@ -34,6 +37,45 @@ test('coincident qualified prediction and energy have one durable claim, one sen
  assert.deepEqual(await f.run(p),{prediction:'DELIVERED',timed_energy:'DELIVERED'});await f.run(p);
  assert.equal(f.sent.length,1);assert.match(f.sent[0],/^🔋 .*\n.*\n\n📈 /u);assert.equal(saved,1);
  assert.equal(f.db.claims.has('synthetic|prediction|'+f.day),true);
+});
+test('18:00 delivery logs only the comparison result, exactly once per accepted report',async t=>{
+ const logs=[];
+ t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
+ for(const [missingPast,code] of [[false,'COMPARISON_INCLUDED'],[true,'NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS']]){
+  const f=fixture(18,{missingPast});
+  await f.run();await f.run();
+  const comparison=logs.filter(l=>l.event==='timed_energy_comparison');
+  assert.deepEqual(comparison,[{event:'timed_energy_comparison',code}]);
+  assert.equal(f.sent[0].split('\n').length,missingPast?1:2);logs.length=0;
+ }
+});
+test('a later successful sync alone prevents exact replay of the earlier Vietnam slot',async t=>{
+ const at=new Date('2026-11-10T08:00:00Z'),now=()=>new Date('2026-11-10T11:10:00Z');
+ const f=await syntheticStage7V33Fixture(t,{now});
+ const timezone='Asia/Ho_Chi_Minh';
+ await f.db.updateUser('a',{timezone});
+ await f.db.setLocale('a','vi');await f.db.ensureOnboarding('a',{state:'READY',now:now()});
+ await seedBodyInput(f.db,bodyInput({asOf:+at,timezone}));
+ const body=createOnDemandBodyEnergy({...f,now,environment:{BODY_ENERGY_ON_DEMAND:'on'}});
+ const inspect=requestedAt=>body.inspect({userId:'a',healthDate:'2026-11-10',requestedAt});
+ assert.ok(['AVAILABLE','LIMITED'].includes((await inspect(at)).calculation.quality_state));
+ await f.db.raw.execute({sql:'UPDATE whoop_sync_state SET last_success_at=?,updated_at=? WHERE user_id=?',args:[now().toISOString(),now().toISOString(),'a']});
+ await assert.rejects(inspect(at),{code:'NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS'});
+ assert.ok(['AVAILABLE','LIMITED'].includes((await inspect(now())).calculation.quality_state));
+});
+test('18:00 signed differences and 21:00 wake comparison in all three languages',()=>{
+ for(const [locale,lower,higher,equal] of [
+  ['zh-TW','比 15:00 少了 3','比 15:00 多了 3','跟 15:00 一樣'],
+  ['vi','Giảm 3 so với 15:00','Tăng 3 so với 15:00','Không đổi so với 15:00'],
+  ['en','Down 3 since 15:00','Up 3 since 15:00','Unchanged since 15:00']
+ ]){
+  for(const [current,expected] of [[47,lower],[53,higher],[50,equal]]){
+   assert.equal(renderTimedEnergy(locale,18,current,70,50).split('\n')[1],expected);
+  }
+  assert.equal(renderTimedEnergy(locale,21,50,40,null).split('\n').length,1);
+  assert.equal(renderTimedEnergy(locale,21,50,50,null).split('\n').length,2);
+  assert.equal(renderTimedEnergy(locale,21,33,30,null).split('\n').length,2,'rest advice survives');
+ }
 });
 test('energy switch does not suspend a qualified prediction',async()=>{
  const f=fixture(21,{enabled:false});let sent=0;

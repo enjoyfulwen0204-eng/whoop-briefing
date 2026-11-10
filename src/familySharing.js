@@ -13,13 +13,15 @@ import {WEEKLY} from './config.js';
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const dayShift=(day,n)=>new Date(Date.parse(day+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
 const taipeiParts=at=>({day:localDate(at,'Asia/Taipei'),minute:Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hourCycle:'h23',hour:'2-digit'}).format(at))*60+Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',minute:'2-digit'}).format(at))});
+const DAILY_START_MINUTE = 11 * 60;
+const DAILY_END_MINUTE = 13 * 60 + 30;
 export function familyDue(at,category){const {day,minute}=taipeiParts(at),dow=new Date(day+'T00:00:00Z').getUTCDay();
- return category==='daily'?minute>=570&&minute<720:category==='weekly'?dow>=1&&dow<=WEEKLY.CATCHUP_DAYS&&(dow!==1||minute>=540):true;}
+ return category==='daily'?minute>=DAILY_START_MINUTE&&minute<DAILY_END_MINUTE:category==='weekly'?dow>=1&&dow<=WEEKLY.CATCHUP_DAYS&&(dow!==1||minute>=540):true;}
 export const familyLight=value=>!Number.isFinite(value)?'⚪':value>=67?'🟢':value>=34?'🟡':'🔴';
 const COPY={
- 'zh-TW':{daily:'👨‍👩‍👧 家人今日狀況（09:30）',weekly:'🗓 家人每週摘要',missing:'今天還沒有資料',sleep:'睡',average:'平均',noWeek:'資料不足',reference:'參考值',advice:'建議關心一下，問問最近是不是比較累',signal:'有需要留意的健康訊號',low:'偏低',high:'偏高',repeat:'連續 2 天'},
- en:{daily:'👨‍👩‍👧 Family today (09:30 Taipei)',weekly:'🗓 Family weekly summary',missing:'No data today yet',sleep:'Sleep',average:'Average',noWeek:'Insufficient data',reference:'estimate',advice:'Consider checking in and asking whether they have been more tired recently',signal:'has a health signal worth attention',low:'low',high:'high',repeat:'for 2 consecutive days'},
- vi:{daily:'👨‍👩‍👧 Gia đình hôm nay (09:30 Đài Bắc)',weekly:'🗓 Tóm tắt gia đình hằng tuần',missing:'Hôm nay chưa có dữ liệu',sleep:'Ngủ',average:'Trung bình',noWeek:'Chưa đủ dữ liệu',reference:'tham khảo',advice:'Hãy hỏi thăm xem gần đây có mệt hơn không',signal:'có tín hiệu sức khỏe cần chú ý',low:'thấp',high:'cao',repeat:'trong 2 ngày liên tiếp'},
+ 'zh-TW':{daily:'👨‍👩‍👧 家人今日狀況（11:00）',weekly:'🗓 家人每週摘要',missing:'今天還沒有資料',sleep:'睡',average:'平均',noWeek:'資料不足',reference:'參考值',advice:'建議關心一下，問問最近是不是比較累',signal:'有需要留意的健康訊號',low:'偏低',high:'偏高',repeat:'連續 2 天'},
+ en:{daily:'👨‍👩‍👧 Family today (11:00 Taipei)',weekly:'🗓 Family weekly summary',missing:'No data today yet',sleep:'Sleep',average:'Average',noWeek:'Insufficient data',reference:'estimate',advice:'Consider checking in and asking whether they have been more tired recently',signal:'has a health signal worth attention',low:'low',high:'high',repeat:'for 2 consecutive days'},
+ vi:{daily:'👨‍👩‍👧 Gia đình hôm nay (11:00 Đài Bắc)',weekly:'🗓 Tóm tắt gia đình hằng tuần',missing:'Hôm nay chưa có dữ liệu',sleep:'Ngủ',average:'Trung bình',noWeek:'Chưa đủ dữ liệu',reference:'tham khảo',advice:'Hãy hỏi thăm xem gần đây có mệt hơn không',signal:'có tín hiệu sức khỏe cần chú ý',low:'thấp',high:'cao',repeat:'trong 2 ngày liên tiếp'},
 };
 const METRICS={
  'zh-TW':{hrv:'HRV',rhr:'靜止心率',recovery:'Recovery',respiratory_rate:'呼吸率',sleep_performance:'睡眠表現',sleep_debt:'睡眠不足',previous_day_strain:'前一天活動負荷'},
@@ -143,7 +145,7 @@ export function createFamilySharing({db,keys,environment={},env={},now=()=>new D
      // keeps Monday's accepted/uncertain sends fenced throughout catch-up.
      const period=category==='weekly'?dayShift(day,-((new Date(day+'T00:00:00Z').getUTCDay()+6)%7)):day;
      if(!familyDue(at,category)){
-      if(category==='daily'&&taipeiParts(at).minute>=720){
+      if(category==='daily'&&taipeiParts(at).minute>=DAILY_END_MINUTE){
        const prior=await store.read('delivery',keys.lookup(['family-delivery-v1',category,r.id,period]));
        if(!prior){try{console.log(JSON.stringify({event:'family_daily_window_missed',user:rHash(r.id),day,status:'WINDOW_CLOSED'}));}catch{/* diagnostics cannot authorize delivery */}}
        return {status:prior?'SUPPRESSED':'WINDOW_CLOSED'};

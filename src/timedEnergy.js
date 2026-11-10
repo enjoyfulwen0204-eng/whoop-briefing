@@ -17,9 +17,21 @@ export function renderTimedEnergy(locale,hour,current,wake,earlier){
  const zh=locale==='zh-TW',vi=locale==='vi';
  const lines=[zh?`🔋 ${hour}:00 電量 ${current}`:vi?`🔋 ${hour}:00 Năng lượng ${current}`:`🔋 ${hour}:00 Energy ${current}`];
  if(hour===15&&finite(wake))lines.push(zh?`起床 ${wake} → 到現在用掉 ${wake-current}`:vi?`Lúc thức dậy ${wake} → đã dùng ${wake-current}`:`At wake-up ${wake} → used ${wake-current} so far`);
- if(hour===18&&finite(earlier)){const diff=current-earlier,n=Math.abs(diff);
-  lines.push(zh?(diff===0?'與 15:00 相同':`比 15:00 ${diff<0?'少':'多'}了 ${n}`):vi?(diff===0?'Không đổi so với 15:00':`${diff<0?'Giảm':'Tăng'} ${n} so với 15:00`):(diff===0?'Unchanged since 15:00':`${diff<0?'Down':'Up'} ${n} since 15:00`));}
- if(hour===21){if(finite(wake))lines.push(zh?`今天總共用掉 ${wake-current}`:vi?`Hôm nay đã dùng ${wake-current}`:`Used today: ${wake-current}`);if(current<=33)lines.push(zh?'🌙 早點休息':vi?'🌙 Nghỉ ngơi sớm nhé':'🌙 Get some rest early');}
+ if(hour===18&&finite(earlier)){
+  const difference=current-earlier;
+  const amount=Math.abs(difference);
+  if(difference===0)lines.push(zh?'跟 15:00 一樣':vi?'Không đổi so với 15:00':'Unchanged since 15:00');
+  else if(zh)lines.push(`比 15:00 ${difference<0?'少':'多'}了 ${amount}`);
+  else if(vi)lines.push(`${difference<0?'Giảm':'Tăng'} ${amount} so với 15:00`);
+  else lines.push(`${difference<0?'Down':'Up'} ${amount} since 15:00`);
+ }
+ if(hour===21){
+  if(finite(wake)&&wake>=current){
+   const used=wake-current;
+   lines.push(zh?`今天總共用掉 ${used}`:vi?`Hôm nay đã dùng ${used}`:`Used today: ${used}`);
+  }
+  if(current<=33)lines.push(zh?'🌙 早點休息':vi?'🌙 Nghỉ ngơi sớm nhé':'🌙 Get some rest early');
+ }
  return lines.join('\n');
 }
 export async function prepareTimedEnergy(input,slot){
@@ -40,18 +52,26 @@ export async function prepareTimedEnergy(input,slot){
  let r;try{r=await inspect(at);}catch(e){if(e?.code==='NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS')return {status:'INPUT_UNAVAILABLE'};throw e;}
  const current=valueOf(r);
  if(current===null||r.healthDate!==slot.day||!r.wakeAt)return {status:'BODY_'+(['NO_DATA','WARMING_UP','DEGRADED','UNAVAILABLE'].includes(r.calculation?.quality_state)?r.calculation.quality_state:'UNAVAILABLE')};
- let earlier=null;
- if(slot.hour===18){
-  const past=new Date(+tick-(3*60+10)*60000);past.setUTCSeconds(0,0);
-  if(localDate(past,user.timezone)===slot.day&&localTime(past,user.timezone)==='15:00'){
-   // Today's later sync can replace the exact 15:00 sources. Never invent a
-   // historic score or let this optional line suppress the current estimate.
-   let old=null;try{old=await inspect(past);}catch(e){if(e?.code!=='NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS')throw e;}
-   if(old?.healthDate===slot.day&&old.wakeAt===r.wakeAt&&JSON.stringify(old.identity)===JSON.stringify(r.identity))earlier=valueOf(old);
-  }
- }
- return {status:'READY',plan:{...input,kind,day:slot.day,identity,text:renderTimedEnergy(locale,slot.hour,current,r.calculation.drivers?.initial_charge,earlier),
+ const comparison=slot.hour===18?await compareWithAfternoon({inspect,tick,slot,timezone:user.timezone,current:r}):null;
+ return {status:'READY',comparisonCode:comparison?.code,plan:{...input,kind,day:slot.day,identity,text:renderTimedEnergy(locale,slot.hour,current,r.calculation.drivers?.initial_charge,comparison?.value),
   verify:async()=>await verifyPrefs()&&await body.identityCurrent(user.id,r.identity)}};
+}
+// Recalculate only when the original sources can still be authenticated at
+// 15:00. Later revisions must never stand in for the earlier measurement.
+async function compareWithAfternoon({inspect,tick,slot,timezone,current}){
+ const at=new Date(+tick-(3*60+10)*60000);
+ at.setUTCSeconds(0,0);
+ if(localDate(at,timezone)!==slot.day||localTime(at,timezone)!=='15:00')return {code:'PRIOR_LOCAL_TIME_MISMATCH'};
+ let previous;
+ try{previous=await inspect(at);}
+ catch(error){
+  if(error?.code==='NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS')return {code:'NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS'};
+  throw error;
+ }
+ if(previous?.healthDate!==slot.day||previous.wakeAt!==current.wakeAt)return {code:'PRIOR_WAKE_MISMATCH'};
+ if(JSON.stringify(previous.identity)!==JSON.stringify(current.identity))return {code:'PRIOR_IDENTITY_CHANGED'};
+ const value=valueOf(previous);
+ return value===null?{code:'PRIOR_VALUE_UNAVAILABLE'}:{code:'COMPARISON_INCLUDED',value};
 }
 // A prediction is only persisted inside the original fenced claim, immediately
 // before delivery. At an overlapping slot BOTH variants use its existing key.
@@ -67,7 +87,12 @@ export async function extrasReports(input,{step,predict,prepare=prepareTimedEner
   const e=prepared.plan,p=predictionPlan;
   const plan=p?{...p,text:e.text+'\n\n'+p.text,verify:async()=>await e.verify()&&await p.verify()}:e;
   dispatched=true;
-  return deliver(plan);
+  const result=await deliver(plan);
+  if(result.status==='DELIVERED'&&prepared.comparisonCode){
+   try{console.log(JSON.stringify({event:'timed_energy_comparison',code:prepared.comparisonCode}));}
+   catch{/* Delivery is already settled. */}
+  }
+  return result;
  });
  if(predictionPlan){
   prediction=dispatched?energy:await step('prediction',()=>deliver(predictionPlan));

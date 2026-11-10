@@ -15,7 +15,7 @@ import {createStage7Runtime} from '../src/stage7Runtime.js';
 import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {createOnDemandBodyEnergy} from '../src/onDemandBodyEnergy.js';
 
-const monday='2026-11-02T01:30:00Z';
+const monday='2026-11-02T03:00:00Z';
 async function fixture(t,{at=monday,third=false}={}){
  let instant=new Date(at);const now=()=>new Date(instant),f=await syntheticStage7V33Fixture(t,{now});
  const ids=third?['a','b','c']:['a','b'];
@@ -95,7 +95,7 @@ test('real UI consent/revoke, mutes, expired/foreign/replayed/message-substitute
  }
  let reply=await f.open('b');reply=await f.click('b',reply,'tracking');reply=await f.click('b',reply,'f0');
  await f.change('a','b');reply=await f.click('b',reply,'m01');assert.equal(f.app.store.allowed(await f.app.store.state(),await f.rows(),'a','b','daily'),false);
- f.setTime('2026-11-02T02:00:00Z');assert.equal((await f.click('b',reply,'m01')).familyGuard,undefined);
+ f.setTime('2026-11-02T03:30:00Z');assert.equal((await f.click('b',reply,'m01')).familyGuard,undefined);
 });
 test('signed state tampering, group changes and lifecycle/auth/privacy changes fail closed',async t=>{
  const f=await fixture(t);await f.change('a','b');
@@ -105,19 +105,36 @@ test('signed state tampering, group changes and lifecycle/auth/privacy changes f
  await f.db.setState(f.app.store.key('consent'),JSON.stringify(raw));await assert.rejects(f.app.store.state(),/FAMILY_STATE_INVALID/);
  f.environment.FAMILY_GROUP_USER_IDS='a,b,c';await assert.rejects(f.app.store.members(),/FAMILY_CONFIG_FENCED/);
 });
-test('09:30 Taipei daily, shared calculation once per source for all recipients, minimal private projection, no resend',async t=>{
+test('11:00 Taipei daily, shared calculation once per source for all recipients, minimal private projection, no resend',async t=>{
  const f=await fixture(t,{third:true}),reads=f.health();await f.change('a','b');await f.change('a','c');
- f.setTime('2026-11-02T01:29:59Z');await f.app.tick();assert.equal(f.sent.length,0);assert.equal(reads(),0);
+ f.setTime('2026-11-02T02:59:59Z');await f.app.tick();assert.equal(f.sent.length,0);assert.equal(reads(),0);
  f.setTime(monday);await f.app.tick();assert.equal(f.sent.length,2);assert.equal(reads(),2);assert.deepEqual(f.calculations,['a']);
  for(const item of f.sent){assert.match(item.reply.text,/🟢.*Recovery 78.0%.*7.2h.*82.*參考值/);assert.doesNotMatch(JSON.stringify(item),/PRIVATE_NEVER_SHARE|Journal|question|private_note|raw_json/);}
  await f.app.tick();assert.equal(f.sent.length,2);assert.equal(reads(),2);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM proactive_events')).rows[0].n,0);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_prompt_deliveries')).rows[0].n,0);
 });
+test('daily title names 11:00 in the recipient language',async t=>{
+ for(const [locale,expected] of [['zh-TW','👨‍👩‍👧 家人今日狀況（11:00）'],['en','👨‍👩‍👧 Family today (11:00 Taipei)'],['vi','👨‍👩‍👧 Gia đình hôm nay (11:00 Đài Bắc)']]){
+  const f=await fixture(t);f.health();
+  await f.change('a','b');await f.db.setLocale('b',locale);
+  await f.app.tick();assert.equal(f.sent.length,1);
+  assert.equal(f.sent[0].reply.text.split('\n')[0],expected);
+ }
+});
+test('09:30 delivery from an earlier release still fences every tick in the new window',async t=>{
+ const f=await fixture(t),reads=f.health();await f.change('a','b');
+ const id=f.keys.lookup(['family-delivery-v1','daily','b','2026-11-02']);
+ await f.app.store.write('delivery',id,{status:'DELIVERED',at:'2026-11-02T01:30:00Z',deliveryIdentity:id,subjects:['b','a']});
+ for(const at of ['2026-11-02T03:00:00Z','2026-11-02T04:10:00Z','2026-11-02T05:10:00Z']){
+  f.setTime(at);await f.app.tick();
+ }
+ assert.equal(reads(),0);assert.equal(f.sent.length,0);
+});
 test('daily no data shows white; consent revocation immediately suppresses future delivery',async t=>{
  const f=await fixture(t);await f.change('a','b');t.mock.method(f.db,'getSleeps',async()=>[]);t.mock.method(f.db,'getRecoveries',async()=>[]);
  await f.app.tick();assert.match(f.sent[0].reply.text,/⚪.*今天還沒有資料/);assert.equal(f.calculations.length,0);
- await f.change('a','b','daily',false);f.setTime('2026-11-03T01:30:00Z');await f.app.tick();assert.equal(f.sent.length,1);
+ await f.change('a','b','daily',false);f.setTime('2026-11-03T03:00:00Z');await f.app.tick();assert.equal(f.sent.length,1);
  assert.deepEqual([undefined,67,66,34,33].map(familyLight),['⚪','🟢','🟡','🟡','🔴']);
 });
 test('weekly 08:59/09:00 Taipei independent of Vietnam recipient; previous two complete weeks',async t=>{
@@ -127,21 +144,21 @@ test('weekly 08:59/09:00 Taipei independent of Vietnam recipient; previous two c
  assert.equal(familyDue(new Date('2026-11-03T01:00:00Z'),'weekly'),true);
  for(const at of ['2026-11-03T01:00:00Z','2026-11-04T01:00:00Z']){f.setTime(at);await f.app.tick();assert.equal(f.sent.length,1,'same Monday identity survives catch-up');}
 });
-test('daily expires at noon; weekly catch-up ends Thursday; invitations are not daily summaries',async t=>{
- for(const [at,due] of [['2026-11-02T01:29:59Z',false],[monday,true],['2026-11-02T03:59:59Z',true],['2026-11-02T04:00:00Z',false],['2026-11-02T13:00:00Z',false]])assert.equal(familyDue(new Date(at),'daily'),due);
+test('daily expires at 13:30 Taipei; weekly catch-up ends Thursday; invitations are not daily summaries',async t=>{
+ for(const [at,due] of [['2026-11-02T02:59:59Z',false],[monday,true],['2026-11-02T05:29:59Z',true],['2026-11-02T05:30:00Z',false],['2026-11-02T13:00:00Z',false]])assert.equal(familyDue(new Date(at),'daily'),due);
  for(const [at,due] of [['2026-11-02T00:59:59Z',false],['2026-11-02T01:00:00Z',true],['2026-11-03T01:00:00Z',true],['2026-11-04T13:00:00Z',true],['2026-11-05T01:00:00Z',false]])assert.equal(familyDue(new Date(at),'weekly'),due);
- const f=await fixture(t,{at:'2026-11-02T04:00:00Z'}),reads=f.health(),logs=[];await f.change('a','b');
+ const f=await fixture(t,{at:'2026-11-02T05:30:00Z'}),reads=f.health(),logs=[];await f.change('a','b');
  t.mock.method(console,'log',line=>logs.push(JSON.parse(line)));
  assert.ok((await f.app.tick()).results.some(r=>r.status==='WINDOW_CLOSED'));assert.equal(f.sent.length,0);assert.equal(reads(),0);
  const missed=logs.filter(r=>r.event==='family_daily_window_missed');assert.equal(missed.length,1);assert.equal(missed[0].user,f.keys.lookup(['companion-diagnostic-user-v1','b']));
  let reply=await f.open('a');reply=await f.click('a',reply,'tracking');reply=await f.click('a',reply,'invites');await f.click('a',reply,'i1');
  await f.app.tick();assert.equal(f.sent.length,1);assert.match(f.sent[0].reply.text,/預設不分享/);
 });
-test('first weekly send on Tuesday is not resent Wednesday; noon reached during preparation suppresses daily',async t=>{
+test('first weekly send on Tuesday is not resent Wednesday; 13:30 reached during preparation suppresses daily',async t=>{
  const f=await fixture(t,{at:'2026-11-03T01:00:00Z'});f.health();await f.change('a','b','weekly');
  await f.app.tick();assert.equal(f.sent.length,1);f.setTime('2026-11-04T01:00:00Z');await f.app.tick();assert.equal(f.sent.length,1);
- await f.change('a','b','daily');f.setTime('2026-11-02T03:59:59Z');
- t.mock.method(f.db,'getSleeps',async()=>{f.setTime('2026-11-02T04:00:00Z');return [];});await f.app.tick();assert.equal(f.sent.length,1);
+ await f.change('a','b','daily');f.setTime('2026-11-02T05:29:59Z');
+ t.mock.method(f.db,'getSleeps',async()=>{f.setTime('2026-11-02T05:30:00Z');return [];});await f.app.tick();assert.equal(f.sent.length,1);
 });
 test('quiet floor, extended quiet and pause defer daily without consuming its delivery barrier',async t=>{
  const f=await fixture(t);f.health();await f.change('a','b');await f.db.updateUser('b',{timezone:'Europe/London'});
